@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {Node} from "prosemirror-model";
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
@@ -133,6 +134,7 @@ import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_bas
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskTitleModel, addFallbackToTaskTitle} from "~/shared/tasks/title/task_title.js";
 
 const searchEntityMajorContributorCutOff = 0.2;
@@ -146,6 +148,14 @@ export type SearchEntity = {
     readonly body: string | null;
     readonly media: SearchEntityMedia | null;
     readonly embeddingChunks: ReadonlyArray<SearchEntityEmbeddingChunk>;
+    readonly dueDate: CalendarDate | null;
+    readonly assigneeId: AccountId | null;
+    readonly priority: TaskPriority | null;
+
+    // Generic stateful properties that an entity may have. It's up to each entity
+    // to decide what these mean, and how they'll be relevant to a search.
+    readonly openness: "Open" | "Closed" | null;
+    readonly activeness: "Active" | "Inactive" | null;
 
     // The creator is the account which created the entity. `contributorIds` are
     // the accounts which updated the entity. Contributors with value `Major`
@@ -192,6 +202,11 @@ const searchDeletedMessageEntity: Omit<SearchEntity, "id"> = {
     embeddingChunks: [],
     creatorId: null,
     contributorIds: emptyMap,
+    dueDate: null,
+    assigneeId: null,
+    priority: null,
+    openness: null,
+    activeness: null,
 };
 
 /**
@@ -1218,6 +1233,11 @@ async function getAccountSearchEntity(
         // has having no creator.
         creatorId: null,
         contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }
 
@@ -1292,6 +1312,11 @@ async function getDocumentSearchEntity(
         embeddingChunks: getEmbeddingChunks(),
         creatorId,
         contributorIds,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }
 
@@ -1420,6 +1445,11 @@ async function getDocumentCommentSearchEntity(
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
         contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }
 
@@ -1483,6 +1513,11 @@ async function getChannelSearchEntity(
                 channel.creatorId !== null ? [[channel.creatorId, "Major"]] : emptyArray,
             ),
         ),
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }
 
@@ -1553,6 +1588,11 @@ async function getPostSearchEntity(
         embeddingChunks: getEmbeddingChunks(),
         creatorId: post.authorId,
         contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }
 
@@ -1619,6 +1659,11 @@ async function getPostCommentSearchEntity(
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
         contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }
 
@@ -1660,6 +1705,11 @@ async function getChatSearchEntity(
             embeddingChunks: emptyArray,
             creatorId: null,
             contributorIds: emptyMap,
+            dueDate: null,
+            assigneeId: null,
+            priority: null,
+            openness: null,
+            activeness: null,
         };
     }
 
@@ -1713,6 +1763,11 @@ async function getChatSearchEntity(
         // 1:1 chats there too but currently we don't index 1:1 chats. We only index
         // accounts.
         contributorIds: new Map(accountIds.map(accountId => [accountId, "Major"])),
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }
 
@@ -1859,6 +1914,11 @@ async function getChatMessageSearchEntity(
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
         contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }
 
@@ -1973,6 +2033,11 @@ async function getTaskSearchEntity(
             embeddingChunks: emptyArray,
             creatorId: null,
             contributorIds: emptyMap,
+            dueDate: null,
+            assigneeId: null,
+            priority: null,
+            openness: null,
+            activeness: null,
         };
     }
 
@@ -2102,6 +2167,7 @@ async function getTaskSearchEntity(
     }
 
     const body = notesChunkResult.getFullText();
+    const dueDate = task.getDueDate();
 
     return {
         id,
@@ -2114,6 +2180,11 @@ async function getTaskSearchEntity(
         embeddingChunks: body.length > 0 ? notesChunkResult.getEmbeddingChunks() : emptyArray,
         creatorId: task.getCreator().accountId,
         contributorIds,
+        dueDate: dueDate ?? null,
+        assigneeId: task.getAssignee()?.assignee.accountId ?? null,
+        priority: task.getPriority(),
+        openness: task.getStatus().type === "Open" ? "Open" : "Closed",
+        activeness: task.getAssigneeStatus().type === "Active" ? "Active" : "Inactive",
     };
 }
 
@@ -2140,6 +2211,11 @@ async function getTaskCollectionSearchEntity(
             embeddingChunks: emptyArray,
             creatorId: null,
             contributorIds: emptyMap,
+            dueDate: null,
+            assigneeId: null,
+            priority: null,
+            openness: null,
+            activeness: null,
         };
     }
 
@@ -2156,6 +2232,11 @@ async function getTaskCollectionSearchEntity(
         // In the future we could keep track of which accounts were adding tasks to the
         // collection to answer queries like "collections I've added tasks to".
         contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }
 
@@ -2239,5 +2320,10 @@ async function getTaskCommentSearchEntity(
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
         contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
     };
 }

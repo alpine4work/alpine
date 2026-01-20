@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -2322,6 +2323,11 @@ describe("getSearchEntity", () => {
                 },
                 creatorId: session2.account.id,
                 contributorIds: new Map([[session2.account.id, "Major"]]),
+                assigneeId: null,
+                dueDate: null,
+                activeness: "Inactive",
+                openness: "Open",
+                priority: null,
             },
         });
 
@@ -2365,6 +2371,11 @@ describe("getSearchEntity", () => {
                     [session2.account.id, "Major"],
                     [session1.account.id, "Minor"],
                 ]),
+                assigneeId: null,
+                dueDate: null,
+                activeness: "Inactive",
+                openness: "Open",
+                priority: null,
             },
         });
 
@@ -2418,6 +2429,11 @@ describe("getSearchEntity", () => {
                     media: {type: "TaskCollectionColor", color: null, version: expect.any(Array)},
                     creatorId: session1.account.id,
                     contributorIds: new Map(),
+                    assigneeId: null,
+                    dueDate: null,
+                    activeness: null,
+                    openness: null,
+                    priority: null,
                 },
             });
 
@@ -2448,6 +2464,11 @@ describe("getSearchEntity", () => {
                     },
                     creatorId: session3.account.id,
                     contributorIds: new Map(),
+                    assigneeId: null,
+                    dueDate: null,
+                    activeness: null,
+                    openness: null,
+                    priority: null,
                 },
             });
 
@@ -2519,6 +2540,11 @@ describe("getSearchEntity", () => {
                 media: {type: "Account", accountId: session1.account.id},
                 creatorId: session1.account.id,
                 contributorIds: new Map(),
+                assigneeId: null,
+                dueDate: null,
+                activeness: null,
+                openness: null,
+                priority: null,
             },
         });
 
@@ -2554,6 +2580,11 @@ describe("getSearchEntity", () => {
                 media: {type: "Account", accountId: session2.account.id},
                 creatorId: session2.account.id,
                 contributorIds: new Map(),
+                assigneeId: null,
+                dueDate: null,
+                activeness: null,
+                openness: null,
+                priority: null,
             },
         });
 
@@ -2603,6 +2634,11 @@ describe("getSearchEntity", () => {
                 media: null,
                 creatorId: null,
                 contributorIds: new Map(),
+                assigneeId: null,
+                dueDate: null,
+                activeness: null,
+                openness: null,
+                priority: null,
             },
         });
 
@@ -2645,6 +2681,11 @@ describe("getSearchEntity", () => {
                 media: null,
                 creatorId: null,
                 contributorIds: new Map(),
+                assigneeId: null,
+                dueDate: null,
+                activeness: null,
+                openness: null,
+                priority: null,
             },
         });
 
@@ -2693,6 +2734,11 @@ describe("getSearchEntity", () => {
                 media: null,
                 creatorId: null,
                 contributorIds: new Map(),
+                assigneeId: null,
+                dueDate: null,
+                activeness: null,
+                openness: null,
+                priority: null,
             },
         });
 
@@ -2750,6 +2796,11 @@ describe("getSearchEntity", () => {
                 },
                 creatorId: session1.account.id,
                 contributorIds: new Map([[session1.account.id, "Major"]]),
+                assigneeId: null,
+                dueDate: null,
+                activeness: "Inactive",
+                openness: "Open",
+                priority: null,
             },
         });
 
@@ -2790,6 +2841,11 @@ describe("getSearchEntity", () => {
                 },
                 creatorId: session1.account.id,
                 contributorIds: new Map([[session1.account.id, "Major"]]),
+                assigneeId: null,
+                dueDate: null,
+                activeness: "Inactive",
+                openness: "Open",
+                priority: null,
             },
         });
 
@@ -2841,6 +2897,11 @@ describe("getSearchEntity", () => {
                 },
                 creatorId: session1.account.id,
                 contributorIds: new Map([[session1.account.id, "Major"]]),
+                assigneeId: null,
+                dueDate: null,
+                activeness: "Inactive",
+                openness: "Open",
+                priority: null,
             },
         });
 
@@ -2878,10 +2939,255 @@ describe("getSearchEntity", () => {
                 },
                 creatorId: session1.account.id,
                 contributorIds: new Map([[session1.account.id, "Major"]]),
+                assigneeId: null,
+                dueDate: null,
+                activeness: "Inactive",
+                openness: "Open",
+                priority: null,
             },
         });
 
         import.meta.jest.runAllTimers();
         await ProcessContextModule.waitForTestTasks();
     });
+
+    test(`can get task search entity with a due date`, async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const collection = await TestTaskCollection.create(session2, {access: "Public"});
+
+        const task = await TestTask.create(session1, {title: "Test Task"});
+        await task.addCollection(session1, collection);
+        await task.typeNotes(session1, "Lorem ipsum dolor sit amet");
+        await task.updateDueDate(session1, new CalendarDate(2025, 12, 31));
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "Task", taskId: task.id},
+                {tokenizer, registerAdditionalWrite: noop},
+            ),
+        ).toEqual({
+            dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+            entity: {
+                id: `Task:${task.id}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set(),
+                    defaultGrantType: "Space",
+                    urlGrantLevel: null,
+                },
+                createdTime: new Date(task.createdTime[0]),
+                title: "Test Task",
+                titleVersion: {
+                    type: "TaskTitle",
+                    snapshot: expect.any(Uint8Array),
+                    deletedTime: undefined,
+                },
+                body: "Lorem ipsum dolor sit amet",
+                embeddingChunks: expect.any(Array),
+                media: {
+                    type: "TaskDisplayStatus",
+                    displayStatus: "OpenInactive",
+                    version: expect.any(Array),
+                },
+                creatorId: session1.account.id,
+                contributorIds: new Map([[session1.account.id, "Major"]]),
+                assigneeId: null,
+                dueDate: new CalendarDate(2025, 12, 31),
+                activeness: "Inactive",
+                openness: "Open",
+                priority: null,
+            },
+        });
+
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    });
+
+    for (const priority of ["Low", "Medium", "High", "Urgent"] as const) {
+        test(`can get task search entity with ${priority} priority`, async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+
+            const task = await TestTask.create(session1, {title: "Test Task", priority});
+            await task.addCollection(session1, collection);
+            await task.typeNotes(session1, "Lorem ipsum dolor sit amet");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Task", taskId: task.id},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).toEqual({
+                dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+                entity: {
+                    id: `Task:${task.id}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
+                    createdTime: new Date(task.createdTime[0]),
+                    title: "Test Task",
+                    titleVersion: {
+                        type: "TaskTitle",
+                        snapshot: expect.any(Uint8Array),
+                    },
+                    body: "Lorem ipsum dolor sit amet",
+                    embeddingChunks: expect.any(Array),
+                    media: {
+                        type: "TaskDisplayStatus",
+                        displayStatus: "OpenInactive",
+                        version: expect.any(Array),
+                    },
+                    creatorId: session1.account.id,
+                    contributorIds: new Map([[session1.account.id, "Major"]]),
+                    assigneeId: null,
+                    dueDate: null,
+                    activeness: "Inactive",
+                    openness: "Open",
+                    priority,
+                },
+            });
+
+            import.meta.jest.runAllTimers();
+            await ProcessContextModule.waitForTestTasks();
+        });
+    }
+
+    for (const {status, mediaDisplayStatus} of [
+        {status: "Open", mediaDisplayStatus: "OpenInactive"},
+        {status: "Closed", mediaDisplayStatus: "Closed"},
+    ] as const) {
+        test(`can get task search entity with ${status} status`, async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+
+            const task = await TestTask.create(session1, {title: "Test Task"});
+            await task.addCollection(session1, collection);
+            await task.typeNotes(session1, "Lorem ipsum dolor sit amet");
+            await task.updateStatus(session1, status);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Task", taskId: task.id},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).toEqual({
+                dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+                entity: {
+                    id: `Task:${task.id}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
+                    createdTime: new Date(task.createdTime[0]),
+                    title: "Test Task",
+                    titleVersion: {
+                        type: "TaskTitle",
+                        snapshot: expect.any(Uint8Array),
+                    },
+                    body: "Lorem ipsum dolor sit amet",
+                    embeddingChunks: expect.any(Array),
+                    media: {
+                        type: "TaskDisplayStatus",
+                        displayStatus: mediaDisplayStatus,
+                        version: expect.any(Array),
+                    },
+                    creatorId: session1.account.id,
+                    contributorIds: new Map([[session1.account.id, "Major"]]),
+                    assigneeId: null,
+                    dueDate: null,
+                    activeness: "Inactive",
+                    openness: status,
+                    priority: null,
+                },
+            });
+
+            import.meta.jest.runAllTimers();
+            await ProcessContextModule.waitForTestTasks();
+        });
+    }
+
+    for (const {assigneeStatus, mediaDisplayStatus} of [
+        {assigneeStatus: "Active", mediaDisplayStatus: "OpenActive"},
+        {assigneeStatus: "Inactive", mediaDisplayStatus: "OpenInactive"},
+    ] as const) {
+        test(`can get task search entity with ${assigneeStatus} assignee status`, async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+
+            const task = await TestTask.create(session1, {title: "Test Task"});
+            await task.addCollection(session1, collection);
+            await task.typeNotes(session1, "Lorem ipsum dolor sit amet");
+            await task.updateAssignee(session1, session1.account, {assigneeStatus});
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Task", taskId: task.id},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).toEqual({
+                dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+                entity: {
+                    id: `Task:${task.id}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
+                    createdTime: new Date(task.createdTime[0]),
+                    title: "Test Task",
+                    titleVersion: {
+                        type: "TaskTitle",
+                        snapshot: expect.any(Uint8Array),
+                    },
+                    body: "Lorem ipsum dolor sit amet",
+                    embeddingChunks: expect.any(Array),
+                    media: {
+                        type: "TaskDisplayStatus",
+                        displayStatus: mediaDisplayStatus,
+                        version: expect.any(Array),
+                    },
+                    creatorId: session1.account.id,
+                    contributorIds: new Map([[session1.account.id, "Major"]]),
+                    assigneeId: session1.account.id,
+                    dueDate: null,
+                    activeness: assigneeStatus,
+                    openness: "Open",
+                    priority: null,
+                },
+            });
+
+            import.meta.jest.runAllTimers();
+            await ProcessContextModule.waitForTestTasks();
+        });
+    }
 });

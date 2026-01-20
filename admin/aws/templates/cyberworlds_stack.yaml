@@ -701,7 +701,7 @@ Resources:
                 Fn::GetAtt:
                     - OpensearchDeployScriptProviderframeworkonEvent8257EBC2
                     - Arn
-            indexesHash: 3e92b2a8a95318e968e87d4a99fcc132db96a13d1086b2a00c45fd0aae3adaf8
+            indexesHash: 1658623e41c99eef0eeeba888ff1386b8d2b42e99e7e0b87a1d480c2eaecf118
         DependsOn:
             - OpensearchDomainAppLogs191CCADD
             - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33eCustomResourcePolicy5F7B356F

@@ -1,7 +1,13 @@
+import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import nlp from "compromise";
 import nlpDatePlugin from "compromise-dates";
 import levenshtein from "damerau-levenshtein";
 import {stemmer} from "stemmer";
+import {
+    SearchEntityIndexActivenessType,
+    SearchEntityIndexOpennessType,
+    SearchEntityIndexPriorityType,
+} from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SpaceAccountNameSearchIndex} from "~/server/spaces/get_space_account_name_search_index.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -111,11 +117,44 @@ const matchTermTexts = [
     "and",
     "that",
     "were",
+    "are",
+    "not",
     "recently",
     "all",
     "of",
     "person",
     "people",
+    // Priority modifiers
+    "urgent",
+    "high",
+    "medium",
+    "low",
+    "priority",
+    "severity",
+    "important",
+    "critical",
+    // Openness modifiers
+    "open",
+    "pending",
+    "todo",
+    "closed",
+    "done",
+    "finished",
+    "resolved",
+    "fixed",
+    // Activeness modifiers
+    "active",
+    "started",
+    "ongoing",
+    "inactive",
+    // Due date
+    "due",
+    "overdue",
+    "late",
+    // Assignment
+    "assigned",
+    "assignee",
+    "to",
 ] as const;
 
 const matchTerms = Object.fromEntries(
@@ -125,7 +164,33 @@ const matchTerms = Object.fromEntries(
 };
 
 /**
- * Simple parser state object inspired by code you'd write for an [LR(1)
+ * Entity types that support priority filtering.
+ * Currently only tasks support priority.
+ */
+const priorityEnabledEntities: ReadonlySet<SearchDynamicEntityIdObject["type"]> = new Set(["Task"]);
+
+/**
+ * Entity types that support openness filtering (open/closed).
+ * Currently only tasks support openness.
+ */
+const opennessEnabledEntities: ReadonlySet<SearchDynamicEntityIdObject["type"]> = new Set(["Task"]);
+
+/**
+ * Entity types that support activeness filtering (active/inactive).
+ * Currently only tasks support activeness.
+ */
+const activenessEnabledEntities: ReadonlySet<SearchDynamicEntityIdObject["type"]> = new Set([
+    "Task",
+]);
+
+/**
+ * Entity types that support time filtering with Due field (overdue tasks).
+ * Currently only tasks support due dates.
+ */
+const timeEnabledEntities: ReadonlySet<SearchDynamicEntityIdObject["type"]> = new Set(["Task"]);
+
+/**
+ * Simple parser state object inspired by code you'd write for an [LR(n)
  * parser][1]. [GraphQL.js is a good example][2] of a clean, handwritten, LR
  * parser. Specifically this class corresponds to GraphQL.js's `Lexer`.
  *
@@ -135,19 +200,53 @@ const matchTerms = Object.fromEntries(
  * We're parsing natural English language grammar instead of a well defined
  * programming language grammar but we use similar patterns.
  *
+ * This is an LR(n) parser, meaning we can peek ahead n tokens to make parsing
+ * decisions. This is useful for handling prefix modifiers like "high priority
+ * tasks" where we need to look ahead to determine if "high priority" should be
+ * treated as a modifier or as search text.
+ *
  * [1]: https://en.wikipedia.org/wiki/LR_parser
  * [2]: https://github.com/graphql/graphql-js/blob/2aedf25e157d1d1c8fdfeaa4c0d2f3d9d3457dba/src/language/parser.ts#L255-L330
  */
 class SearchNaturalLanguageParserState {
-    public readonly doc: View;
-    public readonly terms: ReadonlyArray<Term>;
-    public readonly term: Term | null;
-    public readonly termIndex = 0;
+    private _doc: View;
+    private _terms: ReadonlyArray<Term>;
+    private _term: Term | null;
+    private _termIndex: number;
 
-    constructor(doc: View, terms: ReadonlyArray<Term>) {
-        this.doc = doc;
-        this.terms = terms;
-        this.term = this.termIndex < this.terms.length ? this.terms[this.termIndex]! : null;
+    constructor(doc: View, terms: ReadonlyArray<Term>, termIndex = 0) {
+        this._doc = doc;
+        this._terms = terms;
+        this._termIndex = termIndex;
+        this._term = this._termIndex < this._terms.length ? this._terms[this._termIndex]! : null;
+    }
+
+    public get doc() {
+        return this._doc;
+    }
+
+    public get terms() {
+        return this._terms;
+    }
+
+    public get term() {
+        return this._term;
+    }
+
+    public get termIndex() {
+        return this._termIndex;
+    }
+
+    /**
+     * Peek ahead n terms without advancing the parser state.
+     * Returns the term at current position + n, or null if out of bounds.
+     */
+    public peekTerm(n: number): Term | null {
+        const targetIndex = this._termIndex + n;
+        if (targetIndex < 0 || targetIndex >= this._terms.length) {
+            return null;
+        }
+        return this._terms[targetIndex]!;
     }
 
     /**
@@ -155,17 +254,11 @@ class SearchNaturalLanguageParserState {
      */
     public advanceTerm(): Term {
         assert(this.termIndex < this.terms.length);
-        const lastTerm = this.term!;
 
-        // @ts-expect-error: We're allowed to mutate `termIndex` inside of this class.
-        // Just not outside of it.
-        this.termIndex++;
-
-        const nextTerm = this.termIndex < this.terms.length ? this.terms[this.termIndex]! : null;
-
-        // @ts-expect-error: We're allowed to mutate `term` inside of this class. Just
-        // not outside of it.
-        this.term = nextTerm;
+        const lastTerm = this._term!;
+        this._termIndex += 1;
+        const nextTerm = this._termIndex < this.terms.length ? this.terms[this._termIndex]! : null;
+        this._term = nextTerm;
 
         return lastTerm;
     }
@@ -182,7 +275,13 @@ class SearchNaturalLanguageParserResult {
         //
         // When we have low confidence natural language filters, we still apply the
         // filters but we don't rank them as highly.
-        this.isLowConfidence &&= filter.account === null && filter.time === null;
+        this.isLowConfidence &&=
+            filter.account === null &&
+            filter.time === null &&
+            filter.date === null &&
+            filter.priority === null &&
+            filter.openness === null &&
+            filter.activeness === null;
 
         this._filters.push(filter);
     }
@@ -207,7 +306,7 @@ class SearchNaturalLanguageParserResult {
 export type SearchNaturalLanguageFilter = {
     readonly entityTypes: ReadonlyArray<SearchDynamicEntityIdObject["type"]>;
     readonly account: {
-        readonly field: "Creator" | "MajorContributor" | "AnyContributor";
+        readonly field: "Creator" | "MajorContributor" | "AnyContributor" | "Assignee";
         readonly accounts: ReadonlyArray<{readonly id: AccountId; readonly name: string}>;
     } | null;
     readonly time: {
@@ -217,6 +316,19 @@ export type SearchNaturalLanguageFilter = {
             | {readonly inclusiveUpperBoundDate: Date; readonly inclusiveLowerBoundDate: null}
             | {readonly inclusiveUpperBoundDate: null; readonly inclusiveLowerBoundDate: Date};
     } | null;
+    readonly date: {
+        readonly field: "Due";
+        readonly range:
+            | {
+                  readonly inclusiveUpperBound: CalendarDate;
+                  readonly inclusiveLowerBound: CalendarDate;
+              }
+            | {readonly inclusiveUpperBound: CalendarDate; readonly inclusiveLowerBound: null}
+            | {readonly inclusiveUpperBound: null; readonly inclusiveLowerBound: CalendarDate};
+    } | null;
+    readonly priority: ReadonlyArray<SearchEntityIndexPriorityType> | null;
+    readonly openness: ReadonlyArray<SearchEntityIndexOpennessType> | null;
+    readonly activeness: ReadonlyArray<SearchEntityIndexActivenessType> | null;
 };
 
 /**
@@ -344,25 +456,37 @@ function parseSearchNaturalLanguageFilters(
             controlPhrases.push(createView(doc, startTerm, endTerm));
         };
 
-        // e.g. "documents...", "messages...", or "tasks..."
-        const entityTypes = parseSearchEntityTypesIfPossible(state);
-        if (entityTypes) {
+        // e.g. "documents...", "messages...", "tasks...", "urgent tasks...", "open tasks..."
+        // This handles both entity types alone and premodifier + entity type patterns
+        const premodifierAndEntityType =
+            parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(state, options);
+        if (premodifierAndEntityType) {
             const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
+            const entityStartTerm = assertExists(
+                state.terms[premodifierAndEntityType.entityStartTermIndex],
+            );
+
+            // Build the initial filter with premodifier fields
+            const initialFilter: SearchNaturalLanguageFilter = {
+                entityTypes: premodifierAndEntityType.entityTypes,
+                account: null,
+                time: null,
+                date: premodifierAndEntityType.filter.date,
+                priority: premodifierAndEntityType.filter.priority,
+                openness: premodifierAndEntityType.filter.openness,
+                activeness: premodifierAndEntityType.filter.activeness,
+            };
 
             const {filterStartTerm, filterEndTerm, filter} =
-                parseSearchNaturalLanguageFilterModifiers(
+                parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                     state,
                     {
-                        filterStartTerm: startTerm,
+                        filterStartTerm: entityStartTerm,
                         filterEndTerm: lastEntityTypesTerm,
-                        filter: {
-                            entityTypes,
-                            account: null,
-                            time: null,
-                        },
+                        filter: initialFilter,
                         allowAccount: true,
                         allowTime: true,
-                        isFirstModifier: true,
+                        isFirstModifierAfterEntity: true,
                     },
                     options,
                 );
@@ -377,9 +501,36 @@ function parseSearchNaturalLanguageFilters(
                 actualFilterEndTerm = state.advanceTerm();
             }
 
-            addControlPhrase(filterStartTerm, actualFilterEndTerm);
+            // Create one control phrase from the first supported premodifier through entity + postmodifiers
+            // If there are supported premodifiers, start from the first one
+            // If there are no supported premodifiers, start from the entity type
+            const hasSupportedPremodifiers =
+                premodifierAndEntityType.supportedPremodifierRanges.length > 0;
+            if (hasSupportedPremodifiers) {
+                const firstSupportedRange = premodifierAndEntityType.supportedPremodifierRanges[0]!;
+                const controlPhraseStart = assertExists(
+                    state.terms[firstSupportedRange.startTermIndex],
+                );
+                addControlPhrase(controlPhraseStart, actualFilterEndTerm);
+            } else {
+                addControlPhrase(filterStartTerm, actualFilterEndTerm);
+            }
 
             result.addFilter(filter);
+
+            // If we got a filter with meaningful modifiers (from premodifiers or postmodifiers),
+            // we're confident the user wanted a natural language filter
+            const hasModifiers =
+                filter.account !== null ||
+                filter.time !== null ||
+                filter.date !== null ||
+                filter.priority !== null ||
+                filter.openness !== null ||
+                filter.activeness !== null;
+            if (hasModifiers) {
+                result.isLowConfidence = false;
+            }
+
             continue;
         }
 
@@ -412,21 +563,36 @@ function parseSearchNaturalLanguageFilters(
             while (state.term) {
                 const firstEntityTypesTerm = state.term;
 
-                const entityTypes = parseSearchEntityTypesIfPossible(state);
-                if (entityTypes) {
+                const premodifierAndEntityType =
+                    parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(
+                        state,
+                        options,
+                    );
+                if (premodifierAndEntityType) {
+                    // Merge premodifier fields with partial filter, preferring partial filter values
+                    const mergedFilter: SearchNaturalLanguageFilter = {
+                        ...partialFilter,
+                        entityTypes: premodifierAndEntityType.entityTypes,
+                        // Use premodifier values if partial filter doesn't have them
+                        date: partialFilter.date ?? premodifierAndEntityType.filter.date,
+                        priority:
+                            partialFilter.priority ?? premodifierAndEntityType.filter.priority,
+                        openness:
+                            partialFilter.openness ?? premodifierAndEntityType.filter.openness,
+                        activeness:
+                            partialFilter.activeness ?? premodifierAndEntityType.filter.activeness,
+                    };
+
                     const {filterStartTerm, filterEndTerm, filter} =
-                        parseSearchNaturalLanguageFilterModifiers(
+                        parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                             state,
                             {
                                 filterStartTerm: firstEntityTypesTerm,
                                 filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
-                                filter: {
-                                    ...partialFilter,
-                                    entityTypes,
-                                },
+                                filter: mergedFilter,
                                 allowAccount: partialFilter.account === null,
                                 allowTime: partialFilter.time === null,
-                                isFirstModifier: true,
+                                isFirstModifierAfterEntity: true,
                             },
                             options,
                         );
@@ -469,30 +635,57 @@ function parseSearchNaturalLanguageFilters(
                 // Intentionally fallthrough! So we can parse "all of my..." or "all of
                 // john's..."
             } else {
-                // e.g. "all documents" or "all messages"
-                const entityTypes = parseSearchEntityTypesIfPossible(state);
-                if (entityTypes) {
+                // e.g. "all documents", "all messages", "all closed tasks", "all high priority tasks"
+                // parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible handles both
+                // plain entity types and premodifier + entity
+                // Save the term index before parsing - this is where premodifiers would start
+                const premodifierStartTermIndex = state.termIndex;
+
+                const premodifierAndEntityType =
+                    parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(
+                        state,
+                        options,
+                    );
+                if (premodifierAndEntityType) {
+                    const initialFilter: SearchNaturalLanguageFilter = {
+                        entityTypes: premodifierAndEntityType.entityTypes,
+                        account: null,
+                        time: null,
+                        date: premodifierAndEntityType.filter.date,
+                        priority: premodifierAndEntityType.filter.priority,
+                        openness: premodifierAndEntityType.filter.openness,
+                        activeness: premodifierAndEntityType.filter.activeness,
+                    };
+
+                    // Determine the filter start term:
+                    // - If there are supported premodifiers: start from the entity type
+                    // - If no supported premodifiers: start from "all"
+                    const entityStartTerm = assertExists(
+                        state.terms[premodifierAndEntityType.entityStartTermIndex],
+                    );
+                    const hasSupportedPremodifiers =
+                        premodifierAndEntityType.supportedPremodifierRanges.length > 0;
+                    const effectiveFilterStartTerm = hasSupportedPremodifiers
+                        ? entityStartTerm
+                        : startTerm;
+
                     const {filterStartTerm, filterEndTerm, filter} =
-                        parseSearchNaturalLanguageFilterModifiers(
+                        parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                             state,
                             {
-                                filterStartTerm: startTerm,
+                                filterStartTerm: effectiveFilterStartTerm,
                                 filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
-                                filter: {
-                                    entityTypes,
-                                    account: null,
-                                    time: null,
-                                },
+                                filter: initialFilter,
                                 allowAccount: true,
                                 allowTime: true,
-                                isFirstModifier: true,
+                                isFirstModifierAfterEntity: true,
                             },
                             options,
                         );
 
                     let actualFilterEndTerm = filterEndTerm;
 
-                    // e.g. "my messages about"
+                    // e.g. "all messages about"
                     if (
                         filterEndTerm === state.terms[state.termIndex - 1] &&
                         matchTerms.about.isFuzzyMatch(state.term)
@@ -500,7 +693,22 @@ function parseSearchNaturalLanguageFilters(
                         actualFilterEndTerm = state.advanceTerm();
                     }
 
-                    addControlPhrase(filterStartTerm, actualFilterEndTerm);
+                    // If there are supported premodifiers, add "all" separately, then premodifiers + entity + postmodifiers
+                    // If no supported premodifiers, add "all" + entity + postmodifiers as one control phrase
+                    if (hasSupportedPremodifiers) {
+                        // "all" is the term before the premodifier start
+                        const allTerm = assertExists(state.terms[premodifierStartTermIndex - 1]);
+                        addControlPhrase(allTerm, allTerm);
+                        // Premodifiers + entity + postmodifiers
+                        const firstSupportedRange =
+                            premodifierAndEntityType.supportedPremodifierRanges[0]!;
+                        const controlPhraseStart = assertExists(
+                            state.terms[firstSupportedRange.startTermIndex],
+                        );
+                        addControlPhrase(controlPhraseStart, actualFilterEndTerm);
+                    } else {
+                        addControlPhrase(filterStartTerm, actualFilterEndTerm);
+                    }
 
                     result.addFilter(filter);
 
@@ -513,6 +721,10 @@ function parseSearchNaturalLanguageFilters(
                 const {hasAddedFilter} = advanceNounChunkAttemptingToParseEntityTypes({
                     account: null,
                     time: null,
+                    date: null,
+                    priority: null,
+                    openness: null,
+                    activeness: null,
                 });
                 if (hasAddedFilter) {
                     // If we got a filter starting with "all" like "all documents" then we're
@@ -536,26 +748,49 @@ function parseSearchNaturalLanguageFilters(
                 continue;
             }
 
-            // e.g. "my documents" or "my messages"
-            const entityTypes = parseSearchEntityTypesIfPossible(state);
-            if (entityTypes) {
+            // e.g. "my documents", "my messages", "my high priority tasks", "my open active tasks"
+            // parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible handles both plain entity types and premodifier + entity
+            // Save the term index before parsing - this is where premodifiers would start
+            const premodifierStartTermIndex = state.termIndex;
+
+            const premodifierAndEntityType =
+                parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(state, options);
+            if (premodifierAndEntityType) {
+                const initialFilter: SearchNaturalLanguageFilter = {
+                    entityTypes: premodifierAndEntityType.entityTypes,
+                    account: {
+                        field: "MajorContributor",
+                        accounts: [{id: actorAccount.id, name: actorAccount.name}],
+                    },
+                    time: null,
+                    date: premodifierAndEntityType.filter.date,
+                    priority: premodifierAndEntityType.filter.priority,
+                    openness: premodifierAndEntityType.filter.openness,
+                    activeness: premodifierAndEntityType.filter.activeness,
+                };
+
+                // Determine the filter start term:
+                // - If there are supported premodifiers: start from the entity type
+                // - If no supported premodifiers: start from "my"
+                const entityStartTerm = assertExists(
+                    state.terms[premodifierAndEntityType.entityStartTermIndex],
+                );
+                const hasSupportedPremodifiers =
+                    premodifierAndEntityType.supportedPremodifierRanges.length > 0;
+                const effectiveFilterStartTerm = hasSupportedPremodifiers
+                    ? entityStartTerm
+                    : startTerm;
+
                 const {filterStartTerm, filterEndTerm, filter} =
-                    parseSearchNaturalLanguageFilterModifiers(
+                    parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                         state,
                         {
-                            filterStartTerm: startTerm,
+                            filterStartTerm: effectiveFilterStartTerm,
                             filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
-                            filter: {
-                                entityTypes,
-                                account: {
-                                    field: "MajorContributor",
-                                    accounts: [{id: actorAccount.id, name: actorAccount.name}],
-                                },
-                                time: null,
-                            },
+                            filter: initialFilter,
                             allowAccount: false,
                             allowTime: true,
-                            isFirstModifier: true,
+                            isFirstModifierAfterEntity: true,
                         },
                         options,
                     );
@@ -570,7 +805,22 @@ function parseSearchNaturalLanguageFilters(
                     actualFilterEndTerm = state.advanceTerm();
                 }
 
-                addControlPhrase(filterStartTerm, actualFilterEndTerm);
+                // If there are supported premodifiers, add "my" separately, then premodifiers + entity + postmodifiers
+                // If no supported premodifiers, add "my" + entity + postmodifiers as one control phrase
+                if (hasSupportedPremodifiers) {
+                    // "my" is the term before the premodifier start
+                    const myTerm = assertExists(state.terms[premodifierStartTermIndex - 1]);
+                    addControlPhrase(myTerm, myTerm);
+                    // Premodifiers + entity + postmodifiers
+                    const firstSupportedRange =
+                        premodifierAndEntityType.supportedPremodifierRanges[0]!;
+                    const controlPhraseStart = assertExists(
+                        state.terms[firstSupportedRange.startTermIndex],
+                    );
+                    addControlPhrase(controlPhraseStart, actualFilterEndTerm);
+                } else {
+                    addControlPhrase(filterStartTerm, actualFilterEndTerm);
+                }
 
                 result.addFilter(filter);
                 continue;
@@ -582,6 +832,10 @@ function parseSearchNaturalLanguageFilters(
                     accounts: [{id: actorAccount.id, name: actorAccount.name}],
                 },
                 time: null,
+                date: null,
+                priority: null,
+                openness: null,
+                activeness: null,
             });
             continue;
         }
@@ -589,29 +843,58 @@ function parseSearchNaturalLanguageFilters(
         // e.g. "john's..." or "sara smith's..."
         const accounts = parseAccountsByNameIfPossible(state, options);
         if (accounts) {
-            // e.g. "john's documents" or "sara smith's messages"
-            const entityTypes = parseSearchEntityTypesIfPossible(state);
-            if (entityTypes) {
+            // Skip any empty tokens that might have been created by the NLP library
+            // (e.g., for possessive forms like "john's" which can split into "john's" + "")
+            while (state.term && state.term.text.trim() === "") {
+                state.advanceTerm();
+            }
+
+            // Track the last term before modifiers - this is after skipping empty tokens
+            // We use termIndex - 1 which points to the last empty token or the last account term
+            const lastAccountTermIndex = state.termIndex - 1;
+            const lastAccountTerm = assertExists(state.terms[lastAccountTermIndex]);
+
+            const premodifierAndEntityType =
+                parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(state, options);
+            if (premodifierAndEntityType) {
+                const initialFilter: SearchNaturalLanguageFilter = {
+                    entityTypes: premodifierAndEntityType.entityTypes,
+                    account: {
+                        field: "MajorContributor",
+                        accounts: accounts.map(account => ({
+                            id: account.id,
+                            name: account.initialData.name,
+                        })),
+                    },
+                    time: null,
+                    date: premodifierAndEntityType.filter.date,
+                    priority: premodifierAndEntityType.filter.priority,
+                    openness: premodifierAndEntityType.filter.openness,
+                    activeness: premodifierAndEntityType.filter.activeness,
+                };
+
+                // Determine the filter start term:
+                // - If there are supported premodifiers: start from the entity type
+                // - If no supported premodifiers: start from the account name
+                const entityStartTerm = assertExists(
+                    state.terms[premodifierAndEntityType.entityStartTermIndex],
+                );
+                const hasSupportedPremodifiers =
+                    premodifierAndEntityType.supportedPremodifierRanges.length > 0;
+                const effectiveFilterStartTerm = hasSupportedPremodifiers
+                    ? entityStartTerm
+                    : startTerm;
+
                 const {filterStartTerm, filterEndTerm, filter} =
-                    parseSearchNaturalLanguageFilterModifiers(
+                    parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                         state,
                         {
-                            filterStartTerm: startTerm,
+                            filterStartTerm: effectiveFilterStartTerm,
                             filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
-                            filter: {
-                                entityTypes,
-                                account: {
-                                    field: "MajorContributor",
-                                    accounts: accounts.map(account => ({
-                                        id: account.id,
-                                        name: account.initialData.name,
-                                    })),
-                                },
-                                time: null,
-                            },
+                            filter: initialFilter,
                             allowAccount: false,
                             allowTime: true,
-                            isFirstModifier: true,
+                            isFirstModifierAfterEntity: true,
                         },
                         options,
                     );
@@ -626,7 +909,21 @@ function parseSearchNaturalLanguageFilters(
                     actualFilterEndTerm = state.advanceTerm();
                 }
 
-                addControlPhrase(filterStartTerm, actualFilterEndTerm);
+                // If there are supported premodifiers, add account name separately, then premodifiers + entity + postmodifiers
+                // If no supported premodifiers, add account name + entity + postmodifiers as one control phrase
+                if (hasSupportedPremodifiers) {
+                    // Account name as separate control phrase
+                    addControlPhrase(startTerm, lastAccountTerm);
+                    // Premodifiers + entity + postmodifiers
+                    const firstSupportedRange =
+                        premodifierAndEntityType.supportedPremodifierRanges[0]!;
+                    const controlPhraseStart = assertExists(
+                        state.terms[firstSupportedRange.startTermIndex],
+                    );
+                    addControlPhrase(controlPhraseStart, actualFilterEndTerm);
+                } else {
+                    addControlPhrase(filterStartTerm, actualFilterEndTerm);
+                }
 
                 result.addFilter(filter);
                 continue;
@@ -641,11 +938,18 @@ function parseSearchNaturalLanguageFilters(
                     })),
                 },
                 time: null,
+                date: null,
+                priority: null,
+                openness: null,
+                activeness: null,
             });
             continue;
         }
 
-        state.advanceTerm();
+        // Only advance if we still have a term (parsing functions may have consumed terms)
+        if (state.term) {
+            state.advanceTerm();
+        }
     }
 
     return {
@@ -656,93 +960,11 @@ function parseSearchNaturalLanguageFilters(
 }
 
 /**
- * Try to parse entity types like "document", "task", or "chat messages".
+ * Check if the term is a priority title term like "priority" or "severity".
+ * This is useful when checking things like "urgent priority tasks".
  */
-function parseSearchEntityTypesIfPossible(
-    state: SearchNaturalLanguageParserState,
-): Array<SearchDynamicEntityIdObject["type"]> | null {
-    if (!state.term) return null;
-
-    if (matchTerms.documents.isFuzzyMatch(state.term) || matchTerms.docs.isFuzzyMatch(state.term)) {
-        state.advanceTerm();
-
-        if (
-            matchTerms.messages.isFuzzyMatch(state.term) ||
-            matchTerms.comments.isFuzzyMatch(state.term)
-        ) {
-            state.advanceTerm();
-            return ["DocumentComment"];
-        }
-
-        return ["Document"];
-    }
-
-    if (matchTerms.channels.isFuzzyMatch(state.term)) {
-        state.advanceTerm();
-        return ["Channel"];
-    }
-
-    if (matchTerms.posts.isFuzzyMatch(state.term)) {
-        state.advanceTerm();
-
-        if (
-            matchTerms.messages.isFuzzyMatch(state.term) ||
-            matchTerms.comments.isFuzzyMatch(state.term)
-        ) {
-            state.advanceTerm();
-            return ["PostComment"];
-        }
-
-        return ["Post"];
-    }
-
-    if (matchTerms.chats.isFuzzyMatch(state.term)) {
-        state.advanceTerm();
-
-        if (
-            matchTerms.messages.isFuzzyMatch(state.term) ||
-            matchTerms.comments.isFuzzyMatch(state.term)
-        ) {
-            state.advanceTerm();
-            return ["ChatMessage"];
-        }
-
-        return ["Chat"];
-    }
-
-    if (matchTerms.tasks.isFuzzyMatch(state.term)) {
-        state.advanceTerm();
-
-        if (matchTerms.collections.isFuzzyMatch(state.term)) {
-            state.advanceTerm();
-            return ["TaskCollection"];
-        }
-
-        // A search like "mobile tasks" should return the mobile task collection. Same
-        // with something like "my onboarding tasks".
-        return ["Task", "TaskCollection"];
-    }
-
-    if (matchTerms.collections.isFuzzyMatch(state.term)) {
-        state.advanceTerm();
-        return ["TaskCollection"];
-    }
-
-    if (
-        matchTerms.messages.isFuzzyMatch(state.term) ||
-        matchTerms.comments.isFuzzyMatch(state.term)
-    ) {
-        state.advanceTerm();
-
-        return ["ChatMessage", "DocumentComment", "PostComment"];
-    }
-
-    if (matchTerms.person.isFuzzyMatch(state.term) || matchTerms.people.isFuzzyMatch(state.term)) {
-        state.advanceTerm();
-        return ["Account"];
-    }
-
-    return null;
+function isPriorityTitle(term: Term | null): boolean {
+    return matchTerms.priority.isFuzzyMatch(term) || matchTerms.severity.isFuzzyMatch(term);
 }
 
 /**
@@ -826,11 +1048,612 @@ function parseAccountsByNameIfPossible(
 }
 
 /**
- * Parse modifiers after parsing search entity nouns. For example
- * "documents..." or "messages...". Recursive since we may have multiple
- * modifiers. For example "documents created by me and updated last week".
+ * Check if the current entity types support a specific modifier type.
+ * Returns true if at least one of the entity types in the filter supports the modifier.
  */
-function parseSearchNaturalLanguageFilterModifiers(
+function doesFilterSupportModifier(
+    filter: SearchNaturalLanguageFilter,
+    modifierType: "priority" | "openness" | "activeness",
+): boolean {
+    const enabledEntities = {
+        priority: priorityEnabledEntities,
+        openness: opennessEnabledEntities,
+        activeness: activenessEnabledEntities,
+    }[modifierType];
+
+    return filter.entityTypes.some(entityType => enabledEntities.has(entityType));
+}
+
+type PremodifierFilter = Pick<
+    SearchNaturalLanguageFilter,
+    "priority" | "openness" | "activeness" | "date"
+>;
+
+/**
+ * A premodifier collected while parsing. Contains an `add` function that applies
+ * the modifier to a filter if the entity types support it, plus the term indices
+ * for control phrase tracking.
+ */
+type Premodifier = {
+    /**
+     * Apply this premodifier to the filter if the entity types support it.
+     * Returns the updated filter if supported, or null if not supported.
+     */
+    add: (
+        entityTypes: ReadonlyArray<SearchDynamicEntityIdObject["type"]>,
+        filter: PremodifierFilter,
+    ) => PremodifierFilter | null;
+    startTermIndex: number;
+    endTermIndex: number;
+};
+
+/**
+ * Parses premodifiers and entity types from a natural language query.
+ *
+ * This function handles query patterns like:
+ * - "urgent tasks", "high priority tasks"
+ * - "open tasks", "closed tasks"
+ * - "active tasks", "inactive tasks"
+ * - "overdue tasks"
+ *
+ * The approach is:
+ * 1. Always advance through premodifiers, collecting them in an array with term indices
+ * 2. When we find an entity type, loop through premodifiers and call `add()` for each
+ * 3. If `add()` returns non-null: mark as control phrase and apply to filter
+ * 4. If `add()` returns null: don't mark as control phrase (becomes query text)
+ *
+ * For example, "high priority documents" - documents don't support priority filtering,
+ * so "high priority" becomes query text and only "documents" is a control phrase.
+ *
+ * This is distinct from postmodifiers (relative clauses like "that are urgent") which
+ * are handled by `parseSearchNaturalLanguageFilterPostmodifierIfPossible`.
+ */
+function parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(
+    state: SearchNaturalLanguageParserState,
+    timeOptions: {
+        timeZone: TimeZone;
+        currentTime: Date;
+    },
+): {
+    readonly entityTypes: Array<SearchDynamicEntityIdObject["type"]>;
+    readonly filter: PremodifierFilter;
+    readonly entityStartTermIndex: number;
+    readonly entityEndTermIndex: number;
+    /** Term index ranges for premodifiers that were supported (should be control phrases) */
+    readonly supportedPremodifierRanges: ReadonlyArray<{
+        startTermIndex: number;
+        endTermIndex: number;
+    }>;
+} | null {
+    // Collect premodifiers while advancing
+    const premodifiers: Array<Premodifier> = [];
+    let sawAndBeforeCurrentTerm = false;
+    let andTermIndex: number | null = null;
+
+    while (state.term) {
+        // Check if we've reached an entity type
+        const entityType = advanceEntityTypeIfPossible(state);
+        if (entityType) {
+            const {entityTypes, entityStartTermIndex, entityEndTermIndex} = entityType;
+
+            // If "and" immediately preceded the entity type, don't attach modifiers
+            // e.g. "urgent open and tasks" - premodifiers become query text, only "tasks" is control phrase
+            if (sawAndBeforeCurrentTerm) {
+                return {
+                    entityTypes,
+                    filter: {priority: null, openness: null, activeness: null, date: null},
+                    entityStartTermIndex,
+                    entityEndTermIndex,
+                    supportedPremodifierRanges: [],
+                };
+            }
+
+            // Apply premodifiers that are supported by the entity types
+            let filter: PremodifierFilter = {
+                priority: null,
+                openness: null,
+                activeness: null,
+                date: null,
+            };
+            const supportedPremodifierRanges: Array<{
+                startTermIndex: number;
+                endTermIndex: number;
+            }> = [];
+
+            for (const premodifier of premodifiers) {
+                const updatedFilter = premodifier.add(entityTypes, filter);
+                if (updatedFilter !== null) {
+                    filter = updatedFilter;
+                    supportedPremodifierRanges.push({
+                        startTermIndex: premodifier.startTermIndex,
+                        endTermIndex: premodifier.endTermIndex,
+                    });
+                }
+                // If updatedFilter is null, this premodifier is not supported.
+                // We don't add it to supportedPremodifierRanges, so it becomes query text.
+            }
+
+            return {
+                entityTypes,
+                filter,
+                entityStartTermIndex,
+                entityEndTermIndex,
+                supportedPremodifierRanges,
+            };
+        }
+
+        // Reset the "and" flag for this iteration
+        sawAndBeforeCurrentTerm = false;
+
+        // Allow "and" between modifiers, but only after we've seen at least one modifier
+        // e.g. "open and active tasks"
+        if (premodifiers.length > 0 && matchTerms.and.isFuzzyMatch(state.term)) {
+            andTermIndex = state.termIndex;
+            state.advanceTerm();
+            sawAndBeforeCurrentTerm = true;
+            continue;
+        }
+
+        // Try to parse a premodifier
+        const premodifier = advancePremodifierIfPossible(state, timeOptions);
+        if (premodifier) {
+            // If there was an "and" before this premodifier, extend the range to include it
+            if (andTermIndex !== null) {
+                premodifier.startTermIndex = andTermIndex;
+                andTermIndex = null;
+            }
+            premodifiers.push(premodifier);
+            continue;
+        }
+
+        // Not a premodifier or entity type - stop parsing
+        break;
+    }
+
+    // No entity type found
+    return null;
+}
+
+/**
+ * Try to advance through an entity type. Returns the entity type info if found,
+ * or null if the current term is not an entity type.
+ */
+function advanceEntityTypeIfPossible(state: SearchNaturalLanguageParserState): {
+    entityTypes: Array<SearchDynamicEntityIdObject["type"]>;
+    entityStartTermIndex: number;
+    entityEndTermIndex: number;
+} | null {
+    if (!state.term) return null;
+
+    const entityStartTermIndex = state.termIndex;
+
+    // Documents / Docs
+    if (matchTerms.documents.isFuzzyMatch(state.term) || matchTerms.docs.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+
+        // Document comments: "documents messages" or "documents comments"
+        if (
+            matchTerms.messages.isFuzzyMatch(state.term) ||
+            matchTerms.comments.isFuzzyMatch(state.term)
+        ) {
+            state.advanceTerm();
+            return {
+                entityTypes: ["DocumentComment"],
+                entityStartTermIndex,
+                entityEndTermIndex: state.termIndex - 1,
+            };
+        }
+
+        return {
+            entityTypes: ["Document"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Channels
+    if (matchTerms.channels.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+        return {
+            entityTypes: ["Channel"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Posts
+    if (matchTerms.posts.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+
+        // Post comments: "posts comments"
+        if (matchTerms.comments.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+            return {
+                entityTypes: ["PostComment"],
+                entityStartTermIndex,
+                entityEndTermIndex: state.termIndex - 1,
+            };
+        }
+
+        return {
+            entityTypes: ["Post"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Chats
+    if (matchTerms.chats.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+
+        // Chat messages: "chats messages" or "chats comments"
+        if (
+            matchTerms.messages.isFuzzyMatch(state.term) ||
+            matchTerms.comments.isFuzzyMatch(state.term)
+        ) {
+            state.advanceTerm();
+            return {
+                entityTypes: ["ChatMessage"],
+                entityStartTermIndex,
+                entityEndTermIndex: state.termIndex - 1,
+            };
+        }
+
+        return {
+            entityTypes: ["Chat"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Tasks
+    if (matchTerms.tasks.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+
+        if (matchTerms.collections.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+            return {
+                entityTypes: ["TaskCollection"],
+                entityStartTermIndex,
+                entityEndTermIndex: state.termIndex - 1,
+            };
+        }
+
+        // A search like "mobile tasks" should return the mobile task collection. Same
+        // with something like "my onboarding tasks".
+        return {
+            entityTypes: ["Task", "TaskCollection"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Collections (standalone)
+    if (matchTerms.collections.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+        return {
+            entityTypes: ["TaskCollection"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Messages or comments (standalone - could be chat or document)
+    if (
+        matchTerms.messages.isFuzzyMatch(state.term) ||
+        matchTerms.comments.isFuzzyMatch(state.term)
+    ) {
+        state.advanceTerm();
+        return {
+            entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Person / People
+    if (matchTerms.person.isFuzzyMatch(state.term) || matchTerms.people.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+        return {
+            entityTypes: ["Account"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Not an entity type
+    return null;
+}
+
+/**
+ * Try to advance through a single premodifier. Returns the premodifier if found,
+ * or null if the current term is not a premodifier.
+ */
+function advancePremodifierIfPossible(
+    state: SearchNaturalLanguageParserState,
+    options: {
+        timeZone: TimeZone;
+        currentTime: Date;
+    },
+): Premodifier | null {
+    const term = state.term;
+    if (!term) return null;
+
+    const startTermIndex = state.termIndex;
+
+    // Parse priority premodifiers
+    // e.g. "urgent tasks" and "high priority tasks"
+    if (matchTerms.urgent.isFuzzyMatch(term)) {
+        state.advanceTerm();
+        // Skip optional "priority" or "severity" word
+        if (isPriorityTitle(state.term)) {
+            state.advanceTerm();
+        }
+        const endTermIndex = state.termIndex - 1;
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => priorityEnabledEntities.has(entity))) {
+                    return null;
+                }
+                const priority = filter.priority?.includes("Urgent")
+                    ? filter.priority
+                    : [...(filter.priority ?? []), "Urgent" as const];
+                return {...filter, priority};
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    if (matchTerms.high.isFuzzyMatch(term)) {
+        state.advanceTerm();
+        if (isPriorityTitle(state.term)) {
+            state.advanceTerm();
+        }
+        const endTermIndex = state.termIndex - 1;
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => priorityEnabledEntities.has(entity))) {
+                    return null;
+                }
+                const priority = filter.priority?.includes("High")
+                    ? filter.priority
+                    : [...(filter.priority ?? []), "High" as const];
+                return {...filter, priority};
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    if (matchTerms.medium.isFuzzyMatch(term)) {
+        state.advanceTerm();
+        if (isPriorityTitle(state.term)) {
+            state.advanceTerm();
+        }
+        const endTermIndex = state.termIndex - 1;
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => priorityEnabledEntities.has(entity))) {
+                    return null;
+                }
+                const priority = filter.priority?.includes("Medium")
+                    ? filter.priority
+                    : [...(filter.priority ?? []), "Medium" as const];
+                return {...filter, priority};
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    if (matchTerms.low.isFuzzyMatch(term)) {
+        state.advanceTerm();
+        if (isPriorityTitle(state.term)) {
+            state.advanceTerm();
+        }
+        const endTermIndex = state.termIndex - 1;
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => priorityEnabledEntities.has(entity))) {
+                    return null;
+                }
+                const priority = filter.priority?.includes("Low")
+                    ? filter.priority
+                    : [...(filter.priority ?? []), "Low" as const];
+                return {...filter, priority};
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    if (matchTerms.important.isFuzzyMatch(term) || matchTerms.critical.isFuzzyMatch(term)) {
+        state.advanceTerm();
+        if (isPriorityTitle(state.term)) {
+            state.advanceTerm();
+        }
+        const endTermIndex = state.termIndex - 1;
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => priorityEnabledEntities.has(entity))) {
+                    return null;
+                }
+                // "important" and "critical" map to both Urgent and High
+                const withUrgent = filter.priority?.includes("Urgent")
+                    ? filter.priority
+                    : [...(filter.priority ?? []), "Urgent" as const];
+                const priority = withUrgent.includes("High")
+                    ? withUrgent
+                    : [...withUrgent, "High" as const];
+                return {...filter, priority};
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    // Parse time premodifiers
+    // e.g. "overdue tasks"
+    if (matchTerms.overdue.isFuzzyMatch(term) || matchTerms.late.isFuzzyMatch(term)) {
+        state.advanceTerm();
+        const endTermIndex = state.termIndex - 1;
+
+        // Capture options for the closure
+        const {timeZone, currentTime} = options;
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => timeEnabledEntities.has(entity))) {
+                    return null;
+                }
+                // "Overdue" means due before today (exclusive of today)
+                const yesterday = toCalendarDate(
+                    parseAbsolute(currentTime.toISOString(), timeZone),
+                ).subtract({days: 1});
+                return {
+                    ...filter,
+                    date: {
+                        field: "Due",
+                        range: {inclusiveUpperBound: yesterday, inclusiveLowerBound: null},
+                    },
+                };
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    // Parse all terms that are potentially negatable
+    const isNegated = matchTerms.not.isFuzzyMatch(term);
+    // Need to look ahead for negated terms without advancing
+    const nextTerm = state.terms[state.termIndex + 1];
+    const possiblyNegatedTerm = isNegated ? nextTerm : term;
+
+    // Parse openness modifiers
+    // e.g. "open tasks", "not done tasks", and "closed tasks"
+    if (
+        matchTerms.open.isFuzzyMatch(possiblyNegatedTerm) ||
+        matchTerms.pending.isFuzzyMatch(possiblyNegatedTerm) ||
+        matchTerms.todo.isFuzzyMatch(possiblyNegatedTerm)
+    ) {
+        if (isNegated) state.advanceTerm();
+        state.advanceTerm();
+        const endTermIndex = state.termIndex - 1;
+        const openness: ReadonlyArray<SearchEntityIndexOpennessType> = isNegated
+            ? ["Closed"]
+            : ["Open"];
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => opennessEnabledEntities.has(entity))) {
+                    return null;
+                }
+                return {...filter, openness};
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    if (
+        matchTerms.closed.isFuzzyMatch(possiblyNegatedTerm) ||
+        matchTerms.done.isFuzzyMatch(possiblyNegatedTerm) ||
+        matchTerms.finished.isFuzzyMatch(possiblyNegatedTerm) ||
+        matchTerms.resolved.isFuzzyMatch(possiblyNegatedTerm) ||
+        matchTerms.fixed.isFuzzyMatch(possiblyNegatedTerm)
+    ) {
+        if (isNegated) state.advanceTerm();
+        state.advanceTerm();
+        const endTermIndex = state.termIndex - 1;
+        const openness: ReadonlyArray<SearchEntityIndexOpennessType> = isNegated
+            ? ["Open"]
+            : ["Closed"];
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => opennessEnabledEntities.has(entity))) {
+                    return null;
+                }
+                return {...filter, openness};
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    // Parse activeness modifiers
+    // e.g. "active tasks", "not started tasks", and "inactive tasks"
+    if (
+        matchTerms.active.isFuzzyMatch(possiblyNegatedTerm) ||
+        matchTerms.started.isFuzzyMatch(possiblyNegatedTerm) ||
+        matchTerms.ongoing.isFuzzyMatch(possiblyNegatedTerm)
+    ) {
+        if (isNegated) state.advanceTerm();
+        state.advanceTerm();
+        const endTermIndex = state.termIndex - 1;
+        const activeness: ReadonlyArray<SearchEntityIndexActivenessType> = isNegated
+            ? ["Inactive"]
+            : ["Active"];
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => activenessEnabledEntities.has(entity))) {
+                    return null;
+                }
+                return {...filter, activeness};
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    if (matchTerms.inactive.isFuzzyMatch(possiblyNegatedTerm)) {
+        if (isNegated) state.advanceTerm();
+        state.advanceTerm();
+        const endTermIndex = state.termIndex - 1;
+        const activeness: ReadonlyArray<SearchEntityIndexActivenessType> = isNegated
+            ? ["Active"]
+            : ["Inactive"];
+
+        return {
+            add: (entityTypes, filter) => {
+                if (!entityTypes.some(entity => activenessEnabledEntities.has(entity))) {
+                    return null;
+                }
+                return {...filter, activeness};
+            },
+            startTermIndex,
+            endTermIndex,
+        };
+    }
+
+    // Not a premodifier
+    return null;
+}
+
+/**
+ * Recursively parses postmodifiers for a search filter from a natural language query.
+ *
+ * This is the core recursive parsing function that handles all types of query modifiers
+ * that appear after the entity type:
+ * - Account modifiers: "created by", "updated by", "assigned to", etc.
+ * - Date/time modifiers: "created yesterday", "updated last week", "recently", etc.
+ * - Priority modifiers: "that are urgent", "that are high priority", etc.
+ * - Openness modifiers: "that are open", "that are closed", etc.
+ * - Activeness modifiers: "that are active", "that are inactive", etc.
+ *
+ * This function only handles modifiers that appear after the entity type
+ * (e.g., "tasks that are urgent", "tasks created by me"). Premodifiers like
+ * "high priority tasks" or "open tasks" are handled by
+ * `parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible`.
+ */
+function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
     state: SearchNaturalLanguageParserState,
     {
         filterStartTerm,
@@ -838,14 +1661,14 @@ function parseSearchNaturalLanguageFilterModifiers(
         filter,
         allowAccount,
         allowTime,
-        isFirstModifier,
+        isFirstModifierAfterEntity,
     }: {
         filterStartTerm: Term;
         filterEndTerm: Term;
         filter: SearchNaturalLanguageFilter;
         allowAccount: boolean;
         allowTime: boolean;
-        isFirstModifier: boolean;
+        isFirstModifierAfterEntity: boolean;
     },
     options: {
         timeZone: TimeZone;
@@ -858,26 +1681,224 @@ function parseSearchNaturalLanguageFilterModifiers(
     filterEndTerm: Term;
     filter: SearchNaturalLanguageFilter;
 } {
-    if (!allowAccount && !allowTime) {
-        return {filterStartTerm, filterEndTerm, filter};
-    }
-
     const {actorAccount} = options;
 
+    // Check if this filter's entity types support each modifier type
+    const supportsPriority = doesFilterSupportModifier(filter, "priority");
+    const supportsOpenness = doesFilterSupportModifier(filter, "openness");
+    const supportsActiveness = doesFilterSupportModifier(filter, "activeness");
+
     // e.g. "documents created by me and updated last month"
-    if (!isFirstModifier && matchTerms.and.isFuzzyMatch(state.term)) {
+    // Only allow "and" if it's not the first modifier after the entity
+    if (!isFirstModifierAfterEntity && matchTerms.and.isFuzzyMatch(state.term)) {
         state.advanceTerm();
 
         // e.g. "documents created last year and were updated by me"
         if (matchTerms.were.isFuzzyMatch(state.term)) state.advanceTerm();
     }
 
-    // e.g. "documents created last year that I updated"
-    if (!isFirstModifier && matchTerms.that.isFuzzyMatch(state.term)) {
+    // Handle connector words for forward modifiers (e.g., "tasks that are urgent")
+    // Also supports "tasks that urgent" for fast typers who omit "are"
+    if (matchTerms.that.isFuzzyMatch(state.term)) {
+        state.advanceTerm(); // advance past "that"
+
+        if (matchTerms.are.isFuzzyMatch(state.term) || matchTerms.were.isFuzzyMatch(state.term)) {
+            state.advanceTerm(); // advance past "are" or "were"
+        }
+
+        filterEndTerm = assertExists(state.terms[state.termIndex - 1]);
+    }
+
+    // (e.g., "tasks that are urgent", "urgent tasks")
+    if (supportsPriority) {
+        let newPriorities: SearchNaturalLanguageFilter["priority"] = null;
+
+        if (matchTerms.urgent.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+            newPriorities = ["Urgent"];
+        } else if (
+            matchTerms.important.isFuzzyMatch(state.term) ||
+            matchTerms.critical.isFuzzyMatch(state.term)
+        ) {
+            state.advanceTerm();
+            newPriorities = ["Urgent", "High"];
+        } else if (matchTerms.high.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+            newPriorities = ["High"];
+        } else if (matchTerms.medium.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+            newPriorities = ["Medium"];
+        } else if (matchTerms.low.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+            newPriorities = ["Low"];
+        }
+
+        if (newPriorities) {
+            // Skip optional "priority" or "severity" word after the priority level
+            if (
+                state.term &&
+                (matchTerms.priority.isFuzzyMatch(state.term) ||
+                    matchTerms.severity.isFuzzyMatch(state.term))
+            ) {
+                state.advanceTerm();
+            }
+
+            // Add new priorities, avoiding duplicates
+            for (const newPriority of newPriorities) {
+                if (!filter.priority || !filter.priority.includes(newPriority)) {
+                    filter = {
+                        ...filter,
+                        priority: [...(filter.priority ?? []), newPriority],
+                    };
+                }
+            }
+
+            return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                    filter,
+                    allowAccount,
+                    allowTime,
+                    isFirstModifierAfterEntity: false,
+                },
+                options,
+            );
+        }
+    }
+
+    // (e.g., "tasks that are open", "open tasks", "not open tasks", "tasks that are not done")
+    if (supportsOpenness && !filter.openness) {
+        let openness: SearchNaturalLanguageFilter["openness"] = null;
+
+        // Peek ahead to check for "not" prefix followed by openness modifier
+        const hasNot = matchTerms.not.isFuzzyMatch(state.term);
+        const termToCheck = hasNot ? state.peekTerm(1) : state.term;
+
+        if (
+            matchTerms.open.isFuzzyMatch(termToCheck) ||
+            matchTerms.pending.isFuzzyMatch(termToCheck) ||
+            matchTerms.todo.isFuzzyMatch(termToCheck)
+        ) {
+            // Advance once for the modifier, twice if "not" was present
+            state.advanceTerm();
+            if (hasNot) state.advanceTerm();
+
+            // "not open" -> Closed, "open" -> Open
+            openness = hasNot ? ["Closed"] : ["Open"];
+        } else if (
+            matchTerms.closed.isFuzzyMatch(termToCheck) ||
+            matchTerms.done.isFuzzyMatch(termToCheck) ||
+            matchTerms.finished.isFuzzyMatch(termToCheck) ||
+            matchTerms.resolved.isFuzzyMatch(termToCheck) ||
+            matchTerms.fixed.isFuzzyMatch(termToCheck)
+        ) {
+            // Advance once for the modifier, twice if "not" was present
+            state.advanceTerm();
+            if (hasNot) state.advanceTerm();
+
+            // "not closed" -> Open, "closed" -> Closed
+            openness = hasNot ? ["Open"] : ["Closed"];
+        }
+
+        if (openness) {
+            return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                    filter: {...filter, openness},
+                    allowAccount,
+                    allowTime,
+                    isFirstModifierAfterEntity: false,
+                },
+                options,
+            );
+        }
+    }
+
+    // (e.g., "tasks that are active", "active tasks", "not active tasks", "tasks that are not inactive")
+    if (supportsActiveness && !filter.activeness) {
+        let activeness: SearchNaturalLanguageFilter["activeness"] = null;
+
+        // Peek ahead to check for "not" prefix followed by activeness modifier
+        const hasNot = matchTerms.not.isFuzzyMatch(state.term);
+        const termToCheck = hasNot ? state.peekTerm(1) : state.term;
+
+        if (
+            matchTerms.active.isFuzzyMatch(termToCheck) ||
+            matchTerms.started.isFuzzyMatch(termToCheck) ||
+            matchTerms.ongoing.isFuzzyMatch(termToCheck)
+        ) {
+            // Advance once for the modifier, twice if "not" was present
+            state.advanceTerm();
+            if (hasNot) state.advanceTerm();
+
+            // "not active" -> Inactive, "active" -> Active
+            activeness = hasNot ? ["Inactive"] : ["Active"];
+        } else if (matchTerms.inactive.isFuzzyMatch(termToCheck)) {
+            // Advance once for the modifier, twice if "not" was present
+            state.advanceTerm();
+            if (hasNot) state.advanceTerm();
+
+            // "not inactive" -> Active, "inactive" -> Inactive
+            activeness = hasNot ? ["Active"] : ["Inactive"];
+        }
+
+        if (activeness) {
+            return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
+                state,
+                {
+                    // Keep filterStartTerm unchanged - "not" is included in the phrase
+                    // by virtue of being between filterStartTerm and filterEndTerm.
+                    // The caller already set filterStartTerm to the start of the phrase.
+                    filterStartTerm,
+                    filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                    filter: {...filter, activeness},
+                    allowAccount,
+                    allowTime,
+                    isFirstModifierAfterEntity: false,
+                },
+                options,
+            );
+        }
+    }
+
+    // (e.g., "tasks that are overdue", "overdue tasks", "late tasks")
+    if (
+        allowTime &&
+        !filter.date &&
+        (matchTerms.overdue.isFuzzyMatch(state.term) || matchTerms.late.isFuzzyMatch(state.term))
+    ) {
         state.advanceTerm();
 
-        // e.g. "documents created last year that were updated by me"
-        if (matchTerms.were.isFuzzyMatch(state.term)) state.advanceTerm();
+        // "Overdue" means due before today (exclusive of today)
+        const yesterday = toCalendarDate(
+            parseAbsolute(options.currentTime.toISOString(), options.timeZone),
+        ).subtract({days: 1});
+
+        return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
+            state,
+            {
+                filterStartTerm,
+                filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                filter: {
+                    ...filter,
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: yesterday,
+                            inclusiveLowerBound: null,
+                        },
+                    },
+                },
+                allowAccount,
+                allowTime: false,
+                isFirstModifierAfterEntity: false,
+            },
+            options,
+        );
     }
 
     // e.g. "documents created..." or "messages sent..."
@@ -1458,6 +2479,101 @@ function parseSearchNaturalLanguageFilterModifiers(
         }
     }
 
+    // e.g. "tasks due..." or "tasks due today"
+    if (matchTerms.due.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+
+        // e.g. "tasks due by tomorrow"
+        if (matchTerms.by.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+        }
+
+        if (allowTime) {
+            return continueParseSearchNaturalLanguageFilterDateModifier(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                    filter,
+                    allowAccount,
+                    field: "Due",
+                },
+                options,
+            );
+        }
+
+        return {filterStartTerm, filterEndTerm, filter};
+    }
+
+    // e.g. "tasks assigned to..." or "tasks assigned to me"
+    // also allow typo of "assignee"
+    if (
+        matchTerms.assigned.isFuzzyMatch(state.term) ||
+        matchTerms.assignee.isFuzzyMatch(state.term)
+    ) {
+        state.advanceTerm();
+
+        // Optional "to" (e.g., "assigned to me" or just "assigned me")
+        if (matchTerms.to.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+        }
+
+        // e.g. "tasks assigned to me"
+        if (allowAccount && matchTerms.me.isFuzzyMatch(state.term)) {
+            if (!actorAccount) {
+                return {filterStartTerm, filterEndTerm, filter};
+            }
+            const endTerm = state.advanceTerm();
+
+            return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm: endTerm,
+                    filter: {
+                        ...filter,
+                        account: {
+                            field: "Assignee",
+                            accounts: [{id: actorAccount.id, name: actorAccount.name}],
+                        },
+                    },
+                    allowAccount: false,
+                    allowTime,
+                    isFirstModifierAfterEntity: false,
+                },
+                options,
+            );
+        }
+
+        // e.g. "tasks assigned to john" or "tasks assigned to sara smith"
+        const accounts = parseAccountsByNameIfPossible(state, options);
+        if (accounts) {
+            return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                    filter: {
+                        ...filter,
+                        account: {
+                            field: "Assignee",
+                            accounts: accounts.map(account => ({
+                                id: account.id,
+                                name: account.initialData.name,
+                            })),
+                        },
+                    },
+                    allowAccount: false,
+                    allowTime,
+                    isFirstModifierAfterEntity: false,
+                },
+                options,
+            );
+        }
+
+        return {filterStartTerm, filterEndTerm, filter};
+    }
+
     return {filterStartTerm, filterEndTerm, filter};
 }
 
@@ -1476,7 +2592,7 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
         filter: SearchNaturalLanguageFilter;
         allowAccount: boolean;
         allowTime: boolean;
-        field: "Created" | "LastUpdated";
+        field: "Created" | "LastUpdated" | "Due";
     },
     options: {
         timeZone: TimeZone;
@@ -1498,7 +2614,7 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
             options,
         );
     } else {
-        return parseSearchNaturalLanguageFilterModifiers(
+        return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             state,
             {
                 filterStartTerm,
@@ -1506,11 +2622,73 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                 filter,
                 allowAccount,
                 allowTime: false,
-                isFirstModifier: false,
+                isFirstModifierAfterEntity: false,
             },
             options,
         );
     }
+}
+
+/**
+ * Helper to convert a Date to CalendarDate using the given timezone.
+ */
+function dateToCalendarDate(date: Date, timeZone: TimeZone): CalendarDate {
+    return toCalendarDate(parseAbsolute(date.toISOString(), timeZone));
+}
+
+/**
+ * Creates either a `time` or `date` filter update based on the field.
+ * For "Due" fields, uses CalendarDate; for "Created"/"LastUpdated", uses Date.
+ */
+function createDateRangeFilterUpdate(
+    filter: SearchNaturalLanguageFilter,
+    field: "Created" | "LastUpdated" | "Due",
+    range: {startDate: Date | null; endDate: Date | null},
+    timeZone: TimeZone,
+): Partial<SearchNaturalLanguageFilter> {
+    if (field === "Due") {
+        return {
+            date: {
+                field: "Due",
+                range:
+                    range.startDate && range.endDate
+                        ? {
+                              inclusiveLowerBound: dateToCalendarDate(range.startDate, timeZone),
+                              inclusiveUpperBound: dateToCalendarDate(range.endDate, timeZone),
+                          }
+                        : range.startDate
+                          ? {
+                                inclusiveLowerBound: dateToCalendarDate(range.startDate, timeZone),
+                                inclusiveUpperBound: null,
+                            }
+                          : {
+                                inclusiveLowerBound: null,
+                                inclusiveUpperBound: dateToCalendarDate(range.endDate!, timeZone),
+                            },
+            },
+        };
+    }
+
+    return {
+        time: {
+            field,
+            range:
+                range.startDate && range.endDate
+                    ? {
+                          inclusiveLowerBoundDate: range.startDate,
+                          inclusiveUpperBoundDate: range.endDate,
+                      }
+                    : range.startDate
+                      ? {
+                            inclusiveLowerBoundDate: range.startDate,
+                            inclusiveUpperBoundDate: null,
+                        }
+                      : {
+                            inclusiveLowerBoundDate: null,
+                            inclusiveUpperBoundDate: range.endDate!,
+                        },
+        },
+    };
 }
 
 function continueParseSearchNaturalLanguageFilterDateModifier(
@@ -1526,7 +2704,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
         filterEndTerm: Term;
         filter: SearchNaturalLanguageFilter;
         allowAccount: boolean;
-        field: "Created" | "LastUpdated";
+        field: "Created" | "LastUpdated" | "Due";
     },
     options: {
         timeZone: TimeZone;
@@ -1545,28 +2723,27 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
     if (matchTerms.recently.isFuzzyMatch(state.term)) {
         state.advanceTerm();
 
-        return parseSearchNaturalLanguageFilterModifiers(
+        // We arbitrarily decide that "recently" means 3 days ago until now. Ideally
+        // we'd sort by recency as well.
+        const recentlyStartDate = new Date(currentTime.getTime() - 3 * (1000 * 60 * 60 * 24));
+
+        return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             state,
             {
                 filterStartTerm,
                 filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                 filter: {
                     ...filter,
-                    time: {
+                    ...createDateRangeFilterUpdate(
+                        filter,
                         field,
-                        range: {
-                            // We arbitrarily decide that "recently" means 3 days ago until now. Ideally
-                            // we'd sort by recency as well.
-                            inclusiveLowerBoundDate: new Date(
-                                currentTime.getTime() - 3 * (1000 * 60 * 60 * 24),
-                            ),
-                            inclusiveUpperBoundDate: null,
-                        },
-                    },
+                        {startDate: recentlyStartDate, endDate: null},
+                        timeZone,
+                    ),
                 },
                 allowAccount,
                 allowTime: false,
-                isFirstModifier: false,
+                isFirstModifierAfterEntity: false,
             },
             options,
         );
@@ -1590,13 +2767,13 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
     if (
         !state.term?.tags?.has("Date") ||
         // "from" is tagged as `Date` but `compromise-date` can't parse it. We do,
-        // however, need "from" in `parseSearchNaturalLanguageFilterModifiers()`.
+        // however, need "from" in `parseSearchNaturalLanguageFilterPostmodifierIfPossible()`.
         state.term.normal === "from"
     ) {
         // We parsed some terms expecting a date but there was no date!
         if (startTerm !== state.term) return {filterStartTerm, filterEndTerm, filter};
 
-        return parseSearchNaturalLanguageFilterModifiers(
+        return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             state,
             {
                 filterStartTerm,
@@ -1605,7 +2782,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
                 allowAccount,
                 // `allowTime` is `true` because we haven't parsed a time yet.
                 allowTime: true,
-                isFirstModifier: false,
+                isFirstModifierAfterEntity: false,
             },
             options,
         );
@@ -1655,70 +2832,67 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
                 endDate = new Date(endDate.getTime() + (slopDurationMs - durationMs) / 2);
             }
 
-            return parseSearchNaturalLanguageFilterModifiers(
+            return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                 state,
                 {
                     filterStartTerm,
                     filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                     filter: {
                         ...filter,
-                        time: {
+                        ...createDateRangeFilterUpdate(
+                            filter,
                             field,
-                            range: {
-                                inclusiveLowerBoundDate: startDate,
-                                inclusiveUpperBoundDate: endDate,
-                            },
-                        },
+                            {startDate, endDate},
+                            timeZone,
+                        ),
                     },
                     allowAccount,
                     allowTime: false,
-                    isFirstModifier: false,
+                    isFirstModifierAfterEntity: false,
                 },
                 options,
             );
         }
         case "After": {
-            return parseSearchNaturalLanguageFilterModifiers(
+            return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                 state,
                 {
                     filterStartTerm,
                     filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                     filter: {
                         ...filter,
-                        time: {
+                        ...createDateRangeFilterUpdate(
+                            filter,
                             field,
-                            range: {
-                                inclusiveLowerBoundDate: startDate,
-                                inclusiveUpperBoundDate: null,
-                            },
-                        },
+                            {startDate, endDate: null},
+                            timeZone,
+                        ),
                     },
                     allowAccount,
                     allowTime: false,
-                    isFirstModifier: false,
+                    isFirstModifierAfterEntity: false,
                 },
                 options,
             );
         }
         case "Before": {
-            return parseSearchNaturalLanguageFilterModifiers(
+            return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                 state,
                 {
                     filterStartTerm,
                     filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                     filter: {
                         ...filter,
-                        time: {
+                        ...createDateRangeFilterUpdate(
+                            filter,
                             field,
-                            range: {
-                                inclusiveLowerBoundDate: null,
-                                inclusiveUpperBoundDate: endDate,
-                            },
-                        },
+                            {startDate: null, endDate},
+                            timeZone,
+                        ),
                     },
                     allowAccount,
                     allowTime: false,
-                    isFirstModifier: false,
+                    isFirstModifierAfterEntity: false,
                 },
                 options,
             );

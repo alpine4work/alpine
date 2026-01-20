@@ -65,8 +65,14 @@ import {
 import {printSearchNaturalLanguageFilter} from "~/server/search/data/index/internal/print_search_natural_language_filter.js";
 import {
     SearchEntityEmbeddingChunkIndexDocType,
+    SearchEntityIndexActivenessType,
+    SearchEntityIndexActivenessTypeIntegerMapping,
     SearchEntityIndexDefaultGrantType,
     SearchEntityIndexDefaultGrantTypeIntegerMapping,
+    SearchEntityIndexOpennessType,
+    SearchEntityIndexOpennessTypeIntegerMapping,
+    SearchEntityIndexPriorityType,
+    SearchEntityIndexPriorityTypeIntegerMapping,
     SearchEntityKeywordIndexDoc,
     SearchEntityKeywordIndexDocType,
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
@@ -369,6 +375,7 @@ assertEqualTypes<
     {
         createdTime: Date;
         lastUpdatedTime: Date;
+        dueDate: Date;
         "accessPolicy.accountGrantAccountIds": AccountId;
         "accessPolicy.defaultGrantType": SearchEntityIndexDefaultGrantType;
         "accessPolicy.urlGrantLevel": AccessPolicyUrlGrant["level"];
@@ -378,6 +385,9 @@ assertEqualTypes<
         titleVersion: SearchEntityTitleVersion;
         body: string;
         media: SearchEntityMedia;
+        openness: SearchEntityIndexOpennessType;
+        activeness: SearchEntityIndexActivenessType;
+        priority: SearchEntityIndexPriorityType;
     }
 >();
 
@@ -430,6 +440,45 @@ export function refreshSearchEntityKeywordIndexForTest(
     assert(import.meta.jest);
 
     return context.opensearch.refresh(SearchEntityKeywordIndex);
+}
+
+/*
+ * After parsing queries, some values need to be mapped to their opensearch
+ * enums. This function does that conversion, or just returns the raw values
+ * if no mapping is needed.
+ */
+function mapNaturalLanguageFilterToOpensearchValue(
+    flattenedKey: OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>,
+    values: ReadonlyArray<JsonValue>,
+) {
+    switch (flattenedKey) {
+        case "priority":
+            return values.map(value =>
+                value !== null
+                    ? SearchEntityIndexPriorityTypeIntegerMapping.into(
+                          value as SearchEntityIndexPriorityType,
+                      )
+                    : null,
+            );
+        case "openness":
+            return values.map(value =>
+                value !== null
+                    ? SearchEntityIndexOpennessTypeIntegerMapping.into(
+                          value as SearchEntityIndexOpennessType,
+                      )
+                    : null,
+            );
+        case "activeness":
+            return values.map(value =>
+                value !== null
+                    ? SearchEntityIndexActivenessTypeIntegerMapping.into(
+                          value as SearchEntityIndexActivenessType,
+                      )
+                    : null,
+            );
+        default:
+            return values;
+    }
 }
 
 /**
@@ -669,6 +718,7 @@ export async function processIndexSearchEntityJob(
             createdTime: entity.createdTime,
             lastUpdatedTime: newLastUpdatedTime,
             lastReadStartTime: readStartTime,
+            dueDate: entity.dueDate?.toDate("UTC") ?? null,
             hasEmbeddingChunks: entity.embeddingChunks.some(
                 embeddingChunk =>
                     embeddingChunk.tokenCountWithoutPreamble >= minEmbeddingChunkTokenCount,
@@ -686,6 +736,10 @@ export async function processIndexSearchEntityJob(
             creatorId: entity.creatorId,
             majorContributorIds: Array.from(majorContributorIds),
             anyContributorIds: Array.from(anyContributorIds),
+            assigneeId: entity.assigneeId,
+            openness: entity.openness,
+            activeness: entity.activeness,
+            priority: entity.priority,
         };
 
         await runAllPromises([
@@ -1345,10 +1399,15 @@ export async function searchByKeywords(
             flattenedKey: OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>,
             values: ReadonlyArray<JsonValue>,
         ): QueryClause => {
-            if (values.length === 1)
-                return {term: {[flattenedKey]: new OpensearchQueryValue(values[0]!)}};
+            const opensearchValues = mapNaturalLanguageFilterToOpensearchValue(
+                flattenedKey,
+                values,
+            );
 
-            return {terms: {[flattenedKey]: new OpensearchQueryValue(values)}};
+            if (opensearchValues.length === 1)
+                return {term: {[flattenedKey]: new OpensearchQueryValue(opensearchValues[0]!)}};
+
+            return {terms: {[flattenedKey]: new OpensearchQueryValue(opensearchValues)}};
         };
 
         const filterClauses = Array.from(parsedFilterByName.entries()).map(
@@ -1374,6 +1433,10 @@ export async function searchByKeywords(
                             filterMust.push(createTermQueryClause("anyContributorIds", accountIds));
                             break;
                         }
+                        case "Assignee": {
+                            filterMust.push(createTermQueryClause("assigneeId", accountIds));
+                            break;
+                        }
                         default:
                             throw exhaustive(filter.account.field);
                     }
@@ -1381,23 +1444,24 @@ export async function searchByKeywords(
 
                 if (filter.time) {
                     timeFilterFields.add(filter.time.field);
+                    const timeFilterConditionals = {
+                        gte: filter.time.range.inclusiveLowerBoundDate
+                            ? new OpensearchQueryValue(
+                                  filter.time.range.inclusiveLowerBoundDate.toISOString(),
+                              )
+                            : undefined,
+                        lte: filter.time.range.inclusiveUpperBoundDate
+                            ? new OpensearchQueryValue(
+                                  filter.time.range.inclusiveUpperBoundDate.toISOString(),
+                              )
+                            : undefined,
+                    };
 
                     switch (filter.time.field) {
                         case "Created": {
                             filterMust.push({
                                 range: {
-                                    createdTime: {
-                                        gte: filter.time.range.inclusiveLowerBoundDate
-                                            ? new OpensearchQueryValue(
-                                                  filter.time.range.inclusiveLowerBoundDate.toISOString(),
-                                              )
-                                            : undefined,
-                                        lte: filter.time.range.inclusiveUpperBoundDate
-                                            ? new OpensearchQueryValue(
-                                                  filter.time.range.inclusiveUpperBoundDate.toISOString(),
-                                              )
-                                            : undefined,
-                                    },
+                                    createdTime: timeFilterConditionals,
                                 },
                             });
                             break;
@@ -1405,18 +1469,7 @@ export async function searchByKeywords(
                         case "LastUpdated": {
                             filterMust.push({
                                 range: {
-                                    lastUpdatedTime: {
-                                        gte: filter.time.range.inclusiveLowerBoundDate
-                                            ? new OpensearchQueryValue(
-                                                  filter.time.range.inclusiveLowerBoundDate.toISOString(),
-                                              )
-                                            : undefined,
-                                        lte: filter.time.range.inclusiveUpperBoundDate
-                                            ? new OpensearchQueryValue(
-                                                  filter.time.range.inclusiveUpperBoundDate.toISOString(),
-                                              )
-                                            : undefined,
-                                    },
+                                    lastUpdatedTime: timeFilterConditionals,
                                 },
                             });
                             break;
@@ -1424,6 +1477,51 @@ export async function searchByKeywords(
                         default:
                             throw exhaustive(filter.time.field);
                     }
+                }
+
+                if (filter.date) {
+                    // Due dates are CalendarDates (date-only, no time component). Both indexing
+                    // and querying convert CalendarDate to midnight UTC via toDate("UTC"), so
+                    // "January 20" always becomes "2026-01-20T00:00:00.000Z" regardless of who
+                    // set it or who's searching. The user's timezone is handled upstream in the
+                    // natural language parser when computing what "today" or "yesterday" means.
+                    const dateFilterConditionals = {
+                        gte: filter.date.range.inclusiveLowerBound
+                            ? new OpensearchQueryValue(
+                                  filter.date.range.inclusiveLowerBound.toDate("UTC").toISOString(),
+                              )
+                            : undefined,
+                        lte: filter.date.range.inclusiveUpperBound
+                            ? new OpensearchQueryValue(
+                                  filter.date.range.inclusiveUpperBound.toDate("UTC").toISOString(),
+                              )
+                            : undefined,
+                    };
+
+                    switch (filter.date.field) {
+                        case "Due": {
+                            filterMust.push({
+                                range: {
+                                    dueDate: dateFilterConditionals,
+                                },
+                            });
+                            break;
+                        }
+                        default:
+                            throw exhaustive(filter.date.field);
+                    }
+                }
+
+                if (filter.priority) {
+                    filterMust.push(createTermQueryClause("priority", filter.priority));
+                }
+
+                if (filter.openness !== null) {
+                    filterMust.push(createTermQueryClause("openness", filter.openness));
+                }
+
+                if (filter.activeness !== null) {
+                    filterMust.push(createTermQueryClause("activeness", filter.activeness));
                 }
 
                 return {
@@ -1546,17 +1644,19 @@ export async function searchByKeywords(
 
             const hitMedia = hit.fields.media?.[0];
 
-            const media =
-                hitMedia?.type === "TaskCollectionColor"
-                    ? hitMedia
-                    : hitMedia
-                      ? await prepareSearchEntityMediaForResult(
-                            context,
-                            spaceId,
-                            entityId,
-                            hitMedia,
-                        )
-                      : null;
+            let media: SearchEntityMediaModel | null = null;
+            if (hitMedia) {
+                if (hitMedia.type === "TaskCollectionColor") {
+                    media = hitMedia;
+                } else {
+                    media = await prepareSearchEntityMediaForResult(
+                        context,
+                        spaceId,
+                        entityId,
+                        hitMedia,
+                    );
+                }
+            }
 
             // If this hit is for a task collection then we'll include, as the search
             // result body, a summary of how many tasks are in the collection and when the

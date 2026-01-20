@@ -49,6 +49,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     embeddingChunks: [],
                     creatorId: null,
                     contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
         });
@@ -109,6 +114,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                         [session2.account.id, "Major"],
                         [session1.account.id, "Major"],
                     ]),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
         });
@@ -165,6 +175,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     media: {type: "Account", accountId: session2.account.id},
                     creatorId: session2.account.id,
                     contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
         });
@@ -209,6 +224,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     media: null,
                     creatorId: session.account.id,
                     contributorIds: new Map([[session.account.id, "Major"]]),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
         });
@@ -258,6 +278,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     media: {type: "Account", accountId: session2.account.id},
                     creatorId: session2.account.id,
                     contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
         });
@@ -307,6 +332,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     media: {type: "Account", accountId: session3.account.id},
                     creatorId: session3.account.id,
                     contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
         });
@@ -343,6 +373,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     media: null,
                     creatorId: null,
                     contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
 
@@ -371,6 +406,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     media: null,
                     creatorId: null,
                     contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
         });
@@ -407,6 +447,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     media: null,
                     creatorId: null,
                     contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
 
@@ -456,6 +501,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                         [session2.account.id, "Major"],
                         [session3.account.id, "Major"],
                     ]),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
         });
@@ -502,6 +552,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     media: {type: "Account", accountId: session2.account.id},
                     creatorId: session2.account.id,
                     contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
                 },
             });
         });

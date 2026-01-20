@@ -56,6 +56,35 @@ export const SearchEntityIndexUrlGrantTypeIntegerMapping = createEnumIntegerMapp
     View: 1,
 });
 
+export type SearchEntityIndexOpennessType = IntegerMappingStringType<
+    typeof SearchEntityIndexOpennessTypeIntegerMapping
+>;
+
+export const SearchEntityIndexOpennessTypeIntegerMapping = createEnumIntegerMapping({
+    Open: 1,
+    Closed: 2,
+});
+
+export type SearchEntityIndexActivenessType = IntegerMappingStringType<
+    typeof SearchEntityIndexActivenessTypeIntegerMapping
+>;
+
+export const SearchEntityIndexActivenessTypeIntegerMapping = createEnumIntegerMapping({
+    Active: 1,
+    Inactive: 2,
+});
+
+export type SearchEntityIndexPriorityType = IntegerMappingStringType<
+    typeof SearchEntityIndexPriorityTypeIntegerMapping
+>;
+
+export const SearchEntityIndexPriorityTypeIntegerMapping = createEnumIntegerMapping({
+    Urgent: 1,
+    High: 2,
+    Medium: 3,
+    Low: 4,
+});
+
 export type SearchEntityIndexAccessPolicy = OpensearchIndexTypeType<
     typeof SearchEntityIndexAccessPolicyType
 >;
@@ -206,6 +235,16 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
          * The last time where we started the read that produced this search entity.
          */
         lastReadStartTime: new OpensearchIndexDateType().store(),
+
+        /**
+         * The due date of the search entity, if applicable.
+         */
+        dueDate: new OpensearchIndexDateType({
+            isFilterable: true,
+            isSortable: true,
+        })
+            .nullable()
+            .store(),
 
         /**
          * Does this search entity have some embedding chunks?
@@ -368,6 +407,67 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
         anyContributorIds: new OpensearchIndexArrayType(
             new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
         ).default([]),
+
+        /**
+         * The account who is assigned to this search entity.
+         */
+        assigneeId: new OpensearchIndexKeywordType({isFilterable: true})
+            .validate<AccountId>(isId)
+            .nullable()
+            .default(null),
+
+        /**
+         * A generic "open" status, if applicable.
+         * It is up to each entity to decide what "open" means.
+         */
+        openness: new OpensearchIndexByteType({isFilterable: true})
+            .nullable()
+            .transform<SearchEntityIndexOpennessType | null>({
+                serialize: type =>
+                    type ? SearchEntityIndexOpennessTypeIntegerMapping.into(type) : null,
+                deserialize: type =>
+                    type
+                        ? SearchEntityIndexOpennessTypeIntegerMapping.from(
+                              SearchEntityIndexOpennessTypeIntegerMapping.assert(type),
+                          )
+                        : null,
+            })
+            .store(),
+
+        /**
+         * A generic "active" status, if applicable.
+         * It is up to each entity to decide what "active" means.
+         */
+        activeness: new OpensearchIndexByteType({isFilterable: true})
+            .nullable()
+            .transform<SearchEntityIndexActivenessType | null>({
+                serialize: type =>
+                    type ? SearchEntityIndexActivenessTypeIntegerMapping.into(type) : null,
+                deserialize: type =>
+                    type
+                        ? SearchEntityIndexActivenessTypeIntegerMapping.from(
+                              SearchEntityIndexActivenessTypeIntegerMapping.assert(type),
+                          )
+                        : null,
+            })
+            .store(),
+
+        /**
+         * The priority of the search entity, if applicable.
+         */
+        priority: new OpensearchIndexByteType({isFilterable: true})
+            .nullable()
+            .transform<SearchEntityIndexPriorityType | null>({
+                serialize: type =>
+                    type ? SearchEntityIndexPriorityTypeIntegerMapping.into(type) : null,
+                deserialize: type =>
+                    type
+                        ? SearchEntityIndexPriorityTypeIntegerMapping.from(
+                              SearchEntityIndexPriorityTypeIntegerMapping.assert(type),
+                          )
+                        : null,
+            })
+            .store(),
     },
 });
 

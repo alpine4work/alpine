@@ -1,7 +1,11 @@
 /* eslint-disable string-quotes */
 
+import {CalendarDate} from "@internationalized/date";
 import _Fuse from "fuse.js";
-import {parseSearchNaturalLanguageQuery} from "~/server/search/data/index/internal/parse_search_natural_language_query.js";
+import {
+    SearchNaturalLanguageFilter,
+    parseSearchNaturalLanguageQuery,
+} from "~/server/search/data/index/internal/parse_search_natural_language_query.js";
 import {
     accountNameIndexFuseMinMatchCharLength,
     accountNameIndexFuseScoreMatchCutoff,
@@ -72,6 +76,25 @@ const options = {
     },
 };
 
+/**
+ * As we add more filters, using a defaulted filter allows us to not have to specify
+ * every item in a resulting filter.
+ */
+function createDefaultedFilter(
+    overrides: Partial<SearchNaturalLanguageFilter> = {},
+): SearchNaturalLanguageFilter {
+    return {
+        entityTypes: [],
+        account: null,
+        time: null,
+        date: null,
+        priority: null,
+        openness: null,
+        activeness: null,
+        ...overrides,
+    };
+}
+
 describe("failure modes", () => {
     describe("describing time since now", () => {
         test("'my documents from the last 7 days' doesn't recognize control texts", () => {
@@ -94,7 +117,8 @@ describe("failure modes", () => {
                 controlQueryTexts: ["my documents"],
 
                 filters: [
-                    {
+                    createDefaultedFilter({
+                        entityTypes: ["Document"],
                         account: {
                             field: "MajorContributor",
                             accounts: [
@@ -104,10 +128,9 @@ describe("failure modes", () => {
                                 },
                             ],
                         },
-                        entityTypes: ["Document"],
                         // TODO(ifitzsimmons, #improve-search): This should be the last 7 days
                         time: null,
-                    },
+                    }),
                 ],
             });
         });
@@ -124,7 +147,8 @@ describe("failure modes", () => {
                 // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other tests
                 controlQueryTexts: ["documents I updated"],
                 filters: [
-                    {
+                    createDefaultedFilter({
+                        entityTypes: ["Document"],
                         account: {
                             field: "AnyContributor",
                             accounts: [
@@ -134,10 +158,9 @@ describe("failure modes", () => {
                                 },
                             ],
                         },
-                        entityTypes: ["Document"],
                         // TODO(ifitzsimmons, #improve-search): This should be the last 7 days
                         time: null,
-                    },
+                    }),
                 ],
             });
         });
@@ -163,7 +186,8 @@ describe("failure modes", () => {
                 // the last 7 days"
                 controlQueryTexts: ["my documents from after 7 days ago"],
                 filters: [
-                    {
+                    createDefaultedFilter({
+                        entityTypes: ["Document"],
                         account: {
                             field: "MajorContributor",
                             accounts: [
@@ -173,7 +197,6 @@ describe("failure modes", () => {
                                 },
                             ],
                         },
-                        entityTypes: ["Document"],
                         time: {
                             // TODO(ifitzsimmons, #improve-search): Based on query, I think I'd
                             // expect this to be LastUpdated?
@@ -184,7 +207,7 @@ describe("failure modes", () => {
                                 inclusiveUpperBoundDate: null,
                             },
                         },
-                    },
+                    }),
                 ],
             });
         });
@@ -199,7 +222,8 @@ describe("failure modes", () => {
                 queryTexts: [],
                 controlQueryTexts: ["my documents from last month"],
                 filters: [
-                    {
+                    createDefaultedFilter({
+                        entityTypes: ["Document"],
                         account: {
                             field: "MajorContributor",
                             accounts: [
@@ -209,7 +233,6 @@ describe("failure modes", () => {
                                 },
                             ],
                         },
-                        entityTypes: ["Document"],
                         time: {
                             // TODO(ifitzsimmons, #improve-search): This should be LastUpdated?
                             field: "Created",
@@ -218,122 +241,7 @@ describe("failure modes", () => {
                                 inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
                             },
                         },
-                    },
-                ],
-            });
-        });
-    });
-
-    describe("tasks", () => {
-        // Doesn't use assignee when user queries for "my tasks"
-        test("'my tasks updated yesterday' returns tasks in which I am the major contributor", () => {
-            expect(parseSearchNaturalLanguageQuery("my tasks updated yesterday", options)).toEqual({
-                isLowConfidence: false,
-                queryTexts: [],
-                controlQueryTexts: ["my tasks updated yesterday"],
-                filters: [
-                    {
-                        // TODO(ifitzsimmons, #improve-search): I think that this should really
-                        // be the Task Assignee with MajorContributor as a possible filter but with
-                        // a much lower rank
-                        account: {
-                            field: "MajorContributor",
-                            accounts: [
-                                {
-                                    id: options.actorAccount.id,
-                                    name: options.actorAccount.name,
-                                },
-                            ],
-                        },
-                        entityTypes: ["Task", "TaskCollection"],
-                        time: {
-                            field: "LastUpdated",
-                            range: {
-                                inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
-                                inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
-                            },
-                        },
-                    },
-                ],
-            });
-        });
-
-        test("'my active tasks' can't filter on task status", () => {
-            expect(parseSearchNaturalLanguageQuery("my active tasks", options)).toEqual({
-                isLowConfidence: false,
-                queryTexts: ["active"],
-                controlQueryTexts: ["my", "tasks"],
-                filters: [
-                    {
-                        // TODO(ifitzsimmons, #improve-search): I think that this should really
-                        // be the Task Assignee with MajorContributor as a possible filter but with
-                        // a much lower rank
-                        account: {
-                            field: "MajorContributor",
-                            accounts: [
-                                {
-                                    id: options.actorAccount.id,
-                                    name: options.actorAccount.name,
-                                },
-                            ],
-                        },
-                        entityTypes: ["Task", "TaskCollection"],
-                        time: null,
-                    },
-                ],
-            });
-        });
-
-        test("'my tasks due this week' can't filter on due date", () => {
-            expect(parseSearchNaturalLanguageQuery("my tasks due this week", options)).toEqual({
-                isLowConfidence: false,
-                queryTexts: ["due this week"],
-                controlQueryTexts: ["my tasks"],
-                filters: [
-                    {
-                        // TODO(ifitzsimmons, #improve-search): I think that this should really
-                        // be the Task Assignee with MajorContributor as a possible filter but with
-                        // a much lower rank
-                        account: {
-                            field: "MajorContributor",
-                            accounts: [
-                                {
-                                    id: options.actorAccount.id,
-                                    name: options.actorAccount.name,
-                                },
-                            ],
-                        },
-                        entityTypes: ["Task", "TaskCollection"],
-                        // We should have time filters for due dates
-                        time: null,
-                    },
-                ],
-            });
-        });
-
-        test("'my high priority tasks' can't filter on priority", () => {
-            expect(parseSearchNaturalLanguageQuery("my high priority tasks", options)).toEqual({
-                isLowConfidence: false,
-                queryTexts: ["high priority"],
-                controlQueryTexts: ["my", "tasks"],
-                filters: [
-                    {
-                        // TODO(ifitzsimmons, #improve-search): I think that this should really
-                        // be the Task Assignee with MajorContributor as a possible filter but with
-                        // a much lower rank
-                        account: {
-                            field: "MajorContributor",
-                            accounts: [
-                                {
-                                    id: options.actorAccount.id,
-                                    name: options.actorAccount.name,
-                                },
-                            ],
-                        },
-                        entityTypes: ["Task", "TaskCollection"],
-                        // We should have time filters for due dates
-                        time: null,
-                    },
+                    }),
                 ],
             });
         });
@@ -346,14 +254,13 @@ describe("parses search entity type then account name", () => {
         queryTexts: [],
         controlQueryTexts: ["documents by me"],
         filters: [
-            {
+            createDefaultedFilter({
                 entityTypes: ["Document"],
                 account: {
                     field: "MajorContributor",
                     accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                 },
-                time: null,
-            },
+            }),
         ],
     });
 
@@ -362,13 +269,7 @@ describe("parses search entity type then account name", () => {
             isLowConfidence: true,
             queryTexts: ["by"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -377,13 +278,7 @@ describe("parses search entity type then account name", () => {
             isLowConfidence: true,
             queryTexts: ["by"],
             controlQueryTexts: ["documents about"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -392,13 +287,7 @@ describe("parses search entity type then account name", () => {
             isLowConfidence: true,
             queryTexts: ["by about"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -408,14 +297,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -426,14 +314,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents by me about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -444,14 +331,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: [],
             controlQueryTexts: ["documents by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -462,14 +348,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -480,14 +365,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents by john about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -498,14 +382,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -516,14 +399,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: [],
             controlQueryTexts: ["documents by john smith"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -536,14 +418,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: ["trains1", "trains2"],
             controlQueryTexts: ["documents by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -554,7 +435,7 @@ describe("parses search entity type then account name", () => {
             queryTexts: [],
             controlQueryTexts: ["messages from emily"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                     account: {
                         field: "MajorContributor",
@@ -563,8 +444,7 @@ describe("parses search entity type then account name", () => {
                             {id: accounts[4]!.id, name: accounts[4]!.initialData.name},
                         ],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -575,7 +455,7 @@ describe("parses search entity type then account name", () => {
             queryTexts: [],
             controlQueryTexts: ["comments from emily"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                     account: {
                         field: "MajorContributor",
@@ -584,8 +464,7 @@ describe("parses search entity type then account name", () => {
                             {id: accounts[4]!.id, name: accounts[4]!.initialData.name},
                         ],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -596,7 +475,7 @@ describe("parses search entity type then account name", () => {
             queryTexts: [],
             controlQueryTexts: ["post comments from emily"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["PostComment"],
                     account: {
                         field: "MajorContributor",
@@ -605,8 +484,7 @@ describe("parses search entity type then account name", () => {
                             {id: accounts[4]!.id, name: accounts[4]!.initialData.name},
                         ],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -617,14 +495,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: [],
             controlQueryTexts: ["messages from emily smith"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[2]!.id, name: accounts[2]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -635,14 +512,13 @@ describe("parses search entity type then account name", () => {
             queryTexts: [],
             controlQueryTexts: ["messages from emily lin"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[4]!.id, name: accounts[4]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -653,7 +529,7 @@ describe("parses search entity type then account name", () => {
             queryTexts: [],
             controlQueryTexts: ["messeges from emily"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                     account: {
                         field: "MajorContributor",
@@ -662,8 +538,7 @@ describe("parses search entity type then account name", () => {
                             {id: accounts[4]!.id, name: accounts[4]!.initialData.name},
                         ],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -683,11 +558,9 @@ describe("parses search entity type then account name", () => {
             queryTexts: ["from sarah"],
             controlQueryTexts: ["messages"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                    account: null,
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -700,14 +573,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -717,13 +589,7 @@ describe("parses search entity type then relationship then me", () => {
             isLowConfidence: true,
             queryTexts: ["created me"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -733,14 +599,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents created by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -753,14 +618,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents created by me about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -771,14 +635,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: [],
             controlQueryTexts: ["documents written by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -788,13 +651,7 @@ describe("parses search entity type then relationship then me", () => {
             isLowConfidence: true,
             queryTexts: ["written me"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -804,14 +661,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents written by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -824,14 +680,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents written by me about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -842,14 +697,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: [],
             controlQueryTexts: ["documents updated by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -859,13 +713,7 @@ describe("parses search entity type then relationship then me", () => {
             isLowConfidence: true,
             queryTexts: ["updated me"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -875,14 +723,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents updated by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -895,14 +742,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents updated by me about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -913,14 +759,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: [],
             controlQueryTexts: ["documents udpated by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -930,13 +775,7 @@ describe("parses search entity type then relationship then me", () => {
             isLowConfidence: true,
             queryTexts: ["udpated me"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -946,14 +785,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents udpated by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -966,14 +804,13 @@ describe("parses search entity type then relationship then me", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents udpated by me about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -986,14 +823,13 @@ describe("parses search entity type then relationship then account name", () => 
             queryTexts: [],
             controlQueryTexts: ["documents created by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1003,13 +839,7 @@ describe("parses search entity type then relationship then account name", () => 
             isLowConfidence: true,
             queryTexts: ["created by sara"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1018,13 +848,7 @@ describe("parses search entity type then relationship then account name", () => 
             isLowConfidence: true,
             queryTexts: ["created john"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1035,14 +859,13 @@ describe("parses search entity type then relationship then account name", () => 
                 queryTexts: ["train"],
                 controlQueryTexts: ["documents created by john"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
                         account: {
                             field: "Creator",
                             accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                         },
-                        time: null,
-                    },
+                    }),
                 ],
             },
         );
@@ -1056,14 +879,13 @@ describe("parses search entity type then relationship then account name", () => 
             queryTexts: ["trains"],
             controlQueryTexts: ["documents created by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1075,14 +897,13 @@ describe("parses search entity type then relationship then account name", () => 
                 queryTexts: [],
                 controlQueryTexts: ["documents created by john smith"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
                         account: {
                             field: "Creator",
                             accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                         },
-                        time: null,
-                    },
+                    }),
                 ],
             },
         );
@@ -1096,14 +917,13 @@ describe("parses search entity type then relationship then account name", () => 
             queryTexts: ["trains"],
             controlQueryTexts: ["documents created by john about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1114,14 +934,13 @@ describe("parses search entity type then relationship then account name", () => 
             queryTexts: [],
             controlQueryTexts: ["documents written by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1131,13 +950,7 @@ describe("parses search entity type then relationship then account name", () => 
             isLowConfidence: true,
             queryTexts: ["written by sara"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1146,13 +959,7 @@ describe("parses search entity type then relationship then account name", () => 
             isLowConfidence: true,
             queryTexts: ["written john"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1163,14 +970,13 @@ describe("parses search entity type then relationship then account name", () => 
                 queryTexts: ["train"],
                 controlQueryTexts: ["documents written by john"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
                         account: {
                             field: "MajorContributor",
                             accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                         },
-                        time: null,
-                    },
+                    }),
                 ],
             },
         );
@@ -1184,14 +990,13 @@ describe("parses search entity type then relationship then account name", () => 
             queryTexts: ["trains"],
             controlQueryTexts: ["documents written by john about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1202,14 +1007,13 @@ describe("parses search entity type then relationship then account name", () => 
             queryTexts: [],
             controlQueryTexts: ["documents updated by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1219,13 +1023,7 @@ describe("parses search entity type then relationship then account name", () => 
             isLowConfidence: true,
             queryTexts: ["updated john"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1236,14 +1034,13 @@ describe("parses search entity type then relationship then account name", () => 
                 queryTexts: ["train"],
                 controlQueryTexts: ["documents updated by john"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
                         account: {
                             field: "AnyContributor",
                             accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                         },
-                        time: null,
-                    },
+                    }),
                 ],
             },
         );
@@ -1257,14 +1054,13 @@ describe("parses search entity type then relationship then account name", () => 
             queryTexts: ["trains"],
             controlQueryTexts: ["documents updated by john about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1274,13 +1070,7 @@ describe("parses search entity type then relationship then account name", () => 
             isLowConfidence: true,
             queryTexts: ["updated by sara"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1290,14 +1080,13 @@ describe("parses search entity type then relationship then account name", () => 
             queryTexts: [],
             controlQueryTexts: ["documents udpated by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1307,13 +1096,7 @@ describe("parses search entity type then relationship then account name", () => 
             isLowConfidence: true,
             queryTexts: ["udpated john"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1324,14 +1107,13 @@ describe("parses search entity type then relationship then account name", () => 
                 queryTexts: ["train"],
                 controlQueryTexts: ["documents udpated by john"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
                         account: {
                             field: "AnyContributor",
                             accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                         },
-                        time: null,
-                    },
+                    }),
                 ],
             },
         );
@@ -1345,14 +1127,13 @@ describe("parses search entity type then relationship then account name", () => 
             queryTexts: ["trains"],
             controlQueryTexts: ["documents udpated by john about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1365,14 +1146,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: [],
             controlQueryTexts: ["documents I created"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1382,13 +1162,7 @@ describe("parses search entity type then I then relationship", () => {
             isLowConfidence: true,
             queryTexts: ["I"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1398,14 +1172,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents I created"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1418,14 +1191,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents I created about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1436,14 +1208,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: [],
             controlQueryTexts: ["documents I wrote"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1453,13 +1224,7 @@ describe("parses search entity type then I then relationship", () => {
             isLowConfidence: true,
             queryTexts: ["wrote"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1469,14 +1234,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents I wrote"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1487,14 +1251,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents I wrote about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1505,14 +1268,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: [],
             controlQueryTexts: ["documents I updated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1522,13 +1284,7 @@ describe("parses search entity type then I then relationship", () => {
             isLowConfidence: true,
             queryTexts: ["updated"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1538,14 +1294,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents I updated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1558,14 +1313,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents I updated about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1576,14 +1330,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: [],
             controlQueryTexts: ["documents I udpated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1593,13 +1346,7 @@ describe("parses search entity type then I then relationship", () => {
             isLowConfidence: true,
             queryTexts: ["udpated"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1609,14 +1356,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["documents I udpated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1629,14 +1375,13 @@ describe("parses search entity type then I then relationship", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["documents I udpated about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1649,14 +1394,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: [],
             controlQueryTexts: ["documents john created"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1666,13 +1410,7 @@ describe("parses search entity type then account first name then relationship", 
             isLowConfidence: true,
             queryTexts: ["john"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1682,14 +1420,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: ["train"],
             controlQueryTexts: ["documents john created"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1702,14 +1439,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john created about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1720,14 +1456,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: [],
             controlQueryTexts: ["documents john wrote"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1737,13 +1472,7 @@ describe("parses search entity type then account first name then relationship", 
             isLowConfidence: true,
             queryTexts: ["wrote"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1753,14 +1482,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: ["train"],
             controlQueryTexts: ["documents john wrote"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1773,14 +1501,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john wrote about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1791,14 +1518,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: [],
             controlQueryTexts: ["documents john updated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1808,13 +1534,7 @@ describe("parses search entity type then account first name then relationship", 
             isLowConfidence: true,
             queryTexts: ["updated"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1824,14 +1544,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: ["train"],
             controlQueryTexts: ["documents john updated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1844,14 +1563,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john updated about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1862,14 +1580,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: [],
             controlQueryTexts: ["documents john udpated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1879,13 +1596,7 @@ describe("parses search entity type then account first name then relationship", 
             isLowConfidence: true,
             queryTexts: ["udpated"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1895,14 +1606,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: ["train"],
             controlQueryTexts: ["documents john udpated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1915,14 +1625,13 @@ describe("parses search entity type then account first name then relationship", 
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john udpated about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1935,14 +1644,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: [],
             controlQueryTexts: ["documents john smith created"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1952,13 +1660,7 @@ describe("parses search entity type then account full name then relationship", (
             isLowConfidence: true,
             queryTexts: ["john smith"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -1970,14 +1672,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: ["train"],
             controlQueryTexts: ["documents john smith created"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -1990,14 +1691,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john smith created about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2008,14 +1708,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: [],
             controlQueryTexts: ["documents john smith wrote"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2025,13 +1724,7 @@ describe("parses search entity type then account full name then relationship", (
             isLowConfidence: true,
             queryTexts: ["wrote"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -2043,14 +1736,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: ["train"],
             controlQueryTexts: ["documents john smith wrote"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2063,14 +1755,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john smith wrote about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2081,14 +1772,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: [],
             controlQueryTexts: ["documents john smith updated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2098,13 +1788,7 @@ describe("parses search entity type then account full name then relationship", (
             isLowConfidence: true,
             queryTexts: ["updated"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -2116,14 +1800,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: ["train"],
             controlQueryTexts: ["documents john smith updated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2136,14 +1819,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john smith updated about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2154,14 +1836,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: [],
             controlQueryTexts: ["documents john smith udpated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2171,13 +1852,7 @@ describe("parses search entity type then account full name then relationship", (
             isLowConfidence: true,
             queryTexts: ["udpated"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -2189,14 +1864,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: ["train"],
             controlQueryTexts: ["documents john smith udpated"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2209,14 +1883,13 @@ describe("parses search entity type then account full name then relationship", (
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john smith udpated about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2229,14 +1902,13 @@ describe("parses account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["my documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2247,14 +1919,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["my documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2265,14 +1936,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["my documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2283,14 +1953,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["my documents about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2301,14 +1970,13 @@ describe("parses account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["john's documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2319,14 +1987,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["john's documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2337,14 +2004,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["john's documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2355,14 +2021,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["john's documents about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2373,14 +2038,13 @@ describe("parses account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["john smith's documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2391,14 +2055,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["john smith's documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2409,14 +2072,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["john smith's documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2429,14 +2091,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["john smith's documents about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2447,14 +2108,13 @@ describe("parses account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["johns documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2465,14 +2125,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["johns documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2483,14 +2142,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["johns documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2501,14 +2159,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["johns documents about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2519,14 +2176,13 @@ describe("parses account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["john smiths documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2537,14 +2193,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["john smiths documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2555,14 +2210,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["john smiths documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2575,14 +2229,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["john smiths documents about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2611,14 +2264,13 @@ describe("parses account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["johna documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2629,14 +2281,13 @@ describe("parses account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["johna's documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2646,13 +2297,7 @@ describe("parses account name then entity type", () => {
             isLowConfidence: true,
             queryTexts: ["jahn"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -2661,13 +2306,7 @@ describe("parses account name then entity type", () => {
             isLowConfidence: true,
             queryTexts: ["jaahn"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -2676,13 +2315,7 @@ describe("parses account name then entity type", () => {
             isLowConfidence: true,
             queryTexts: ["jaahn's"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -2691,13 +2324,7 @@ describe("parses account name then entity type", () => {
             isLowConfidence: true,
             queryTexts: ["jaahns"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -2707,14 +2334,13 @@ describe("parses account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["all of my documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2725,14 +2351,13 @@ describe("parses account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["all of john's documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2743,14 +2368,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["all of my", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2761,14 +2385,13 @@ describe("parses account name then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["all of john's", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2790,14 +2413,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["my", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2808,14 +2430,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["john's", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2826,14 +2447,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["train"],
             controlQueryTexts: ["john smith's", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2845,14 +2465,13 @@ describe("parses account name with some text between then entity type", () => {
                 queryTexts: ["neat", "georgia"],
                 controlQueryTexts: ["my", "documents about"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
                         account: {
                             field: "MajorContributor",
                             accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                         },
-                        time: null,
-                    },
+                    }),
                 ],
             },
         );
@@ -2874,13 +2493,7 @@ describe("parses account name with some text between then entity type", () => {
             isLowConfidence: true,
             queryTexts: ["john's neat", "georgia"],
             controlQueryTexts: ["documents about"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -2891,13 +2504,7 @@ describe("parses account name with some text between then entity type", () => {
             isLowConfidence: true,
             queryTexts: ["john smith's neat", "georgia"],
             controlQueryTexts: ["documents about"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -2909,14 +2516,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["train", "georgia"],
             controlQueryTexts: ["my", "documents about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2929,14 +2535,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["train", "georgia"],
             controlQueryTexts: ["john's", "documents about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2949,14 +2554,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["train", "georgia"],
             controlQueryTexts: ["john smith's", "documents about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -2964,47 +2568,110 @@ describe("parses account name with some text between then entity type", () => {
     test("my closed tasks", () => {
         expect(parseSearchNaturalLanguageQuery("my closed tasks", options)).toEqual({
             isLowConfidence: false,
-            queryTexts: ["closed"],
-            controlQueryTexts: ["my", "tasks"],
+            queryTexts: [],
+            controlQueryTexts: ["my", "closed tasks"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                    openness: ["Closed"],
+                }),
             ],
         });
     });
 
     test("john's closed tasks", () => {
         expect(parseSearchNaturalLanguageQuery("john's closed tasks", options)).toEqual({
-            isLowConfidence: true,
-            queryTexts: ["john's closed"],
-            controlQueryTexts: ["tasks"],
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["john's", "closed tasks"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
-                    account: null,
-                    time: null,
-                },
+                    account: {
+                        field: "MajorContributor",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    openness: ["Closed"],
+                }),
             ],
         });
     });
 
     test("john smith's closed tasks", () => {
         expect(parseSearchNaturalLanguageQuery("john smith's closed tasks", options)).toEqual({
-            isLowConfidence: true,
-            queryTexts: ["john smith's closed"],
-            controlQueryTexts: ["tasks"],
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["john smith's", "closed tasks"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
-                    account: null,
-                    time: null,
-                },
+                    account: {
+                        field: "MajorContributor",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    openness: ["Closed"],
+                }),
+            ],
+        });
+    });
+
+    test("john's open tasks", () => {
+        expect(parseSearchNaturalLanguageQuery("john's open tasks", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["john's", "open tasks"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "MajorContributor",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    openness: ["Open"],
+                }),
+            ],
+        });
+    });
+
+    test("all of john's open tasks", () => {
+        expect(parseSearchNaturalLanguageQuery("all of john's open tasks", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["all of john's", "open tasks"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "MajorContributor",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    openness: ["Open"],
+                }),
+            ],
+        });
+    });
+
+    test("all of john's open tasks that are urgent", () => {
+        expect(
+            parseSearchNaturalLanguageQuery("all of john's open tasks that are urgent", options),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["all of john's", "open tasks that are urgent"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "MajorContributor",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    openness: ["Open"],
+                    priority: ["Urgent"],
+                }),
             ],
         });
     });
@@ -3015,14 +2682,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["green"],
             controlQueryTexts: ["my", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3033,14 +2699,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["green"],
             controlQueryTexts: ["john's", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3051,14 +2716,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["green"],
             controlQueryTexts: ["john smith's", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3069,14 +2733,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["john's smith documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3088,14 +2751,13 @@ describe("parses account name with some text between then entity type", () => {
                 queryTexts: ["the cat in the hat"],
                 controlQueryTexts: ["my", "documents"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
                         account: {
                             field: "MajorContributor",
                             accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                         },
-                        time: null,
-                    },
+                    }),
                 ],
             },
         );
@@ -3109,14 +2771,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["the cat in the hat"],
             controlQueryTexts: ["john's", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3129,14 +2790,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["the cat in the hat"],
             controlQueryTexts: ["john smith's", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3149,14 +2809,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["(the cat in the hat)"],
             controlQueryTexts: ["my", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3169,14 +2828,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["(the cat in the hat)"],
             controlQueryTexts: ["john's", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3189,14 +2847,13 @@ describe("parses account name with some text between then entity type", () => {
             queryTexts: ["(the cat in the hat)"],
             controlQueryTexts: ["john smith's", "documents"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3208,13 +2865,7 @@ describe("parses account name with some text between then entity type", () => {
             isLowConfidence: true,
             queryTexts: ["my, the cat in the hat,"],
             controlQueryTexts: ["chat messages"],
-            filters: [
-                {
-                    entityTypes: ["ChatMessage"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["ChatMessage"]})],
         });
     });
 
@@ -3225,13 +2876,7 @@ describe("parses account name with some text between then entity type", () => {
             isLowConfidence: true,
             queryTexts: ["john's, the cat in the hat,"],
             controlQueryTexts: ["chat messages"],
-            filters: [
-                {
-                    entityTypes: ["ChatMessage"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["ChatMessage"]})],
         });
     });
 
@@ -3245,13 +2890,7 @@ describe("parses account name with some text between then entity type", () => {
             isLowConfidence: true,
             queryTexts: ["john smith's, the cat in the hat,"],
             controlQueryTexts: ["chat messages"],
-            filters: [
-                {
-                    entityTypes: ["ChatMessage"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["ChatMessage"]})],
         });
     });
 });
@@ -3262,13 +2901,7 @@ describe("parses standalone entity type", () => {
             isLowConfidence: true,
             queryTexts: [],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -3277,13 +2910,7 @@ describe("parses standalone entity type", () => {
             isLowConfidence: true,
             queryTexts: ["train"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -3292,13 +2919,7 @@ describe("parses standalone entity type", () => {
             isLowConfidence: true,
             queryTexts: ["train"],
             controlQueryTexts: ["documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -3307,13 +2928,7 @@ describe("parses standalone entity type", () => {
             isLowConfidence: true,
             queryTexts: [],
             controlQueryTexts: ["chat message"],
-            filters: [
-                {
-                    entityTypes: ["ChatMessage"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["ChatMessage"]})],
         });
     });
 
@@ -3323,11 +2938,9 @@ describe("parses standalone entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["messages"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                    account: null,
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -3345,16 +2958,8 @@ describe("correctly splits query texts", () => {
             queryTexts: ["train1 train2", "train3 train4", "train5 train6"],
             controlQueryTexts: ["documents", "chat"],
             filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-                {
-                    entityTypes: ["Chat"],
-                    account: null,
-                    time: null,
-                },
+                createDefaultedFilter({entityTypes: ["Document"]}),
+                createDefaultedFilter({entityTypes: ["Chat"]}),
             ],
         });
     });
@@ -3367,9 +2972,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 1 minute ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3377,7 +2981,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T14:07:48.621Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3389,9 +2993,8 @@ describe("provides duration slop when referencing precise date", () => {
                 queryTexts: [],
                 controlQueryTexts: ["documents created 2 minutes ago"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
-                        account: null,
                         time: {
                             field: "Created",
                             range: {
@@ -3399,7 +3002,7 @@ describe("provides duration slop when referencing precise date", () => {
                                 inclusiveUpperBoundDate: new Date("2024-01-04T14:06:52.692Z"),
                             },
                         },
-                    },
+                    }),
                 ],
             },
         );
@@ -3412,9 +3015,8 @@ describe("provides duration slop when referencing precise date", () => {
                 queryTexts: [],
                 controlQueryTexts: ["documents created 5 minutes ago"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
-                        account: null,
                         time: {
                             field: "Created",
                             range: {
@@ -3422,7 +3024,7 @@ describe("provides duration slop when referencing precise date", () => {
                                 inclusiveUpperBoundDate: new Date("2024-01-04T14:04:04.911Z"),
                             },
                         },
-                    },
+                    }),
                 ],
             },
         );
@@ -3434,9 +3036,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 1 hour ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3444,7 +3045,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T13:12:49.836Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3455,9 +3056,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 2 hours ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3465,7 +3065,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T12:16:57.196Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3476,9 +3076,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 24 hours ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3486,7 +3085,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-03T15:56:18.802Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3497,9 +3096,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3507,7 +3105,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3518,9 +3116,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 2 days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3528,7 +3125,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3539,9 +3136,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 3 days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3549,7 +3145,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-02T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3560,9 +3156,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 4 days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3570,7 +3165,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3581,9 +3176,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 5 days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3591,7 +3185,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2023-12-31T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3602,9 +3196,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 6 days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3612,7 +3205,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2023-12-30T09:59:18.217Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3623,9 +3216,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created last week"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3633,7 +3225,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3644,9 +3236,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 2 weeks ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3654,7 +3245,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3665,9 +3256,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created last month"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3675,7 +3265,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3686,9 +3276,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 2 months ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3696,7 +3285,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2023-11-19T17:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3707,9 +3296,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 3 months ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3717,7 +3305,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2023-10-19T17:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3728,9 +3316,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 4 months ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3738,7 +3325,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2023-09-19T17:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3749,9 +3336,8 @@ describe("provides duration slop when referencing precise date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 6 months ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3759,7 +3345,7 @@ describe("provides duration slop when referencing precise date", () => {
                             inclusiveUpperBoundDate: new Date("2023-07-19T17:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3772,9 +3358,8 @@ describe("parses entity type then date field then date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents created 2 weeks ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3782,7 +3367,7 @@ describe("parses entity type then date field then date", () => {
                             inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3793,9 +3378,8 @@ describe("parses entity type then date field then date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents updated 2 weeks ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "LastUpdated",
                         range: {
@@ -3803,7 +3387,7 @@ describe("parses entity type then date field then date", () => {
                             inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3816,9 +3400,8 @@ describe("parses entity type then date field then date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents last updated 2 weeks ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "LastUpdated",
                         range: {
@@ -3826,7 +3409,7 @@ describe("parses entity type then date field then date", () => {
                             inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3837,9 +3420,8 @@ describe("parses entity type then date field then date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents udpated 2 weeks ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "LastUpdated",
                         range: {
@@ -3847,7 +3429,7 @@ describe("parses entity type then date field then date", () => {
                             inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3860,9 +3442,8 @@ describe("parses entity type then date field then date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents last udpated 2 weeks ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "LastUpdated",
                         range: {
@@ -3870,7 +3451,7 @@ describe("parses entity type then date field then date", () => {
                             inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3883,9 +3464,8 @@ describe("parses entity type then date field then date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents updated before 2 weeks ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "LastUpdated",
                         range: {
@@ -3893,7 +3473,7 @@ describe("parses entity type then date field then date", () => {
                             inclusiveUpperBoundDate: new Date("2023-12-22T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3906,9 +3486,8 @@ describe("parses entity type then date field then date", () => {
             queryTexts: [],
             controlQueryTexts: ["documents updated after 2 weeks ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "LastUpdated",
                         range: {
@@ -3916,7 +3495,7 @@ describe("parses entity type then date field then date", () => {
                             inclusiveUpperBoundDate: null,
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3927,9 +3506,8 @@ describe("parses entity type then date field then date", () => {
             queryTexts: [],
             controlQueryTexts: ["messages sent after yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3937,7 +3515,7 @@ describe("parses entity type then date field then date", () => {
                             inclusiveUpperBoundDate: null,
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3948,9 +3526,8 @@ describe("parses entity type then date field then date", () => {
             queryTexts: [],
             controlQueryTexts: ["messages sent before yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -3958,7 +3535,7 @@ describe("parses entity type then date field then date", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -3968,9 +3545,8 @@ describe("parses entity type then date field then date", () => {
         queryTexts: [],
         controlQueryTexts: ["posts from yesterday"],
         filters: [
-            {
+            createDefaultedFilter({
                 entityTypes: ["Post"],
-                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -3978,13 +3554,13 @@ describe("parses entity type then date field then date", () => {
                         inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                     },
                 },
-            },
+            }),
         ],
     });
 });
 
 describe("parses entity type then multiple modifiers", () => {
-    const filter = {
+    const filter = createDefaultedFilter({
         entityTypes: ["Document"],
         account: {
             field: "Creator",
@@ -3997,7 +3573,7 @@ describe("parses entity type then multiple modifiers", () => {
                 inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
             },
         },
-    };
+    });
     test("documents created by me and created yesterday", () => {
         expect(
             parseSearchNaturalLanguageQuery(
@@ -4115,7 +3691,7 @@ describe("parses entity type then multiple modifiers", () => {
             queryTexts: [],
             controlQueryTexts: ["documents written by me and created yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
@@ -4128,7 +3704,7 @@ describe("parses entity type then multiple modifiers", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4144,7 +3720,7 @@ describe("parses entity type then multiple modifiers", () => {
             queryTexts: [],
             controlQueryTexts: ["documents updated by me and created yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
@@ -4157,7 +3733,7 @@ describe("parses entity type then multiple modifiers", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4187,7 +3763,7 @@ describe("parses entity type then multiple modifiers", () => {
             queryTexts: [],
             controlQueryTexts: ["documents updated yesterday and created by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
@@ -4200,14 +3776,14 @@ describe("parses entity type then multiple modifiers", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
 });
 
 describe("parses entity type then multiple modifiers won't double parse modifiers", () => {
-    const filter = {
+    const filter = createDefaultedFilter({
         entityTypes: ["Document"],
         account: {
             field: "Creator",
@@ -4220,7 +3796,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
                 inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
             },
         },
-    };
+    });
 
     test("documents created by me and created yesterday and created by me", () => {
         expect(
@@ -4247,7 +3823,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
             queryTexts: ["and created by me"],
             controlQueryTexts: ["documents written by me and created yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
@@ -4260,7 +3836,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4276,7 +3852,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
             queryTexts: ["and created by me"],
             controlQueryTexts: ["documents updated by me and created yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
@@ -4289,7 +3865,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4333,7 +3909,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
             queryTexts: ["and created by me"],
             controlQueryTexts: ["documents updated yesterday and created by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
@@ -4346,7 +3922,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4376,7 +3952,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
             queryTexts: ["and created yesterday"],
             controlQueryTexts: ["documents written by me and created yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
@@ -4389,7 +3965,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4405,7 +3981,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
             queryTexts: ["and created yesterday"],
             controlQueryTexts: ["documents updated by me and created yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
@@ -4418,7 +3994,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4462,7 +4038,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
             queryTexts: ["and created yesterday"],
             controlQueryTexts: ["documents updated yesterday and created by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
@@ -4475,7 +4051,7 @@ describe("parses entity type then multiple modifiers won't double parse modifier
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4486,14 +4062,13 @@ describe("parses entity type then multiple modifiers won't double parse modifier
             queryTexts: ["by me"],
             controlQueryTexts: ["documents by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -4504,14 +4079,13 @@ describe("parses entity type then multiple modifiers won't double parse modifier
             queryTexts: ["by john"],
             controlQueryTexts: ["documents by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -4527,9 +4101,8 @@ describe("parses entity type then multiple modifiers won't double parse modifier
             queryTexts: ["and then from yesterday"],
             controlQueryTexts: ["documents from two days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -4537,14 +4110,14 @@ describe("parses entity type then multiple modifiers won't double parse modifier
                             inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
 });
 
 describe("parses simpler entity type then multiple modifiers", () => {
-    const filter = {
+    const filter = createDefaultedFilter({
         entityTypes: ["Document"],
         account: {
             field: "MajorContributor",
@@ -4557,7 +4130,7 @@ describe("parses simpler entity type then multiple modifiers", () => {
                 inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
             },
         },
-    };
+    });
 
     test("documents by me created yesterday", () => {
         expect(
@@ -4603,7 +4176,7 @@ describe("parses simpler entity type then multiple modifiers", () => {
             queryTexts: [],
             controlQueryTexts: ["documents from yesterday that I created"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
@@ -4616,7 +4189,7 @@ describe("parses simpler entity type then multiple modifiers", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4629,7 +4202,7 @@ describe("parses simpler entity type then multiple modifiers", () => {
             queryTexts: [],
             controlQueryTexts: ["documents I created from yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
@@ -4642,7 +4215,7 @@ describe("parses simpler entity type then multiple modifiers", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4655,7 +4228,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks I created yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "Creator",
@@ -4668,7 +4241,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4679,7 +4252,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks by me yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "MajorContributor",
@@ -4692,7 +4265,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4703,7 +4276,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks created by me yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "Creator",
@@ -4716,7 +4289,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4727,7 +4300,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks written by me yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "MajorContributor",
@@ -4740,7 +4313,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4751,7 +4324,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks I updated yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "AnyContributor",
@@ -4764,7 +4337,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4775,7 +4348,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks updated by me yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "AnyContributor",
@@ -4788,7 +4361,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4799,7 +4372,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks john created yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "Creator",
@@ -4812,7 +4385,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4823,7 +4396,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks by john yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "MajorContributor",
@@ -4836,7 +4409,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4848,7 +4421,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                 queryTexts: [],
                 controlQueryTexts: ["tasks created by john yesterday"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Task", "TaskCollection"],
                         account: {
                             field: "Creator",
@@ -4861,7 +4434,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                                 inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                             },
                         },
-                    },
+                    }),
                 ],
             },
         );
@@ -4874,7 +4447,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                 queryTexts: [],
                 controlQueryTexts: ["tasks written by john yesterday"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Task", "TaskCollection"],
                         account: {
                             field: "MajorContributor",
@@ -4887,7 +4460,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                                 inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                             },
                         },
-                    },
+                    }),
                 ],
             },
         );
@@ -4899,7 +4472,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks john updated yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "AnyContributor",
@@ -4912,7 +4485,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4924,7 +4497,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                 queryTexts: [],
                 controlQueryTexts: ["tasks updated by john yesterday"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Task", "TaskCollection"],
                         account: {
                             field: "AnyContributor",
@@ -4937,7 +4510,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                                 inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                             },
                         },
-                    },
+                    }),
                 ],
             },
         );
@@ -4951,7 +4524,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["tasks I created before yesterday"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "Creator",
@@ -4964,7 +4537,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -4980,14 +4553,13 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: ["before and created yesterday"],
             controlQueryTexts: ["tasks I created"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -4998,7 +4570,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["messages from me last week"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                     account: {
                         field: "MajorContributor",
@@ -5011,7 +4583,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5022,7 +4594,7 @@ describe("parses entity type then account then shortcuts to time", () => {
             queryTexts: [],
             controlQueryTexts: ["messages from john last week"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                     account: {
                         field: "MajorContributor",
@@ -5035,7 +4607,7 @@ describe("parses entity type then account then shortcuts to time", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5050,7 +4622,7 @@ describe("parses date modifier after account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["my documents created two days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
@@ -5063,7 +4635,7 @@ describe("parses date modifier after account name then entity type", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5076,7 +4648,7 @@ describe("parses date modifier after account name then entity type", () => {
             queryTexts: [],
             controlQueryTexts: ["john's documents created two days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
@@ -5089,7 +4661,7 @@ describe("parses date modifier after account name then entity type", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5102,7 +4674,7 @@ describe("parses date modifier after account name then entity type", () => {
             queryTexts: ["green"],
             controlQueryTexts: ["my", "documents created two days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
@@ -5115,7 +4687,7 @@ describe("parses date modifier after account name then entity type", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5128,7 +4700,7 @@ describe("parses date modifier after account name then entity type", () => {
             queryTexts: ["green"],
             controlQueryTexts: ["john's", "documents created two days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
@@ -5141,7 +4713,7 @@ describe("parses date modifier after account name then entity type", () => {
                             inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5154,9 +4726,8 @@ describe('parses the word "recently" in dates', () => {
             queryTexts: [],
             controlQueryTexts: ["documents created recently"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -5164,7 +4735,7 @@ describe('parses the word "recently" in dates', () => {
                             inclusiveUpperBoundDate: null,
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5175,7 +4746,7 @@ describe('parses the word "recently" in dates', () => {
             queryTexts: [],
             controlQueryTexts: ["documents i updated recently"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "AnyContributor",
@@ -5188,7 +4759,7 @@ describe('parses the word "recently" in dates', () => {
                             inclusiveUpperBoundDate: null,
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5201,7 +4772,7 @@ describe('parses the word "recently" in dates', () => {
             queryTexts: [],
             controlQueryTexts: ["chat messages sent recently by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["ChatMessage"],
                     account: {
                         field: "MajorContributor",
@@ -5214,7 +4785,7 @@ describe('parses the word "recently" in dates', () => {
                             inclusiveUpperBoundDate: null,
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5226,13 +4797,7 @@ describe('parses "all" then entity type', () => {
             isLowConfidence: false,
             queryTexts: [],
             controlQueryTexts: ["all documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -5241,13 +4806,7 @@ describe('parses "all" then entity type', () => {
             isLowConfidence: false,
             queryTexts: ["train"],
             controlQueryTexts: ["all documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -5256,13 +4815,7 @@ describe('parses "all" then entity type', () => {
             isLowConfidence: false,
             queryTexts: ["train"],
             controlQueryTexts: ["all documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -5271,13 +4824,7 @@ describe('parses "all" then entity type', () => {
             isLowConfidence: false,
             queryTexts: ["trains"],
             controlQueryTexts: ["all documents about"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 });
@@ -5288,13 +4835,7 @@ describe('parses "all" with some text between then entity type', () => {
             isLowConfidence: false,
             queryTexts: ["train"],
             controlQueryTexts: ["all", "documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -5305,13 +4846,7 @@ describe('parses "all" with some text between then entity type', () => {
             isLowConfidence: false,
             queryTexts: ["neat", "georgia"],
             controlQueryTexts: ["all", "documents about"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -5322,27 +4857,20 @@ describe('parses "all" with some text between then entity type', () => {
             isLowConfidence: false,
             queryTexts: ["train", "georgia"],
             controlQueryTexts: ["all", "documents about"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
     test("all closed tasks", () => {
         expect(parseSearchNaturalLanguageQuery("all closed tasks", options)).toEqual({
             isLowConfidence: false,
-            queryTexts: ["closed"],
-            controlQueryTexts: ["all", "tasks"],
+            queryTexts: [],
+            controlQueryTexts: ["all", "closed tasks"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Task", "TaskCollection"],
-                    account: null,
-                    time: null,
-                },
+                    openness: ["Closed"],
+                }),
             ],
         });
     });
@@ -5352,13 +4880,7 @@ describe('parses "all" with some text between then entity type', () => {
             isLowConfidence: false,
             queryTexts: ["green"],
             controlQueryTexts: ["all", "documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -5369,13 +4891,7 @@ describe('parses "all" with some text between then entity type', () => {
             isLowConfidence: false,
             queryTexts: ["the cat in the hat"],
             controlQueryTexts: ["all", "documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -5386,13 +4902,7 @@ describe('parses "all" with some text between then entity type', () => {
             isLowConfidence: false,
             queryTexts: ["(the cat in the hat)"],
             controlQueryTexts: ["all", "documents"],
-            filters: [
-                {
-                    entityTypes: ["Document"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["Document"]})],
         });
     });
 
@@ -5403,13 +4913,7 @@ describe('parses "all" with some text between then entity type', () => {
             isLowConfidence: true,
             queryTexts: ["all, the cat in the hat,"],
             controlQueryTexts: ["chat messages"],
-            filters: [
-                {
-                    entityTypes: ["ChatMessage"],
-                    account: null,
-                    time: null,
-                },
-            ],
+            filters: [createDefaultedFilter({entityTypes: ["ChatMessage"]})],
         });
     });
 });
@@ -5423,9 +4927,8 @@ describe('parses date modifier after "all" then entity type', () => {
             queryTexts: [],
             controlQueryTexts: ["all documents created two days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -5433,7 +4936,7 @@ describe('parses date modifier after "all" then entity type', () => {
                             inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5446,9 +4949,8 @@ describe('parses date modifier after "all" then entity type', () => {
             queryTexts: ["green"],
             controlQueryTexts: ["all", "documents created two days ago"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
-                    account: null,
                     time: {
                         field: "Created",
                         range: {
@@ -5456,7 +4958,7 @@ describe('parses date modifier after "all" then entity type', () => {
                             inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                         },
                     },
-                },
+                }),
             ],
         });
     });
@@ -5469,14 +4971,13 @@ describe('parses account name after "all" then entity type', () => {
             queryTexts: [],
             controlQueryTexts: ["all documents by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -5487,14 +4988,13 @@ describe('parses account name after "all" then entity type', () => {
             queryTexts: ["train"],
             controlQueryTexts: ["all", "documents by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -5507,14 +5007,13 @@ describe('parses account name after "all" then entity type', () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["all documents by me about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -5525,14 +5024,13 @@ describe('parses account name after "all" then entity type', () => {
             queryTexts: [],
             controlQueryTexts: ["all documents by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -5543,14 +5041,13 @@ describe('parses account name after "all" then entity type', () => {
             queryTexts: ["train"],
             controlQueryTexts: ["all", "documents by john"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -5563,14 +5060,13 @@ describe('parses account name after "all" then entity type', () => {
             queryTexts: ["trains"],
             controlQueryTexts: ["all documents by john about"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "MajorContributor",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -5588,13 +5084,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["my"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5605,13 +5095,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["my weekend plans"],
                 controlQueryTexts: ["documents about"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5620,13 +5104,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["my"],
                 controlQueryTexts: ["tasks"],
-                filters: [
-                    {
-                        entityTypes: ["Task", "TaskCollection"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Task", "TaskCollection"]})],
             });
         });
     });
@@ -5637,13 +5115,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["created by me"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5652,13 +5124,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["written by me"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5667,13 +5133,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["updated by me"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5682,13 +5142,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["by me"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5698,11 +5152,9 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 queryTexts: ["sent by me"],
                 controlQueryTexts: ["messages"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                        account: null,
-                        time: null,
-                    },
+                    }),
                 ],
             });
         });
@@ -5712,13 +5164,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["authored by me"],
                 controlQueryTexts: ["posts"],
-                filters: [
-                    {
-                        entityTypes: ["Post"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Post"]})],
             });
         });
     });
@@ -5729,13 +5175,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["I created"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5744,13 +5184,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["I sent"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5759,13 +5193,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["I wrote"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5774,13 +5202,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["I authored"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5789,13 +5211,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["I updated"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5805,16 +5221,10 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 queryTexts: ["I"],
                 controlQueryTexts: ["messages", "posted"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                        account: null,
-                        time: null,
-                    },
-                    {
-                        account: null,
-                        entityTypes: ["Post"],
-                        time: null,
-                    },
+                    }),
+                    createDefaultedFilter({entityTypes: ["Post"]}),
                 ],
             });
         });
@@ -5828,13 +5238,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["find", "my project"],
                 controlQueryTexts: ["documents about"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
 
@@ -5843,13 +5247,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["me"],
                 controlQueryTexts: ["tasks about"],
-                filters: [
-                    {
-                        entityTypes: ["Task", "TaskCollection"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Task", "TaskCollection"]})],
             });
         });
 
@@ -5860,13 +5258,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 isLowConfidence: true,
                 queryTexts: ["containing I and me"],
                 controlQueryTexts: ["documents"],
-                filters: [
-                    {
-                        entityTypes: ["Document"],
-                        account: null,
-                        time: null,
-                    },
-                ],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
             });
         });
     });
@@ -5878,14 +5270,13 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 queryTexts: [],
                 controlQueryTexts: ["documents by john"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
                         account: {
                             field: "MajorContributor",
                             accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                         },
-                        time: null,
-                    },
+                    }),
                 ],
             });
         });
@@ -5898,9 +5289,8 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 queryTexts: [],
                 controlQueryTexts: ["documents created last week"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
-                        account: null,
                         time: {
                             field: "Created",
                             range: {
@@ -5908,7 +5298,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                                 inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
                             },
                         },
-                    },
+                    }),
                 ],
             });
         });
@@ -5921,7 +5311,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                 queryTexts: [],
                 controlQueryTexts: ["documents by john updated yesterday"],
                 filters: [
-                    {
+                    createDefaultedFilter({
                         entityTypes: ["Document"],
                         account: {
                             field: "MajorContributor",
@@ -5934,7 +5324,7 @@ describe("handles null actorAccount gracefully for bot searches", () => {
                                 inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
                             },
                         },
-                    },
+                    }),
                 ],
             });
         });
@@ -5953,22 +5343,20 @@ describe("creates multiple filters", () => {
             queryTexts: ["and"],
             controlQueryTexts: ["documents created by john", "documents created by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
-                {
+                }),
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -5984,22 +5372,20 @@ describe("creates multiple filters", () => {
             queryTexts: ["or"],
             controlQueryTexts: ["documents created by john", "documents created by me"],
             filters: [
-                {
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
                     },
-                    time: null,
-                },
-                {
+                }),
+                createDefaultedFilter({
                     entityTypes: ["Document"],
                     account: {
                         field: "Creator",
                         accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
-                    time: null,
-                },
+                }),
             ],
         });
     });
@@ -6010,4 +5396,1661 @@ describe("creates multiple filters", () => {
 
     // TODO: The following query should probably generate multiple filters
     test.todo("documents created by john or me");
+});
+
+describe("Due date filters", () => {
+    test("tasks due today", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks due today", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks due today"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 4),
+                            inclusiveLowerBound: new CalendarDate(2024, 1, 4),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks due yesterday", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks due yesterday", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks due yesterday"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: new CalendarDate(2024, 1, 3),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks due last week", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks due last week", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks due last week"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2023, 12, 31),
+                            inclusiveLowerBound: new CalendarDate(2023, 12, 25),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("overdue tasks", () => {
+        expect(parseSearchNaturalLanguageQuery("overdue tasks", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["overdue tasks"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: null,
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    // Alias for overdue
+    test("late tasks", () => {
+        expect(parseSearchNaturalLanguageQuery("late tasks", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["late tasks"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: null,
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks that are late", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks that are late", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks that are late"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: null,
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+});
+
+describe("Assignee filters", () => {
+    test("tasks assigned to me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks assigned to me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks assigned to me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks assigned me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks assigned me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks assigned me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks assigned to John Smith", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks assigned to John Smith", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks assigned to John Smith"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks assigned to Emily", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks assigned to Emily", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks assigned to Emily"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [
+                            {id: accounts[2]!.id, name: accounts[2]!.initialData.name},
+                            {id: accounts[4]!.id, name: accounts[4]!.initialData.name},
+                        ],
+                    },
+                }),
+            ],
+        });
+    });
+});
+
+describe("Due date + Priority combinations", () => {
+    test("urgent tasks due today", () => {
+        expect(parseSearchNaturalLanguageQuery("urgent tasks due today", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["urgent tasks due today"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    priority: ["Urgent"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 4),
+                            inclusiveLowerBound: new CalendarDate(2024, 1, 4),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("high priority overdue tasks", () => {
+        expect(parseSearchNaturalLanguageQuery("high priority overdue tasks", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["high priority overdue tasks"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    priority: ["High"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: null,
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("low priority tasks due last week", () => {
+        expect(
+            parseSearchNaturalLanguageQuery("low priority tasks due last week", options),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["low priority tasks due last week"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    priority: ["Low"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2023, 12, 31),
+                            inclusiveLowerBound: new CalendarDate(2023, 12, 25),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+});
+
+describe("Assignee + Priority combinations", () => {
+    test("urgent tasks assigned to me", () => {
+        expect(parseSearchNaturalLanguageQuery("urgent tasks assigned to me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["urgent tasks assigned to me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    priority: ["Urgent"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("high priority tasks assigned to John Smith", () => {
+        expect(
+            parseSearchNaturalLanguageQuery("high priority tasks assigned to John Smith", options),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["high priority tasks assigned to John Smith"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    priority: ["High"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks assigned to me that are urgent", () => {
+        expect(
+            parseSearchNaturalLanguageQuery("tasks assigned to me that are urgent", options),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks assigned to me that are urgent"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                    priority: ["Urgent"],
+                }),
+            ],
+        });
+    });
+});
+
+describe("Assignee + Due date combinations", () => {
+    test("tasks assigned to me due today", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks assigned to me due today", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks assigned to me due today"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 4),
+                            inclusiveLowerBound: new CalendarDate(2024, 1, 4),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("overdue tasks assigned to John", () => {
+        expect(parseSearchNaturalLanguageQuery("overdue tasks assigned to John", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["overdue tasks assigned to John"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: null,
+                        },
+                    },
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks assigned to me that are overdue", () => {
+        expect(
+            parseSearchNaturalLanguageQuery("tasks assigned to me that are overdue", options),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks assigned to me that are overdue"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: null,
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("my tasks due this week", () => {
+        expect(parseSearchNaturalLanguageQuery("my tasks due this week", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["my tasks due this week"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "MajorContributor",
+                        accounts: [
+                            {
+                                id: options.actorAccount.id,
+                                name: options.actorAccount.name,
+                            },
+                        ],
+                    },
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveLowerBound: new CalendarDate(2024, 1, 1),
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 7),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+});
+
+// Generate a bunch of tests to make sure our modifiers for tasks work as expected
+// Not all entity types support these modifiers, so we just choose tasks for these tests
+// You should rely on other tests to verify modifiers for other entity types
+
+// Running all test cases takes an extra ~30s in our CI, so let's randomly pair it down to a smaller
+// subset. If you encounter an error in CI but not locally, bump this up to 1 to run all tests
+// in the suite.
+const generatedTaskModifierTestRunPercent = 0.25;
+describe("Generated task modifiers tests", () => {
+    const opennessTestCases = {
+        Open: ["open", "pending", "todo", "not closed", "not done"],
+        Closed: ["closed", "done", "finished", "resolved", "fixed", "not open"],
+    };
+
+    const activenessTestCases = {
+        Active: ["active", "started", "ongoing", "not inactive"],
+        Inactive: ["inactive", "not active", "not started"],
+    };
+
+    const priorityTestCases = {
+        Urgent: ["urgent"],
+        High: ["high"],
+        Medium: ["medium"],
+        Low: ["low"],
+    };
+
+    const dueTestCases = {
+        Overdue: ["overdue", "late"],
+    };
+
+    const johnsAccount = accounts[1]!;
+    const assignedTestCases = {
+        Assigned: ["assigned to John", "assignee John"],
+    };
+
+    function getFilterTestCases<const T extends Record<string, ReadonlyArray<string>>>(
+        fieldTestCases: T,
+    ): Array<{filter: keyof T & string; adjective: string} | null> {
+        const testCases: Array<{filter: keyof T & string; adjective: string} | null> = [];
+
+        for (const [filter, adjectives] of Object.entries(fieldTestCases)) {
+            for (const adjective of adjectives) {
+                testCases.push({
+                    filter: filter as keyof T & string,
+                    adjective: adjective,
+                });
+            }
+        }
+
+        testCases.push(null);
+
+        return testCases;
+    }
+
+    function createQuery(
+        numberOfAdjectivesPrefixed: number,
+        adjectives: Array<string>,
+        onlyAfterAdjectives: Array<string>,
+    ) {
+        const noun = "tasks";
+
+        // sort them in a predictable way so we run the same tests each time, but
+        // the same words aren't always at the beginning (i.e. "active")
+        const sortedAdjectives = adjectives.sort((a, b) =>
+            adjectives.length % 2 === 0 ? a.localeCompare(b) : b.localeCompare(a),
+        );
+        const adjectivesBefore = sortedAdjectives.slice(0, numberOfAdjectivesPrefixed);
+        const adjectivesAfter = sortedAdjectives
+            .slice(numberOfAdjectivesPrefixed)
+            .concat(onlyAfterAdjectives);
+
+        let adjectivesBeforeString = "";
+        for (let i = 0; i < adjectivesBefore.length; i++) {
+            adjectivesBeforeString += adjectivesBefore[i];
+            if (i < adjectivesBefore.length - 1) {
+                // pseudo-randomly insert "and"
+                adjectivesBeforeString += i % 2 === 0 ? " and " : " ";
+            }
+        }
+
+        let adjectivesAfterString = "";
+        for (let i = 0; i < adjectivesAfter.length; i++) {
+            adjectivesAfterString += adjectivesAfter[i];
+            if (i < adjectivesAfter.length - 1) {
+                // pseudo-randomly insert "that"
+                adjectivesAfterString += i % 3 === 1 ? " and that are " : " and ";
+            }
+        }
+
+        let query = noun;
+        if (adjectivesBeforeString) {
+            query = `${adjectivesBeforeString} ${noun}`;
+        }
+
+        if (adjectivesAfterString) {
+            query = `${query} that are ${adjectivesAfterString}`;
+        }
+
+        return query;
+    }
+
+    function runTest(
+        query: string,
+        {
+            openness,
+            activeness,
+            priority,
+            due,
+            assigned,
+        }: {
+            openness: keyof typeof opennessTestCases | null;
+            activeness: keyof typeof activenessTestCases | null;
+            priority: keyof typeof priorityTestCases | null;
+            due: keyof typeof dueTestCases | null;
+            assigned: keyof typeof assignedTestCases | null;
+        },
+    ) {
+        test(`generated "${query}"`, () => {
+            const date: SearchNaturalLanguageFilter["date"] =
+                due === "Overdue"
+                    ? {
+                          field: "Due",
+                          range: {
+                              inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                              inclusiveLowerBound: null,
+                          },
+                      }
+                    : null;
+
+            const account: SearchNaturalLanguageFilter["account"] =
+                assigned === "Assigned"
+                    ? {
+                          field: "Assignee",
+                          accounts: [{id: johnsAccount.id, name: johnsAccount.initialData.name}],
+                      }
+                    : null;
+
+            expect(parseSearchNaturalLanguageQuery(query, options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: [query],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        activeness: activeness ? [activeness] : null,
+                        priority: priority ? [priority] : null,
+                        openness: openness ? [openness] : null,
+                        date,
+                        account,
+                    }),
+                ],
+            });
+        });
+    }
+
+    for (const openness of getFilterTestCases(opennessTestCases)) {
+        for (const activeness of getFilterTestCases(activenessTestCases)) {
+            for (const priority of getFilterTestCases(priorityTestCases)) {
+                for (const due of getFilterTestCases(dueTestCases)) {
+                    for (const assigned of getFilterTestCases(assignedTestCases)) {
+                        const enabledFilters = [openness, activeness, priority, due].filter(
+                            s => s !== null,
+                        );
+
+                        if (enabledFilters.length === 0) continue;
+
+                        // Create queries with variations of filters being applied before/after
+                        const queries = Array.from({length: enabledFilters.length + 1}, (_, i) =>
+                            createQuery(
+                                i,
+                                enabledFilters.map(f => f.adjective),
+                                assigned ? [assigned.adjective] : [],
+                            ),
+                        );
+
+                        for (const query of queries) {
+                            if (Math.random() > generatedTaskModifierTestRunPercent) continue;
+
+                            runTest(query, {
+                                openness: openness?.filter ?? null,
+                                activeness: activeness?.filter ?? null,
+                                priority: priority?.filter ?? null,
+                                due: due?.filter ?? null,
+                                assigned: assigned?.filter ?? null,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+});
+
+describe("Modifiers before search entity", () => {
+    describe("Activity: active/inactive", () => {
+        test("active tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("active tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["active tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("all active tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("all active tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["all", "active tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("my active tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("my active tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["my", "active tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: {
+                            field: "MajorContributor",
+                            accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                        },
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("Priority: urgent/high/medium/low", () => {
+        test("high priority tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("high priority tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["high priority tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High"],
+                    }),
+                ],
+            });
+        });
+
+        // Alias for priority
+        test("high severity tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("high severity tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["high severity tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High"],
+                    }),
+                ],
+            });
+        });
+
+        test("my high priority tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("my high priority tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["my", "high priority tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: {
+                            field: "MajorContributor",
+                            accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                        },
+                        priority: ["High"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("Combined modifiers", () => {
+        test("high priority and active tasks", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("high priority and active tasks", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["high priority and active tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("open and active and important tasks", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("open and active and important tasks", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["open and active and important tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent", "High"],
+                        openness: ["Open"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("important tasks that are open", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("important tasks that are open", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["important tasks that are open"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent", "High"],
+                        openness: ["Open"],
+                    }),
+                ],
+            });
+        });
+
+        test("low priority and urgent tasks", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("low priority and urgent tasks", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["low priority and urgent tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Low", "Urgent"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("Modifiers on non-supporting entities should be query text", () => {
+        test("high altitude documents - 'high' should be query text", () => {
+            expect(parseSearchNaturalLanguageQuery("high altitude documents", options)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["high altitude"],
+                controlQueryTexts: ["documents"],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
+            });
+        });
+
+        test("high priority documents - 'high priority' should be query text", () => {
+            expect(parseSearchNaturalLanguageQuery("high priority documents", options)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["high priority"],
+                controlQueryTexts: ["documents"],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
+            });
+        });
+
+        test("high priority - 'high priority' should be query text when no entity", () => {
+            expect(parseSearchNaturalLanguageQuery("high priority", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: ["high priority"],
+                controlQueryTexts: [],
+                filters: [],
+            });
+        });
+
+        test("active documents - 'active' should be query text", () => {
+            expect(parseSearchNaturalLanguageQuery("active documents", options)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["active"],
+                controlQueryTexts: ["documents"],
+                filters: [createDefaultedFilter({entityTypes: ["Document"]})],
+            });
+        });
+
+        test("closed posts - 'closed' should be query text", () => {
+            expect(parseSearchNaturalLanguageQuery("closed posts", options)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["closed"],
+                controlQueryTexts: ["posts"],
+                filters: [createDefaultedFilter({entityTypes: ["Post"]})],
+            });
+        });
+
+        test("open channels - 'open' should be query text", () => {
+            expect(parseSearchNaturalLanguageQuery("open channels", options)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["open"],
+                controlQueryTexts: ["channels"],
+                filters: [createDefaultedFilter({entityTypes: ["Channel"]})],
+            });
+        });
+
+        test("open urgent and tasks - 'open urgent' should be query text with 'and' before tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("open urgent and tasks", options)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["open urgent and"],
+                controlQueryTexts: ["tasks"],
+                filters: [createDefaultedFilter({entityTypes: ["Task", "TaskCollection"]})],
+            });
+        });
+    });
+
+    describe("Single priority modifiers", () => {
+        test("urgent tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("urgent tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["urgent tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                    }),
+                ],
+            });
+        });
+
+        test("critical tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("critical tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["critical tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent", "High"],
+                    }),
+                ],
+            });
+        });
+
+        test("medium priority tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("medium priority tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["medium priority tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Medium"],
+                    }),
+                ],
+            });
+        });
+
+        test("low priority tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("low priority tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["low priority tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Low"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("Openness + Priority combinations", () => {
+        test("open urgent tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("open urgent tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["open urgent tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                        openness: ["Open"],
+                    }),
+                ],
+            });
+        });
+
+        test("closed high priority tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("closed high priority tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["closed high priority tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High"],
+                        openness: ["Closed"],
+                    }),
+                ],
+            });
+        });
+
+        test("high priority open tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("high priority open tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["high priority open tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High"],
+                        openness: ["Open"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("Activeness + Priority combinations", () => {
+        test("active urgent tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("active urgent tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["active urgent tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("inactive low priority tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("inactive low priority tasks", options)).toEqual(
+                {
+                    isLowConfidence: false,
+                    queryTexts: [],
+                    controlQueryTexts: ["inactive low priority tasks"],
+                    filters: [
+                        createDefaultedFilter({
+                            entityTypes: ["Task", "TaskCollection"],
+                            priority: ["Low"],
+                            activeness: ["Inactive"],
+                        }),
+                    ],
+                },
+            );
+        });
+
+        test("high priority inactive tasks", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("high priority inactive tasks", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["high priority inactive tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High"],
+                        activeness: ["Inactive"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("All three task modifiers combined", () => {
+        test("open active urgent tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("open active urgent tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["open active urgent tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                        openness: ["Open"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("urgent open and active tasks", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("urgent open and active tasks", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["urgent open and active tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                        openness: ["Open"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("high priority closed inactive tasks", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("high priority closed inactive tasks", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["high priority closed inactive tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High"],
+                        openness: ["Closed"],
+                        activeness: ["Inactive"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("'that are' forward modifier patterns", () => {
+        test("urgent tasks that are active", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("urgent tasks that are active", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["urgent tasks that are active"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("high priority tasks that are open", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("high priority tasks that are open", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["high priority tasks that are open"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High"],
+                        openness: ["Open"],
+                    }),
+                ],
+            });
+        });
+
+        test("open tasks that are active", () => {
+            expect(parseSearchNaturalLanguageQuery("open tasks that are active", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["open tasks that are active"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        openness: ["Open"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("tasks that are urgent and active", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("tasks that are urgent and active", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["tasks that are urgent and active"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        // missing "are" still parses modifiers for fast typers who omit "are"
+        test("tasks that urgent and active", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("tasks that urgent and active", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["tasks that urgent and active"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("urgent tasks that are open and active", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("urgent tasks that are open and active", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["urgent tasks that are open and active"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                        openness: ["Open"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("Date modifiers with priority/openness/activeness", () => {
+        test("tasks created today", () => {
+            expect(parseSearchNaturalLanguageQuery("tasks created today", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["tasks created today"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        time: {
+                            field: "Created",
+                            range: {
+                                // "today" gets some slop duration added
+                                inclusiveUpperBoundDate: new Date("2024-01-05T06:59:59.999Z"),
+                                inclusiveLowerBoundDate: new Date("2024-01-04T07:00:00.000Z"),
+                            },
+                        },
+                    }),
+                ],
+            });
+        });
+
+        test("urgent tasks created today", () => {
+            expect(parseSearchNaturalLanguageQuery("urgent tasks created today", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["urgent tasks created today"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        time: {
+                            field: "Created",
+                            range: {
+                                inclusiveUpperBoundDate: new Date("2024-01-05T06:59:59.999Z"),
+                                inclusiveLowerBoundDate: new Date("2024-01-04T07:00:00.000Z"),
+                            },
+                        },
+                        priority: ["Urgent"],
+                    }),
+                ],
+            });
+        });
+
+        test("high priority active tasks created today", () => {
+            expect(
+                parseSearchNaturalLanguageQuery(
+                    "high priority active tasks created today",
+                    options,
+                ),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["high priority active tasks created today"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        time: {
+                            field: "Created",
+                            range: {
+                                inclusiveUpperBoundDate: new Date("2024-01-05T06:59:59.999Z"),
+                                inclusiveLowerBoundDate: new Date("2024-01-04T07:00:00.000Z"),
+                            },
+                        },
+                        priority: ["High"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("Account + modifiers combinations", () => {
+        test("my urgent tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("my urgent tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["my", "urgent tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: {
+                            field: "MajorContributor",
+                            accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                        },
+                        priority: ["Urgent"],
+                    }),
+                ],
+            });
+        });
+
+        test("my open active tasks", () => {
+            expect(parseSearchNaturalLanguageQuery("my open active tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["my", "open active tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: {
+                            field: "MajorContributor",
+                            accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                        },
+                        openness: ["Open"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("my high priority open active tasks", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("my high priority open active tasks", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["my", "high priority open active tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: {
+                            field: "MajorContributor",
+                            accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                        },
+                        priority: ["High"],
+                        openness: ["Open"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("tasks created by me that are urgent", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("tasks created by me that are urgent", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["tasks created by me that are urgent"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: {
+                            field: "Creator",
+                            accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                        },
+                        priority: ["Urgent"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("Query text with modifiers", () => {
+        test("urgent tasks about trains", () => {
+            expect(parseSearchNaturalLanguageQuery("urgent tasks about trains", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: ["trains"],
+                controlQueryTexts: ["urgent tasks about"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent"],
+                    }),
+                ],
+            });
+        });
+
+        test("high priority active tasks about trains", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("high priority active tasks about trains", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: ["trains"],
+                controlQueryTexts: ["high priority active tasks about"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High"],
+                        activeness: ["Active"],
+                    }),
+                ],
+            });
+        });
+
+        test("tasks about trains that are urgent", () => {
+            // Note: "about" breaks the forward modifier parsing, so "that are urgent" becomes query text
+            expect(
+                parseSearchNaturalLanguageQuery("tasks about trains that are urgent", options),
+            ).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["trains that are urgent"],
+                controlQueryTexts: ["tasks about"],
+                filters: [createDefaultedFilter({entityTypes: ["Task", "TaskCollection"]})],
+            });
+        });
+
+        test("my urgent tasks about machine learning", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("my urgent tasks about machine learning", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: ["machine learning"],
+                controlQueryTexts: ["my", "urgent tasks about"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: {
+                            field: "MajorContributor",
+                            accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                        },
+                        priority: ["Urgent"],
+                    }),
+                ],
+            });
+        });
+    });
+
+    describe("Complex combinations", () => {
+        test("my urgent open tasks created today about trains", () => {
+            // Note: With the LR(n) parser, prefix modifiers like "urgent open" ARE now captured
+            // before the entity type "tasks", making this parse more complete
+            expect(
+                parseSearchNaturalLanguageQuery(
+                    "my urgent open tasks created today about trains",
+                    options,
+                ),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: ["trains"],
+                controlQueryTexts: ["my", "urgent open tasks created today about"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: {
+                            field: "MajorContributor",
+                            accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                        },
+                        priority: ["Urgent"],
+                        openness: ["Open"],
+                        time: {
+                            field: "Created",
+                            range: {
+                                inclusiveUpperBoundDate: new Date("2024-01-05T06:59:59.999Z"),
+                                inclusiveLowerBoundDate: new Date("2024-01-04T07:00:00.000Z"),
+                            },
+                        },
+                    }),
+                ],
+            });
+        });
+
+        test("high priority and medium priority tasks", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("high priority and medium priority tasks", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["high priority and medium priority tasks"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["High", "Medium"],
+                    }),
+                ],
+            });
+        });
+
+        test("important and urgent tasks that are open", () => {
+            // When parsing forward with the LR(n) parser:
+            // "important" → ["Urgent", "High"], then "urgent" → already has "Urgent" so only adds nothing
+            // Result is ["Urgent", "High"] in the order they were encountered
+            expect(
+                parseSearchNaturalLanguageQuery(
+                    "important and urgent tasks that are open",
+                    options,
+                ),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["important and urgent tasks that are open"],
+                filters: [
+                    createDefaultedFilter({
+                        entityTypes: ["Task", "TaskCollection"],
+                        priority: ["Urgent", "High"],
+                        openness: ["Open"],
+                    }),
+                ],
+            });
+        });
+    });
+});
+
+describe("Complex combinations with all filters", () => {
+    test("tasks assigned to me that are urgent and open and due today", () => {
+        expect(
+            parseSearchNaturalLanguageQuery(
+                "tasks assigned to me that are urgent and open and due today",
+                options,
+            ),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks assigned to me that are urgent and open and due today"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    priority: ["Urgent"],
+                    openness: ["Open"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 4),
+                            inclusiveLowerBound: new CalendarDate(2024, 1, 4),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks that are low priority and open and due today assigned to John", () => {
+        expect(
+            parseSearchNaturalLanguageQuery(
+                "tasks that are low priority and open and due today assigned to John",
+                options,
+            ),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: [
+                "tasks that are low priority and open and due today assigned to John",
+            ],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    priority: ["Low"],
+                    openness: ["Open"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 4),
+                            inclusiveLowerBound: new CalendarDate(2024, 1, 4),
+                        },
+                    },
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("high priority active overdue tasks assigned to Emily", () => {
+        expect(
+            parseSearchNaturalLanguageQuery(
+                "high priority active overdue tasks assigned to Emily",
+                options,
+            ),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["high priority active overdue tasks assigned to Emily"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    priority: ["High"],
+                    activeness: ["Active"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: null,
+                        },
+                    },
+                    account: {
+                        field: "Assignee",
+                        accounts: [
+                            {id: accounts[2]!.id, name: accounts[2]!.initialData.name},
+                            {id: accounts[4]!.id, name: accounts[4]!.initialData.name},
+                        ],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("important overdue tasks assigned to me that are active", () => {
+        expect(
+            parseSearchNaturalLanguageQuery(
+                "important overdue tasks assigned to me that are active",
+                options,
+            ),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["important overdue tasks assigned to me that are active"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    priority: ["Urgent", "High"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: null,
+                        },
+                    },
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                    activeness: ["Active"],
+                }),
+            ],
+        });
+    });
+
+    test("tasks assigned to John Smith that are high priority and closed and due yesterday", () => {
+        expect(
+            parseSearchNaturalLanguageQuery(
+                "tasks assigned to John Smith that are high priority and closed and due yesterday",
+                options,
+            ),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: [
+                "tasks assigned to John Smith that are high priority and closed and due yesterday",
+            ],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    priority: ["High"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: new CalendarDate(2024, 1, 3),
+                        },
+                    },
+                    openness: ["Closed"],
+                }),
+            ],
+        });
+    });
+
+    test("high priority and closed tasks assigned to John Smith that are due by yesterday", () => {
+        expect(
+            parseSearchNaturalLanguageQuery(
+                "high priority and closed tasks assigned to John Smith that are due by yesterday",
+                options,
+            ),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: [
+                "high priority and closed tasks assigned to John Smith that are due by yesterday",
+            ],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    priority: ["High"],
+                    date: {
+                        field: "Due",
+                        range: {
+                            inclusiveUpperBound: new CalendarDate(2024, 1, 3),
+                            inclusiveLowerBound: new CalendarDate(2024, 1, 3),
+                        },
+                    },
+                    openness: ["Closed"],
+                }),
+            ],
+        });
+    });
 });

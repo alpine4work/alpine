@@ -1905,6 +1905,92 @@ test("get search entities only sees entities the account has access to", async (
     );
 });
 
+test("search by task modifiers", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const activeOpenUrgentTask = await TestTask.create(session, {
+        title: "test1",
+        assignee: session,
+        priority: "Urgent",
+    });
+    await activeOpenUrgentTask.updateStatus(session, "Open");
+    await activeOpenUrgentTask.updateAssigneeStatus(session, "Active");
+
+    const inactiveOpenUrgentTask = await TestTask.create(session, {
+        title: "test2",
+        assignee: session,
+        priority: "Urgent",
+    });
+    await inactiveOpenUrgentTask.updateStatus(session, "Open");
+    await inactiveOpenUrgentTask.updateAssigneeStatus(session, "Inactive");
+
+    const activeOpenTask = await TestTask.create(session, {title: "test3", assignee: session});
+    await activeOpenTask.updateStatus(session, "Open");
+    await activeOpenTask.updateAssigneeStatus(session, "Active");
+
+    const closedUrgentTask = await TestTask.create(session, {
+        title: "test4",
+        assignee: session,
+        priority: "Urgent",
+    });
+    await closedUrgentTask.updateStatus(session, "Closed");
+
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
+
+    const expectSearchToReturnTasks = async (queryText: string, tasks: Array<TestTask>) => {
+        expect(
+            (
+                await searchByKeywords(session.action(), {
+                    spaceId: space.id,
+                    queryText,
+                    limit: 100,
+                    timeZone: defaultTimeZone,
+                    currentTime: new Date(),
+                })
+            )
+                .filter(result => result.id.startsWith("Task:"))
+                .map(result => result.id)
+                .sort(defaultCompareStrings),
+        ).toEqual(tasks.map(t => `Task:${t.id}`).sort(defaultCompareStrings));
+    };
+
+    // First check our search works
+
+    await expectSearchToReturnTasks("test", [
+        activeOpenUrgentTask,
+        inactiveOpenUrgentTask,
+        activeOpenTask,
+        closedUrgentTask,
+    ]);
+
+    await expectSearchToReturnTasks("urgent tasks", [
+        activeOpenUrgentTask,
+        inactiveOpenUrgentTask,
+        closedUrgentTask,
+    ]);
+
+    await expectSearchToReturnTasks("open tasks", [
+        activeOpenUrgentTask,
+        inactiveOpenUrgentTask,
+        activeOpenTask,
+    ]);
+
+    await expectSearchToReturnTasks("closed tasks", [closedUrgentTask]);
+
+    await expectSearchToReturnTasks("active tasks", [activeOpenUrgentTask, activeOpenTask]);
+
+    await expectSearchToReturnTasks("open and urgent tasks", [
+        activeOpenUrgentTask,
+        inactiveOpenUrgentTask,
+    ]);
+
+    await expectSearchToReturnTasks("open urgent and active tasks", [activeOpenUrgentTask]);
+});
+
 test("search by semantics will highlight matching words", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
