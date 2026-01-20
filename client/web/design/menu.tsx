@@ -1761,7 +1761,7 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
         hoverTriangleContainerElement.appendChild(hoverTriangleElement);
 
         return () => {
-            hoverTriangleContainerElement.removeChild(hoverTriangleElement);
+            hoverTriangleElement.remove();
         };
     }, [hoverTriangleState, isOpened, onCloseEvent, placement]);
 
