@@ -920,6 +920,25 @@ test("pressing enter in an empty bullet list item will exit the item", async () 
     expect(getDoc().toString()).toEqual("doc(paragraph)");
 });
 
+test("pressing enter in an empty indented bullet list item will dedent the item", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("- ");
+    await simulateTyping("test 1", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph))',
+    );
+});
+
 test("pressing enter in an empty ordered list item will exit the item", async () => {
     render(<TestContentEditor />);
 
@@ -1937,7 +1956,7 @@ test("enter in an empty nested list item", async () => {
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), paragraph)',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(paragraph))',
     );
 });
 
@@ -1992,7 +2011,7 @@ test("enter in an empty nested list item with a following list item", async () =
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), paragraph, unorderedListItem(indent: 1, paragraph("test 4")))',
+        'doc(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(paragraph), unorderedListItem(indent: 1, paragraph("test 4")))',
     );
 });
 
@@ -2140,6 +2159,7 @@ test("delete when preceding nested list item is empty will merge into the item",
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
     await simulateTyping("bar");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("qux");
@@ -2330,6 +2350,7 @@ test("will not dedent if non-list item is selected", async () => {
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
     await simulateTyping("test2", {eachChar: false});
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("test3", {eachChar: false});

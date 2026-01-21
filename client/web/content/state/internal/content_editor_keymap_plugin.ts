@@ -191,6 +191,39 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             }
 
+            // If "Enter" is pressed in an empty indented list item, dedent the
+            // list item instead of removing it entirely. The `liftEmptyBlock`
+            // command below handles the indent=0 case by clearing the list
+            // item state.
+            //
+            // For example, if the cursor is at `|`:
+            //
+            // ```
+            // - test
+            //   - |
+            // ```
+            //
+            // Then you press enter:
+            //
+            // ```
+            // - test
+            // - |
+            // ```
+            if (
+                $from.pos === $to.pos &&
+                node.type.name === "paragraph" &&
+                node.content.size === 0
+            ) {
+                const listItemNode = $from.node(-1);
+                if (
+                    listItemNode?.type.groups.includes("listItem") &&
+                    listItemNode.childCount === 1 &&
+                    listItemNode.attrs.indent !== 0
+                ) {
+                    return dedentListItemCommand(state, dispatch);
+                }
+            }
+
             return liftEmptyBlock(state, dispatch);
         },
 
