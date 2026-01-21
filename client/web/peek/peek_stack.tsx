@@ -13,9 +13,9 @@ import {
 import {animate, spring} from "motion";
 import {ArrowLeft, ArrowRight, ArrowsOutSimple, X} from "phosphor-react";
 import {
-    MutableRefObject,
     ReactNode,
     Ref,
+    RefObject,
     forwardRef,
     useCallback,
     useContext,
@@ -124,7 +124,7 @@ const peekControlsHeight = "6";
 type PeekStackEntry = {
     readonly id: PeekId;
     readonly history: MemoryHistory;
-    readonly initialRouterRef: MutableRefObject<PeekRemixEmbedRouter | null>;
+    readonly initialRouterRef: RefObject<PeekRemixEmbedRouter | null>;
     readonly autoFocus: boolean;
 };
 
@@ -1420,6 +1420,17 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
         // unmounted/remounted we want to completely reload its data.
         if (entry.initialRouterRef.current) {
             const router = entry.initialRouterRef.current;
+
+            // Don't use this router again after initializing state. For some routes (e.g.
+            // task detail view) there's stateful data that may only be used once.
+            //
+            // Task detail view retains a task subscription in the router's loader data
+            // then releases the task subscription on unmount. Trying to use the task
+            // subscription again will throw an error.
+            //
+            // eslint-disable-next-line react-compiler/react-compiler
+            entry.initialRouterRef.current = null;
+
             return {abortController: null, routerPromise: PromiseImmediate.resolve(router)};
         }
 
