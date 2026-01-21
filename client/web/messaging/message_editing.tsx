@@ -249,6 +249,16 @@ export function useMessageEditing<RoomKey extends string>({
             }
         }
 
+        // If the content hasn't actually changed, skip the update. This way we
+        // don't mark the message as edited if the user enters edit mode, makes
+        // changes, and then reverts back to the original content.
+        const finalDoc = trimTransaction !== null ? trimTransaction.doc : doc;
+        if (finalDoc.eq(state.initialContent)) {
+            state.savePromiseResolver?.resolve();
+            dispatch({type: "FinishedSavingContent", shouldCancelEditing: true});
+            return;
+        }
+
         onUpdateMessageContent({
             roomKey: state.messageRoomKey,
             messageIndex: state.messageIndex,

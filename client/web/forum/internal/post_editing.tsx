@@ -225,6 +225,16 @@ export function usePostEditing({
             }
         }
 
+        // If the content hasn't actually changed, skip the update. This way we
+        // don't mark the post as edited if the user enters edit mode, makes
+        // changes, and then reverts back to the original content.
+        const finalDoc = trimTransaction !== null ? trimTransaction.doc : doc;
+        if (finalDoc.eq(state.initialContent)) {
+            savePromiseResolver?.resolve();
+            dispatch({type: "FinishedSavingContent", shouldCancelEditing: !dontCancelEditing});
+            return;
+        }
+
         onUpdatePostContent({
             postId: state.postId,
             contentVersion: state.contentVersion,
