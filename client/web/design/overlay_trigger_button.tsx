@@ -569,7 +569,7 @@ function OverlayTriggerButton(
             overlayTriggerElement.addEventListener("pointerup", handlePointerUp, {
                 capture: true,
             });
-            overlayTriggerElement.addEventListener("pointermove", handlePointerCancel, {
+            overlayTriggerElement.addEventListener("pointerleave", handlePointerCancel, {
                 capture: true,
             });
             overlayTriggerElement.addEventListener("pointercancel", handlePointerCancel, {
