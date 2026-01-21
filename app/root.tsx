@@ -88,6 +88,7 @@ export const shouldRevalidate = () => false;
 const LoaderSchema = Schema.object({
     initialTime: Schema.date,
     initialAppRenderId: Schema.id(),
+    cookieNameSuffix: Schema.string,
     browserId: Schema.id<BrowserId>(),
     clientInfo: ClientInfoSchema,
     isIntegrationTest: Schema.boolean,
@@ -98,6 +99,7 @@ export async function loader({context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {
         initialTime: context.loader.getInitialTime(),
         initialAppRenderId: generateId(),
+        cookieNameSuffix: context.loader.cookieNameSuffix,
         browserId: context.loader.getBrowserId(),
         clientInfo: context.loader.getClientInfo(),
         webPushVapidPublicKey: context.loader.webPushVapidPublicKey,
@@ -337,6 +339,7 @@ export default function Root() {
     const {clientInfo, render: renderClientInfoContextProvider} = useClientInfoContextProvider({
         browserId: loaderData.browserId,
         initialClientInfo: loaderData.clientInfo,
+        cookieNameSuffix: loaderData.cookieNameSuffix,
     });
 
     const {spacingScale, render: renderSpacingScaleContextProvider} =
@@ -670,6 +673,7 @@ function RootErrorBoundaryWrapper() {
         // then use the `RealmId` as the `BrowserId`.
         browserId: loaderData?.browserId ?? (getRealmId() as any as BrowserId),
         initialClientInfo: loaderData?.clientInfo ?? defaultClientInfo,
+        cookieNameSuffix: loaderData?.cookieNameSuffix ?? "",
     });
 
     const {spacingScale, render: renderSpacingScaleContextProvider} =

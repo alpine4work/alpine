@@ -53,7 +53,11 @@ export async function uploadAvatar(
         actor: SessionActorContextModule;
     }>,
     executionContext: {},
-    env: {AvatarsBucket: PutR2ObjectBucketInterface; FILE_PROCESSOR_SERVICE_URL?: string},
+    env: {
+        AvatarsBucket: PutR2ObjectBucketInterface;
+        COOKIE_NAME_SUFFIX: string;
+        FILE_PROCESSOR_SERVICE_URL?: string;
+    },
     tokenAgent: TokenAgent,
     request: Request,
     url: URL,
@@ -73,7 +77,11 @@ export async function uploadAvatar(
         const providedColorScheme = url.searchParams.get("themeColor");
         const themeColor = getAvatarThemeColor(providedColorScheme);
 
-        const sessionCookieToken = await authorizeRequestAndGetSessionToken(tokenAgent, request);
+        const sessionCookieToken = await authorizeRequestAndGetSessionToken({
+            tokenAgent,
+            cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
+            request,
+        });
         const context = createContext(sessionCookieToken);
 
         const avatarEntityPathObject = parseAvatarEntityPath(avatarEntityPath);

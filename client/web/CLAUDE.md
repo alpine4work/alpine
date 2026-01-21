@@ -1,0 +1,1 @@
+client/web/AGENTS.md

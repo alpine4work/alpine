@@ -87,6 +87,7 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -134,6 +135,15 @@ async function createAppService({
     // Make sure we use the correct `TracerRoot` class for the current environment.
     // The constant we get from the wrapper code may be for a completely different class hierarchy.
     const tracer = originalTracer.cloneWithNewClass(TracerRoot);
+
+    const cookieNameSuffix = assertExists(
+        options.cookieNameSuffix,
+        "Missing `cookieNameSuffix` option",
+    );
+
+    if (cookieNameSuffix !== "" && !/^-[a-z0-9-]*[a-z0-9]$/.test(cookieNameSuffix)) {
+        throw new InternalError("`cookieNameSuffix` must be alphanumeric characters only");
+    }
 
     const [
         tokenAgent,
@@ -478,113 +488,124 @@ async function createAppService({
                 }
             }
 
-            return withSessionCookie(tokenAgent, request, async sessionCookie => {
-                const loaderContextModule = new LoaderContextModule(request, {
-                    tokenAgent,
-                    sessionCookie,
-                    agentServiceUrl,
-                    webPushVapidPublicKey,
-                });
+            return withSessionCookie(
+                {tokenAgent, cookieNameSuffix, request},
+                async sessionCookie => {
+                    const loaderContextModule = new LoaderContextModule(request, {
+                        tokenAgent,
+                        cookieNameSuffix,
+                        sessionCookie,
+                        agentServiceUrl,
+                        webPushVapidPublicKey,
+                    });
 
-                let route;
-                if (matches === null) {
-                    route = "/*";
-                } else {
-                    route = getRouteStringFromMatches(matches);
-                }
+                    let route;
+                    if (matches === null) {
+                        route = "/*";
+                    } else {
+                        route = getRouteStringFromMatches(matches);
+                    }
 
-                const response = await processContext.with<
-                    Omit<
-                        LoaderContextModules,
-                        Exclude<keyof AppServiceProcessContextModules, "tracer">
-                    >,
-                    globalThis.Response
-                >(
-                    {
-                        tracer: new TracerContextModule(span),
-                        rpc: new LocalRpcContextModule(),
-                        loader: loaderContextModule,
-                        cache: CacheContextModule.new(),
-                        batch: BatchContextModule.new(),
-                        actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
-                    },
-                    context => {
-                        const clientInfo = context.loader.getClientInfo();
-                        const platform = getInitialAppRenderPlatform(clientInfo);
+                    const response = await processContext.with<
+                        Omit<
+                            LoaderContextModules,
+                            Exclude<keyof AppServiceProcessContextModules, "tracer">
+                        >,
+                        globalThis.Response
+                    >(
+                        {
+                            tracer: new TracerContextModule(span),
+                            rpc: new LocalRpcContextModule(),
+                            loader: loaderContextModule,
+                            cache: CacheContextModule.new(),
+                            batch: BatchContextModule.new(),
+                            actor: createActorContextModule(
+                                request,
+                                url,
+                                tokenAgent,
+                                sessionCookie,
+                            ),
+                        },
+                        context => {
+                            const clientInfo = context.loader.getClientInfo();
+                            const platform = getInitialAppRenderPlatform(clientInfo);
 
-                        // Only include `route`, `platform`, and other information about the client
-                        // state if this is a Remix data request or document request. The definition of
-                        // data requests and document requests can be found here:
-                        //
-                        // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-server-runtime/server.ts#L136-L256
-                        //
-                        // - Data requests are requests with the `_data` search param
-                        // - Document requests are requests for a route with a `default` component
-                        //   exported
-                        if (
-                            url.searchParams.has("_data") ||
-                            (matches && matches[matches.length - 1]?.route.module.default)
-                        ) {
-                            span.addPropagatedData({
-                                context: {
-                                    route,
-                                    platform,
-                                    spacingScale: getInitialAppRenderSpacingScale(clientInfo),
-                                    routeLayout: getDefaultRouteLayoutForPlatform(platform),
-                                    renderingEngine: clientInfo.renderingEngine,
-                                },
-                            });
-
-                            const pathnamePropagatedData = getTracerEventPropagatedDataForPathname(
-                                url.pathname,
-                            );
-                            if (pathnamePropagatedData)
-                                span.addPropagatedData(pathnamePropagatedData);
-                        }
-
-                        // The first time our server process runs in development, seed DynamoDB with
-                        // some initial data. The seed function should be idempotent.
-                        if (
-                            process.env.NODE_ENV !== "production" &&
-                            options.shouldSeedDynamo &&
-                            !hasSeededDynamo
-                        ) {
-                            const options = assertExists(seedDynamoOptions);
-
-                            hasSeededDynamo = true;
-                            processContext.process.waitUntil(
-                                processContext.tracer.withSpan(
-                                    "Seeding DynamoDB",
-                                    async context => {
-                                        try {
-                                            await seedDynamo(context, options);
-                                        } catch (error) {
-                                            // If there is an error, log it but don't crash the process.
-                                            // eslint-disable-next-line no-console
-                                            console.error("Failed to seed DynamoDB data:", error);
-                                        }
+                            // Only include `route`, `platform`, and other information about the client
+                            // state if this is a Remix data request or document request. The definition of
+                            // data requests and document requests can be found here:
+                            //
+                            // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-server-runtime/server.ts#L136-L256
+                            //
+                            // - Data requests are requests with the `_data` search param
+                            // - Document requests are requests for a route with a `default` component
+                            //   exported
+                            if (
+                                url.searchParams.has("_data") ||
+                                (matches && matches[matches.length - 1]?.route.module.default)
+                            ) {
+                                span.addPropagatedData({
+                                    context: {
+                                        route,
+                                        platform,
+                                        spacingScale: getInitialAppRenderSpacingScale(clientInfo),
+                                        routeLayout: getDefaultRouteLayoutForPlatform(platform),
+                                        renderingEngine: clientInfo.renderingEngine,
                                     },
-                                ),
+                                });
+
+                                const pathnamePropagatedData =
+                                    getTracerEventPropagatedDataForPathname(url.pathname);
+                                if (pathnamePropagatedData)
+                                    span.addPropagatedData(pathnamePropagatedData);
+                            }
+
+                            // The first time our server process runs in development, seed DynamoDB with
+                            // some initial data. The seed function should be idempotent.
+                            if (
+                                process.env.NODE_ENV !== "production" &&
+                                options.shouldSeedDynamo &&
+                                !hasSeededDynamo
+                            ) {
+                                const options = assertExists(seedDynamoOptions);
+
+                                hasSeededDynamo = true;
+                                processContext.process.waitUntil(
+                                    processContext.tracer.withSpan(
+                                        "Seeding DynamoDB",
+                                        async context => {
+                                            try {
+                                                await seedDynamo(context, options);
+                                            } catch (error) {
+                                                // If there is an error, log it but don't crash the process.
+                                                // eslint-disable-next-line no-console
+                                                console.error(
+                                                    "Failed to seed DynamoDB data:",
+                                                    error,
+                                                );
+                                            }
+                                        },
+                                    ),
+                                );
+                            }
+
+                            return handleRequest(
+                                request,
+                                context,
+                                // We already parsed route matches. Pass them to Remix...
+                                {url, matches},
                             );
-                        }
+                        },
+                    );
 
-                        return handleRequest(
-                            request,
-                            context,
-                            // We already parsed route matches. Pass them to Remix...
-                            {url, matches},
-                        );
-                    },
-                );
+                    loaderContextModule.addResponseHeaders(response.headers);
 
-                loaderContextModule.addResponseHeaders(response.headers);
+                    // Include the route in an HTTP header so our edge service can use the route in
+                    // its HTTP span name.
+                    response.headers.set("cyberworlds-route", route);
 
-                // Include the route in an HTTP header so our edge service can use the route in
-                // its HTTP span name.
-                response.headers.set("cyberworlds-route", route);
-
-                return response;
-            });
+                    return response;
+                },
+            );
         },
     );
 

@@ -41,6 +41,7 @@ async function main() {
             cacheLocalDataPath,
             durableObjectsLocalDataPath,
             cloudflareR2LocalDataPath,
+            cookieNameSuffix,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
         },
@@ -61,6 +62,7 @@ async function main() {
             cacheLocalDataPath: {type: "string"},
             durableObjectsLocalDataPath: {type: "string"},
             cloudflareR2LocalDataPath: {type: "string"},
+            cookieNameSuffix: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
         },
@@ -70,27 +72,28 @@ async function main() {
         inspector.open(parseInt(inspectorPortString, 10));
     }
 
-    if (!portString) throw new Error("Missing `port` arg");
-    if (!appServiceUrl) throw new Error("Missing `appServiceUrl` arg");
-    if (!appServicePublicKeyPath) throw new Error("Missing `appServicePublicKey` arg");
+    if (!portString) throw new Error("Missing `port` option");
+    if (!appServiceUrl) throw new Error("Missing `appServiceUrl` option");
+    if (!appServicePublicKeyPath) throw new Error("Missing `appServicePublicKey` option");
     if (!edgeServiceFamilyPublicKeyPath)
-        throw new Error("Missing `edgeServiceFamilyPublicKeyPath` arg");
+        throw new Error("Missing `edgeServiceFamilyPublicKeyPath` option");
     if (!taskRealtimeServicePublicKeyPath)
-        throw new Error("Missing `taskRealtimeServicePublicKeyPath` arg");
-    if (!jobQueueServicePublicKeyPath) throw new Error("Missing `jobQueueServicePublicKey` arg");
+        throw new Error("Missing `taskRealtimeServicePublicKeyPath` option");
+    if (!jobQueueServicePublicKeyPath) throw new Error("Missing `jobQueueServicePublicKey` option");
     if (!fileProcessorServicePublicKeyPath)
-        throw new Error("Missing `fileProcessorServicePublicKeyPath` arg");
-    if (!apiServicePublicKeyPath) throw new Error("Missing `apiServicePublicKeyPath` arg");
+        throw new Error("Missing `fileProcessorServicePublicKeyPath` option");
+    if (!apiServicePublicKeyPath) throw new Error("Missing `apiServicePublicKeyPath` option");
     if (!resourceServicePublicKeyPath)
-        throw new Error("Missing `resourceServicePublicKeyPath` arg");
+        throw new Error("Missing `resourceServicePublicKeyPath` option");
     if (!edgeServiceFamilyPrivateKeyPath)
-        throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
-    if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
-    if (!fileProcessorServiceUrl) throw new Error("Missing `fileProcessorServiceUrl` arg");
-    if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` arg");
+        throw new Error("Missing `edgeServiceFamilyPrivateKey` option");
+    if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` option");
+    if (!fileProcessorServiceUrl) throw new Error("Missing `fileProcessorServiceUrl` option");
+    if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` option");
     if (!durableObjectsLocalDataPath)
         throw new Error("Missing `durableObjectsLocalDataPath` option");
-    if (!cloudflareR2LocalDataPath) throw new Error("Missing `cloudflareR2LocalDataPath` arg");
+    if (!cloudflareR2LocalDataPath) throw new Error("Missing `cloudflareR2LocalDataPath` option");
+    if (cookieNameSuffix === undefined) throw new Error("Missing `cookieNameSuffix` option");
 
     const [
         appServicePublicKey,
@@ -144,6 +147,7 @@ async function main() {
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
             TOKEN_AGENT_SECRET: tokenAgentSecret,
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,
+            COOKIE_NAME_SUFFIX: cookieNameSuffix,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },
         globals: {

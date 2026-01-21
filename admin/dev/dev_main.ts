@@ -2,6 +2,7 @@ import chalk from "chalk";
 import {ChildProcess} from "child_process";
 import chokidar from "chokidar";
 import fs from "fs-extra";
+import getPort from "get-port";
 import {networkInterfaces} from "os";
 import {basename, dirname, join as joinPath} from "path";
 import {inspect} from "util";
@@ -21,7 +22,7 @@ import {
     writeToCoordinatedStdout,
 } from "~/admin/dev/stdio_coordinator.js";
 import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
-import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
+import {devEnvPaths, devEnvPathsNameSuffix} from "~/admin/helpers/dev_env_paths.js";
 import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
@@ -67,15 +68,6 @@ const parsePort = (portString: string | undefined) => {
     return port;
 };
 
-const parsePorts = (portsString: string | undefined) => {
-    assert(portsString);
-    return portsString.split(",").map(portString => {
-        const port = parseInt(portString, 10);
-        assert(!isNaN(port));
-        return port;
-    });
-};
-
 // Assign AWS env variables to `process.env` so
 // `@aws-sdk/credential-provider-node` picks them up.
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
@@ -88,35 +80,28 @@ const logoDevPublishableKey = env.LOGO_DEV_PUBLISHABLE_KEY;
 
 const appDevPort = parsePort(env.APP_DEV_PORT);
 const appDevInspectorPort = parsePort(env.APP_DEV_INSPECTOR_PORT);
-const appDevPrivatePorts = parsePorts(env.APP_DEV_PRIVATE_PORTS);
 
 const edgeDevPort = parsePort(env.EDGE_DEV_PORT);
 const edgeDevInspectorPort = parsePort(env.EDGE_DEV_INSPECTOR_PORT);
-const edgeDevPrivatePorts = parsePorts(env.EDGE_DEV_PRIVATE_PORTS);
 const edgeServiceUrl = `http://localhost:${edgeDevPort}`;
 
 const resourcesDevPort = parsePort(env.RESOURCES_DEV_PORT);
 const resourcesDevInspectorPort = parsePort(env.RESOURCES_DEV_INSPECTOR_PORT);
-const resourcesDevPrivatePorts = parsePorts(env.RESOURCES_DEV_PRIVATE_PORTS);
 
 const taskRealtimeDevPort = parsePort(env.TASK_REALTIME_DEV_PORT);
 const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_PORT);
-const taskRealtimeDevPrivatePorts = parsePorts(env.TASK_REALTIME_DEV_PRIVATE_PORTS);
 
 const jobQueueDevInspectorPort = parsePort(env.JOB_QUEUE_DEV_INSPECTOR_PORT);
 
 const fileProcessorDevPort = parsePort(env.FILE_PROCESSOR_DEV_PORT);
 const fileProcessorDevInspectorPort = parsePort(env.FILE_PROCESSOR_DEV_INSPECTOR_PORT);
-const fileProcessorDevPrivatePorts = parsePorts(env.FILE_PROCESSOR_DEV_PRIVATE_PORTS);
 const fileProcessorServiceTemporaryDirectoryPath = joinPath(devEnvPaths.temp, "files");
 
 const apiDevPort = parsePort(env.API_DEV_PORT);
 const apiDevInspectorPort = parsePort(env.API_DEV_INSPECTOR_PORT);
-const apiDevPrivatePorts = parsePorts(env.API_DEV_PRIVATE_PORTS);
 
 const agentsDevPort = parsePort(env.AGENTS_DEV_PORT);
 const agentsDevInspectorPort = parsePort(env.AGENTS_DEV_INSPECTOR_PORT);
-const agentsDevPrivatePorts = parsePorts(env.AGENTS_DEV_PRIVATE_PORTS);
 
 const bazelDevServerPort = parsePort(env.BAZEL_DEV_SERVER_PORT);
 
@@ -301,8 +286,7 @@ export type Artifact = {
                  */
                 readonly ports: {
                     readonly publicPort: number;
-                    readonly privatePorts: ReadonlyArray<number>;
-                    privatePortIndex: number;
+                    privatePort: number;
                     readonly privatePortArg?: string;
                     readonly waitForHttpServerPath?: string;
                 };
@@ -323,12 +307,30 @@ export type ArtifactServer =
           readonly subprocess: null;
       };
 
-function createArtifacts() {
+async function createArtifacts() {
     const resourceServiceUrl = `http://${externalHost ?? "localhost"}:${resourcesDevPort}`;
     const externalEdgeServiceUrl = `http://${externalHost ?? "localhost"}:${edgeDevPort}`;
 
     // String with comma-delimited origins that resource service will allow CORS requests from.
     const corsTrustedOrigins = `${edgeServiceUrl}, ${externalEdgeServiceUrl}`;
+
+    const [
+        appPrivatePort,
+        edgePrivatePort,
+        resourcesPrivatePort,
+        fileProcessorPrivatePort,
+        taskRealtimePrivatePort,
+        apiPrivatePort,
+        agentsPrivatePort,
+    ] = await runAllPromises([
+        getPort(),
+        getPort(),
+        getPort(),
+        getPort(),
+        getPort(),
+        getPort(),
+        getPort(),
+    ]);
 
     const artifacts: ReadonlyArray<Artifact> = [
         // App assets are built with a file artifact then `//app:app_wrapper` runs a
@@ -345,8 +347,7 @@ function createArtifacts() {
             env: {BAZEL_BINDIR: "."},
             ports: {
                 publicPort: appDevPort,
-                privatePorts: appDevPrivatePorts,
-                privatePortIndex: 0,
+                privatePort: appPrivatePort,
             },
             args: [
                 "--viteDev",
@@ -387,6 +388,7 @@ function createArtifacts() {
                 `--chatGptLocalUnscopedApiKey=${chatGptUnscopedApiKeyPath}`,
                 `--chatGptLocalScopedApiKey=${chatGptScopedApiKeyPath}`,
                 `--mockChatGptLocalUnscopedApiKey=${mockChatGptUnscopedApiKeyPath}`,
+                `--cookieNameSuffix=${devEnvPathsNameSuffix}`,
                 ...(logoDevSecretKey ? [`--logoDevSecretKey=${logoDevSecretKey}`] : []),
                 ...(logoDevPublishableKey
                     ? [`--logoDevPublishableKey=${logoDevPublishableKey}`]
@@ -405,8 +407,7 @@ function createArtifacts() {
             stdioPrefix: "edg",
             ports: {
                 publicPort: edgeDevPort,
-                privatePorts: edgeDevPrivatePorts,
-                privatePortIndex: 0,
+                privatePort: edgePrivatePort,
                 // Check the `/api/time` path while waiting for the HTTP server to start. We
                 // pick this path since it's handled immediately in `EdgeService` and not
                 // forwarded to `AppService`. Forwarding requests to `AppService` will stall
@@ -431,6 +432,7 @@ function createArtifacts() {
                 `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "edge/do")}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
+                `--cookieNameSuffix=${devEnvPathsNameSuffix}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -441,8 +443,7 @@ function createArtifacts() {
             stdioPrefix: "rsr",
             ports: {
                 publicPort: resourcesDevPort,
-                privatePorts: resourcesDevPrivatePorts,
-                privatePortIndex: 0,
+                privatePort: resourcesPrivatePort,
                 // Using dedicated healthcheck path for standardization and because some services (like EdgeService) forward requests on "/" to other services
                 waitForHttpServerPath: "/healthcheck",
             },
@@ -473,8 +474,7 @@ function createArtifacts() {
             stdioPrefix: "tsk",
             ports: {
                 publicPort: taskRealtimeDevPort,
-                privatePorts: taskRealtimeDevPrivatePorts,
-                privatePortIndex: 0,
+                privatePort: taskRealtimePrivatePort,
                 // In production we have an HTTP server for each CPU on the machine. In
                 // development we only have one HTTP server.
                 privatePortArg: "portBase",
@@ -547,8 +547,7 @@ function createArtifacts() {
             stdioPrefix: "flp",
             ports: {
                 publicPort: fileProcessorDevPort,
-                privatePorts: fileProcessorDevPrivatePorts,
-                privatePortIndex: 0,
+                privatePort: fileProcessorPrivatePort,
             },
             args: [
                 `--inspectorPort=${fileProcessorDevInspectorPort}`,
@@ -584,8 +583,7 @@ function createArtifacts() {
             env: {BAZEL_BINDIR: "."},
             ports: {
                 publicPort: apiDevPort,
-                privatePorts: apiDevPrivatePorts,
-                privatePortIndex: 0,
+                privatePort: apiPrivatePort,
             },
             args: [
                 `--inspectorPort=${apiDevInspectorPort}`,
@@ -622,8 +620,7 @@ function createArtifacts() {
             stdioPrefix: "agn",
             ports: {
                 publicPort: agentsDevPort,
-                privatePorts: agentsDevPrivatePorts,
-                privatePortIndex: 0,
+                privatePort: agentsPrivatePort,
             },
             env: {
                 // On paid plans, Cloudflare Workers can make up to 1000 subrequests.
@@ -725,19 +722,21 @@ const slowSetupPromise = runAllPromises([
     }),
 ]);
 
-const artifactsPromise = runAllPromises(
-    createArtifacts().map(async artifact => {
-        // Allow `fastMainPromise` to initialize.
-        await waitMicrotask();
+const artifactsPromise = createArtifacts().then(artifacts =>
+    runAllPromises(
+        artifacts.map(async artifact => {
+            // Allow `fastMainPromise` to initialize.
+            await waitMicrotask();
 
-        await runAllPromises([
-            rebuildArtifact(artifact),
-            updateArtifactDependencyBazelPackagePaths(artifact),
-            artifact.ports
-                ? createDevProxyServer(artifact, {logError, mainPromise: fastMainPromise})
-                : null,
-        ]);
-    }),
+            await runAllPromises([
+                rebuildArtifact(artifact),
+                updateArtifactDependencyBazelPackagePaths(artifact),
+                artifact.ports
+                    ? createDevProxyServer(artifact, {logError, mainPromise: fastMainPromise})
+                    : null,
+            ]);
+        }),
+    ),
 );
 
 const fastMainPromise = runAllPromises([fastSetupPromise, artifactsPromise]);
@@ -748,7 +747,7 @@ void fastMainPromise.then(() => {
     writeToCoordinatedStdout(`\
 
 
-Development environment running on ${chalk.underline(`${edgeServiceUrl}`)}
+Development environment running on ${chalk.underline(`${edgeServiceUrl}/auth/sign-in`)}
 
 • Start the Chrome debugger at: ${chalk.underline("chrome://inspect")}
 ${
@@ -788,7 +787,14 @@ async function rebuildArtifact(artifact: Artifact) {
     await artifact.server.withLock(async artifactServerRef => {
         let preventStartArtifactServer = false;
 
-        const stopArtifactServer = ({buildId}: {buildId: Id}) => {
+        let stopArtifactServerPromise: Promise<void> | undefined;
+
+        const stopArtifactServer = ({buildId}: {buildId: Id}): Promise<void> => {
+            stopArtifactServerPromise ??= actuallyStopArtifactServer({buildId});
+            return stopArtifactServerPromise;
+        };
+
+        const actuallyStopArtifactServer = async ({buildId}: {buildId: Id}) => {
             if (!artifactServerRef.current) return;
 
             const artifactServer = artifactServerRef.current;
@@ -801,10 +807,9 @@ async function rebuildArtifact(artifact: Artifact) {
             }
 
             if (artifactServer.subprocess) {
-                // Have `dev_proxy_server.ts` start sending traffic to the next private port.
+                // Have `dev_proxy_server.ts` start sending traffic to a new private port.
                 if (artifact.ports) {
-                    artifact.ports.privatePortIndex =
-                        (artifact.ports.privatePortIndex + 1) % artifact.ports.privatePorts.length;
+                    artifact.ports.privatePort = await getPort();
                 }
 
                 // If our server process doesn't exit in a reasonable period of time, send
@@ -838,11 +843,14 @@ async function rebuildArtifact(artifact: Artifact) {
             //
             // Our HTTP servers implement graceful shutdown routines. So they'll stay alive
             // until all HTTP connections finish.
-            onBuildStart: stopArtifactServer,
+            onBuildStart: ({buildId}) => {
+                // `void` is ok here, will be awaited later.
+                void stopArtifactServer({buildId});
+            },
         });
 
         // In case `onBuildStart` didn't run, make sure our artifact server is stopped.
-        stopArtifactServer({buildId});
+        await stopArtifactServer({buildId});
 
         // If we didn't stop our old artifact server, we shouldn't start an new
         // artifact server.
@@ -875,11 +883,7 @@ async function rebuildArtifact(artifact: Artifact) {
             executablePath,
             [
                 ...(artifact.ports
-                    ? [
-                          `--${artifact.ports.privatePortArg ?? "port"}=${
-                              artifact.ports.privatePorts[artifact.ports.privatePortIndex]
-                          }`,
-                      ]
+                    ? [`--${artifact.ports.privatePortArg ?? "port"}=${artifact.ports.privatePort}`]
                     : []),
                 ...(artifact.args ?? []),
             ],
@@ -901,7 +905,7 @@ async function rebuildArtifact(artifact: Artifact) {
         const httpServerStartPromise = artifact.ports
             ? PromiseImmediate.resolve(
                   waitForHttpServer(
-                      artifact.ports.privatePorts[artifact.ports.privatePortIndex]!,
+                      artifact.ports.privatePort,
                       artifact.ports.waitForHttpServerPath,
                   ).catch(() => {
                       // Don't log an error. If a server never starts, the user will see a 504

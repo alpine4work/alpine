@@ -37,6 +37,7 @@ export type AppServiceConstants = {
             readonly resourceServiceUrl?: string;
             readonly logoDevSecretKey?: string;
             readonly logoDevPublishableKey?: string;
+            readonly cookieNameSuffix?: string;
         };
 };
 

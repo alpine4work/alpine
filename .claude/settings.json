@@ -1,0 +1,19 @@
+{
+    "permissions": {
+        "allow": [
+            "Bash(find:*)",
+            "Bash(grep:*)",
+            "Bash(dev check:*)",
+            "Bash(dev test:*)",
+            "Bash(dev format:*)",
+            "Bash(bazel test:*)",
+            "Bash(bazel query:*)",
+            "Bash(./admin/bin/dev check:*)",
+            "Bash(./admin/bin/dev test:*)",
+            "Bash(./admin/bin/dev format:*)",
+            "Bash(./admin/bin/bazel test:*)",
+            "Bash(./admin/bin/bazel query:*)"
+        ],
+        "deny": []
+    }
+}

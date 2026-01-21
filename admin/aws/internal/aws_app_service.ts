@@ -61,6 +61,7 @@ export class AwsAppService extends Construct {
             withAgentServiceUrl: true,
             withStripeSecrets: true,
             withLogoDevSecrets: true,
+            withCookieNameSuffixOption: true,
         });
 
         options.ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);

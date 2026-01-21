@@ -62,7 +62,7 @@ interface R2ObjectInterface {
 export async function createFileMultipartUpload(
     createContext: (payload: SessionTokenPayload) => Context<{rpc: RpcContextModuleBase}>,
     executionContext: {},
-    env: {FilesBucket: R2BucketInterface},
+    env: {FilesBucket: R2BucketInterface; COOKIE_NAME_SUFFIX: string},
     tokenAgent: TokenAgent,
     request: Request,
     url: URL,
@@ -102,7 +102,11 @@ export async function createFileMultipartUpload(
             );
         }
 
-        const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+        const sessionCookieToken = await getSessionCookieIfExists({
+            tokenAgent,
+            cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
+            request,
+        });
         if (!sessionCookieToken) throw unauthenticatedSessionError();
 
         const context = createContext(sessionCookieToken);
@@ -190,7 +194,7 @@ export async function createFileMultipartUpload(
 export async function putFileMultipartUploadPart(
     createContext: (payload: SessionTokenPayload) => Context<{rpc: RpcContextModuleBase}>,
     executionContext: {},
-    env: {FilesBucket: R2BucketInterface},
+    env: {FilesBucket: R2BucketInterface; COOKIE_NAME_SUFFIX: string},
     tokenAgent: TokenAgent,
     request: Request,
     url: URL,
@@ -254,7 +258,11 @@ export async function putFileMultipartUploadPart(
             );
         }
 
-        const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+        const sessionCookieToken = await getSessionCookieIfExists({
+            tokenAgent,
+            cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
+            request,
+        });
         if (!sessionCookieToken) throw unauthenticatedSessionError();
 
         const context = createContext(sessionCookieToken);
@@ -355,7 +363,7 @@ export async function putFileMultipartUploadPart(
 export async function completeFileMultipartUpload(
     createContext: (payload: SessionTokenPayload) => Context<{rpc: RpcContextModuleBase}>,
     executionContext: {},
-    env: {FilesBucket: R2BucketInterface},
+    env: {FilesBucket: R2BucketInterface; COOKIE_NAME_SUFFIX: string},
     tokenAgent: TokenAgent,
     request: Request,
     url: URL,
@@ -376,7 +384,11 @@ export async function completeFileMultipartUpload(
             throw new InvalidArgumentError("`upload` search param is required");
         }
 
-        const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+        const sessionCookieToken = await getSessionCookieIfExists({
+            tokenAgent,
+            cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
+            request,
+        });
         if (!sessionCookieToken) throw unauthenticatedSessionError();
 
         const context = createContext(sessionCookieToken);

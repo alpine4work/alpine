@@ -165,6 +165,9 @@ export function createTestServices(): {
         | ChildProcessByStdio<null, ReadableStream, ReadableStream>
         | undefined;
 
+    // Cookie names don't have a suffix in tests.
+    const cookieNameSuffix = "";
+
     let oneTimePasswords: Array<{emailAddress: string; oneTimePassword: string}> = [];
     let inviteUrls: Array<{emailAddress: string; inviteUrl: string}> = [];
 
@@ -309,6 +312,7 @@ export function createTestServices(): {
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
                 `--agentServiceUrl=http://localhost:${agentServicePort}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
+                `--cookieNameSuffix=${cookieNameSuffix}`,
             ],
             {
                 env: process.env,
@@ -368,6 +372,7 @@ export function createTestServices(): {
                 `--cacheLocalDataPath=${edgeCacheLocalDataPath}`,
                 `--durableObjectsLocalDataPath=${edgeDurableObjectsLocalDataPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--cookieNameSuffix=${cookieNameSuffix}`,
             ],
             {
                 env: process.env,
@@ -522,6 +527,7 @@ export function createTestServices(): {
     ) => {
         const sessionCookieHeader = await getSessionCookieSetCookieHeaderForTest(
             assertExists(appServiceTokenAgentPrivateSide),
+            cookieNameSuffix,
             {
                 type: "Session",
                 sessionId: "id" in session ? session.id : session.sessionId,

@@ -17,8 +17,9 @@ if [[ $PWD/ = $workspace_path/* ]]; then
     fi
 
     node_workspace="nodejs_${platform_name}_${arch_name}"
+    output_base="$(bazel info output_base)"
     "$workspace_path/admin/bin/bazel" build --ui_event_filters=-info "@$node_workspace//:bin/node"
-    $workspace_path/bazel-cyberworlds/external/$node_workspace/bin/node "$@"
+    "$output_base/external/$node_workspace/bin/node" "$@"
 else
     workspace_bin_path=$workspace_path/admin/bin
 

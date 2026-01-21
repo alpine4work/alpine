@@ -1,4 +1,5 @@
 import {ResourceServiceEnv} from "~/server/resources/resource_service_env.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export async function fetchAppStaticFile(
     request: Request,
@@ -9,8 +10,7 @@ export async function fetchAppStaticFile(
     // In development, static assets are served by `serve-static` middleware in
     // `AppService`. In production we serve static assets from Cloudflare R2.
     if (process.env.NODE_ENV !== "production") {
-        const appServiceUrl = "http://localhost:3010";
-        const fetchUrl = `${appServiceUrl}${url.pathname}`;
+        const fetchUrl = `${assertExists(env.APP_SERVICE_URL)}${url.pathname}`;
         // eslint-disable-next-line no-global-fetch
         return fetch(fetchUrl);
     }

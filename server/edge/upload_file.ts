@@ -28,7 +28,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 export async function uploadFile(
     createContext: (payload: SessionTokenPayload) => Context<{rpc: RpcContextModuleBase}>,
     executionContext: {},
-    env: {FilesBucket: PutR2ObjectBucketInterface},
+    env: {FilesBucket: PutR2ObjectBucketInterface; COOKIE_NAME_SUFFIX: string},
     tokenAgent: TokenAgent,
     request: Request,
     url: URL,
@@ -40,7 +40,11 @@ export async function uploadFile(
 
         const {contentType, contentLength} = getContentLengthAndCanonicalContentType(request);
 
-        const sessionCookieToken = await authorizeRequestAndGetSessionToken(tokenAgent, request);
+        const sessionCookieToken = await authorizeRequestAndGetSessionToken({
+            tokenAgent,
+            cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
+            request,
+        });
         const context = createContext(sessionCookieToken);
 
         // If the client sends more bytes than what they declared in `Content-Length`

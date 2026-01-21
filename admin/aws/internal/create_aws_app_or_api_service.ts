@@ -76,6 +76,7 @@ export function createAwsAppOrApiService(
         withAgentServiceUrl,
         withStripeSecrets,
         withLogoDevSecrets,
+        withCookieNameSuffixOption,
     }: {
         serviceName: string;
         secretsName: string;
@@ -96,6 +97,7 @@ export function createAwsAppOrApiService(
         withAgentServiceUrl?: boolean;
         withStripeSecrets?: boolean;
         withLogoDevSecrets?: boolean;
+        withCookieNameSuffixOption?: boolean;
     },
 ) {
     const launchTemplate = new LaunchTemplate(parentConstruct, "LaunchTemplate", {
@@ -371,6 +373,11 @@ export function createAwsAppOrApiService(
                 ? [
                       "--logoDevSecretKey=$LOGO_DEV_SECRET_KEY",
                       "--logoDevPublishableKey=$LOGO_DEV_PUBLISHABLE_KEY",
+                  ]
+                : []),
+            ...(withCookieNameSuffixOption
+                ? [
+                      "--cookieNameSuffix=", // Cookie names don't have a suffix in production.
                   ]
                 : []),
         ],

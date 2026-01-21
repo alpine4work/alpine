@@ -9,14 +9,19 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * Get and verify the `SessionTokenPayload` in the requests session cookie if
  * it exists. Otherwise return null.
  */
-export async function getSessionCookieIfExists(
-    tokenAgent: TokenAgent,
-    request: Request,
-): Promise<SessionTokenPayload | null> {
+export async function getSessionCookieIfExists({
+    tokenAgent,
+    cookieNameSuffix,
+    request,
+}: {
+    tokenAgent: TokenAgent;
+    cookieNameSuffix: string;
+    request: Request;
+}): Promise<SessionTokenPayload | null> {
     const cookieHeader = request.headers.get("cookie");
     if (!cookieHeader) return null;
 
-    const token = parse(cookieHeader)["session"];
+    const token = parse(cookieHeader)[`session${cookieNameSuffix}`];
     if (!token) return null;
 
     // We delete our session cookie by setting it to an empty string.
@@ -60,11 +65,14 @@ export type SessionCookie = {
  * `getSessionCookieIfExists()`.
  */
 export async function withSessionCookie(
-    tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>,
-    request: Request,
+    options: {
+        tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
+        cookieNameSuffix: string;
+        request: Request;
+    },
     action: (sessionCookie: SessionCookie) => Promise<Response>,
 ): Promise<Response> {
-    const oldTokenPromise = getSessionCookieIfExists(tokenAgent, request);
+    const oldTokenPromise = getSessionCookieIfExists(options);
     let canSetToken = true;
     let newToken: SessionTokenPayload | null | "Unset" = "Unset";
 
@@ -84,7 +92,11 @@ export async function withSessionCookie(
     const oldSessionTokenPayload = await oldTokenPromise;
 
     if (newToken !== "Unset" && oldSessionTokenPayload !== newToken) {
-        const header = await getSessionCookieSetCookieHeader(tokenAgent.privateSide, newToken);
+        const header = await getSessionCookieSetCookieHeader(
+            options.tokenAgent.privateSide,
+            options.cookieNameSuffix,
+            newToken,
+        );
         response.headers.append("set-cookie", header);
     }
 
@@ -93,6 +105,7 @@ export async function withSessionCookie(
 
 async function getSessionCookieSetCookieHeader(
     tokenAgentPrivateSide: TokenAgentAppServicePrivateSide,
+    cookieNameSuffix: string,
     token: SessionTokenPayload | null,
 ) {
     const cookieString = token
@@ -102,7 +115,7 @@ async function getSessionCookieSetCookieHeader(
     // If you update the cookie configuration here, you also need to update where
     // we set the cookie in our native mobile apps. For iOS we currently construct
     // the cookie in the file `RootTabBarController.swift`.
-    return serialize("session", cookieString, {
+    return serialize(`session${cookieNameSuffix}`, cookieString, {
         // The session cookie domain is not set in development because we may be
         // accessing from a proxied domain or an IP address on a mobile device.
         domain: process.env.NODE_ENV === "production" ? "alpine.inc" : undefined,
@@ -123,8 +136,9 @@ async function getSessionCookieSetCookieHeader(
 // Let tests call this function directly.
 export function getSessionCookieSetCookieHeaderForTest(
     tokenAgentPrivateSide: TokenAgentAppServicePrivateSide,
+    cookieNameSuffix: string,
     token: SessionTokenPayload | null,
 ) {
     assert(process.env.NODE_ENV === "test");
-    return getSessionCookieSetCookieHeader(tokenAgentPrivateSide, token);
+    return getSessionCookieSetCookieHeader(tokenAgentPrivateSide, cookieNameSuffix, token);
 }

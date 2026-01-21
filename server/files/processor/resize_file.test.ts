@@ -165,7 +165,7 @@ async function uploadFileForTest(
                     rpc: new TestUploadFileRpcContextModule(),
                 }),
             {},
-            {FilesBucket: r2Bucket},
+            {FilesBucket: r2Bucket, COOKIE_NAME_SUFFIX: ""},
             edgeTokenAgent,
             request,
             url,

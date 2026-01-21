@@ -14,6 +14,7 @@ export async function fetchFromDurableObjectStub({
     durableObjectNamespace,
     serviceName,
     tokenAgent,
+    cookieNameSuffix,
     request,
     pathname,
     idName,
@@ -22,6 +23,7 @@ export async function fetchFromDurableObjectStub({
     durableObjectNamespace: DurableObjectNamespace;
     serviceName: DurableObjectServiceName;
     tokenAgent: TokenAgent;
+    cookieNameSuffix: string;
     request: Request;
     pathname: string;
     idName: string;
@@ -50,7 +52,11 @@ export async function fetchFromDurableObjectStub({
     newRequest.headers.delete("cookie");
 
     if (!newRequest.headers.has("authorization")) {
-        const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+        const sessionCookieToken = await getSessionCookieIfExists({
+            tokenAgent,
+            cookieNameSuffix,
+            request,
+        });
         if (!sessionCookieToken) throw unauthenticatedSessionError();
 
         const requestToken = await tokenAgent.privateSide.dangerouslySignShortLivedToken(

@@ -58,6 +58,7 @@ export const options = {
     mockChatGptLocalUnscopedApiKey: {type: "string"},
     logoDevSecretKey: {type: "string"},
     logoDevPublishableKey: {type: "string"},
+    cookieNameSuffix: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,

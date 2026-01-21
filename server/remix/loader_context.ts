@@ -66,6 +66,12 @@ export class LoaderContextModule extends ContextModuleBase {
     public readonly tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
 
     /**
+     * Suffix added to cookie names. Useful when you have multiple `git worktree`s
+     * since cookies are shared across all ports on localhost.
+     */
+    public readonly cookieNameSuffix: string;
+
+    /**
      * Manipulate the HTTP session cookie. Important to remember that the client
      * may authenticate with an `Authorization` header instead of a session cookie!
      * In this case the session cookie will be null.
@@ -103,11 +109,13 @@ export class LoaderContextModule extends ContextModuleBase {
         request: Request,
         {
             tokenAgent,
+            cookieNameSuffix,
             sessionCookie,
             agentServiceUrl,
             webPushVapidPublicKey,
         }: {
             tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
+            cookieNameSuffix: string;
             sessionCookie: SessionCookie;
             agentServiceUrl: string | null;
             webPushVapidPublicKey: string;
@@ -116,6 +124,7 @@ export class LoaderContextModule extends ContextModuleBase {
         super();
         this._request = request;
         this.tokenAgent = tokenAgent;
+        this.cookieNameSuffix = cookieNameSuffix;
         this.sessionCookie = sessionCookie;
         this.agentServiceUrl = agentServiceUrl;
         this.webPushVapidPublicKey = webPushVapidPublicKey;
@@ -160,7 +169,8 @@ export class LoaderContextModule extends ContextModuleBase {
      */
     public getBrowserId(): BrowserId {
         if (!this._state.browserId) {
-            const browserIdCookieString = this._parseCookieHeader()?.["browser"];
+            const browserIdCookieString =
+                this._parseCookieHeader()?.[`browser${this.cookieNameSuffix}`];
 
             let browserId: BrowserId;
             let shouldSetBrowserIdCookie: boolean;
@@ -189,7 +199,7 @@ export class LoaderContextModule extends ContextModuleBase {
                     headers.append(
                         "set-cookie",
                         serializeSetCookieHeader(
-                            "browser",
+                            `browser${this.cookieNameSuffix}`,
                             `${browserId}@${new Date().toISOString()}`,
                             {
                                 // The session cookie domain is not set in development because we may be
@@ -226,7 +236,8 @@ export class LoaderContextModule extends ContextModuleBase {
         if (!this._state.clientInfo) {
             const userAgentHeader = this._request.headers.get("user-agent") ?? "";
 
-            const clientInfoCookieString = this._parseCookieHeader()?.["client-info"];
+            const clientInfoCookieString =
+                this._parseCookieHeader()?.[`client-info${this.cookieNameSuffix}`];
 
             let clientInfo;
             if (clientInfoCookieString) {

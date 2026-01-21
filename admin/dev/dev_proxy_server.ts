@@ -28,7 +28,7 @@ export async function createDevProxyServer(
 ) {
     const mainPromise = PromiseImmediate.resolve(_mainPromise);
 
-    let lastPrivatePort = artifact.ports.privatePorts[artifact.ports.privatePortIndex]!;
+    let lastPrivatePort = artifact.ports.privatePort;
 
     let keepAliveAgent = new http.Agent({keepAlive: true});
     const dontKeepAliveAgent = new http.Agent({keepAlive: false});
@@ -85,7 +85,7 @@ export async function createDevProxyServer(
 
             requestAttemptCount++;
 
-            const privatePort = artifact.ports.privatePorts[artifact.ports.privatePortIndex]!;
+            const privatePort = artifact.ports.privatePort;
 
             // If the private port changes, then reset the keep-alive agent.
             //
@@ -224,7 +224,7 @@ export async function createDevProxyServer(
 
             requestAttemptCount++;
 
-            const privatePort = artifact.ports.privatePorts[artifact.ports.privatePortIndex]!;
+            const privatePort = artifact.ports.privatePort;
 
             const req = http.request({
                 // NOTE(calebmer): Don't keep WebSocket sockets alive. I don't know all the

@@ -139,6 +139,7 @@ async function main() {
         cachePersist: cacheLocalDataPath,
         r2Persist: cloudflareR2LocalDataPath,
         bindings: {
+            APP_SERVICE_URL: appServiceUrl,
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
             TASK_REALTIME_SERVICE_PUBLIC_KEY: taskRealtimeServicePublicKey,

@@ -44,6 +44,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
@@ -548,6 +549,7 @@ async function actuallyHandleFetch(
                     durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
                     serviceName: "DocumentCollaborationService",
                     tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
                     request,
                     pathname: route.pathname,
                     idName: route.documentId,
@@ -560,6 +562,7 @@ async function actuallyHandleFetch(
                     durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
                     serviceName: "PostRealtimeService",
                     tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
                     request,
                     pathname: route.pathname,
                     idName: route.postId,
@@ -572,6 +575,7 @@ async function actuallyHandleFetch(
                     durableObjectNamespace: env.ChannelRealtimeDurableObjectNamespace,
                     serviceName: "ChannelRealtimeService",
                     tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
                     request,
                     pathname: route.pathname,
                     idName: route.channelId,
@@ -584,6 +588,7 @@ async function actuallyHandleFetch(
                     durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
                     serviceName: "ChatRealtimeService",
                     tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
                     request,
                     pathname: route.pathname,
                     idName: route.chatId,
@@ -596,6 +601,7 @@ async function actuallyHandleFetch(
                     durableObjectNamespace: env.MyAccountDurableObjectNamespace,
                     serviceName: "MyAccountService",
                     tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
                     request,
                     pathname: route.pathname,
                     idName: route.accountId,
@@ -608,6 +614,7 @@ async function actuallyHandleFetch(
                     durableObjectNamespace: env.TaskNotesCollaborationDurableObjectNamespace,
                     serviceName: "TaskNotesCollaborationService",
                     tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
                     request,
                     pathname: route.pathname,
                     idName: route.taskId,
@@ -628,7 +635,11 @@ async function actuallyHandleFetch(
 
                 // When connecting to `TaskRealtimeService` via the edge, you must authenticate
                 // with a session cookie. `Authorization` headers are ignored.
-                const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+                const sessionCookieToken = await getSessionCookieIfExists({
+                    tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
+                    request,
+                });
                 if (!sessionCookieToken) throw unauthenticatedSessionError();
 
                 const requestToken = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
@@ -693,7 +704,11 @@ async function actuallyHandleFetch(
 
                 // When connecting to `TaskRealtimeService` via the edge, you must authenticate
                 // with a session cookie. `Authorization` headers are ignored.
-                const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+                const sessionCookieToken = await getSessionCookieIfExists({
+                    tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
+                    request,
+                });
 
                 const requestToken = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
                     "TaskRealtimeService",
@@ -915,7 +930,14 @@ async function actuallyHandleFetch(
                 //
                 // At least this makes this endpoint a little annoying for a bad actor to use
                 // even if it doesn't really provide any meaningful protection.
-                const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+                const sessionCookieToken = await getSessionCookieIfExists({
+                    tokenAgent,
+                    cookieNameSuffix: assertExists(
+                        env.COOKIE_NAME_SUFFIX,
+                        "Missing `COOKIE_NAME_SUFFIX` env variable",
+                    ),
+                    request,
+                });
                 if (!sessionCookieToken) throw unauthenticatedSessionError();
 
                 const proxyHeaders = new Headers();

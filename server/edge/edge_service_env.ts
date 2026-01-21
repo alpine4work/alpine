@@ -8,6 +8,7 @@ export type EdgeServiceEnv = {
     ChatRealtimeDurableObjectNamespace: DurableObjectNamespace;
     MyAccountDurableObjectNamespace: DurableObjectNamespace;
     TaskNotesCollaborationDurableObjectNamespace: DurableObjectNamespace;
+    COOKIE_NAME_SUFFIX: string;
     APP_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
     TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
