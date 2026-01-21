@@ -568,6 +568,28 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 contextMenuActions.push(menuActions);
             }
 
+            // Add reaction action for file-only messages (messages with files but no text content).
+            // Reply is not available since there's no text to quote.
+            else if (
+                !isReadOnly &&
+                !message.isOptimistic &&
+                message.payload.type === "Content" &&
+                message.payload.files.length > 0 &&
+                isContentEmpty(message.payload.content.doc) &&
+                message.stream === null
+            ) {
+                contextMenuActions.push([
+                    messageViewReactionContextMenuAction({
+                        message,
+                        messageNoun,
+                        onSetMessageReaction,
+                        onDeleteMessageReaction,
+                        onUpdateMessagesOptimistically,
+                        inboxContext,
+                    }),
+                ]);
+            }
+
             contextMenuActions.push([
                 {
                     key: id,
@@ -944,10 +966,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         // any reactions then we want to render the add reaction button so the user can
         // quickly add a reaction (dismissing the notification if they're in the
         // inbox).
+        //
+        // Don't show the add reaction button on the content if there are files. The
+        // files section will show its own add reaction button.
         if (
             isLastMessage &&
             message.author.id !== currentAccountId &&
-            message.payload.reactionsByPos.size === 0
+            message.payload.reactionsByPos.size === 0 &&
+            message.payload.files.length === 0
         ) {
             return new Map([[message.payload.content.doc.content.size, emptyReactionSet]]);
         }
