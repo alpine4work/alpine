@@ -9,6 +9,9 @@ compatibility_date = "2022-07-12"
 compatibility_flags = ["streams_enable_constructors"]
 workers_dev = false
 
+[vars]
+COOKIE_NAME_SUFFIX = ""
+
 [route]
 pattern = "alpine.inc/*"
 zone_name = "alpine.inc"
