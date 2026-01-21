@@ -1057,38 +1057,68 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 );
             }
 
+            const bigEmojiReactionsPos = message.payload.content.doc.content.size;
+            const bigEmojiReactions = reactionsByPos.get(bigEmojiReactionsPos) || undefined;
+
             return (
-                <div
-                    className={sprinkles({
-                        fontSize: "600",
-                        userSelect: canPrimaryInputHover ? "text" : "none",
-                    })}
-                    style={{
-                        // Use a line height with a round pixel value on all spacing scales so
-                        // `<MessageView>` elements don't end up needing subpixel rendering.
-                        lineHeight: spacing["8"],
-                    }}
-                >
-                    {children}
-                    {message.payload.contentUpdate && (
-                        <Tooltip
-                            placement="bottom"
-                            content={
-                                <PrettyAbsoluteDateTooltipContent
-                                    date={message.payload.contentUpdate.time}
-                                />
-                            }
-                        >
-                            <span
-                                className={contentViewStyles.updatedNoteClassName}
-                                style={{paddingLeft: spacing["1"]}}
+                <>
+                    <div
+                        className={sprinkles({
+                            fontSize: "600",
+                            userSelect: canPrimaryInputHover ? "text" : "none",
+                        })}
+                        style={{
+                            // Use a line height with a round pixel value on all spacing scales so
+                            // `<MessageView>` elements don't end up needing subpixel rendering.
+                            lineHeight: spacing["8"],
+                        }}
+                    >
+                        {children}
+                        {message.payload.contentUpdate && (
+                            <Tooltip
+                                placement="bottom"
+                                content={
+                                    <PrettyAbsoluteDateTooltipContent
+                                        date={message.payload.contentUpdate.time}
+                                    />
+                                }
                             >
-                                {" "}
-                                (updated)
-                            </span>
-                        </Tooltip>
+                                <span
+                                    className={contentViewStyles.updatedNoteClassName}
+                                    style={{paddingLeft: spacing["1"]}}
+                                >
+                                    {" "}
+                                    (updated)
+                                </span>
+                            </Tooltip>
+                        )}
+                    </div>
+                    {bigEmojiReactions !== undefined && (
+                        <ContentViewReactionParty
+                            pos={bigEmojiReactionsPos}
+                            reactions={bigEmojiReactions}
+                            onSetReaction={handleSetReaction}
+                            onDeleteReaction={handleDeleteReaction}
+                            onPressSeeReactions={async pos => {
+                                if (message.isOptimistic) return;
+                                if (!currentAccountId) return;
+
+                                await navigate(
+                                    message.getSeeReactionsUrl(
+                                        space.id,
+                                        message.payload.contentUpdate?.mappings.length ?? 0,
+                                        pos,
+                                    ),
+                                );
+                            }}
+                            randomSeed={
+                                message.isOptimistic
+                                    ? `MessageView:optimistic`
+                                    : `MessageView:${message.getRoomKey()}-${message.index}`
+                            }
+                        />
                     )}
-                </div>
+                </>
             );
         }
 
