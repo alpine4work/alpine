@@ -5,8 +5,7 @@ import {closeHistory} from "prosemirror-history";
 import {Node as ProsemirrorNode} from "prosemirror-model";
 import {EditorState, NodeSelection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {useState} from "react";
-import {act} from "react-dom/test-utils";
+import {act, useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/web/content/content_editor.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {markMemoIfNotRendering} from "~/client/web/helpers/lifecycle/mark_memo_if_not_rendering.js";
@@ -3613,6 +3612,39 @@ test("pressing backspace at the start of an empty paragraph at the end of a quot
     expect(getDoc().toString()).toEqual(
         'doc(quoteBlock(paragraph("foo"), paragraph("bar")), paragraph)',
     );
+});
+
+test("pressing backspace in an empty paragraph between quote blocks merges the quote blocks", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("quoteBlock", null, [
+                    schema.node("paragraph", null, [schema.text("foo")]),
+                ]),
+                schema.node("paragraph"),
+                schema.node("quoteBlock", null, [
+                    schema.node("paragraph", null, [schema.text("qux")]),
+                ]),
+            ])}
+        />,
+    );
+
+    dispatch(state => {
+        let emptyParagraphPos: number | null = null;
+        state.doc.descendants((node, pos) => {
+            if (node.type.name === "paragraph" && node.content.size === 0) {
+                emptyParagraphPos = pos + 1;
+                return false;
+            }
+            return true;
+        });
+        assert(emptyParagraphPos !== null);
+        return state.tr.setSelection(new TextSelection(state.doc.resolve(emptyParagraphPos)));
+    });
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("foo"), paragraph("qux")))');
 });
 
 test("pressing backspace at the start of a paragraph after a quote block merges the quote blocks", async () => {

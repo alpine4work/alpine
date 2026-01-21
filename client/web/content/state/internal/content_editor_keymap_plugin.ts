@@ -861,6 +861,56 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
+        // If "Backspace" is pressed in an empty paragraph between two quote blocks
+        // then merge the quote blocks together.
+        //
+        // For example, if the cursor is in the middle, empty paragraph:
+        //
+        // ```
+        // doc(
+        //   quoteBlock(paragraph("foo")),
+        //   paragraph,
+        //   quoteBlock(paragraph("qux")),
+        // )
+        // ```
+        //
+        // Then you press backspace:
+        //
+        // ```
+        // doc(quoteBlock(paragraph("foo"), paragraph("qux")))
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+
+            const isCollapsedAtStartOfParagraph =
+                $from.pos === $to.pos &&
+                $from.parentOffset === 0 &&
+                $from.parent.type.name === "paragraph" &&
+                $from.parent.content.size === 0;
+
+            if (!isCollapsedAtStartOfParagraph) return false;
+
+            const paragraphStart = $from.before();
+            const paragraphEnd = $from.after();
+            const previousNode = state.doc.resolve(paragraphStart).nodeBefore;
+            const nextNode = state.doc.resolve(paragraphEnd).nodeAfter;
+
+            if (
+                !previousNode ||
+                !nextNode ||
+                previousNode.type.name !== "quoteBlock" ||
+                nextNode.type.name !== "quoteBlock"
+            ) {
+                return false;
+            }
+
+            if (dispatch) {
+                const transaction = state.tr.delete(paragraphStart - 1, paragraphEnd + 1);
+                dispatch(transaction.scrollIntoView());
+            }
+            return true;
+        },
+
         // If we delete at the beginning of a paragraph that comes after a list
         // (or quote block) then merge the paragraph with the list's last bullet.
         //
