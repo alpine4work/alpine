@@ -612,25 +612,12 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         // [1]: https://www.hogbaysoftware.com/posts/bike-rich-text/
 
         /**
-         * Text written in a monospace font with a background of the same color as a
-         * code block. For consistency with the code block allows you to reference
-         * names normally written in a monospace font (code mostly).
-         */
-        // NOTE(calebmer): This needs to be defined before `bold` and other styles so
-        // that in the DOM `code` will wrap other styles.
-        code: {
-            inclusive: false,
-            toDOM: () => ["code", {class: codeClassName}, 0],
-            parseDOM: [{tag: "code"}],
-        },
-
-        /**
          * This is the web! You just gotta have them links.
          */
         // NOTE(calebmer): This needs to be defined before `bold` and other styles so
         // that in the DOM `link` will wrap other styles.
         //
-        // We are ok with `code` wrapping `link`. We want `link` to be the outer
+        // We are ok with `link` wrapping `code`. We want `link` to be the outer
         // wrapper so that hovering over build text within a link doesn't break the
         // hover link preview.
         link: {
@@ -679,6 +666,19 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     },
                 },
             ],
+        },
+
+        /**
+         * Text written in a monospace font with a background of the same color as a
+         * code block. For consistency with the code block allows you to reference
+         * names normally written in a monospace font (code mostly).
+         */
+        // NOTE(calebmer): This needs to be defined before `bold` and other styles so
+        // that in the DOM `code` will wrap other styles.
+        code: {
+            inclusive: false,
+            toDOM: () => ["code", {class: codeClassName}, 0],
+            parseDOM: [{tag: "code"}],
         },
 
         /**

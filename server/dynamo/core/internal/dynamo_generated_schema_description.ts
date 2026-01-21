@@ -1203,18 +1203,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                             "type": "Union",
                                                                                                             "typeKey": "type",
                                                                                                             "variantSchemaByTypeValue": {
-                                                                                                                "code": {
-                                                                                                                    "type": "Object",
-                                                                                                                    "propertySchemaByKey": {
-                                                                                                                        "type": {
-                                                                                                                            "valueSchema": {
-                                                                                                                                "type": "Value",
-                                                                                                                                "value": "code"
-                                                                                                                            },
-                                                                                                                            "optional": false
-                                                                                                                        }
-                                                                                                                    }
-                                                                                                                },
                                                                                                                 "link": {
                                                                                                                     "type": "Object",
                                                                                                                     "propertySchemaByKey": {
@@ -1236,6 +1224,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                         "optional": false
                                                                                                                                     }
                                                                                                                                 }
+                                                                                                                            },
+                                                                                                                            "optional": false
+                                                                                                                        }
+                                                                                                                    }
+                                                                                                                },
+                                                                                                                "code": {
+                                                                                                                    "type": "Object",
+                                                                                                                    "propertySchemaByKey": {
+                                                                                                                        "type": {
+                                                                                                                            "valueSchema": {
+                                                                                                                                "type": "Value",
+                                                                                                                                "value": "code"
                                                                                                                             },
                                                                                                                             "optional": false
                                                                                                                         }
@@ -2757,18 +2757,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     }
                                                                                                 }
                                                                                             },
-                                                                                            "code": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "code"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
                                                                                             "link": {
                                                                                                 "type": "Object",
                                                                                                 "propertySchemaByKey": {
@@ -2790,6 +2778,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                     "optional": false
                                                                                                                 }
                                                                                                             }
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            "code": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "code"
                                                                                                         },
                                                                                                         "optional": false
                                                                                                     }
@@ -4638,18 +4638,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                     }
                                                                                                                 }
                                                                                                             },
-                                                                                                            "code": {
-                                                                                                                "type": "Object",
-                                                                                                                "propertySchemaByKey": {
-                                                                                                                    "type": {
-                                                                                                                        "valueSchema": {
-                                                                                                                            "type": "Value",
-                                                                                                                            "value": "code"
-                                                                                                                        },
-                                                                                                                        "optional": false
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            },
                                                                                                             "link": {
                                                                                                                 "type": "Object",
                                                                                                                 "propertySchemaByKey": {
@@ -4671,6 +4659,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                     "optional": false
                                                                                                                                 }
                                                                                                                             }
+                                                                                                                        },
+                                                                                                                        "optional": false
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            },
+                                                                                                            "code": {
+                                                                                                                "type": "Object",
+                                                                                                                "propertySchemaByKey": {
+                                                                                                                    "type": {
+                                                                                                                        "valueSchema": {
+                                                                                                                            "type": "Value",
+                                                                                                                            "value": "code"
                                                                                                                         },
                                                                                                                         "optional": false
                                                                                                                     }
@@ -7682,18 +7682,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "type": "Union",
                                                                                         "typeKey": "type",
                                                                                         "variantSchemaByTypeValue": {
-                                                                                            "code": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "code"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
                                                                                             "link": {
                                                                                                 "type": "Object",
                                                                                                 "propertySchemaByKey": {
@@ -7715,6 +7703,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                     "optional": false
                                                                                                                 }
                                                                                                             }
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            "code": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "code"
                                                                                                         },
                                                                                                         "optional": false
                                                                                                     }
@@ -12489,18 +12489,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "type": "Union",
                                                                                         "typeKey": "type",
                                                                                         "variantSchemaByTypeValue": {
-                                                                                            "code": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "code"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
                                                                                             "link": {
                                                                                                 "type": "Object",
                                                                                                 "propertySchemaByKey": {
@@ -12522,6 +12510,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                     "optional": false
                                                                                                                 }
                                                                                                             }
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            "code": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "code"
                                                                                                         },
                                                                                                         "optional": false
                                                                                                     }
