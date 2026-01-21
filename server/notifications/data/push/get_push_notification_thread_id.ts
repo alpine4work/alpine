@@ -36,8 +36,11 @@ export function getPushNotificationThreadId(item: InboxEntryItem): string {
         default:
             throw exhaustive(item);
     }
+    // Apple's push service has a limit of 32 characters for the thread ID.
     assert(threadId.length <= 32, "Push notification thread ID must be fewer than 32 characters");
-    return threadId;
+    // Apple's push service expects the thread ID to be a valid base64 string, so to ensure the
+    // length is always a multiple of 4, we pad with 0s up to 32 characters.
+    return threadId.padEnd(32, "0");
 }
 
 // The `% 10 ** 6` grabs only the last `maxDigits` digits of the bucket generation, which means it
