@@ -8,6 +8,7 @@ import {MarkType, NodeType} from "prosemirror-model";
 import {TextSelection} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
 import {openContentEditorMentionFloaterMetaKey} from "~/client/web/content/state/content_editor_meta_keys.js";
+import {normalizeContentEditorCodeText} from "~/client/web/content/state/internal/normalize_content_editor_code_text.js";
 import {addSharedContentEditorInputRules} from "~/client/web/content/state/shared/build_shared_content_editor_input_rules_plugin.js";
 import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/web/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -238,24 +239,48 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
                 // The closing bracket.
                 escapedChar,
                 // This must end at our cursor or at an ending bracket.
-                "\\p{Pe}?$",
+                "(\\p{Pe}?$)",
             ].join(""),
             // Allow unicode characters (like opening/closing bracket properties)
             "u",
         );
 
-        return new InputRule(regExp, (state, match, start, end) => {
+        return new InputRule(regExp, (state, match, start) => {
             const {$from} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
+            const fullMatch = match[0];
             const offset = match[1]!.length;
+            const endOffset = match[2]!.length;
             const isInCodeBlockLine = $from.node().type.name === "codeBlockLine";
 
             if (isInCodeBlockLine) {
                 return null;
             }
 
-            return state.tr
-                .delete(start + offset, start + offset + 1)
-                .addMark(start + offset, end - offset, markType.create());
+            const transaction = state.tr;
+
+            if (markType.name === "code") {
+                const replacements = normalizeContentEditorCodeText(
+                    fullMatch.slice(offset + 1, fullMatch.length - endOffset - 1),
+                );
+
+                for (const replacement of replacements.reverse()) {
+                    transaction.replaceWith(
+                        start + offset + 1 + replacement.from,
+                        start + offset + 1 + replacement.to,
+                        state.schema.text(replacement.text),
+                    );
+                }
+            }
+
+            transaction.delete(start + offset, start + offset + 1);
+
+            transaction.addMark(
+                start + offset,
+                transaction.mapping.map(start + fullMatch.length - endOffset),
+                markType.create(),
+            );
+
+            return transaction;
         });
     }
 

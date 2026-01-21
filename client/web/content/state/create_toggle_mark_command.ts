@@ -1,5 +1,6 @@
 import {Mark} from "prosemirror-model";
-import {Command, TextSelection} from "prosemirror-state";
+import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
+import {normalizeContentEditorCodeText} from "~/client/web/content/state/internal/normalize_content_editor_code_text.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 /**
@@ -76,10 +77,67 @@ export function createToggleMarkCommand(
 
         if (doesAnyNodeAllowMarkType) {
             const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
-            dispatch?.(state.tr.addMark(range.from, range.to, mark).scrollIntoView());
+            let transaction = state.tr;
+
+            if (mark.type.name === "code") {
+                actuallyNormalizeContentEditorCodeText(state, transaction, range);
+            }
+
+            transaction = transaction.addMark(
+                transaction.mapping.map(range.from, -1),
+                transaction.mapping.map(range.to, 1),
+                mark,
+            );
+            dispatch?.(transaction.scrollIntoView());
             return true;
         }
 
         return changedStoredMarks;
     };
+}
+
+function actuallyNormalizeContentEditorCodeText(
+    state: EditorState,
+    transaction: Transaction,
+    range: {from: number; to: number},
+) {
+    const replacements: Array<{
+        from: number;
+        to: number;
+        text: string;
+        marks: ReadonlyArray<Mark>;
+    }> = [];
+
+    state.doc.nodesBetween(range.from, range.to, (node, pos) => {
+        if (!node.isText || !node.text) return;
+
+        const nodeStart = pos;
+        const nodeEnd = pos + node.nodeSize;
+        const overlapFrom = Math.max(range.from, nodeStart);
+        const overlapTo = Math.min(range.to, nodeEnd);
+
+        if (overlapFrom >= overlapTo) return;
+
+        const startIndex = overlapFrom - nodeStart;
+        const endIndex = overlapTo - nodeStart;
+        const segment = node.text.slice(startIndex, endIndex);
+        const segmentReplacements = normalizeContentEditorCodeText(segment);
+
+        for (const replacement of segmentReplacements) {
+            replacements.push({
+                from: nodeStart + startIndex + replacement.from,
+                to: nodeStart + startIndex + replacement.to,
+                text: replacement.text,
+                marks: node.marks,
+            });
+        }
+    });
+
+    for (const replacement of replacements.reverse()) {
+        transaction.replaceWith(
+            transaction.mapping.map(replacement.from, 1),
+            transaction.mapping.map(replacement.to, -1),
+            state.schema.text(replacement.text, replacement.marks),
+        );
+    }
 }

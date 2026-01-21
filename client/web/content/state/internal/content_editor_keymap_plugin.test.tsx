@@ -3373,6 +3373,58 @@ test("codes text with ` at the beginning of a block", async () => {
     expect(getDoc().toString()).toEqual('doc(paragraph(code("test")))');
 });
 
+test("smart punctuation is not normalized when there’s no backtick", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping('--foo="bar..."');
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("—foo=”bar…”"))');
+});
+
+test("smart punctuation is not normalized before backtick finishes", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping('`--foo="bar..."');
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("`—foo=”bar…”"))');
+});
+
+test("normalizes smart punctuation when coding text with backtick", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping('`--foo="bar..."`');
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("--foo=\\"bar...\\"")))');
+});
+
+test("normalizes smart punctuation when selecting text and pressing backtick", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping('--foo="bar..."');
+
+    dispatch(state =>
+        state.tr.setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 1)),
+    );
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "`"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("--foo=\\"bar...\\"")))');
+});
+
+test("normalizes smart punctuation when selecting text and pressing cmd+shift+e", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping('--foo="bar..."');
+
+    dispatch(state =>
+        state.tr.setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 1)),
+    );
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "e", metaKey: true, shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("--foo=\\"bar...\\"")))');
+});
+
 test("codes text with ` later in the a block", async () => {
     render(<TestContentEditor />);
 
