@@ -12,7 +12,21 @@ const retryableResponseErrorCodes: ReadonlySet<OpenAi.Responses.ResponseError["c
     "server_error",
 ]);
 
-export class OpenAiClient {
+export interface OpenAiClientInterface {
+    createResponse(
+        tracer: TracerBase,
+        body: OpenAi.Responses.ResponseCreateParamsNonStreaming,
+    ): Promise<OpenAi.Responses.Response>;
+
+    createResponseWithStreaming(
+        tracer: TracerBase,
+        body: OpenAi.Responses.ResponseCreateParamsStreaming & {
+            model: SupportedAgentModels["openai"];
+        },
+    ): AsyncIterableIterator<OpenAi.Responses.ResponseStreamEvent>;
+}
+
+export class OpenAiClient implements OpenAiClientInterface {
     private readonly _client: OpenAi;
 
     constructor({apiKey}: {apiKey: string}) {

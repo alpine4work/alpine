@@ -1,4 +1,4 @@
-import {AgentUsageDatabase} from "~/server/agents/internal/d1/agent_usage_database.js";
+import {AgentUsageDatabaseInterface} from "~/server/agents/internal/d1/agent_usage_database.js";
 import {
     AgentUsageWindow,
     AgentUsageWindowType,
@@ -79,7 +79,7 @@ export type AgentUsageWindowWithWindowLimitsAndUsedMillicents = AgentUsageWindow
  */
 async function getOrCreateAgentUsageWindow(
     span: TracerSpan,
-    agentUsageDatabase: AgentUsageDatabase,
+    agentUsageDatabase: AgentUsageDatabaseInterface,
     {
         windowLimit,
         accountId,
@@ -188,7 +188,7 @@ function getWindowWithFurthestResetTime(
  */
 export async function getAgentUsageLimitWindows(
     parentSpan: TracerSpan,
-    agentUsageDatabase: AgentUsageDatabase,
+    agentUsageDatabase: AgentUsageDatabaseInterface,
     params: {
         accountId: AccountId;
         currentTimestamp: number;
@@ -315,7 +315,7 @@ type DowngradeModelForAgentUsageLimitResult =
 
 export async function shouldDowngradeModelForAgentUsageLimit(
     span: TracerSpan,
-    agentUsageDatabase: AgentUsageDatabase,
+    agentUsageDatabase: AgentUsageDatabaseInterface,
     windows: Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents>,
     downgradeModelAtPercent: number,
 ): Promise<DowngradeModelForAgentUsageLimitResult> {
@@ -381,7 +381,7 @@ export async function shouldDowngradeModelForAgentUsageLimit(
  */
 export async function recordAgentUsage<SupportedAgentProvider extends SupportedAgentProviders>(
     tracer: TracerBase,
-    agentUsageDatabase: AgentUsageDatabase,
+    agentUsageDatabase: AgentUsageDatabaseInterface,
     params: {
         accountId: AccountId;
         spaceId: SpaceId;

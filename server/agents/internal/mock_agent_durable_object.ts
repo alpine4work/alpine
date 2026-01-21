@@ -87,7 +87,7 @@ export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRout
         return new Response(null, {status: 200});
     }
 
-    protected override async _webhook(tracer: TracerBase, request: AgentWebhookRequest) {
+    public override async webhook(tracer: TracerBase, request: AgentWebhookRequest) {
         // May only play a the recording in test and development environments.
         assert(process.env.NODE_ENV !== "production");
 

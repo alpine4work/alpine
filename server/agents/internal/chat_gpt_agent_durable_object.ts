@@ -170,10 +170,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         });
     }
 
-    protected override async _webhook(
-        span: TracerSpan,
-        request: AgentWebhookRequest,
-    ): Promise<void> {
+    public override async webhook(span: TracerSpan, request: AgentWebhookRequest): Promise<void> {
         // Check if the agent should respond before continuing.
         if (!(await shouldAgentRespondToRequest(span, request))) return;
 

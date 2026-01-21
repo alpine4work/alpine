@@ -10,8 +10,11 @@ import {
     putAgentScheduleEvent,
 } from "~/server/agents/internal/agent_schedule_events_collection.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
-import {AgentUsageDatabase} from "~/server/agents/internal/d1/agent_usage_database.js";
-import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
+import {
+    AgentUsageDatabase,
+    AgentUsageDatabaseInterface,
+} from "~/server/agents/internal/d1/agent_usage_database.js";
+import {OpenAiClient, OpenAiClientInterface} from "~/server/agents/internal/open_ai_client.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
@@ -51,8 +54,8 @@ export type AgentContextModules = {
 export type AgentWebhookRequest = {
     readonly storage: DurableObjectStorage;
     readonly apiClient: ApiClient;
-    readonly openAiClient: Lazy<OpenAiClient>;
-    readonly agentUsageDatabase: Lazy<AgentUsageDatabase>;
+    readonly openAiClient: Lazy<OpenAiClientInterface>;
+    readonly agentUsageDatabase: Lazy<AgentUsageDatabaseInterface>;
     readonly spaceId: SpaceId;
     readonly accountId: AccountId;
     readonly event: ApiBotWebhookEvent;
@@ -189,7 +192,7 @@ export abstract class AgentDurableObjectBase<Route> {
     /**
      * Handle an HTTP webhook call from Alpine.
      */
-    protected abstract _webhook(tracer: TracerBase, request: AgentWebhookRequest): Promise<void>;
+    public abstract webhook(tracer: TracerBase, request: AgentWebhookRequest): Promise<void>;
 
     public async fetch(request: Request): Promise<Response> {
         // When the Durable Object's alarm is triggered, we delete all storage
@@ -299,7 +302,7 @@ export abstract class AgentDurableObjectBase<Route> {
                     agentUsageDatabase: this._agentUsageDatabase,
                 };
 
-                await this._webhook(span, request);
+                await this.webhook(span, request);
             } catch (error) {
                 // Log errors in development since webhook errors aren't shown to the user in
                 // the UI. So we need to show webhook errors in our logs.

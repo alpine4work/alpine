@@ -65,6 +65,7 @@ type RequestRecord = {
     method: HttpMethod;
     path: string;
     params?: any;
+    body?: any;
     tracer: TracerBase;
 };
 
@@ -73,9 +74,16 @@ type RequestRecord = {
  * If you don't provide a matcher, the mock will return data for the requested path in the order
  * in which you created the mock.
  */
+// Spy configuration - auto-returns {data: undefined} for matching paths
+type SpyConfig = {
+    method: HttpMethod;
+    path: string;
+};
+
 export class ApiClientMock implements ApiClient {
     private mockConfigs: Array<MockConfig> = [];
     private requestHistory: Array<RequestRecord> = [];
+    private spyConfigs: Array<SpyConfig> = [];
 
     constructor() {
         afterEach(() => {
@@ -142,6 +150,15 @@ export class ApiClientMock implements ApiClient {
         this.addMock("PATCH", path, response, params);
     }
 
+    /**
+     * Register a path to spy on. Calls to this path will be recorded in request history
+     * and auto-return {data: undefined} without needing an explicit mock.
+     * Useful for endpoints like stream parts, pings, and completions.
+     */
+    spy(method: HttpMethod, path: string): void {
+        this.spyConfigs.push({method, path});
+    }
+
     private addMock(method: HttpMethod, path: string, response: MockResponseConfig, params?: any) {
         const mockConfig = this.findMatchingMock(method, path, params);
         if (mockConfig) {
@@ -188,6 +205,7 @@ export class ApiClientMock implements ApiClient {
             method,
             path,
             params: options?.params,
+            body: options?.body,
             tracer,
         });
 
@@ -195,6 +213,16 @@ export class ApiClientMock implements ApiClient {
         const mockConfig = this.findMatchingMock(method, path, options?.params);
 
         if (!mockConfig) {
+            // Check if this path is being spied on
+            const isSpy = this.spyConfigs.some(spy => spy.method === method && spy.path === path);
+            if (isSpy) {
+                // Auto-return {data: undefined} for spied paths
+                return {
+                    data: undefined,
+                    response: new Response(null, {status: 200, statusText: "OK"}),
+                };
+            }
+
             throw new InvalidArgumentError(
                 `No mock configured for \`${method} ${path}\`.\n` +
                     `Params: ${JSON.stringify(options?.params, null, 2)}\n` +
@@ -301,6 +329,7 @@ export class ApiClientMock implements ApiClient {
     reset(): void {
         this.mockConfigs = [];
         this.requestHistory = [];
+        this.spyConfigs = [];
     }
 
     /**
