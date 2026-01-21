@@ -1,19 +1,12 @@
-import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o200k_base";
 import OpenAi from "openai";
-import {
-    completeApiMessageStream,
-    createApiClient,
-    createApiMessage,
-    getApiMessagesFromStart,
-    pingApiMessageStream,
-    putApiMessageStreamPart,
-} from "~/server/agents/api/api_client.js";
+import {createApiClient, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
 import {
     AgentContext,
     AgentDurableObjectBase,
     AgentWebhookRequest,
 } from "~/server/agents/internal/agent_durable_object_base.js";
 import {agentMaxTokenCountPerWebhookCall} from "~/server/agents/internal/agent_limits.js";
+import {AgentMessageStreamSession} from "~/server/agents/internal/agent_message_stream_session.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {
     AgentUsageWindowWithWindowLimitsAndUsedMillicents,
@@ -32,7 +25,6 @@ import {
     ChatGptAgentConversationState,
     ChatGptAgentConversationStore,
 } from "~/server/agents/internal/conversation/chat_gpt_agent_conversation_store.js";
-import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_api_content_to_proper_quotes.js";
 import {getAgentModelDowngradedMessage} from "~/server/agents/internal/get_agent_model_downgraded_message.js";
 import {getAgentTokenLimitExceededMessage} from "~/server/agents/internal/get_agent_token_limit_exceeded_message.js";
 import {getAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
@@ -49,9 +41,7 @@ import {
 } from "~/server/agents/internal/supported_agent_models.js";
 import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
-import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
 import {
     ApiMessageRoomPathObject,
     getApiMentionPathIfExists,
@@ -60,12 +50,7 @@ import {
     parseApiMessageRoomPath,
     parseApiPath,
 } from "~/shared/api/parse_api_path.js";
-import {
-    ApiMessageResponse,
-    ApiMessageRoomPath,
-    ApiMessageStreamPartPayload,
-    ApiMessageStreamToolCallPartPayloadCall,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     DataLossError,
@@ -77,10 +62,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {serializeError} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
@@ -105,30 +87,6 @@ type ChatAgentGptResponse = {
 const defaultModel: SupportedAgentModels["openai"] = "gpt-5.1";
 const downgradedModel: SupportedAgentModels["openai"] = "gpt-5-mini";
 const downgradeModelAtPercent = 0.75;
-
-// NOTE(ifitzsimmons, 2026-01-12): Normally, I'm pretty opposed to global state. In
-// this very specific case, I think it's justifiable. The
-// `updateAgentMessageStreamMutex` is used to coordinate updates to the agent
-// message stream which is now mutated in multiple places. The `pingInterval` is
-// initialized very early on // in the call stack and cleaned up later. I'm happy to
-// thread these properties down the call stack but that almost feels more confusing
-// than defining them here and stating that they are process-wide (because they are).
-//
-// Furthermore, durable objects DO NOT RUN CONCURRENTLY, so there's no risk that
-// we'd lock ourselves out of the agent message stream in one process while another
-// is ongoing.
-const updateAgentMessageStreamMutex = new Mutex();
-let agentMessageStreamPingInterval: Interval | null = null;
-
-function startPingInterval(span: TracerSpan, request: AgentWebhookRequest, messageIndex: number) {
-    assert(agentMessageStreamPingInterval === null);
-
-    agentMessageStreamPingInterval = createInterval(() => {
-        void updateAgentMessageStreamMutex.withLock(async () => {
-            await pingApiMessageStream(span, request.apiClient, request.room, messageIndex);
-        });
-    }, agentMessageStreamPingIntervalMs);
-}
 
 export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAgentRoute> {
     constructor(state: DurableObjectState, env: AgentServiceEnv) {
@@ -184,96 +142,99 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
             },
         });
 
-        try {
-            const [messageIndex, {agentUsageLimitWindows, plan}] = await runAllPromises([
-                // Start the stream message immediately so the user sees some indicator.
-                (async () => {
-                    const {index} = await createChatGptAgentEmptyStreamMessage(span, request);
-                    startPingInterval(span, request, index);
+        const agentMessageStream = new AgentMessageStream({
+            spaceId: request.spaceId,
+            getTargetPathIfExists: async linkPath => {
+                const agentLink = await getAgentLink(request.storage, linkPath);
 
-                    return index;
-                })(),
-                // TODO(imjoshin, #ai): Usage limits and recording should be handled
-                // in the parent class before we call _webhook.
-                span.withSpan("Get agent usage limit windows", async span =>
-                    getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
-                        accountId: request.event.authorId,
-                        currentTimestamp: currentTime.getTime(),
-                    }),
-                ),
-            ]);
+                if (!agentLink) return null;
 
-            const agentMessageStream = new AgentMessageStream({
-                spaceId: request.spaceId,
-                getTargetPathIfExists: async linkPath => {
-                    const agentLink = await getAgentLink(request.storage, linkPath);
+                return printApiPathForAgentLink(agentLink);
+            },
+        });
 
-                    if (!agentLink) return null;
+        const conversationState = await request.storage.transaction(async transaction => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction);
+            return conversation.getState();
+        });
 
-                    return printApiPathForAgentLink(agentLink);
-                },
-            });
+        const agentUsageLimitWindowsPromise = span.withSpan(
+            "Get agent usage limit windows",
+            async span =>
+                getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
+                    accountId: request.event.authorId,
+                    currentTimestamp: currentTime.getTime(),
+                }),
+        );
 
-            const isAgentUsageLimitExceededResult = isAgentUsageLimitExceeded(
-                span,
-                request.event.authorId,
-                agentUsageLimitWindows,
-            );
-
-            if (isAgentUsageLimitExceededResult.exceeded) {
-                return sendLimitErrorMessage(span, request, {
-                    agentMessageStream,
-                    messageIndex,
-                    resetTime: new Date(isAgentUsageLimitExceededResult.resetTime),
-                    currentTime,
-                    shouldUpsell: shouldSendMessagingWithUpsellLink(plan),
-                });
-            }
-
-            const {model, downgradedMessageData} = await getOpenAiModel(
+        await runAllPromises([
+            agentUsageLimitWindowsPromise,
+            AgentMessageStreamSession.with(
                 span,
                 request,
-                agentUsageLimitWindows,
-            );
-
-            // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
-            // message while the agent is responding to a previous request?
-            const response = await requestChatGptAgent(span, request, {
+                conversationState.timeZone,
                 agentMessageStream,
-                env: this._env,
-                model,
-                newMessageIndex: messageIndex,
-                sendDowngradeWarningMessageIfNeeded: async () => {
-                    // NOTE(ifitzsimmons, 2026-01-12): We only send downgraded messaging to "upsell"
-                    // the user. If the user can't be upselled (they already have the max token usage),
-                    // we shouldn't send the downgraded messaging. There's nothing they can do.
-                    if (!shouldSendMessagingWithUpsellLink(plan) || !downgradedMessageData) {
+                async session => {
+                    const {agentUsageLimitWindows, plan} = await agentUsageLimitWindowsPromise;
+
+                    const isAgentUsageLimitExceededResult = isAgentUsageLimitExceeded(
+                        span,
+                        request.event.authorId,
+                        agentUsageLimitWindows,
+                    );
+
+                    if (isAgentUsageLimitExceededResult.exceeded) {
+                        sendLimitErrorMessage(span, request, {
+                            session,
+                            resetTime: new Date(isAgentUsageLimitExceededResult.resetTime),
+                            currentTime,
+                            shouldUpsell: shouldSendMessagingWithUpsellLink(plan),
+                        });
                         return;
                     }
 
-                    await sendDowngradeWarningMessage(span, request, {
-                        agentMessageStream,
-                        messageIndex,
-                        resetTime: downgradedMessageData.resetTime,
-                        currentTime,
+                    const {model, downgradedMessageData} = await getOpenAiModel(
+                        span,
+                        request,
+                        agentUsageLimitWindows,
+                    );
+
+                    // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
+                    // message while the agent is responding to a previous request?
+                    const response = await requestChatGptAgent(span, request, {
+                        env: this._env,
+                        model,
+                        session,
+                        sendDowngradeWarningMessageIfNeeded: async () => {
+                            // NOTE(ifitzsimmons, 2026-01-12): We only send downgraded messaging to "upsell"
+                            // the user. If the user can't be upselled (they already have the max token usage),
+                            // we shouldn't send the downgraded messaging. There's nothing they can do.
+                            if (
+                                !shouldSendMessagingWithUpsellLink(plan) ||
+                                !downgradedMessageData
+                            ) {
+                                return;
+                            }
+
+                            sendDowngradeWarningMessage(span, request, {
+                                session,
+                                resetTime: downgradedMessageData.resetTime,
+                                currentTime,
+                            });
+                        },
+                    });
+
+                    await recordAgentUsage(span, request.agentUsageDatabase.get(), {
+                        accountId: request.event.authorId,
+                        spaceId: request.spaceId,
+                        requestUsedMillicents: response.usedMillicents,
+                        currentTimestamp: currentTime.getTime(),
+                        provider: "openai",
+                        model,
                     });
                 },
-            });
-
-            await recordAgentUsage(span, request.agentUsageDatabase.get(), {
-                accountId: request.event.authorId,
-                spaceId: request.spaceId,
-                requestUsedMillicents: response.usedMillicents,
-                currentTimestamp: currentTime.getTime(),
-                provider: "openai",
-                model,
-            });
-        } finally {
-            agentMessageStreamPingInterval?.clear();
-            agentMessageStreamPingInterval = null;
-
-            await updateAgentMessageStreamMutex.waitForUnlock();
-        }
+            ),
+        ]);
     }
 
     private async _fetchConversationState(
@@ -366,24 +327,22 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
  * TODO: finalize messaging and format
  *   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/18hyw8ssg62c6az1a04sb82gpc
  */
-async function sendLimitErrorMessage(
+function sendLimitErrorMessage(
     tracer: TracerBase,
     request: AgentWebhookRequest,
     {
-        agentMessageStream,
-        messageIndex,
+        session,
         resetTime,
         currentTime,
         shouldUpsell,
     }: {
-        agentMessageStream: AgentMessageStream;
-        messageIndex: number;
+        session: AgentMessageStreamSession;
         resetTime: Date;
         currentTime: Date;
         shouldUpsell: boolean;
     },
-): Promise<void> {
-    agentMessageStream.pushText(
+): void {
+    session.pushText(
         getAgentTokenLimitExceededMessage(
             resetTime,
             currentTime,
@@ -391,22 +350,6 @@ async function sendLimitErrorMessage(
             shouldUpsell,
         ),
     );
-    const parts = await agentMessageStream.update();
-
-    for (const part of parts) {
-        await putApiMessageStreamPart(
-            tracer,
-            request.apiClient,
-            request.room,
-            messageIndex,
-            part.index,
-            {
-                payload: part.payload,
-            },
-        );
-    }
-
-    await completeApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
 }
 
 /**
@@ -415,52 +358,36 @@ async function sendLimitErrorMessage(
  * TODO: finalize messaging and format
  *   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/18hyw8ssg62c6az1a04sb82gpc
  */
-async function sendDowngradeWarningMessage(
+function sendDowngradeWarningMessage(
     tracer: TracerBase,
     request: AgentWebhookRequest,
     {
-        agentMessageStream,
-        messageIndex,
+        session,
         resetTime,
         currentTime,
     }: {
-        agentMessageStream: AgentMessageStream;
-        messageIndex: number;
+        session: AgentMessageStreamSession;
         resetTime: Date;
         currentTime: Date;
     },
-): Promise<void> {
-    agentMessageStream.pushText(
+): void {
+    session.pushText(
         getAgentModelDowngradedMessage(resetTime, currentTime, request.event.createdTimeZone),
     );
-    const parts = await agentMessageStream.update();
-
-    for (const part of parts) {
-        await putApiMessageStreamPart(
-            tracer,
-            request.apiClient,
-            request.room,
-            messageIndex,
-            part.index,
-            {payload: part.payload},
-        );
-    }
 }
 
 async function requestChatGptAgent(
     span: TracerSpan,
     request: AgentWebhookRequest,
     {
-        agentMessageStream,
         env,
         model,
-        newMessageIndex,
+        session,
         sendDowngradeWarningMessageIfNeeded,
     }: {
-        agentMessageStream: AgentMessageStream;
         env: AgentServiceEnv;
         model: SupportedAgentModels["openai"];
-        newMessageIndex: number;
+        session: AgentMessageStreamSession;
         sendDowngradeWarningMessageIfNeeded: () => Promise<void>;
     },
 ): Promise<ChatAgentGptResponse> {
@@ -468,14 +395,13 @@ async function requestChatGptAgent(
     // conversation history.
     //
     // TODO(calebmer, #ai): How should we handle the reply feature for the AI?
-    await ensureMessagesInChatGptAgentConversation(span, request, newMessageIndex);
+    await ensureMessagesInChatGptAgentConversation(span, request, session.newMessageIndex);
 
     // Send a message from ChatGPT.
     return createChatGptAgentMessage(span, request, {
-        agentMessageStream,
         env,
         model,
-        messageIndex: newMessageIndex,
+        session,
         sendDowngradeWarningMessageIfNeeded,
     });
 }
@@ -590,127 +516,25 @@ async function initializeInstructionsInChatGptAgentConversation(
     });
 }
 
-type ChatGptAgentMessageState = {
-    pushText(text: string): void;
-    pushToolCall(call: ApiMessageStreamToolCallPartPayloadCall): void;
-    pushReasoningSummary(summary: string): void;
-    updateFunctionCallOutputTokenCount(functionCallOutput: string): void;
-    getFunctionCallOutputTokenCount(): number;
-};
-
 async function createChatGptAgentMessage(
     span: TracerSpan,
     request: AgentWebhookRequest,
     {
-        agentMessageStream,
         env,
         model,
-        messageIndex,
+        session,
         sendDowngradeWarningMessageIfNeeded,
     }: {
-        agentMessageStream: AgentMessageStream;
         env: AgentServiceEnv;
         model: SupportedAgentModels["openai"];
-        messageIndex: number;
+        session: AgentMessageStreamSession;
         sendDowngradeWarningMessageIfNeeded: () => Promise<void>;
     },
 ): Promise<ChatAgentGptResponse> {
-    let isCompleted = false;
-
-    const updateThrottleMs = 100;
-    let updateTimeout: Timeout | null = null;
-
-    const update = (
-        newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>>,
-    ) => {
-        void updateAgentMessageStreamMutex.withLock(async () => {
-            const putParts = await agentMessageStream.update(newPartPayloads);
-            if (putParts.length === 0) return;
-
-            // Calling `putApiMessageStreamPart()` also pings the message stream. So cancel
-            // our current interval and re-schedule it after we've finished updating.
-            agentMessageStreamPingInterval?.clear();
-            agentMessageStreamPingInterval = null;
-
-            try {
-                // TODO(calebmer): We should consider adding a batch `PUT` API. That would be
-                // more efficient than making two separate `PUT` requests when `update()`
-                // returns multiple parts.
-                for (let part of putParts) {
-                    if (part.payload.type === "Content" || part.payload.type === "Reasoning") {
-                        let content = part.payload.content;
-
-                        // Convert all straight quotes (`'` and `"`) into proper curly quotes
-                        // (`“`, `”`, `‘`, `’`). Since LLMs typically only output straight quotes.
-                        // Curly quotes are proper typography and are consistent with text written in
-                        // Alpine where we automatically convert quotes into curly quotes.
-                        content = convertApiContentToProperQuotes(part.payload.content);
-
-                        if (content !== part.payload.content) {
-                            part = {...part, payload: {...part.payload, content}};
-                        }
-                    }
-
-                    await putApiMessageStreamPart(
-                        span,
-                        request.apiClient,
-                        request.room,
-                        messageIndex,
-                        part.index,
-                        {payload: part.payload},
-                    );
-                }
-            } finally {
-                // Start the ping timeout schedule again since we cleared the timeout earlier.
-                if (!isCompleted) {
-                    startPingInterval(span, request, messageIndex);
-                }
-            }
-        });
-    };
-
-    let functionCallOutputTokenCount = 0;
-
-    const messageState: ChatGptAgentMessageState = {
-        pushText: text => {
-            agentMessageStream.pushText(text);
-
-            // We throttle updates to once every 100ms instead of once every token
-            // OpenAI sends us.
-            if (updateTimeout === null) {
-                updateTimeout = createTimeout(() => {
-                    updateTimeout = null;
-                    update();
-                }, updateThrottleMs);
-            }
-        },
-        pushToolCall: call => {
-            updateTimeout?.clear();
-            updateTimeout = null;
-            update([{type: "ToolCall", call}]);
-        },
-        pushReasoningSummary: summary => {
-            updateTimeout?.clear();
-            updateTimeout = null;
-            update([
-                {
-                    type: "Reasoning",
-                    content: parseApiContentFromMarkdown(summary, {spaceId: request.spaceId}),
-                },
-            ]);
-        },
-        updateFunctionCallOutputTokenCount: (functionCallOutput: string) => {
-            functionCallOutputTokenCount += countO200kBaseTokens(functionCallOutput);
-        },
-        getFunctionCallOutputTokenCount: () => {
-            return functionCallOutputTokenCount;
-        },
-    };
-
     try {
-        return await createChatGptAgentResponse(span, env, request, model, messageState);
+        return await createChatGptAgentResponse(span, env, request, model, session);
     } catch (error) {
-        agentMessageStream.pushText(defaultAgentErrorDisplayMessage);
+        session.pushText(defaultAgentErrorDisplayMessage);
 
         if (error instanceof OpenAi.BadRequestError || error instanceof OpenAi.NotFoundError) {
             // NOTE(ifitzsimmons, 2025-12-04): We observed an issue [1] where a request persisted
@@ -727,51 +551,8 @@ async function createChatGptAgentMessage(
 
         throw error;
     } finally {
-        isCompleted = true;
-
-        agentMessageStreamPingInterval?.clear();
-        agentMessageStreamPingInterval = null;
-
-        // @ts-expect-error: TypeScript is dumb and doesn't realize
-        // `createChatGptAgentResponse()` may call `messageState.pushText()` and set
-        // `updateTimeout`.
-        updateTimeout?.clear();
-        updateTimeout = null;
-        update();
-
-        await updateAgentMessageStreamMutex.waitForUnlock();
-
         await sendDowngradeWarningMessageIfNeeded();
-
-        await completeApiMessageStream(span, request.apiClient, request.room, messageIndex);
     }
-}
-
-function createChatGptAgentEmptyStreamMessage(
-    tracer: TracerBase,
-    request: AgentWebhookRequest,
-): Promise<ApiMessageResponse> {
-    return request.storage.transaction(async transaction => {
-        const conversation = await ChatGptAgentConversationStore.new(transaction);
-
-        // TODO(calebmer, #ai): When you're talking to AI in a messaging room we
-        // probably shouldn't update an inbox entry if you're viewing the AI's
-        // response. What's the right heuristic here?
-        //
-        // This is also kind of a problem when you're chatting with someone in general.
-        // The entry keeps getting added/removed from the inbox as you interact.
-        // Ideally we should "suppress" notification events for some amount of time
-        // right after you respond.
-        const {
-            data: {message},
-        } = await createApiMessage(tracer, request.apiClient, request.room, {
-            isStream: true,
-            content: {elements: []},
-            createdTimeZone: conversation.getState().timeZone,
-        });
-
-        return message;
-    });
 }
 
 function convertChatGptUsageToMillicents(
@@ -795,7 +576,7 @@ async function createChatGptAgentResponse(
     env: AgentServiceEnv,
     request: AgentWebhookRequest,
     model: SupportedAgentModels["openai"],
-    messageState: ChatGptAgentMessageState,
+    session: AgentMessageStreamSession,
     totalUsedMillicents = 0,
 ): Promise<ChatAgentGptResponse> {
     // Calls any pending functions in the conversation history. Important for our
@@ -805,7 +586,7 @@ async function createChatGptAgentResponse(
     const input = await getChatGptAgentConversationItemsAndCallPendingFunctions(
         span,
         request,
-        messageState,
+        session,
     );
 
     // TODO(calebmer, #ai): Tool calls to implement:
@@ -895,7 +676,7 @@ async function createChatGptAgentResponse(
                 break;
             }
             case "response.output_text.delta": {
-                messageState.pushText(event.delta);
+                session.pushText(event.delta);
                 break;
             }
             // NOTE(ifitzsimmons, 2025-11-13): At some point, we should think about storing response
@@ -911,7 +692,7 @@ async function createChatGptAgentResponse(
             // https://platform.openai.com/docs/api-reference/responses-streaming/response/reasoning_summary_part/done
             // https://platform.openai.com/docs/api-reference/responses-streaming/response/reasoning_summary_text/done
             case "response.reasoning_summary_part.done": {
-                messageState.pushReasoningSummary(event.part.text);
+                session.pushReasoningSummary(event.part.text);
                 break;
             }
             case "response.completed": {
@@ -934,14 +715,7 @@ async function createChatGptAgentResponse(
     //
     // Keep calling recursively until there are no more function calls.
     if (hasFunctionCallOutputItem) {
-        return createChatGptAgentResponse(
-            span,
-            env,
-            request,
-            model,
-            messageState,
-            totalUsedMillicents,
-        );
+        return createChatGptAgentResponse(span, env, request, model, session, totalUsedMillicents);
     }
 
     return {usedMillicents: totalUsedMillicents};
@@ -950,7 +724,7 @@ async function createChatGptAgentResponse(
 function getChatGptAgentConversationItemsAndCallPendingFunctions(
     tracer: TracerBase,
     request: AgentWebhookRequest,
-    messageState: ChatGptAgentMessageState,
+    session: AgentMessageStreamSession,
 ) {
     // Perform all function calls in a transaction so we only call each function
     // once. There won't be any concurrent function calling.
@@ -991,7 +765,7 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
                                 tracer,
                                 transaction,
                                 request,
-                                messageState,
+                                session,
                                 functionCall,
                                 conversationState: state.getState(),
                             }),
@@ -1093,14 +867,14 @@ async function callChatGptAgentFunction({
     tracer,
     transaction,
     request,
-    messageState,
+    session,
     functionCall,
     conversationState,
 }: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
     request: AgentWebhookRequest;
-    messageState: ChatGptAgentMessageState;
+    session: AgentMessageStreamSession;
     functionCall: OpenAi.Responses.ResponseFunctionToolCall;
     conversationState: ChatGptAgentConversationState;
 }): Promise<string> {
@@ -1115,7 +889,7 @@ async function callChatGptAgentFunction({
 
     switch (functionCall.name) {
         case "read_link": {
-            checkChatGptFunctionCallOutputTokenCount(messageState);
+            checkChatGptFunctionCallOutputTokenCount(session);
 
             if (
                 !isObject(functionCallArguments) ||
@@ -1145,7 +919,7 @@ async function callChatGptAgentFunction({
             // As it stands right now, we won't stream Chat, ChatMessage, And ChatMessages
             // reads back to the client at all.
             if (mentionApiPath) {
-                messageState.pushToolCall({
+                session.pushToolCall({
                     type: "Read",
                     target: {path: mentionApiPath},
                 });
@@ -1161,11 +935,11 @@ async function callChatGptAgentFunction({
             });
 
             const output = printAgentContentMarkdownTree(markdownTree);
-            messageState.updateFunctionCallOutputTokenCount(output);
+            session.updateFunctionCallOutputTokenCount(output);
             return output;
         }
         case "search_alpine": {
-            checkChatGptFunctionCallOutputTokenCount(messageState);
+            checkChatGptFunctionCallOutputTokenCount(session);
 
             if (
                 !isObject(functionCallArguments) ||
@@ -1179,7 +953,7 @@ async function callChatGptAgentFunction({
                 );
             }
 
-            messageState.pushToolCall({
+            session.pushToolCall({
                 type: "Search",
                 query: functionCallArguments.query,
             });
@@ -1190,7 +964,7 @@ async function callChatGptAgentFunction({
                 request,
                 functionCallArguments.query,
             );
-            messageState.updateFunctionCallOutputTokenCount(output);
+            session.updateFunctionCallOutputTokenCount(output);
             return output;
         }
         default: {
@@ -1201,8 +975,8 @@ async function callChatGptAgentFunction({
     }
 }
 
-function checkChatGptFunctionCallOutputTokenCount(messageState: ChatGptAgentMessageState) {
-    if (messageState.getFunctionCallOutputTokenCount() > agentMaxTokenCountPerWebhookCall) {
+function checkChatGptFunctionCallOutputTokenCount(session: AgentMessageStreamSession) {
+    if (session.functionCallOutputTokenCount > agentMaxTokenCountPerWebhookCall) {
         throw new FailedPreconditionError("Function call output token limit exceeded", {
             displayMessage: errorDisplayMessage`Read limit reached. You (ChatGPT) can’t call the \`read_link\` or \`search_alpine\` tools until the user sends another message. Use the information you have to respond to the user. At the end of your response, if there’s more work you’d like to do then let the user know without mentioning read limits. For example: “I might not have found everything you’re looking for, would you like me to search for XYZ?”`,
         });
