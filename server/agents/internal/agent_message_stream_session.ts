@@ -159,14 +159,12 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
     }
 
     pushToolCall(call: ApiMessageStreamToolCallPartPayloadCall) {
-        this._updateTimeout?.clear();
-        this._updateTimeout = null;
+        this._clearUpdateTimeout();
         void this._update([{type: "ToolCall", call}]);
     }
 
     pushReasoningSummary(summary: string) {
-        this._updateTimeout?.clear();
-        this._updateTimeout = null;
+        this._clearUpdateTimeout();
         void this._update([
             {
                 type: "Reasoning",
@@ -237,8 +235,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
 
         // `createChatGptAgentResponse()` may call `messageState.pushText()` and set
         // `updateTimeout`.
-        this._updateTimeout?.clear();
-        this._updateTimeout = null;
+        this._clearUpdateTimeout();
         void this._update();
 
         this._clearPingInterval();

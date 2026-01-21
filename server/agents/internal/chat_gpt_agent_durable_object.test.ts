@@ -1630,4 +1630,1228 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             }),
         );
     });
+
+    describe("retry on corrupted state or context length exceeded", () => {
+        // Helper to create a mock Headers object for OpenAI errors
+        const createMockHeaders = () => ({get: () => null}) as unknown as Headers;
+        let deleteStorageSpy: jest.SpiedFunction<typeof storage.deleteAll>;
+
+        beforeEach(() => {
+            deleteStorageSpy = jest.spyOn(storage, "deleteAll");
+        });
+
+        afterEach(() => {
+            deleteStorageSpy.mockRestore();
+        });
+
+        test("clears durable object state and retries when OpenAI returns BadRequestError", async () => {
+            mockOpenAiStreamingResponse([
+                {
+                    type: "Error",
+                    error: new OpenAi.BadRequestError(
+                        400,
+                        {error: {message: "Bad request", type: "invalid_request_error"}},
+                        "Bad request",
+                        createMockHeaders(),
+                    ),
+                },
+            ]);
+
+            mockOpenAiStreamingResponse([
+                {
+                    type: "response.output_text.delta",
+                    delta: "Hello after retry!",
+                },
+                {type: "response.completed"},
+            ]);
+
+            const request: AgentWebhookRequest = {
+                storage,
+                apiClient,
+                openAiClient: new Lazy(() => mockOpenAiClient),
+                agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                spaceId,
+                accountId: generateId<AccountId>(),
+                event: {
+                    type: "NewMessage",
+                    roomPath: `/chats/${chatId}`,
+                    index: 0,
+                    authorId,
+                    createdTimeZone: defaultTimeZone,
+                    wasMentioned: true,
+                },
+                room: {type: "Chat", id: chatId},
+            };
+
+            const durableObject = createChatGptAgentDurableObject();
+            mockAgentUsageForAccount(authorId);
+
+            apiClient.mockPost("/chats/{id}/messages", {
+                data: {
+                    spaceId,
+                    message: {
+                        index: 1,
+                        author: createApiAccountMock({name: "Bot", botId}),
+                        createdTime: assertDateString(new Date().toISOString()),
+                        createdTimeZone: defaultTimeZone,
+                        payload: {type: "Content", content: {elements: []}},
+                    },
+                },
+            });
+
+            // Mock spaces endpoint twice - once for initial call, once for retry
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+
+            // Mock messages endpoint twice - once for initial call, once for retry
+            const mockGetMessagesResponse = {
+                data: {
+                    spaceId,
+                    totalMessageCount: 1,
+                    nextCursor: null,
+                    messages: [
+                        {
+                            index: 0,
+                            author: createApiAccountMock({name: "User"}),
+                            createdTime: assertDateString(new Date().toISOString()),
+                            createdTimeZone: defaultTimeZone,
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Hello"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                },
+            } as const;
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+
+            await durableObject.webhook(span, request);
+
+            // Verify storage.deleteAll was called to clear corrupted state
+            expect(deleteStorageSpy).toHaveBeenCalledTimes(1);
+
+            // Verify OpenAI was called twice (first failed, second succeeded)
+            expect(mockOpenAiClient.createResponseWithStreaming).toHaveBeenCalledTimes(2);
+
+            // Verify the response was streamed successfully after retry
+            const apiCalls = apiClient.getRequestHistory();
+            expect(apiCalls).toEqual([
+                expect.objectContaining({
+                    method: "POST",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                // STATE WAS CLEARED AND CONVO IS BEING REINITIALIZED
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    body: {
+                        payload: {
+                            type: "Content",
+                            content: {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Hello after retry!"}],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/completion",
+                }),
+            ]);
+        });
+
+        test("clears durable object state and retries when OpenAI returns NotFoundError", async () => {
+            mockOpenAiStreamingResponse([
+                {
+                    type: "Error",
+                    error: new OpenAi.NotFoundError(
+                        404,
+                        {error: {message: "Not found", type: "invalid_request_error"}},
+                        "Not found",
+                        createMockHeaders(),
+                    ),
+                },
+            ]);
+
+            mockOpenAiStreamingResponse([
+                {
+                    type: "response.output_text.delta",
+                    delta: "Recovered from not found!",
+                },
+                {type: "response.completed"},
+            ]);
+
+            const request: AgentWebhookRequest = {
+                storage,
+                apiClient,
+                openAiClient: new Lazy(() => mockOpenAiClient),
+                agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                spaceId,
+                accountId: generateId<AccountId>(),
+                event: {
+                    type: "NewMessage",
+                    roomPath: `/chats/${chatId}`,
+                    index: 0,
+                    authorId,
+                    createdTimeZone: defaultTimeZone,
+                    wasMentioned: true,
+                },
+                room: {type: "Chat", id: chatId},
+            };
+
+            const durableObject = createChatGptAgentDurableObject();
+            mockAgentUsageForAccount(authorId);
+
+            apiClient.mockPost("/chats/{id}/messages", {
+                data: {
+                    spaceId,
+                    message: {
+                        index: 1,
+                        author: createApiAccountMock({name: "Bot", botId}),
+                        createdTime: assertDateString(new Date().toISOString()),
+                        createdTimeZone: defaultTimeZone,
+                        payload: {type: "Content", content: {elements: []}},
+                    },
+                },
+            });
+
+            // Mock spaces endpoint twice - once for initial call, once for retry
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+
+            // Mock messages endpoint twice
+            const mockGetMessagesResponse = {
+                data: {
+                    spaceId,
+                    totalMessageCount: 1,
+                    nextCursor: null,
+                    messages: [
+                        {
+                            index: 0,
+                            author: createApiAccountMock({name: "User"}),
+                            createdTime: assertDateString(new Date().toISOString()),
+                            createdTimeZone: defaultTimeZone,
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Hello"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                },
+            } as const;
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+
+            await durableObject.webhook(span, request);
+
+            // Verify storage.deleteAll was called to clear corrupted state
+            expect(deleteStorageSpy).toHaveBeenCalledTimes(1);
+
+            // Verify OpenAI was called twice (first failed, second succeeded)
+            expect(mockOpenAiClient.createResponseWithStreaming).toHaveBeenCalledTimes(2);
+
+            // Verify the response was streamed successfully after retry
+            const apiCalls = apiClient.getRequestHistory();
+            expect(apiCalls).toEqual([
+                expect.objectContaining({
+                    method: "POST",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                // STATE WAS CLEARED AND CONVO IS BEING REINITIALIZED
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    body: {
+                        payload: {
+                            type: "Content",
+                            content: {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Recovered from not found!"},
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/completion",
+                }),
+            ]);
+        });
+
+        test("clears durable object state and retries when OpenAI returns context_length_exceeded error", async () => {
+            const documentId = generateId<DocumentId>();
+
+            // first request to open AI hits window limit
+            mockOpenAiStreamingResponse([
+                {
+                    type: "response.reasoning_summary_part.done",
+                    part: {
+                        type: "summary_text",
+                        text: "I should greet the user warmly.",
+                    },
+                },
+                {
+                    type: "response.output_item.done",
+                    item: {
+                        type: "function_call",
+                        id: "fc_search",
+                        call_id: "call_search",
+                        name: "search_alpine",
+                        arguments: JSON.stringify({query: "AI document"}),
+                    },
+                },
+                {type: "response.completed"},
+            ]);
+
+            // Second request to OpenAI is the tool call, the output
+            // of which pushes the agent past the context length limit
+            mockOpenAiStreamingResponse([
+                {type: "Wait", delayMs: 6000},
+                {
+                    type: "Error",
+                    error: new OpenAi.APIError(
+                        400,
+                        {
+                            message: "Context length exceeded",
+                            type: "invalid_request_error",
+                            code: "context_length_exceeded",
+                        },
+                        "Context length exceeded",
+                        createMockHeaders(),
+                    ),
+                },
+            ]);
+
+            // NOTE: This will actually fail because the link references no longer exist.
+            // We won't see a read call to the API!!
+            mockOpenAiStreamingResponse([
+                {type: "Wait", delayMs: 6000},
+                {
+                    type: "response.output_item.done",
+                    item: {
+                        type: "function_call",
+                        id: "fc_read",
+                        call_id: "call_read",
+                        name: "read_link",
+                        arguments: JSON.stringify({path: "/documents/ai-overview"}),
+                    },
+                },
+                {type: "response.completed"},
+            ]);
+
+            // Handle errors
+            mockOpenAiStreamingResponse([
+                {
+                    type: "response.reasoning_summary_part.done",
+                    part: {type: "summary_text", text: "Continuing..."},
+                },
+                {
+                    type: "response.output_text.delta",
+                    delta: "Recovered from context length exceeded!",
+                },
+                {type: "response.completed"},
+            ]);
+
+            const request: AgentWebhookRequest = {
+                storage,
+                apiClient,
+                openAiClient: new Lazy(() => mockOpenAiClient),
+                agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                spaceId,
+                accountId: generateId<AccountId>(),
+                event: {
+                    type: "NewMessage",
+                    roomPath: `/chats/${chatId}`,
+                    index: 0,
+                    authorId,
+                    createdTimeZone: defaultTimeZone,
+                    wasMentioned: true,
+                },
+                room: {type: "Chat", id: chatId},
+            };
+
+            const durableObject = createChatGptAgentDurableObject();
+            mockAgentUsageForAccount(authorId);
+
+            // Creates the message for the message stream
+            apiClient.mockPost("/chats/{id}/messages", {
+                data: {
+                    spaceId,
+                    message: {
+                        index: 1,
+                        author: createApiAccountMock({name: "Bot", botId}),
+                        createdTime: assertDateString(new Date().toISOString()),
+                        createdTimeZone: defaultTimeZone,
+                        payload: {type: "Content", content: {elements: []}},
+                    },
+                },
+            });
+
+            // Mock spaces endpoint twice - once for initial call, once for retry
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+
+            apiClient.mockGet("/spaces/{id}/search", {
+                data: {
+                    results: [
+                        {
+                            type: "Document",
+                            id: documentId,
+                            path: `/documents/${documentId}`,
+                            title: "AI Overview",
+                            bodyMatch: null,
+                            parsedFilter: undefined,
+                        },
+                    ],
+                },
+            });
+
+            // Mock messages endpoint twice - once for initial call, once for retry
+            const mockGetMessagesResponse = {
+                data: {
+                    spaceId,
+                    totalMessageCount: 1,
+                    nextCursor: null,
+                    messages: [
+                        {
+                            index: 0,
+                            author: createApiAccountMock({name: "User"}),
+                            createdTime: assertDateString(new Date().toISOString()),
+                            createdTimeZone: defaultTimeZone,
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Hello"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                },
+            } as const;
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+
+            const deleteAllSpy = jest.spyOn(storage, "deleteAll");
+
+            await durableObject.webhook(span, request);
+
+            // Verify storage.deleteAll was called to clear state
+            expect(deleteAllSpy).toHaveBeenCalled();
+
+            // Verify OpenAI was called twice (first failed, second succeeded)
+            expect(mockOpenAiClient.createResponseWithStreaming).toHaveBeenCalledTimes(4);
+
+            // Verify the response was streamed successfully after retry
+            const apiCalls = apiClient.getRequestHistory();
+            expect(apiCalls).toEqual([
+                expect.objectContaining({
+                    method: "POST",
+                    path: "/chats/{id}/messages",
+                    body: expect.objectContaining({
+                        content: {elements: []},
+                        isStream: true,
+                    }),
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    params: {path: {id: chatId, index: 1, partIndex: 0}},
+                    body: {
+                        payload: {
+                            type: "Reasoning",
+                            content: {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "I should greet the user warmly."},
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}/search",
+                    params: {path: {id: spaceId}, query: {query: "AI document", limit: 10}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    params: {path: {id: chatId, index: 1, partIndex: 1}},
+                    body: {
+                        payload: {
+                            type: "ToolCall",
+                            call: {type: "Search", query: "AI document"},
+                        },
+                    },
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/ping",
+                    params: {path: {id: chatId, index: 1}},
+                }),
+                // STATE WAS CLEARED AND CONVO IS BEING REINITIALIZED
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/ping",
+                    params: {path: {id: chatId, index: 1}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    params: {path: {id: chatId, index: 1, partIndex: 2}},
+                    body: {
+                        payload: {
+                            type: "Reasoning",
+                            content: {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Continuing..."}],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    body: {
+                        payload: {
+                            type: "Content",
+                            content: {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "Recovered from context length exceeded!",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    params: {path: {id: chatId, index: 1, partIndex: 3}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/completion",
+                }),
+            ]);
+
+            deleteAllSpy.mockRestore();
+        });
+
+        test("does not retry more than once (max 2 attempts total)", async () => {
+            // Both calls throw BadRequestError
+            mockOpenAiStreamingResponse([
+                {
+                    type: "Error",
+                    error: new OpenAi.BadRequestError(
+                        400,
+                        {error: {message: "Persistent bad request", type: "invalid_request_error"}},
+                        "Persistent bad request",
+                        createMockHeaders(),
+                    ),
+                },
+            ]);
+
+            mockOpenAiStreamingResponse([
+                {
+                    type: "Error",
+                    error: new OpenAi.BadRequestError(
+                        400,
+                        {error: {message: "Persistent bad request", type: "invalid_request_error"}},
+                        "Persistent bad request",
+                        createMockHeaders(),
+                    ),
+                },
+            ]);
+
+            const request: AgentWebhookRequest = {
+                storage,
+                apiClient,
+                openAiClient: new Lazy(() => mockOpenAiClient),
+                agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                spaceId,
+                accountId: generateId<AccountId>(),
+                event: {
+                    type: "NewMessage",
+                    roomPath: `/chats/${chatId}`,
+                    index: 0,
+                    authorId,
+                    createdTimeZone: defaultTimeZone,
+                    wasMentioned: true,
+                },
+                room: {type: "Chat", id: chatId},
+            };
+
+            const durableObject = createChatGptAgentDurableObject();
+            mockAgentUsageForAccount(authorId);
+
+            apiClient.mockPost("/chats/{id}/messages", {
+                data: {
+                    spaceId,
+                    message: {
+                        index: 1,
+                        author: createApiAccountMock({name: "Bot", botId}),
+                        createdTime: assertDateString(new Date().toISOString()),
+                        createdTimeZone: defaultTimeZone,
+                        payload: {type: "Content", content: {elements: []}},
+                    },
+                },
+            });
+
+            // Mock spaces endpoint 3 times - initial call + 2 retries
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+
+            // Mock messages endpoint 3 times - initial call + 2 retries
+            const mockGetMessagesResponse = {
+                data: {
+                    spaceId,
+                    totalMessageCount: 1,
+                    nextCursor: null,
+                    messages: [
+                        {
+                            index: 0,
+                            author: createApiAccountMock({name: "User"}),
+                            createdTime: assertDateString(new Date().toISOString()),
+                            createdTimeZone: defaultTimeZone,
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Hello"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                },
+            } as const;
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+
+            // Should throw after exhausting retries
+            await expect(durableObject.webhook(span, request)).rejects.toThrow(
+                "Persistent bad request",
+            );
+
+            // Verify storage.deleteAll was called twice (once before each retry attempt)
+            expect(deleteStorageSpy).toHaveBeenCalledTimes(1);
+
+            // Verify OpenAI was called 3 times (initial attempt + 2 retries)
+            expect(mockOpenAiClient.createResponseWithStreaming).toHaveBeenCalledTimes(2);
+
+            expect(apiClient.getRequestHistory()).toEqual([
+                expect.objectContaining({
+                    method: "POST",
+                    path: "/chats/{id}/messages",
+                    body: expect.objectContaining({
+                        content: {elements: []},
+                        isStream: true,
+                    }),
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                // STATE WAS CLEARED AND CONVO IS BEING REINITIALIZED
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    params: {path: {id: chatId, index: 1, partIndex: 0}},
+                    body: {
+                        payload: {
+                            type: "Content",
+                            content: {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                            },
+                                            {
+                                                type: "Text",
+                                                text: "support@alpine.inc",
+                                                marks: [
+                                                    {
+                                                        type: "Link",
+                                                        url: "mailto:support@alpine.inc",
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/completion",
+                }),
+            ]);
+        });
+
+        test("does not retry for non-retryable errors", async () => {
+            // Throw a non-retryable error (e.g., rate limit)
+            mockOpenAiStreamingResponse([
+                {
+                    type: "Error",
+                    error: new OpenAi.RateLimitError(
+                        429,
+                        {error: {message: "Rate limit exceeded", type: "rate_limit_error"}},
+                        "Rate limit exceeded",
+                        createMockHeaders(),
+                    ),
+                },
+            ]);
+
+            const request: AgentWebhookRequest = {
+                storage,
+                apiClient,
+                openAiClient: new Lazy(() => mockOpenAiClient),
+                agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                spaceId,
+                accountId: generateId<AccountId>(),
+                event: {
+                    type: "NewMessage",
+                    roomPath: `/chats/${chatId}`,
+                    index: 0,
+                    authorId,
+                    createdTimeZone: defaultTimeZone,
+                    wasMentioned: true,
+                },
+                room: {type: "Chat", id: chatId},
+            };
+
+            const durableObject = createChatGptAgentDurableObject();
+            mockAgentUsageForAccount(authorId);
+
+            apiClient.mockPost("/chats/{id}/messages", {
+                data: {
+                    spaceId,
+                    message: {
+                        index: 1,
+                        author: createApiAccountMock({name: "Bot", botId}),
+                        createdTime: assertDateString(new Date().toISOString()),
+                        createdTimeZone: defaultTimeZone,
+                        payload: {type: "Content", content: {elements: []}},
+                    },
+                },
+            });
+
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+
+            apiClient.mockGet("/chats/{id}/messages", {
+                data: {
+                    spaceId,
+                    totalMessageCount: 1,
+                    nextCursor: null,
+                    messages: [
+                        {
+                            index: 0,
+                            author: createApiAccountMock({name: "User"}),
+                            createdTime: assertDateString(new Date().toISOString()),
+                            createdTimeZone: defaultTimeZone,
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Hello"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                },
+            });
+
+            // Should throw immediately without retrying
+            await expect(durableObject.webhook(span, request)).rejects.toThrow(
+                "Rate limit exceeded",
+            );
+
+            // Verify storage.deleteAll was NOT called (no retry for rate limit errors)
+            expect(deleteStorageSpy).not.toHaveBeenCalled();
+
+            // Verify OpenAI was called only once (no retry)
+            expect(mockOpenAiClient.createResponseWithStreaming).toHaveBeenCalledTimes(1);
+
+            expect(apiClient.getRequestHistory()).toEqual([
+                expect.objectContaining({
+                    method: "POST",
+                    path: "/chats/{id}/messages",
+                    body: expect.objectContaining({
+                        content: {elements: []},
+                        isStream: true,
+                    }),
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    params: {path: {id: chatId, index: 1, partIndex: 0}},
+                    body: {
+                        payload: {
+                            type: "Content",
+                            content: {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                            },
+                                            {
+                                                type: "Text",
+                                                text: "support@alpine.inc",
+                                                marks: [
+                                                    {
+                                                        type: "Link",
+                                                        url: "mailto:support@alpine.inc",
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/completion",
+                }),
+            ]);
+        });
+
+        test("only sends downgraded messaging error once", async () => {
+            // Both calls throw BadRequestError
+            mockOpenAiStreamingResponse([
+                {
+                    type: "Error",
+                    error: new OpenAi.BadRequestError(
+                        400,
+                        {error: {message: "Persistent bad request", type: "invalid_request_error"}},
+                        "Persistent bad request",
+                        createMockHeaders(),
+                    ),
+                },
+            ]);
+
+            mockOpenAiStreamingResponse([
+                {
+                    type: "Error",
+                    error: new OpenAi.BadRequestError(
+                        400,
+                        {error: {message: "Persistent bad request", type: "invalid_request_error"}},
+                        "Persistent bad request",
+                        createMockHeaders(),
+                    ),
+                },
+            ]);
+
+            const request: AgentWebhookRequest = {
+                storage,
+                apiClient,
+                openAiClient: new Lazy(() => mockOpenAiClient),
+                agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                spaceId,
+                accountId: generateId<AccountId>(),
+                event: {
+                    type: "NewMessage",
+                    roomPath: `/chats/${chatId}`,
+                    index: 0,
+                    authorId,
+                    createdTimeZone: defaultTimeZone,
+                    wasMentioned: true,
+                },
+                room: {type: "Chat", id: chatId},
+            };
+
+            const durableObject = createChatGptAgentDurableObject();
+
+            // ----- Mock usage database to indicate 75%+ usage (triggers downgrade) -----
+            const now = Date.now();
+            const weekStartDate = new Date(now);
+            weekStartDate.setUTCHours(0, 0, 0, 0);
+            weekStartDate.setUTCDate(weekStartDate.getUTCDate() - weekStartDate.getUTCDay());
+            const weekStart = weekStartDate.getTime();
+
+            // Dynamic limit: $1.00 = 100,000 millicents
+            // 80% of that = 80,000 millicents (downgrade threshold)
+            const dynamicLimitMillicents = 100000;
+
+            mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValue(null);
+            mockAgentUsageDatabase.getWindowByAccountIdAndType.mockImplementation(
+                async (_span, _accountId, type) => {
+                    if (type === "Weekly") {
+                        return {
+                            accountId: authorId,
+                            type: "Weekly",
+                            startedTime: weekStart,
+                            wasModelDowngraded: false, // Not yet downgraded - will trigger alert
+                        };
+                    }
+                    if (type === "Dynamic") {
+                        return {
+                            accountId: authorId,
+                            type: "Dynamic",
+                            startedTime: now - 1000,
+                            wasModelDowngraded: false,
+                        };
+                    }
+                    return null;
+                },
+            );
+            // Return usage at 80% of limit (above 75% downgrade threshold, below 100%)
+            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
+                Math.floor(dynamicLimitMillicents * 0.8),
+            );
+            mockAgentUsageDatabase.createAgentRequest.mockResolvedValue(undefined);
+            mockAgentUsageDatabase.downgradeModelForWindow.mockResolvedValue(undefined);
+
+            apiClient.mockPost("/chats/{id}/messages", {
+                data: {
+                    spaceId,
+                    message: {
+                        index: 1,
+                        author: createApiAccountMock({name: "Bot", botId}),
+                        createdTime: assertDateString(new Date().toISOString()),
+                        createdTimeZone: defaultTimeZone,
+                        payload: {type: "Content", content: {elements: []}},
+                    },
+                },
+            });
+
+            // Mock spaces endpoint twice - once for initial call, once for retry
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+            apiClient.mockGet("/spaces/{id}", {
+                data: {space: {id: spaceId, name: "Test Space"}},
+            });
+
+            // Mock messages endpoint 3 times - initial call + 2 retries
+            const mockGetMessagesResponse = {
+                data: {
+                    spaceId,
+                    totalMessageCount: 1,
+                    nextCursor: null,
+                    messages: [
+                        {
+                            index: 0,
+                            author: createApiAccountMock({name: "User"}),
+                            createdTime: assertDateString(new Date().toISOString()),
+                            createdTimeZone: defaultTimeZone,
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Hello"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                },
+            } as const;
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+            apiClient.mockGet("/chats/{id}/messages", mockGetMessagesResponse);
+
+            // Should throw after exhausting retries
+            await expect(durableObject.webhook(span, request)).rejects.toThrow(
+                "Persistent bad request",
+            );
+
+            // Verify storage.deleteAll was called twice (once before each retry attempt)
+            expect(deleteStorageSpy).toHaveBeenCalledTimes(1);
+
+            // Verify OpenAI was called 3 times (initial attempt + 2 retries)
+            expect(mockOpenAiClient.createResponseWithStreaming).toHaveBeenCalledTimes(2);
+
+            expect(apiClient.getRequestHistory()).toEqual([
+                expect.objectContaining({
+                    method: "POST",
+                    path: "/chats/{id}/messages",
+                    body: expect.objectContaining({
+                        content: {elements: []},
+                        isStream: true,
+                    }),
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                // STATE WAS CLEARED AND CONVO IS BEING REINITIALIZED
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/spaces/{id}",
+                    params: {path: {id: spaceId}},
+                }),
+                expect.objectContaining({
+                    method: "GET",
+                    path: "/chats/{id}/messages",
+                    params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    params: {path: {id: chatId, index: 1, partIndex: 0}},
+                    body: {
+                        payload: {
+                            type: "Content",
+                            content: {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "(To help extend your usage, I’m now using a less intelligent model. I’ll be back to using the best available model today at 2:59pm. If you’d like to continue using the most intelligent models, purchase ",
+                                            },
+                                            {
+                                                type: "Text",
+                                                text: "Alpine lifetime access",
+                                                marks: [
+                                                    {
+                                                        type: "Link",
+                                                        url: "https://www.alpine.inc#pricing",
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                type: "Text",
+                                                text: ".)",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                    params: {path: {id: chatId, index: 1, partIndex: 1}},
+                    body: {
+                        payload: {
+                            type: "Content",
+                            content: {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "(To help extend your usage, I’m now using a less intelligent model. I’ll be back to using the best available model today at 2:59pm. If you’d like to continue using the most intelligent models, purchase ",
+                                            },
+                                            {
+                                                type: "Text",
+                                                text: "Alpine lifetime access",
+                                                marks: [
+                                                    {
+                                                        type: "Link",
+                                                        url: "https://www.alpine.inc#pricing",
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                type: "Text",
+                                                // TODO(ifitzsimmons, 2026-01-21): This is a super edge case, where the agent
+                                                // throws an error in the same request where it downgrades the model. We should
+                                                // change this so that there's a break between the two "system" messages.
+                                                text: ".)I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                            },
+                                            {
+                                                type: "Text",
+                                                text: "support@alpine.inc",
+                                                marks: [
+                                                    {
+                                                        type: "Link",
+                                                        url: "mailto:support@alpine.inc",
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                }),
+                expect.objectContaining({
+                    method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/completion",
+                }),
+            ]);
+        });
+    });
 });

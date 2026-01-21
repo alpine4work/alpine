@@ -81,6 +81,7 @@ type ChatGptAgentRoute = "NotFound" | "FetchConversationState" | "Webhook";
 
 type ChatAgentGptResponse = {
     usedMillicents: number;
+    model: SupportedAgentModels["openai"];
 };
 
 // Model configuration for ChatGPT agent.
@@ -167,7 +168,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
                 }),
         );
 
-        await runAllPromises([
+        const [, response] = await runAllPromises([
             agentUsageLimitWindowsPromise,
             AgentMessageStreamSession.with(
                 span,
@@ -201,7 +202,10 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
 
                     // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
                     // message while the agent is responding to a previous request?
-                    const response = await requestChatGptAgent(span, request, {
+                    // NOTE(ifitzsimmons, 2026-01-21): We retry here because after clearing state, we
+                    // must re-initialize the conversation state before sending the request to OpenAI.
+                    // `requestChatGptAgent()` loads messages into the conversation state.
+                    return await requestChatGptAgentWithRetry(span, request, {
                         env: this._env,
                         model,
                         session,
@@ -223,18 +227,20 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
                             });
                         },
                     });
-
-                    await recordAgentUsage(span, request.agentUsageDatabase.get(), {
-                        accountId: request.event.authorId,
-                        spaceId: request.spaceId,
-                        requestUsedMillicents: response.usedMillicents,
-                        currentTimestamp: currentTime.getTime(),
-                        provider: "openai",
-                        model,
-                    });
                 },
             ),
         ]);
+
+        if (response) {
+            await recordAgentUsage(span, request.agentUsageDatabase.get(), {
+                accountId: request.event.authorId,
+                spaceId: request.spaceId,
+                requestUsedMillicents: response.usedMillicents,
+                currentTimestamp: currentTime.getTime(),
+                provider: "openai",
+                model: response.model,
+            });
+        }
     }
 
     private async _fetchConversationState(
@@ -533,23 +539,6 @@ async function createChatGptAgentMessage(
 ): Promise<ChatAgentGptResponse> {
     try {
         return await createChatGptAgentResponse(span, env, request, model, session);
-    } catch (error) {
-        session.pushText(defaultAgentErrorDisplayMessage);
-
-        if (error instanceof OpenAi.BadRequestError || error instanceof OpenAi.NotFoundError) {
-            // NOTE(ifitzsimmons, 2025-12-04): We observed an issue [1] where a request persisted
-            // some bad state (a corrupt reasoning ID) into local storage and threw a 400 error
-            // (`BadRequestError`). Every subsequent request failed with a 404 (`NotFoundError`)
-            // as a result until the durable object was eventually cleared (after 8 hours).
-            // If the response API returns a 400 or 404 even after retrying with backoff, then we
-            // should clear the durable object state so that subsequent requests will not be impacted
-            // by any potentially corrupted state.
-            //
-            // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t6adyjshd5qaq256ks12yp395w
-            await request.storage.deleteAll();
-        }
-
-        throw error;
     } finally {
         await sendDowngradeWarningMessageIfNeeded();
     }
@@ -718,7 +707,7 @@ async function createChatGptAgentResponse(
         return createChatGptAgentResponse(span, env, request, model, session, totalUsedMillicents);
     }
 
-    return {usedMillicents: totalUsedMillicents};
+    return {usedMillicents: totalUsedMillicents, model};
 }
 
 function getChatGptAgentConversationItemsAndCallPendingFunctions(
@@ -1072,5 +1061,56 @@ function shouldSendMessagingWithUpsellLink(plan: "Free" | "LifetimeAccess"): boo
             return false;
         default:
             throw exhaustive(plan);
+    }
+}
+
+async function requestChatGptAgentWithRetry(
+    span: TracerSpan,
+    request: AgentWebhookRequest,
+    options: {
+        env: AgentServiceEnv;
+        model: SupportedAgentModels["openai"];
+        session: AgentMessageStreamSession;
+        sendDowngradeWarningMessageIfNeeded: () => Promise<void>;
+    },
+    attemptCount: number = 0,
+): Promise<ChatAgentGptResponse> {
+    // NOTE(ifitzsimmons, 2026-01-21): We retry here because after clearing state, we
+    // must re-initialize the conversation state before sending the request to OpenAI.
+    // `requestChatGptAgent()` loads messages into the conversation state.
+    try {
+        return await requestChatGptAgent(span, request, options);
+    } catch (error) {
+        // NOTE(ifitzsimmons, 2025-12-04): We observed an issue [1] where a request persisted
+        // some bad state (a corrupt reasoning ID) into local storage and threw a 400 error
+        // (`BadRequestError`). Every subsequent request failed with a 404 (`NotFoundError`)
+        // as a result until the durable object was eventually cleared (after 8 hours).
+        // If the response API returns a 400 or 404 even after retrying with backoff, then we
+        // should clear the durable object state so that subsequent requests will not be impacted
+        // by any potentially corrupted state.
+        //
+        // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t6adyjshd5qaq256ks12yp395w
+        const isStateMaybeCorruptedError =
+            error instanceof OpenAi.BadRequestError || error instanceof OpenAi.NotFoundError;
+
+        // NOTE(ifitzsimmons, 2026-01-21): If the context length is exceeded, we can
+        // actually retry the request. We just need to clear the conversation state, and
+        // then  re-initialize the conversation.
+        const isContextLengthExceededError =
+            error instanceof OpenAi.APIError && error.code === "context_length_exceeded";
+
+        const isRetryableError = isStateMaybeCorruptedError || isContextLengthExceededError;
+
+        // NOTE(ifitzsimmons, 2026-01-21): We set max retry count to 2 because clearing the
+        // conversation state and retrying *should* fix the issue. If it doesn't we don't
+        // want to waste resources while retrying.
+        if (isRetryableError && attemptCount < 1) {
+            await request.storage.deleteAll();
+            return await requestChatGptAgentWithRetry(span, request, options, attemptCount + 1);
+        }
+
+        // Error is not retryable or we've exceeded the max retry count, push error and throw
+        options.session.pushText(defaultAgentErrorDisplayMessage);
+        throw error;
     }
 }
