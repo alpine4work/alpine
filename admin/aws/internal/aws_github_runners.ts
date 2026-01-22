@@ -73,7 +73,7 @@ export class AwsGithubRunners extends Construct {
         // production services so when building we're building for the right
         // architecture.
         const deployInstanceClass = awsServiceInstanceClass;
-        const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.XLARGE);
+        const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.XLARGE2);
 
         const createImageBuilderComponents = (
             extraAptDependencies: Array<string> = [],
