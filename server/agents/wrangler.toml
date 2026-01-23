@@ -17,6 +17,11 @@ enabled = true
 destinations = ["honeycomb-logs"]
 head_sampling_rate = 1
 
+[observability.traces]
+enabled = true
+destinations = ["honeycomb-traces"]
+head_sampling_rate = 1
+
 [[durable_objects.bindings]]
 name = "ChatGptAgentDurableObjectNamespace"
 class_name = "ChatGptAgentDurableObject"

@@ -17,6 +17,11 @@ enabled = true
 destinations = [ "honeycomb-logs" ]
 head_sampling_rate = 1
 
+[observability.traces]
+enabled = true
+destinations = [ "honeycomb-traces" ]
+head_sampling_rate = 1
+
 [[r2_buckets]]
 binding = "AvatarsBucket"
 bucket_name = "cyberworlds-avatars"
