@@ -697,16 +697,16 @@ describe("post comment parents", () => {
             access: "Public",
         });
 
-        // Create post with bold and italic text
+        // Create post with code and strike text
         const postContent = PostContentProsemirrorSchema.node("doc", {}, [
             PostContentProsemirrorSchema.node("paragraph", {}, [
                 PostContentProsemirrorSchema.text("This is "),
-                PostContentProsemirrorSchema.text("bold", [
-                    PostContentProsemirrorSchema.mark("bold"),
+                PostContentProsemirrorSchema.text("code", [
+                    PostContentProsemirrorSchema.mark("code"),
                 ]),
                 PostContentProsemirrorSchema.text(" and "),
-                PostContentProsemirrorSchema.text("italic", [
-                    PostContentProsemirrorSchema.mark("italic"),
+                PostContentProsemirrorSchema.text("strike", [
+                    PostContentProsemirrorSchema.mark("strike"),
                 ]),
                 PostContentProsemirrorSchema.text(" text"),
             ]),
@@ -739,8 +739,8 @@ describe("post comment parents", () => {
                     },
                     {
                         type: "Text",
-                        text: "b",
-                        marks: [{type: "Bold"}],
+                        text: "c",
+                        marks: [{type: "Code"}],
                     },
                 ],
                 isTruncated: false,

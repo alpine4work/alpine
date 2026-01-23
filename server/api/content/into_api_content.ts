@@ -589,10 +589,6 @@ function intoApiContentSnippetInlineElementMark(
     mark: Mark,
 ): ApiMessageContentPayloadParentContentSnippetInlineElementMark {
     switch (mark.type.name) {
-        case "bold":
-            return {type: "Bold"};
-        case "italic":
-            return {type: "Italic"};
         case "strike":
             return {type: "Strike"};
         case "code":

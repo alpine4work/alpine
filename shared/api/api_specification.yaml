@@ -2495,15 +2495,11 @@ components:
 
         MessageContentPayloadParentContentSnippetInlineElementMark:
             oneOf:
-                - $ref: "#/components/schemas/ContentInlineElementBoldMark"
-                - $ref: "#/components/schemas/ContentInlineElementItalicMark"
                 - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
                 - $ref: "#/components/schemas/ContentInlineElementCodeMark"
             discriminator:
                 propertyName: type
                 mapping:
-                    Bold: "#/components/schemas/ContentInlineElementBoldMark"
-                    Italic: "#/components/schemas/ContentInlineElementItalicMark"
                     Strike: "#/components/schemas/ContentInlineElementStrikeMark"
                     Code: "#/components/schemas/ContentInlineElementCodeMark"
 

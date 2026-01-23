@@ -9,12 +9,7 @@ import {
 } from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {truncateContentForMessageReplyPreview} from "~/shared/content/truncate_content_for_message_reply_preview.js";
-import {
-    boldClassName,
-    codeClassName,
-    italicClassName,
-    strikeClassName,
-} from "~/shared/design/core/constant_class_names.js";
+import {codeClassName, strikeClassName} from "~/shared/design/core/constant_class_names.js";
 import {assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -47,11 +42,7 @@ function getTruncatedMessageContentForReplyPreviewBase(
             references: content.references,
         },
         {
-            shouldPreserveMark: mark =>
-                mark.type.name === "bold" ||
-                mark.type.name === "italic" ||
-                mark.type.name === "code" ||
-                mark.type.name === "strike",
+            shouldPreserveMark: mark => mark.type.name === "code" || mark.type.name === "strike",
             accountRegistry,
             searchEntityRegistry,
             fileRegistry,
@@ -63,14 +54,6 @@ function getTruncatedMessageContentForReplyPreviewBase(
 
         for (const mark of segment.marks) {
             switch (mark.type.name) {
-                case "bold": {
-                    node = <strong className={boldClassName}>{node}</strong>;
-                    break;
-                }
-                case "italic": {
-                    node = <em className={italicClassName}>{node}</em>;
-                    break;
-                }
                 case "code": {
                     node = <code className={codeClassName}>{node}</code>;
                     break;

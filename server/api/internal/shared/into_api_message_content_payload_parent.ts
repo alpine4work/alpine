@@ -101,11 +101,7 @@ async function intoApiContentSnippet(
     } = await getContentSnippetWithReferences(context, spaceId, content);
 
     const segmentsWithMarks = printContentSingleLineTextSnippetPreservingMarks(contentSnippet, {
-        shouldPreserveMark: mark =>
-            mark.type.name === "bold" ||
-            mark.type.name === "italic" ||
-            mark.type.name === "code" ||
-            mark.type.name === "strike",
+        shouldPreserveMark: mark => mark.type.name === "code" || mark.type.name === "strike",
         getAccountIfExists: accountId => references.accountById.get(accountId)?.initialData ?? null,
         getSearchEntityIfExists: entityId => {
             const entity = references.searchEntityById.get(entityId);

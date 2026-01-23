@@ -2117,8 +2117,6 @@ export namespace ApiSpecification {
                 readonly marks?: readonly components["schemas"]["MessageContentPayloadParentContentSnippetInlineElementMark"][];
             };
             readonly MessageContentPayloadParentContentSnippetInlineElementMark:
-                | components["schemas"]["ContentInlineElementBoldMark"]
-                | components["schemas"]["ContentInlineElementItalicMark"]
                 | components["schemas"]["ContentInlineElementStrikeMark"]
                 | components["schemas"]["ContentInlineElementCodeMark"];
             readonly SearchResult:

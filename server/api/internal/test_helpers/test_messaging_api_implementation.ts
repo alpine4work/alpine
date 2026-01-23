@@ -3946,16 +3946,16 @@ export function testMessagingApiImplementation(
 
                 const {roomPath, room} = await createPrivateRoom(session, bot);
 
-                // Create parent message with bold and italic text
+                // Create parent message with code and strike text
                 const parentContent = MessageContentProsemirrorSchema.node("doc", {}, [
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("This is "),
-                        MessageContentProsemirrorSchema.text("bold", [
-                            MessageContentProsemirrorSchema.mark("bold"),
+                        MessageContentProsemirrorSchema.text("code", [
+                            MessageContentProsemirrorSchema.mark("code"),
                         ]),
                         MessageContentProsemirrorSchema.text(" and "),
-                        MessageContentProsemirrorSchema.text("italic", [
-                            MessageContentProsemirrorSchema.mark("italic"),
+                        MessageContentProsemirrorSchema.text("strike", [
+                            MessageContentProsemirrorSchema.mark("strike"),
                         ]),
                         MessageContentProsemirrorSchema.text(" text"),
                     ]),
@@ -3991,8 +3991,8 @@ export function testMessagingApiImplementation(
                             },
                             {
                                 type: "Text",
-                                text: "bold",
-                                marks: [{type: "Bold"}],
+                                text: "code",
+                                marks: [{type: "Code"}],
                             },
                             {
                                 type: "Text",
@@ -4000,8 +4000,8 @@ export function testMessagingApiImplementation(
                             },
                             {
                                 type: "Text",
-                                text: "italic",
-                                marks: [{type: "Italic"}],
+                                text: "strike",
+                                marks: [{type: "Strike"}],
                             },
                             {
                                 type: "Text",
@@ -4030,9 +4030,9 @@ export function testMessagingApiImplementation(
                 const parentContent = MessageContentProsemirrorSchema.node("doc", {}, [
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Normal text and "),
-                        MessageContentProsemirrorSchema.text("bold italic", [
-                            MessageContentProsemirrorSchema.mark("bold"),
-                            MessageContentProsemirrorSchema.mark("italic"),
+                        MessageContentProsemirrorSchema.text("code strike", [
+                            MessageContentProsemirrorSchema.mark("code"),
+                            MessageContentProsemirrorSchema.mark("strike"),
                         ]),
                     ]),
                 ]);
@@ -4072,8 +4072,8 @@ export function testMessagingApiImplementation(
                                             },
                                             {
                                                 type: "Text",
-                                                text: "bold italic",
-                                                marks: [{type: "Bold"}, {type: "Italic"}],
+                                                text: "code strike",
+                                                marks: [{type: "Code"}, {type: "Strike"}],
                                             },
                                         ],
                                         isTruncated: false,
@@ -4229,16 +4229,16 @@ export function testMessagingApiImplementation(
 
                 const {roomPath, room} = await createPrivateRoom(session, bot);
 
-                // Create first message with bold and italic text
+                // Create first message with code and strike text
                 const message1Content = MessageContentProsemirrorSchema.node("doc", {}, [
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("This is "),
-                        MessageContentProsemirrorSchema.text("bold", [
-                            MessageContentProsemirrorSchema.mark("bold"),
+                        MessageContentProsemirrorSchema.text("code", [
+                            MessageContentProsemirrorSchema.mark("code"),
                         ]),
                         MessageContentProsemirrorSchema.text(" and "),
-                        MessageContentProsemirrorSchema.text("italic", [
-                            MessageContentProsemirrorSchema.mark("italic"),
+                        MessageContentProsemirrorSchema.text("strike", [
+                            MessageContentProsemirrorSchema.mark("strike"),
                         ]),
                         MessageContentProsemirrorSchema.text(" text"),
                     ]),
@@ -4290,8 +4290,8 @@ export function testMessagingApiImplementation(
                             },
                             {
                                 type: "Text",
-                                text: "bold",
-                                marks: [{type: "Bold"}],
+                                text: "code",
+                                marks: [{type: "Code"}],
                             },
                             {
                                 type: "Text",
@@ -4299,8 +4299,8 @@ export function testMessagingApiImplementation(
                             },
                             {
                                 type: "Text",
-                                text: "italic",
-                                marks: [{type: "Italic"}],
+                                text: "strike",
+                                marks: [{type: "Strike"}],
                             },
                             {
                                 type: "Text",

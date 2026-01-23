@@ -263,7 +263,56 @@ describe("intoApiMessageContentPayloadParent", () => {
     });
 
     describe("content with marks", () => {
-        test("includes bold marks in content snippet", async () => {
+        test("includes code marks in content snippet", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+            const bot = await TestBot.createAndInstantiate(session);
+
+            const content = MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("This is "),
+                    MessageContentProsemirrorSchema.text("code text", [
+                        MessageContentProsemirrorSchema.mark("code"),
+                    ]),
+                    MessageContentProsemirrorSchema.text(" here"),
+                ]),
+            ]);
+
+            const result = await intoApiMessageContentPayloadParent(bot.action(), space.id, {
+                type: "Message",
+                index: 0,
+                content: assertMessageContent(content),
+                authorId: session.account.id,
+            });
+
+            expect(result).toEqual({
+                type: "Message",
+                index: 0,
+                contentSnippet: {
+                    elements: [
+                        {
+                            type: "Text",
+                            text: "This is ",
+                        },
+                        {
+                            type: "Text",
+                            text: "code text",
+                            marks: [{type: "Code"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " here",
+                        },
+                    ],
+                    isTruncated: false,
+                },
+                author: expect.objectContaining({
+                    id: session.account.id,
+                }),
+            });
+        });
+
+        test("doesn’t include bold marks in content snippet", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot = await TestBot.createAndInstantiate(session);
@@ -292,16 +341,7 @@ describe("intoApiMessageContentPayloadParent", () => {
                     elements: [
                         {
                             type: "Text",
-                            text: "This is ",
-                        },
-                        {
-                            type: "Text",
-                            text: "bold text",
-                            marks: [{type: "Bold"}],
-                        },
-                        {
-                            type: "Text",
-                            text: " here",
+                            text: "This is bold text here",
                         },
                     ],
                     isTruncated: false,
@@ -312,7 +352,47 @@ describe("intoApiMessageContentPayloadParent", () => {
             });
         });
 
-        test("includes italic marks in content snippet", async () => {
+        test("doesn’t include italic marks in content snippet", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+            const bot = await TestBot.createAndInstantiate(session);
+
+            const content = MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("This is "),
+                    MessageContentProsemirrorSchema.text("italic text", [
+                        MessageContentProsemirrorSchema.mark("italic"),
+                    ]),
+                    MessageContentProsemirrorSchema.text(" here"),
+                ]),
+            ]);
+
+            const result = await intoApiMessageContentPayloadParent(bot.action(), space.id, {
+                type: "Message",
+                index: 0,
+                content: assertMessageContent(content),
+                authorId: session.account.id,
+            });
+
+            expect(result).toEqual({
+                type: "Message",
+                index: 0,
+                contentSnippet: {
+                    elements: [
+                        {
+                            type: "Text",
+                            text: "This is italic text here",
+                        },
+                    ],
+                    isTruncated: false,
+                },
+                author: expect.objectContaining({
+                    id: session.account.id,
+                }),
+            });
+        });
+
+        test("includes strike marks in content snippet", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot = await TestBot.createAndInstantiate(session);
@@ -320,8 +400,8 @@ describe("intoApiMessageContentPayloadParent", () => {
             const content = MessageContentProsemirrorSchema.node("doc", {}, [
                 MessageContentProsemirrorSchema.node("paragraph", {}, [
                     MessageContentProsemirrorSchema.text("Some "),
-                    MessageContentProsemirrorSchema.text("italic", [
-                        MessageContentProsemirrorSchema.mark("italic"),
+                    MessageContentProsemirrorSchema.text("strikethrough", [
+                        MessageContentProsemirrorSchema.mark("strike"),
                     ]),
                     MessageContentProsemirrorSchema.text(" text"),
                 ]),
@@ -345,8 +425,8 @@ describe("intoApiMessageContentPayloadParent", () => {
                         },
                         {
                             type: "Text",
-                            text: "italic",
-                            marks: [{type: "Italic"}],
+                            text: "strikethrough",
+                            marks: [{type: "Strike"}],
                         },
                         {
                             type: "Text",
@@ -369,9 +449,9 @@ describe("intoApiMessageContentPayloadParent", () => {
             const content = MessageContentProsemirrorSchema.node("doc", {}, [
                 MessageContentProsemirrorSchema.node("paragraph", {}, [
                     MessageContentProsemirrorSchema.text("Text with "),
-                    MessageContentProsemirrorSchema.text("bold and italic", [
-                        MessageContentProsemirrorSchema.mark("bold"),
-                        MessageContentProsemirrorSchema.mark("italic"),
+                    MessageContentProsemirrorSchema.text("code and strike", [
+                        MessageContentProsemirrorSchema.mark("code"),
+                        MessageContentProsemirrorSchema.mark("strike"),
                     ]),
                 ]),
             ]);
@@ -394,8 +474,8 @@ describe("intoApiMessageContentPayloadParent", () => {
                         },
                         {
                             type: "Text",
-                            text: "bold and italic",
-                            marks: [{type: "Bold"}, {type: "Italic"}],
+                            text: "code and strike",
+                            marks: [{type: "Code"}, {type: "Strike"}],
                         },
                     ],
                     isTruncated: false,
@@ -463,7 +543,7 @@ describe("intoApiMessageContentPayloadParent", () => {
             });
         });
 
-        test("preserves marks in truncated content", async () => {
+        test("preserves code marks in truncated content", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot = await TestBot.createAndInstantiate(session);
@@ -471,8 +551,8 @@ describe("intoApiMessageContentPayloadParent", () => {
             const content = MessageContentProsemirrorSchema.node("doc", {}, [
                 MessageContentProsemirrorSchema.node("paragraph", {}, [
                     MessageContentProsemirrorSchema.text("Normal text "),
-                    MessageContentProsemirrorSchema.text("bold text ".repeat(100), [
-                        MessageContentProsemirrorSchema.mark("bold"),
+                    MessageContentProsemirrorSchema.text("code text ".repeat(100), [
+                        MessageContentProsemirrorSchema.mark("code"),
                     ]),
                 ]),
                 MessageContentProsemirrorSchema.node("paragraph", {}, [
@@ -498,8 +578,8 @@ describe("intoApiMessageContentPayloadParent", () => {
                         },
                         {
                             type: "Text",
-                            text: "bold text ".repeat(38) + "bold",
-                            marks: [{type: "Bold"}],
+                            text: "code text ".repeat(38) + "code",
+                            marks: [{type: "Code"}],
                         },
                     ],
                     isTruncated: true,
