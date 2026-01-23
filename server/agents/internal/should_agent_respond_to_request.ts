@@ -1,3 +1,4 @@
+import {getApiMessage} from "~/server/agents/api/api_client.js";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {ApiChat} from "~/shared/api/types/api_specification_convenience_types.js";
@@ -12,6 +13,8 @@ export async function shouldAgentRespondToRequest(
 ): Promise<boolean> {
     // Always respond if mentioned.
     if (request.event.wasMentioned) return true;
+
+    if (await isMessageResponseToAgent(tracer, request)) return true;
 
     // If this isn't a chat, the agent only responds if mentioned.
     if (request.room.type !== "Chat") return false;
@@ -33,4 +36,23 @@ export async function shouldAgentRespondToRequest(
         chat.members.length === 2 &&
         chat.members.some(member => member.account.id === request.accountId)
     );
+}
+
+async function isMessageResponseToAgent(
+    tracer: TracerBase,
+    request: AgentWebhookRequest,
+): Promise<boolean> {
+    if (request.event.type !== "NewMessage") return false;
+
+    const {
+        data: {message},
+    } = await getApiMessage(tracer, request.apiClient, request.room, request.event.index);
+
+    if (message.payload.type !== "Content") return false;
+
+    if (message.payload.parent === undefined) return false;
+
+    // If the message's parent was a message or post by the current agent
+    // (request.accountId), return true
+    return message.payload.parent.author.id === request.accountId;
 }
