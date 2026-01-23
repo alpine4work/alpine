@@ -2260,10 +2260,14 @@ describe("getSearchEntity", () => {
         const session3 = await space.createSession();
         const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-        const privateCollection = await TestTaskCollection.create(session1);
+        const privateCollection = await TestTaskCollection.create(session1, {
+            name: "Private Test Task Collection",
+        });
         await privateCollection.access.grant(session1, session2);
 
-        const publicCollection = await TestTaskCollection.create(session1);
+        const publicCollection = await TestTaskCollection.create(session1, {
+            name: "Public Test Task Collection",
+        });
         await publicCollection.access.grantDefault(session1);
 
         const task1 = await TestTask.create(session2, {title: "Test Task 1"});
@@ -2315,6 +2319,7 @@ describe("getSearchEntity", () => {
                     snapshot: expect.any(Uint8Array),
                 },
                 body: null,
+                tags: [],
                 embeddingChunks: [],
                 media: {
                     type: "TaskDisplayStatus",
@@ -2338,7 +2343,10 @@ describe("getSearchEntity", () => {
                 {tokenizer, registerAdditionalWrite: noop},
             ),
         ).toEqual({
-            dependencyIds: new Set([`TaskCollection:${publicCollection.id}:Authorization`]),
+            dependencyIds: new Set([
+                `TaskCollection:${publicCollection.id}:Authorization`,
+                `TaskCollection:${publicCollection.id}:Name`,
+            ]),
             entity: {
                 id: `Task:${task2.id}`,
                 accessPolicy: {
@@ -2353,6 +2361,7 @@ describe("getSearchEntity", () => {
                     snapshot: expect.any(Uint8Array),
                 },
                 body: taskNotes,
+                tags: ["Public Test Task Collection"],
                 embeddingChunks: [
                     {
                         preambleEndIndex: 15,
@@ -2425,6 +2434,7 @@ describe("getSearchEntity", () => {
                     title: "Private Test Task Collection",
                     titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
                     body: null,
+                    tags: [],
                     embeddingChunks: [],
                     media: {type: "TaskCollectionColor", color: null, version: expect.any(Array)},
                     creatorId: session1.account.id,
@@ -2456,6 +2466,7 @@ describe("getSearchEntity", () => {
                     title: "Public Test Task Collection",
                     titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
                     body: null,
+                    tags: [],
                     embeddingChunks: [],
                     media: {
                         type: "TaskCollectionColor",
@@ -2530,6 +2541,7 @@ describe("getSearchEntity", () => {
                 title: null,
                 titleVersion: null,
                 body: "Test task comment content 1.",
+                tags: [],
                 embeddingChunks: [
                     {
                         preambleEndIndex: 30,
@@ -2570,6 +2582,7 @@ describe("getSearchEntity", () => {
                 title: null,
                 titleVersion: null,
                 body: "Test task comment content 2.",
+                tags: [],
                 embeddingChunks: [
                     {
                         preambleEndIndex: 30,
@@ -2630,6 +2643,7 @@ describe("getSearchEntity", () => {
                     deletedTime: expect.any(Array),
                 },
                 body: null,
+                tags: [],
                 embeddingChunks: [],
                 media: null,
                 creatorId: null,
@@ -2677,6 +2691,7 @@ describe("getSearchEntity", () => {
                 title: null,
                 titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
                 body: null,
+                tags: [],
                 embeddingChunks: [],
                 media: null,
                 creatorId: null,
@@ -2730,6 +2745,7 @@ describe("getSearchEntity", () => {
                 title: null,
                 titleVersion: null,
                 body: null,
+                tags: [],
                 embeddingChunks: [],
                 media: null,
                 creatorId: null,
@@ -2788,6 +2804,7 @@ describe("getSearchEntity", () => {
                     snapshot: expect.any(Uint8Array),
                 },
                 body: "Lorem ipsum dolor sit amet",
+                tags: [],
                 embeddingChunks: expect.any(Array),
                 media: {
                     type: "TaskDisplayStatus",
@@ -2833,6 +2850,7 @@ describe("getSearchEntity", () => {
                     snapshot: expect.any(Uint8Array),
                 },
                 body: "Lorem ipsum dolor sit amet",
+                tags: [],
                 embeddingChunks: expect.any(Array),
                 media: {
                     type: "TaskDisplayStatus",
@@ -2874,7 +2892,10 @@ describe("getSearchEntity", () => {
                 {tokenizer, registerAdditionalWrite: noop},
             ),
         ).toEqual({
-            dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+            dependencyIds: new Set([
+                `TaskCollection:${collection.id}:Authorization`,
+                `TaskCollection:${collection.id}:Name`,
+            ]),
             entity: {
                 id: `Task:${task.id}`,
                 accessPolicy: {
@@ -2889,6 +2910,7 @@ describe("getSearchEntity", () => {
                     snapshot: expect.any(Uint8Array),
                 },
                 body: "Lorem ipsum dolor sit amet",
+                tags: expect.any(Array),
                 embeddingChunks: expect.any(Array),
                 media: {
                     type: "TaskDisplayStatus",
@@ -2931,6 +2953,7 @@ describe("getSearchEntity", () => {
                     snapshot: expect.any(Uint8Array),
                 },
                 body: "Lorem ipsum dolor sit amet",
+                tags: [],
                 embeddingChunks: expect.any(Array),
                 media: {
                     type: "TaskDisplayStatus",
@@ -2957,7 +2980,10 @@ describe("getSearchEntity", () => {
         const session2 = await space.createSession();
         const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-        const collection = await TestTaskCollection.create(session2, {access: "Public"});
+        const collection = await TestTaskCollection.create(session2, {
+            name: "Test Task Collection",
+            access: "Public",
+        });
 
         const task = await TestTask.create(session1, {title: "Test Task"});
         await task.addCollection(session1, collection);
@@ -2973,7 +2999,10 @@ describe("getSearchEntity", () => {
                 {tokenizer, registerAdditionalWrite: noop},
             ),
         ).toEqual({
-            dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+            dependencyIds: new Set([
+                `TaskCollection:${collection.id}:Authorization`,
+                `TaskCollection:${collection.id}:Name`,
+            ]),
             entity: {
                 id: `Task:${task.id}`,
                 accessPolicy: {
@@ -2989,6 +3018,7 @@ describe("getSearchEntity", () => {
                     deletedTime: undefined,
                 },
                 body: "Lorem ipsum dolor sit amet",
+                tags: ["Test Task Collection"],
                 embeddingChunks: expect.any(Array),
                 media: {
                     type: "TaskDisplayStatus",
@@ -3016,7 +3046,10 @@ describe("getSearchEntity", () => {
             const session2 = await space.createSession();
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            const collection = await TestTaskCollection.create(session2, {
+                name: "Test Task Collection",
+                access: "Public",
+            });
 
             const task = await TestTask.create(session1, {title: "Test Task", priority});
             await task.addCollection(session1, collection);
@@ -3031,7 +3064,10 @@ describe("getSearchEntity", () => {
                     {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
-                dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+                dependencyIds: new Set([
+                    `TaskCollection:${collection.id}:Authorization`,
+                    `TaskCollection:${collection.id}:Name`,
+                ]),
                 entity: {
                     id: `Task:${task.id}`,
                     accessPolicy: {
@@ -3046,6 +3082,7 @@ describe("getSearchEntity", () => {
                         snapshot: expect.any(Uint8Array),
                     },
                     body: "Lorem ipsum dolor sit amet",
+                    tags: ["Test Task Collection"],
                     embeddingChunks: expect.any(Array),
                     media: {
                         type: "TaskDisplayStatus",
@@ -3077,7 +3114,10 @@ describe("getSearchEntity", () => {
             const session2 = await space.createSession();
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            const collection = await TestTaskCollection.create(session2, {
+                name: "Test Task Collection",
+                access: "Public",
+            });
 
             const task = await TestTask.create(session1, {title: "Test Task"});
             await task.addCollection(session1, collection);
@@ -3093,7 +3133,10 @@ describe("getSearchEntity", () => {
                     {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
-                dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+                dependencyIds: new Set([
+                    `TaskCollection:${collection.id}:Authorization`,
+                    `TaskCollection:${collection.id}:Name`,
+                ]),
                 entity: {
                     id: `Task:${task.id}`,
                     accessPolicy: {
@@ -3108,6 +3151,7 @@ describe("getSearchEntity", () => {
                         snapshot: expect.any(Uint8Array),
                     },
                     body: "Lorem ipsum dolor sit amet",
+                    tags: ["Test Task Collection"],
                     embeddingChunks: expect.any(Array),
                     media: {
                         type: "TaskDisplayStatus",
@@ -3139,7 +3183,10 @@ describe("getSearchEntity", () => {
             const session2 = await space.createSession();
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            const collection = await TestTaskCollection.create(session2, {
+                name: "Test Task Collection",
+                access: "Public",
+            });
 
             const task = await TestTask.create(session1, {title: "Test Task"});
             await task.addCollection(session1, collection);
@@ -3155,7 +3202,10 @@ describe("getSearchEntity", () => {
                     {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
-                dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+                dependencyIds: new Set([
+                    `TaskCollection:${collection.id}:Authorization`,
+                    `TaskCollection:${collection.id}:Name`,
+                ]),
                 entity: {
                     id: `Task:${task.id}`,
                     accessPolicy: {
@@ -3170,6 +3220,7 @@ describe("getSearchEntity", () => {
                         snapshot: expect.any(Uint8Array),
                     },
                     body: "Lorem ipsum dolor sit amet",
+                    tags: ["Test Task Collection"],
                     embeddingChunks: expect.any(Array),
                     media: {
                         type: "TaskDisplayStatus",
@@ -3190,4 +3241,128 @@ describe("getSearchEntity", () => {
             await ProcessContextModule.waitForTestTasks();
         });
     }
+});
+
+test("keyword search matches tasks by collection name", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    // Create a collection with a unique name that won't appear in task content.
+    const collection = await TestTaskCollection.create(session, {
+        name: "Banana Smoothie Project",
+    });
+    await collection.access.grantDefault(session);
+
+    // Create a task with content that does NOT contain the collection name.
+    const task = await TestTask.create(session, {title: "Apple Pie Recipe"});
+    await task.typeNotes(session, "Mix flour, sugar, and apples together.");
+    await task.addCollection(session, collection);
+
+    // Wait for indexing to complete.
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    // Search for the collection name - the task should be found.
+    const results = await searchByKeywords(session.action(), {
+        spaceId: space.id,
+        queryText: "banana",
+        limit: 100,
+        timeZone: defaultTimeZone,
+        currentTime: new Date(),
+    });
+
+    // Verify the task appears in results when searching for collection name.
+    const taskResult = results.find(result => result.id === `Task:${task.id}`);
+    expect(taskResult).toBeDefined();
+
+    // Verify the collection name does NOT appear in the snippet (invisible matching).
+    // The snippet should only contain task content, not collection names.
+    expect(taskResult!.bodyTextSnippet).toEqual([
+        {text: "Mix flour, sugar, and apples together.", isHighlighted: false},
+    ]);
+
+    // Also verify the collection itself appears in results.
+    const collectionResult = results.find(
+        result => result.id === `TaskCollection:${collection.id}`,
+    );
+    expect(collectionResult).toBeDefined();
+
+    import.meta.jest.runAllTimers();
+    await ProcessContextModule.waitForTestTasks();
+});
+
+test("re-indexes task tags when collection name changes", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    // Create a collection with an initial name.
+    const collection = await TestTaskCollection.create(session, {
+        name: "Original Project Name",
+    });
+    await collection.access.grantDefault(session);
+
+    // Create a task in the collection.
+    const task = await TestTask.create(session, {title: "Test Task"});
+    await task.addCollection(session, collection);
+
+    // Wait for initial indexing.
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    {
+        const resultsForOldName = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "original",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+        // Task SHOULD be found by old collection name.
+        expect(resultsForOldName.find(r => r.id === `Task:${task.id}`)).toBeDefined();
+
+        const resultsForNewName = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "updated",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+        // Task should NOT be found by new collection name.
+        expect(resultsForNewName.find(r => r.id === `Task:${task.id}`)).toBeUndefined();
+    }
+
+    // Update the collection name.
+    await collection.updateName(session, "Updated Project Name");
+
+    // Wait for re-indexing triggered by the name change dependency.
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    {
+        const resultsForOldName = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "original",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+        // Task should NOT be found by old collection name.
+        expect(resultsForOldName.find(r => r.id === `Task:${task.id}`)).toBeUndefined();
+
+        const resultsForNewName = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "updated",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+        // Task SHOULD be found by new collection name.
+        expect(resultsForNewName.find(r => r.id === `Task:${task.id}`)).toBeDefined();
+    }
+
+    import.meta.jest.runAllTimers();
+    await ProcessContextModule.waitForTestTasks();
 });

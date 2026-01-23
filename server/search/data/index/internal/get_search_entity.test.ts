@@ -45,6 +45,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: "Caleb Meredith",
                     titleVersion: {type: "Integer", version: 0},
                     body: null,
+                    tags: [],
                     media: {type: "Account", accountId: session.account.id},
                     embeddingChunks: [],
                     creatorId: null,
@@ -100,6 +101,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: "Lorem Ipsum",
                     titleVersion: {type: "Integer", version: 55},
                     body: documentBody,
+                    tags: [],
                     embeddingChunks: [
                         {
                             preambleEndIndex: 15,
@@ -165,6 +167,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: null,
                     titleVersion: null,
                     body: "Test document comment content.",
+                    tags: [],
                     embeddingChunks: [
                         {
                             preambleEndIndex: 34,
@@ -214,6 +217,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: "Test Channel",
                     titleVersion: {type: "Integer", version: 0},
                     body: "Test channel description content.",
+                    tags: [],
                     embeddingChunks: [
                         {
                             preambleEndIndex: 56,
@@ -268,6 +272,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: "in Test Channel: Test post content",
                     titleVersion: {type: "Integers", versions: [0, 0]},
                     body: "in Test Channel: Test post content.",
+                    tags: [],
                     embeddingChunks: [
                         {
                             preambleEndIndex: 47,
@@ -322,6 +327,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: null,
                     titleVersion: null,
                     body: "Test post comment content.",
+                    tags: [],
                     embeddingChunks: [
                         {
                             preambleEndIndex: 30,
@@ -369,6 +375,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: null,
                     titleVersion: null,
                     body: null,
+                    tags: [],
                     embeddingChunks: [],
                     media: null,
                     creatorId: null,
@@ -402,6 +409,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: null,
                     titleVersion: null,
                     body: null,
+                    tags: [],
                     embeddingChunks: [],
                     media: null,
                     creatorId: null,
@@ -443,6 +451,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: null,
                     titleVersion: null,
                     body: null,
+                    tags: [],
                     embeddingChunks: [],
                     media: null,
                     creatorId: null,
@@ -486,6 +495,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: "Caleb Meredith, Josh Meredith, and Shawn Meredith",
                     titleVersion: null,
                     body: null,
+                    tags: [],
                     embeddingChunks: [],
                     media: {
                         type: "AccountPile",
@@ -542,6 +552,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     title: null,
                     titleVersion: null,
                     body: "Test chat message content.",
+                    tags: [],
                     embeddingChunks: [
                         {
                             preambleEndIndex: 49,

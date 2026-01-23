@@ -146,6 +146,7 @@ export type SearchEntity = {
     readonly title: string | null;
     readonly titleVersion: SearchEntityTitleVersion | null;
     readonly body: string | null;
+    readonly tags: ReadonlyArray<string>;
     readonly media: SearchEntityMedia | null;
     readonly embeddingChunks: ReadonlyArray<SearchEntityEmbeddingChunk>;
     readonly dueDate: CalendarDate | null;
@@ -198,6 +199,7 @@ const searchDeletedMessageEntity: Omit<SearchEntity, "id"> = {
     title: null,
     titleVersion: null,
     body: null,
+    tags: emptyArray,
     media: null,
     embeddingChunks: [],
     creatorId: null,
@@ -238,8 +240,10 @@ interface TaskModelForAuthorization {
  * `Authorization` trait.
  */
 interface TaskCollectionModelForAuthorization {
+    readonly id: TaskCollectionId;
     isDeleted(): boolean;
     getAccessPolicy(): AccessPolicy;
+    getNameAndRecordDependency(): string;
 }
 
 /**
@@ -663,11 +667,26 @@ class SearchEntityReadState {
                 return [task.id, task];
             }),
         );
-        const referencedCollectionById = new Map<TaskCollectionId, TaskCollectionModel>(
+
+        const referencedCollectionById = new Map<
+            TaskCollectionId,
+            TaskCollectionModelForAuthorization
+        >(
             referencedCollections.map(collection => {
                 this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
 
-                return [collection.id, collection];
+                // Wrap the collection model to automatically record `:Name` dependency
+                // when `getName()` is called.
+                const wrappedCollection: TaskCollectionModelForAuthorization = {
+                    id: collection.id,
+                    isDeleted: () => collection.isDeleted(),
+                    getAccessPolicy: () => collection.getAccessPolicy(),
+                    getNameAndRecordDependency: () => {
+                        this._recordDependencyId(`TaskCollection:${collection.id}:Name`);
+                        return collection.getName();
+                    },
+                };
+                return [collection.id, wrappedCollection];
             }),
         );
 
@@ -717,11 +736,22 @@ class SearchEntityReadState {
         });
 
         const referencedCollectionById = new Lazy(() => {
-            return new Map<TaskCollectionId, TaskCollectionModel>(
+            return new Map<TaskCollectionId, TaskCollectionModelForAuthorization>(
                 referencedCollections.map(collection => {
                     this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
 
-                    return [collection.id, collection];
+                    // Wrap the collection model to automatically record `:Name` dependency
+                    // when `getName()` is called.
+                    const wrappedCollection: TaskCollectionModelForAuthorization = {
+                        id: collection.id,
+                        isDeleted: () => collection.isDeleted(),
+                        getAccessPolicy: () => collection.getAccessPolicy(),
+                        getNameAndRecordDependency: () => {
+                            this._recordDependencyId(`TaskCollection:${collection.id}:Name`);
+                            return collection.getName();
+                        },
+                    };
+                    return [collection.id, wrappedCollection];
                 }),
             );
         });
@@ -761,11 +791,26 @@ class SearchEntityReadState {
                 return [task.id, task];
             }),
         );
-        const referencedCollectionById = new Map<TaskCollectionId, TaskCollectionModel>(
+
+        const referencedCollectionById = new Map<
+            TaskCollectionId,
+            TaskCollectionModelForAuthorization
+        >(
             referencedCollections.map(collection => {
                 this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
 
-                return [collection.id, collection];
+                // Wrap the collection model to automatically record `:Name` dependency
+                // when `getName()` is called.
+                const wrappedCollection: TaskCollectionModelForAuthorization = {
+                    id: collection.id,
+                    isDeleted: () => collection.isDeleted(),
+                    getAccessPolicy: () => collection.getAccessPolicy(),
+                    getNameAndRecordDependency: () => {
+                        this._recordDependencyId(`TaskCollection:${collection.id}:Name`);
+                        return collection.getName();
+                    },
+                };
+                return [collection.id, wrappedCollection];
             }),
         );
 
@@ -1226,6 +1271,7 @@ async function getAccountSearchEntity(
         title: account.initialData.name,
         titleVersion: {type: "Integer", version: account.initialData.nameVersion},
         body: null,
+        tags: emptyArray,
         media: {type: "Account", accountId},
         embeddingChunks: emptyArray,
 
@@ -1308,6 +1354,7 @@ async function getDocumentSearchEntity(
         title,
         titleVersion: {type: "Integer", version},
         body: getFullText(),
+        tags: emptyArray,
         media: null,
         embeddingChunks: getEmbeddingChunks(),
         creatorId,
@@ -1441,6 +1488,7 @@ async function getDocumentCommentSearchEntity(
         title: null,
         titleVersion: null,
         body: content?.getFullText() ?? null,
+        tags: emptyArray,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
@@ -1496,6 +1544,7 @@ async function getChannelSearchEntity(
         title: channel.name,
         titleVersion: {type: "Integer", version: channel.version},
         body: getFullText(),
+        tags: emptyArray,
         media: null,
         embeddingChunks: getEmbeddingChunks(),
         creatorId: channel.creatorId,
@@ -1584,6 +1633,7 @@ async function getPostSearchEntity(
         }),
         titleVersion: {type: "Integers", versions: [post.version, post.channel.version]},
         body: `in ${post.channel.name}: ${getFullText()}`,
+        tags: emptyArray,
         media: {type: "Account", accountId: post.authorId},
         embeddingChunks: getEmbeddingChunks(),
         creatorId: post.authorId,
@@ -1655,6 +1705,7 @@ async function getPostCommentSearchEntity(
         title: null,
         titleVersion: null,
         body: content?.getFullText() ?? null,
+        tags: emptyArray,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
@@ -1701,6 +1752,7 @@ async function getChatSearchEntity(
             title: null,
             titleVersion: null,
             body: null,
+            tags: emptyArray,
             media: null,
             embeddingChunks: emptyArray,
             creatorId: null,
@@ -1748,6 +1800,7 @@ async function getChatSearchEntity(
         // names in realtime.
         titleVersion: null,
         body: null,
+        tags: emptyArray,
         media:
             accountIds.length === 1
                 ? {type: "Account", accountId: accountIds[0]!}
@@ -1910,6 +1963,7 @@ async function getChatMessageSearchEntity(
         title: null,
         titleVersion: null,
         body: content?.getFullText() ?? null,
+        tags: emptyArray,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
@@ -2029,6 +2083,7 @@ async function getTaskSearchEntity(
             title,
             titleVersion,
             body: null,
+            tags: emptyArray,
             media: null,
             embeddingChunks: emptyArray,
             creatorId: null,
@@ -2169,6 +2224,16 @@ async function getTaskSearchEntity(
     const body = notesChunkResult.getFullText();
     const dueDate = task.getDueDate();
 
+    // Build tags array from non-deleted collection names.
+    const tags: Array<string> = [];
+    for (const {collectionId} of task.getCollections().getArray()) {
+        const collection = referencedCollectionById.get(collectionId);
+        if (collection && !collection.isDeleted()) {
+            const name = collection.getNameAndRecordDependency();
+            tags.push(name);
+        }
+    }
+
     return {
         id,
         accessPolicy,
@@ -2176,6 +2241,7 @@ async function getTaskSearchEntity(
         title,
         titleVersion,
         body: body.length > 0 ? body : null,
+        tags,
         media,
         embeddingChunks: body.length > 0 ? notesChunkResult.getEmbeddingChunks() : emptyArray,
         creatorId: task.getCreator().accountId,
@@ -2207,6 +2273,7 @@ async function getTaskCollectionSearchEntity(
             title,
             titleVersion,
             body: null,
+            tags: emptyArray,
             media: null,
             embeddingChunks: emptyArray,
             creatorId: null,
@@ -2226,6 +2293,7 @@ async function getTaskCollectionSearchEntity(
         title,
         titleVersion,
         body: null,
+        tags: emptyArray,
         media,
         embeddingChunks: emptyArray,
         creatorId: collection.rawData.creatorId,
@@ -2316,6 +2384,7 @@ async function getTaskCommentSearchEntity(
         title: null,
         titleVersion: null,
         body: content?.getFullText() ?? null,
+        tags: emptyArray,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,

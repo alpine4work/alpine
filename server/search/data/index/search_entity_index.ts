@@ -736,6 +736,7 @@ export async function processIndexSearchEntityJob(
             // for "tbody" wouldn't make sense if it matched all content with tables.
             body:
                 entity.body?.replaceAll(/(?<!\\)<\/?(?:table|thead|tbody|tr|td|th)>/g, "") ?? null,
+            tags: entity.tags,
             media: entity.media,
             creatorId: entity.creatorId,
             majorContributorIds: Array.from(majorContributorIds),
@@ -1358,6 +1359,30 @@ export async function searchByKeywords(
                                 // score plus a 2gram match score plus three 1gram match scores.
                                 type: "most_fields",
                                 fields: ["body._2gram", "body._3gram"],
+                                fuzziness: 0,
+                                boost,
+                            },
+                        },
+                        // Match against tags (e.g., collection names for tasks). Tags are
+                        // searchable but not highlighted in results.
+                        {
+                            match: {
+                                tags: {
+                                    query: queryTextValue,
+                                    fuzziness: withFuzziness ? "AUTO" : 0,
+                                    prefix_length: withFuzziness ? 1 : undefined,
+                                    boost,
+                                },
+                            },
+                        },
+                        {
+                            multi_match: {
+                                query: queryTextValue,
+                                // Sum the score from matches. This means a 3gram match will have a much higher
+                                // score than a 1gram match. Since a 3gram match's score is the 3gram match
+                                // score plus a 2gram match score plus three 1gram match scores.
+                                type: "most_fields",
+                                fields: ["tags._2gram", "tags._3gram"],
                                 fuzziness: 0,
                                 boost,
                             },

@@ -186,6 +186,38 @@ const SearchEntityTitleVersionType =
             SearchEntityTitleVersionSchema.deserialize(JSON.parse(titleVersion)),
     });
 
+const searchEntityKeywordIndex2GramShingleAnalyzer =
+    opensearchIndexEnglishWithWordDelimiterGraphAnalyzer.extend("and_2gram_shingle", {
+        filter: [
+            new OpensearchIndexAnalysisCustomFilter("2gram_shingle", {
+                type: "shingle",
+                min_shingle_size: 2,
+                max_shingle_size: 2,
+                output_unigrams: false,
+                // Same configuration as OpenSearch's `search_as_you_type` field.
+                // https://github.com/opensearch-project/OpenSearch/blob/a0b016bf154cf765483f38c4c7f135ae972004c2/modules/mapper-extras/src/main/java/org/opensearch/index/mapper/SearchAsYouTypeFieldMapper.java#L738
+                token_separator: " ",
+                filler_token: "",
+            }),
+        ],
+    });
+
+const searchEntityKeywordIndex3GramShingleAnalyzer =
+    opensearchIndexEnglishWithWordDelimiterGraphAnalyzer.extend("and_3gram_shingle", {
+        filter: [
+            new OpensearchIndexAnalysisCustomFilter("3gram_shingle", {
+                type: "shingle",
+                min_shingle_size: 3,
+                max_shingle_size: 3,
+                output_unigrams: false,
+                // Same configuration as OpenSearch's `search_as_you_type` field.
+                // https://github.com/opensearch-project/OpenSearch/blob/a0b016bf154cf765483f38c4c7f135ae972004c2/modules/mapper-extras/src/main/java/org/opensearch/index/mapper/SearchAsYouTypeFieldMapper.java#L738
+                token_separator: " ",
+                filler_token: "",
+            }),
+        ],
+    });
+
 export type SearchEntityKeywordIndexDoc = OpensearchIndexTypeType<
     typeof SearchEntityKeywordIndexDocType
 >;
@@ -327,48 +359,42 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
             indexOptions: "offsets",
             fields: {
                 _2gram: new OpensearchIndexTextType({
-                    analyzer: opensearchIndexEnglishWithWordDelimiterGraphAnalyzer.extend(
-                        "and_2gram_shingle",
-                        {
-                            filter: [
-                                new OpensearchIndexAnalysisCustomFilter("2gram_shingle", {
-                                    type: "shingle",
-                                    min_shingle_size: 2,
-                                    max_shingle_size: 2,
-                                    output_unigrams: false,
-                                    // Same configuration as OpenSearch's `search_as_you_type` field.
-                                    // https://github.com/opensearch-project/OpenSearch/blob/a0b016bf154cf765483f38c4c7f135ae972004c2/modules/mapper-extras/src/main/java/org/opensearch/index/mapper/SearchAsYouTypeFieldMapper.java#L738
-                                    token_separator: " ",
-                                    filler_token: "",
-                                }),
-                            ],
-                        },
-                    ),
+                    analyzer: searchEntityKeywordIndex2GramShingleAnalyzer,
                 }),
                 _3gram: new OpensearchIndexTextType({
-                    analyzer: opensearchIndexEnglishWithWordDelimiterGraphAnalyzer.extend(
-                        "and_3gram_shingle",
-                        {
-                            filter: [
-                                new OpensearchIndexAnalysisCustomFilter("3gram_shingle", {
-                                    type: "shingle",
-                                    min_shingle_size: 3,
-                                    max_shingle_size: 3,
-                                    output_unigrams: false,
-                                    // Same configuration as OpenSearch's `search_as_you_type` field.
-                                    // https://github.com/opensearch-project/OpenSearch/blob/a0b016bf154cf765483f38c4c7f135ae972004c2/modules/mapper-extras/src/main/java/org/opensearch/index/mapper/SearchAsYouTypeFieldMapper.java#L738
-                                    token_separator: " ",
-                                    filler_token: "",
-                                }),
-                            ],
-                        },
-                    ),
+                    analyzer: searchEntityKeywordIndex3GramShingleAnalyzer,
                 }),
             },
         })
             .nullable()
             // Store the body so we can highlight it.
             .store(),
+
+        /**
+         * Searchable tags that are never shown in highlighted snippets. Used for
+         * collection names on tasks so that searching for a collection name returns
+         * tasks in that collection. General purpose—could later include status
+         * names, assignee names, etc.
+         *
+         * Uses the same text+2gram/3gram configuration as the `body` field to
+         * support phrase matching for multi-word collection names like
+         * "Sprint FY2025Q3".
+         */
+        tags: new OpensearchIndexArrayType(
+            new OpensearchIndexTextType({
+                analyzer: opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
+                // Use "positions" instead of "offsets" since we never highlight tags.
+                indexOptions: "positions",
+                fields: {
+                    _2gram: new OpensearchIndexTextType({
+                        analyzer: searchEntityKeywordIndex2GramShingleAnalyzer,
+                    }),
+                    _3gram: new OpensearchIndexTextType({
+                        analyzer: searchEntityKeywordIndex3GramShingleAnalyzer,
+                    }),
+                },
+            }),
+        ).default([]),
 
         /**
          * Media we display alongside the search entity if available. For example, if
