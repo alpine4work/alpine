@@ -64,6 +64,7 @@ import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_with
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
@@ -113,6 +114,7 @@ import {
     MessageContent,
     MessageContentProsemirrorSchema,
     assertMessageContent,
+    emptyMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {
     MessagePayload,
@@ -1509,11 +1511,19 @@ async function getChannelSearchEntity(
 
     const channel = await state.getChannelNameAndDescriptionContentAndContributors(channelId);
 
+    const accessPolicy = getSearchEntityIndexAccessPolicy(channel.accessPolicy);
+
     const truncatedName = new Lazy(() =>
         truncateTokens(state.tokenizer, channel.name, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
-    const accessPolicy = getSearchEntityIndexAccessPolicy(channel.accessPolicy);
+    const truncatedSectionHeading = new LazyMap((sectionHeading: string) =>
+        truncateTokens(
+            state.tokenizer,
+            sectionHeading,
+            searchEntityEmbeddingPreambleTitleTokenCount,
+        ),
+    );
 
     const contentReferences = await getSearchContentReferences(
         state,
@@ -1527,11 +1537,24 @@ async function getChannelSearchEntity(
         tokenizer: state.tokenizer,
         getAccountIfExists: contentReferences.getAccountIfExists,
         getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
-        getChunkPreamble: ({isInitialChunk}) => {
+        getChunkPreamble: ({isInitialChunk, context}) => {
+            if (isInitialChunk) {
+                return {
+                    text:
+                        `# ${truncatedName.get()}` +
+                        // If there's no channel description, add a default description letting the
+                        // embedder know more about what kind of thing this is.
+                        (isContentEmpty(channel.description) ? "\n\nThis is a channel." : ""),
+                    lineMarginBottom: 2,
+                };
+            }
+
             return {
-                text: `This is${
-                    isInitialChunk ? " the " : " from the "
-                }description of the “${truncatedName.get()}” channel:`,
+                text: `This is from the “${truncatedName.get()}” channel description${
+                    context.sectionHeading !== null
+                        ? ` in the “${truncatedSectionHeading.get(context.sectionHeading)}” section`
+                        : ""
+                }:`,
                 lineMarginBottom: 2,
             };
         },
@@ -2258,6 +2281,8 @@ async function getTaskCollectionSearchEntity(
     state: SearchEntityReadState,
     collectionId: TaskCollectionId,
 ): Promise<SearchEntity> {
+    const id: SearchEntityId = `TaskCollection:${collectionId}`;
+
     const collection = await state.getTaskCollection(collectionId);
 
     const accessPolicy = getSearchEntityIndexAccessPolicy(collection.getAccessPolicy());
@@ -2286,8 +2311,67 @@ async function getTaskCollectionSearchEntity(
         };
     }
 
+    const truncatedName = new Lazy(() =>
+        truncateTokens(
+            state.tokenizer,
+            collection.getName(),
+            searchEntityEmbeddingPreambleTitleTokenCount,
+        ),
+    );
+
+    const truncatedSectionHeading = new LazyMap((sectionHeading: string) =>
+        truncateTokens(
+            state.tokenizer,
+            sectionHeading,
+            searchEntityEmbeddingPreambleTitleTokenCount,
+        ),
+    );
+
+    const collectionDescription = emptyMessageContent;
+
+    const contentReferences = await getSearchContentReferences(
+        state,
+        id,
+        accessPolicy,
+        collectionDescription,
+        emptySet,
+    );
+
+    // While task collections have no descriptions, we still want to generate
+    // embedding chunks. So if you search for "bug task collection" it’ll match
+    // keyword, NLP, and semantic search to put the bugs task collection at
+    // the top.
+    const {getEmbeddingChunks} = chunkSearchContent(collectionDescription, {
+        tokenizer: state.tokenizer,
+        getAccountIfExists: contentReferences.getAccountIfExists,
+        getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+        getChunkPreamble: ({isInitialChunk, context}) => {
+            if (isInitialChunk) {
+                return {
+                    text:
+                        `# ${truncatedName.get()}` +
+                        // If there's no collection description, add a default description letting the
+                        // embedder know more about what kind of thing this is.
+                        (isContentEmpty(collectionDescription)
+                            ? "\n\nThis is a task collection."
+                            : ""),
+                    lineMarginBottom: 2,
+                };
+            }
+
+            return {
+                text: `This is from the “${truncatedName.get()}” task collection description${
+                    context.sectionHeading !== null
+                        ? ` in the “${truncatedSectionHeading.get(context.sectionHeading)}” section`
+                        : ""
+                }:`,
+                lineMarginBottom: 2,
+            };
+        },
+    });
+
     return {
-        id: `TaskCollection:${collectionId}`,
+        id,
         accessPolicy,
         createdTime: new Date(collection.getCreatedTime()[0]),
         title,
@@ -2295,7 +2379,7 @@ async function getTaskCollectionSearchEntity(
         body: null,
         tags: emptyArray,
         media,
-        embeddingChunks: emptyArray,
+        embeddingChunks: getEmbeddingChunks(),
         creatorId: collection.rawData.creatorId,
         // In the future we could keep track of which accounts were adding tasks to the
         // collection to answer queries like "collections I've added tasks to".

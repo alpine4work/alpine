@@ -2435,7 +2435,13 @@ describe("getSearchEntity", () => {
                     titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
                     body: null,
                     tags: [],
-                    embeddingChunks: [],
+                    embeddingChunks: [
+                        {
+                            preambleEndIndex: 58,
+                            text: "# Private Test Task Collection\n\nThis is a task collection.",
+                            tokenCountWithoutPreamble: 0,
+                        },
+                    ],
                     media: {type: "TaskCollectionColor", color: null, version: expect.any(Array)},
                     creatorId: session1.account.id,
                     contributorIds: new Map(),
@@ -2467,7 +2473,13 @@ describe("getSearchEntity", () => {
                     titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
                     body: null,
                     tags: [],
-                    embeddingChunks: [],
+                    embeddingChunks: [
+                        {
+                            preambleEndIndex: 57,
+                            text: "# Public Test Task Collection\n\nThis is a task collection.",
+                            tokenCountWithoutPreamble: 0,
+                        },
+                    ],
                     media: {
                         type: "TaskCollectionColor",
                         color: "purple",
@@ -2910,7 +2922,7 @@ describe("getSearchEntity", () => {
                     snapshot: expect.any(Uint8Array),
                 },
                 body: "Lorem ipsum dolor sit amet",
-                tags: expect.any(Array),
+                tags: [collection.initialName],
                 embeddingChunks: expect.any(Array),
                 media: {
                     type: "TaskDisplayStatus",

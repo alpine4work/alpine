@@ -170,6 +170,7 @@ import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_sea
 import {
     SearchAffinityEntityId,
     SearchDynamicEntityId,
+    SearchDynamicEntityIdObject,
     SearchEntityId,
     SearchMentionEntityId,
     getSearchMentionEntityTypes,
@@ -509,6 +510,35 @@ function mapNaturalLanguageFilterToOpensearchValue(
  */
 const minEmbeddingChunkTokenCount = 35;
 
+/**
+ * Always index these search entity types even if their embedding chunk token
+ * count is below `minEmbeddingChunkTokenCount`.
+ */
+function alwaysEmbedSearchEntityType(type: SearchDynamicEntityIdObject["type"]): boolean {
+    switch (type) {
+        // Always index channels and task collections since they're created rarely and
+        // will usually be meaningful even if their search entity doesn't immediately
+        // have much content.
+        case "Channel":
+        case "TaskCollection":
+            return true;
+
+        case "Account":
+        case "Document":
+        case "DocumentComment":
+        case "Post":
+        case "PostComment":
+        case "Chat":
+        case "ChatMessage":
+        case "Task":
+        case "TaskComment":
+            return false;
+
+        default:
+            throw exhaustive(type);
+    }
+}
+
 export const processIndexSearchEntityDependentsJobTestCounter =
     new TestCounter<SearchEntityDependencyId>();
 
@@ -725,7 +755,8 @@ export async function processIndexSearchEntityJob(
             dueDate: entity.dueDate?.toDate("UTC") ?? null,
             hasEmbeddingChunks: entity.embeddingChunks.some(
                 embeddingChunk =>
-                    embeddingChunk.tokenCountWithoutPreamble >= minEmbeddingChunkTokenCount,
+                    embeddingChunk.tokenCountWithoutPreamble >= minEmbeddingChunkTokenCount ||
+                    alwaysEmbedSearchEntityType(job.update.type),
             ),
             accessPolicy: entity.accessPolicy,
             dependencyIds: Array.from(dependencyIds),
@@ -1055,7 +1086,12 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
             //
             // When seeing if this chunk is too small for embedding, we ignore the preamble
             // added for context. We only want to measure the content's tokens.
-            if (chunk.tokenCountWithoutPreamble < minEmbeddingChunkTokenCount) continue;
+            if (
+                chunk.tokenCountWithoutPreamble < minEmbeddingChunkTokenCount &&
+                !alwaysEmbedSearchEntityType(entityIdObject.type)
+            ) {
+                continue;
+            }
 
             // `murmurhash` returns a positive 32-bit integer. Convert to a signed 32-bit
             // integer using the JavaScript bitwise operator `n | 0`.

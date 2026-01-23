@@ -1251,6 +1251,18 @@ Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat s
                     ],
                 },
             },
+            {
+                id: expect.any(String),
+                score: expect.any(Number),
+                fields: {
+                    "entity.id": [`Channel:${channel.id}`],
+                    text: [
+                        `# Test
+
+This is a channel.`,
+                    ],
+                },
+            },
         ].sort((doc1, doc2) =>
             defaultCompareStrings(
                 doc1.fields["entity.id"][0] ?? "",
@@ -1308,6 +1320,18 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque er
                         `This is a post in the “Lorem Ipsum” channel:
 
 Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.`,
+                    ],
+                },
+            },
+            {
+                id: expect.any(String),
+                score: expect.any(Number),
+                fields: {
+                    "entity.id": [`Channel:${channel.id}`],
+                    text: [
+                        `# Lorem Ipsum
+
+This is a channel.`,
                     ],
                 },
             },
@@ -1786,6 +1810,8 @@ test("search by semantics only sees entities the account has access to", async (
             `Task:${task1.id}`,
             `Task:${task3.id}`,
             `Task:${task5.id}`,
+            `TaskCollection:${collection1.id}`,
+            `TaskCollection:${collection3.id}`,
         ].sort(defaultCompareStrings),
     );
 
@@ -1813,6 +1839,9 @@ test("search by semantics only sees entities the account has access to", async (
             `Task:${task3.id}`,
             `Task:${task4.id}`,
             `Task:${task5.id}`,
+            `TaskCollection:${collection1.id}`,
+            `TaskCollection:${collection2.id}`,
+            `TaskCollection:${collection3.id}`,
         ].sort(defaultCompareStrings),
     );
 });
@@ -6390,7 +6419,7 @@ describe("bot with space-level access can access space-level content", () => {
             expect(
                 results
                     .map(result => result.id)
-                    .filter(id => !id.startsWith("Account:"))
+                    .filter(id => !id.startsWith("Account:") && !id.startsWith("Channel:"))
                     .sort(defaultCompareStrings),
             ).toEqual(
                 [`Document:${publicDocument.id}`, `Post:${publicPost.id}`].sort(
@@ -6498,7 +6527,7 @@ describe("bot with account-specific grants has access to entities that every acc
             expect(
                 results
                     .map(result => result.id)
-                    .filter(id => !id.startsWith("Account:"))
+                    .filter(id => !id.startsWith("Account:") && !id.startsWith("Channel:"))
                     .sort(defaultCompareStrings),
             ).toEqual(
                 [

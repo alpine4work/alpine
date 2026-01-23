@@ -220,9 +220,57 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     tags: [],
                     embeddingChunks: [
                         {
-                            preambleEndIndex: 56,
-                            text: "This is the description of the “Test Channel” channel:\n\nTest channel description content.",
+                            preambleEndIndex: 16,
+                            text: "# Test Channel\n\nTest channel description content.",
                             tokenCountWithoutPreamble: 5,
+                        },
+                    ],
+                    media: null,
+                    creatorId: session.account.id,
+                    contributorIds: new Map([[session.account.id, "Major"]]),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
+                },
+            });
+        });
+
+        test("can get channel search entity without description", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const channel = await TestChannel.create(session, {
+                name: "Test Channel",
+            });
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Channel", channelId: channel.id},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).toEqual({
+                dependencyIds: new Set([]),
+                entity: {
+                    id: `Channel:${channel.id}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
+                    createdTime: channel.createdTime,
+                    title: "Test Channel",
+                    titleVersion: {type: "Integer", version: 0},
+                    body: "",
+                    tags: [],
+                    embeddingChunks: [
+                        {
+                            preambleEndIndex: 34,
+                            text: "# Test Channel\n\nThis is a channel.",
+                            tokenCountWithoutPreamble: 0,
                         },
                     ],
                     media: null,

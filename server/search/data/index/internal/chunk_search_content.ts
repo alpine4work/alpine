@@ -576,6 +576,12 @@ export function printSearchContentChunk(chunk: {
     for (let i = 0; i < flatChunks.length; i++) {
         const chunk = flatChunks[i]!;
 
+        // If this chunk is empty and the only chunk in `flatChunks` then don't
+        // continue. Since we'll only end up adding trailing newlines.
+        if (chunk.sentenceChunks.length === 0 && flatChunks.length === 1) {
+            break;
+        }
+
         if (i === 0 && text.length === 0 && lastLineMargin === 0) {
             // Preamble is empty, don't add margin lines at the beginning of the text.
             isLineStart = true;
