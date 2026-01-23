@@ -1,4 +1,4 @@
-import {CSSProperties, Ref, useRef} from "react";
+import {CSSProperties, JSX, Ref, createElement, useRef} from "react";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
@@ -16,18 +16,20 @@ import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_ge
 // two files implement effectively the same logic plus some other stuff.
 export function HtmlGeneratorView({
     ref = null,
+    as = "div",
     className,
     style,
     htmlGenerator,
 }: {
-    ref?: Ref<HTMLDivElement | null>;
+    ref?: Ref<HTMLElement | null>;
+    as?: keyof JSX.IntrinsicElements;
     className?: string;
     style?: CSSProperties;
     htmlGenerator: HtmlElementGenerator;
 }) {
     const isInitialAppRender = useIsInitialAppRender();
 
-    const containerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLElement>(null);
     const previousHtmlGeneratorRef = useRef<HtmlGenerator>(null);
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -58,14 +60,12 @@ export function HtmlGeneratorView({
         }
     }, [htmlGenerator, isInitialAppRender]);
 
-    return (
-        <div
-            ref={useMergedRefs(ref, containerRef)}
-            className={className}
-            style={style}
-            dangerouslySetInnerHTML={
-                isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined
-            }
-        />
-    );
+    return createElement(as, {
+        ref: useMergedRefs(ref, containerRef),
+        className,
+        style,
+        dangerouslySetInnerHTML: isInitialAppRender
+            ? {__html: htmlGenerator.generateHtml()}
+            : undefined,
+    });
 }

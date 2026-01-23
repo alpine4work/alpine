@@ -1,6 +1,5 @@
-import classNames from "classnames";
 import {CaretRight} from "phosphor-react";
-import {Ref, useEffect, useMemo, useState} from "react";
+import {ReactNode, Ref, useEffect, useMemo, useState} from "react";
 import {usePress} from "react-aria";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {MessageStreamViewNonContentPart} from "~/client/web/messaging/internal/message_stream_view_non_content_part.js";
@@ -8,12 +7,7 @@ import {MessageStreamSection} from "~/client/web/messaging/internal/message_stre
 import {MessageStreamViewThinkingExpanded} from "~/client/web/messaging/internal/message_stream_view_thinking_expanded.js";
 import {MessageStreamViewThinkingProgressDefaultSummary} from "~/client/web/messaging/internal/message_stream_view_thinking_progress_default_summary.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
-import {
-    contentStyles,
-    pulseAnimationWithMoreOpacityClassName,
-    sprinkles,
-    waveAnimationClassName,
-} from "~/client/web/styles/styles.js";
+import {contentStyles, sprinkles, waveAnimationClassName} from "~/client/web/styles/styles.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -149,67 +143,63 @@ export function MessageStreamViewThinkingSummary({
                         }
                     }}
                     tabIndex={nonContentParts.length > 0 ? 0 : undefined}
-                    className={classNames(
-                        sprinkles({
-                            // This must be `inline-block` so only the text is clickable instead of the full
-                            // block width.
-                            display: "inline-block",
-                            cursor: nonContentParts.length > 0 ? "pointer" : undefined,
-                            opacity: isPressed ? "60" : undefined,
-                        }),
-                        !thinkingEndTime && waveAnimationClassName,
-                    )}
+                    className={sprinkles({
+                        maxWidth: "full",
+                        // This must be `inline-flex` so only the text is clickable instead of the full
+                        // block width.
+                        display: "inline-flex",
+                        alignItems: "center",
+                        cursor: nonContentParts.length > 0 ? "pointer" : undefined,
+                        opacity: isPressed ? "60" : undefined,
+                    })}
                 >
                     <div
-                        className={classNames(
-                            sprinkles({
-                                // This must be `inline-flex` so only the text is clickable instead of the full
-                                // block width.
-                                display: "inline-flex",
-                                alignItems: "center",
-                            }),
-                            !thinkingEndTime && pulseAnimationWithMoreOpacityClassName,
-                        )}
+                        className={sprinkles({
+                            // This must be `inline-block` so only the text is clickable.
+                            display: "inline-block",
+                            maxWidth: "full",
+                            fontStyle: "truncate",
+                        })}
+                        style={{
+                            // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                            // have `min-width: auto` which extends with content.
+                            // https://stackoverflow.com/a/66689926/1568890
+                            minWidth: 0,
+                        }}
                     >
-                        <div
-                            className={sprinkles({
-                                // This must be `inline-block` so only the text is clickable.
-                                display: "inline-block",
-                                fontStyle: "truncate",
-                            })}
-                        >
-                            {thinkingEndTime ? (
-                                <MessageStreamSectionThinkingCompletedSummary
-                                    thinkingStartTime={section.startTime}
-                                    thinkingEndTime={thinkingEndTime}
-                                />
-                            ) : (
-                                <MessageStreamSectionThinkingProgressSummary
-                                    references={content.references}
-                                    nonContentParts={nonContentParts}
-                                />
-                            )}
-                        </div>
-                        {nonContentParts.length > 0 && (
-                            <>
-                                <div
-                                    className={sprinkles({
-                                        fontSize: contentStyles.paragraphActualFontSize,
-                                    })}
-                                >
-                                    &nbsp;
-                                </div>
-                                <CaretRight
-                                    size={spacing["3"]}
-                                    weight="bold"
-                                    style={{
-                                        transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                                        transition: "transform 250ms ease",
-                                    }}
-                                />
-                            </>
+                        {thinkingEndTime ? (
+                            <MessageStreamSectionThinkingCompletedSummary
+                                thinkingStartTime={section.startTime}
+                                thinkingEndTime={thinkingEndTime}
+                            />
+                        ) : (
+                            <MessageStreamSectionThinkingProgressSummary
+                                references={content.references}
+                                nonContentParts={nonContentParts}
+                            />
                         )}
                     </div>
+                    {nonContentParts.length > 0 && (
+                        <>
+                            <div
+                                className={sprinkles({
+                                    flexShrink: "0",
+                                    fontSize: contentStyles.paragraphActualFontSize,
+                                })}
+                            >
+                                &nbsp;
+                            </div>
+                            <CaretRight
+                                size={spacing["3"]}
+                                weight="bold"
+                                className={sprinkles({flexShrink: "0"})}
+                                style={{
+                                    transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                                    transition: "transform 250ms ease",
+                                }}
+                            />
+                        </>
+                    )}
                 </div>
             </FocusRing>
             {isExpanded && (
@@ -325,14 +315,27 @@ function MessageStreamSectionThinkingProgressSummary({
         };
     }, [nonContentParts, progress]);
 
+    let node: ReactNode;
+
     if (progress === null) {
-        return <MessageStreamViewThinkingProgressDefaultSummary />;
+        node = <MessageStreamViewThinkingProgressDefaultSummary />;
     } else {
-        return (
+        node = (
             <MessageStreamViewNonContentPart
                 references={references}
                 part={nonContentParts[progress.index]!}
             />
         );
     }
+
+    return (
+        <span
+            // Remount (and reset the wave animation) whenever we show a new
+            // non-content part.
+            key={progress?.index}
+            className={waveAnimationClassName}
+        >
+            {node}
+        </span>
+    );
 }

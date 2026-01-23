@@ -77,7 +77,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-type ChatGptAgentRoute = "NotFound" | "FetchConversationState" | "Webhook";
+type ChatGptAgentRoute = "NotFound" | "FetchConversationState";
 
 type ChatAgentGptResponse = {
     usedMillicents: number;
@@ -102,10 +102,6 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
     }
 
     protected override _parseRoute(url: URL): [string, ChatGptAgentRoute] {
-        if (url.pathname === "/webhook") {
-            return ["/webhook", "Webhook"];
-        }
-
         if (url.pathname === "/conversation-state") {
             return ["/conversation-state", "FetchConversationState"];
         }

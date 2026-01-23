@@ -14,10 +14,9 @@ import {
     backgroundColorVar,
     colorSchemeVars,
     contentStyles,
-    pulseAnimationWithMoreOpacityClassName,
+    pulseAnimationClassName,
     spinAnimationClassName,
     sprinkles,
-    waveAnimationClassName,
 } from "~/client/web/styles/styles.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
@@ -241,16 +240,15 @@ function MessageStreamViewThinkingExpandedItem({
             </div>
             <div
                 className={sprinkles({
+                    flexGrow: "1",
                     paddingBottom: !isLastItem ? contentStyles.standaloneBlockMargin : undefined,
                 })}
             >
                 {part.type === "Done" ? (
                     <div>Done</div>
                 ) : part.type === "Thinking" ? (
-                    <div className={waveAnimationClassName}>
-                        <div className={pulseAnimationWithMoreOpacityClassName}>
-                            <MessageStreamViewThinkingProgressDefaultSummary />
-                        </div>
+                    <div className={pulseAnimationClassName}>
+                        <MessageStreamViewThinkingProgressDefaultSummary />
                     </div>
                 ) : (
                     <MessageStreamViewNonContentPart references={references} part={part} />

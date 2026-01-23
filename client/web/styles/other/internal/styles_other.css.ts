@@ -31,4 +31,5 @@ export * as searchStyles from "~/client/web/styles/other/internal/search.css.js"
 export * as spaceLayoutStyles from "~/client/web/styles/other/internal/space_layout.css.js";
 export * as tasksStyles from "~/client/web/styles/other/internal/tasks.css.js";
 export * as toastStyles from "~/client/web/styles/other/internal/toast.css.js";
+export * from "~/client/web/styles/other/internal/wave_animation.css.js";
 export * from "~/client/web/styles/other/internal/wiggle_animation.css.js";

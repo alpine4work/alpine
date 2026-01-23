@@ -201,7 +201,8 @@ export abstract class AgentDurableObjectBase<Route> {
 
         const url = new URL(request.url);
 
-        const [route, routeObject] = this._parseRoute(url);
+        const [route, routeObject]: [string, Route | "Webhook"] =
+            url.pathname === "/webhook" ? ["/webhook", "Webhook"] : this._parseRoute(url);
 
         return traceServerResponse(
             this._tracer.get(),

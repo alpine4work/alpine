@@ -183,7 +183,7 @@ export function MessageStreamViewNonContentPart({
     const {space, currentAccount} = useSpaceContext();
     const navigate = useNavigate();
 
-    const containerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLElement>(null);
 
     const htmlGenerator = useStore(
         useMemo(
@@ -244,5 +244,13 @@ export function MessageStreamViewNonContentPart({
         };
     }, [htmlGenerator, navigate]);
 
-    return <HtmlGeneratorView ref={containerRef} htmlGenerator={htmlGenerator} />;
+    return (
+        <HtmlGeneratorView
+            ref={containerRef}
+            // Must be an inline element `<span>` instead of a `<div>` so text truncation
+            // works properly.
+            as="span"
+            htmlGenerator={htmlGenerator}
+        />
+    );
 }
