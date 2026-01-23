@@ -116,6 +116,11 @@ function getContentViewInlineNodeSizeFromDom(
         return {type: "Pos", pos: parseInt(posString, 10) + 1 - (options?.posAttributeOffset ?? 0)};
     }
 
+    // Skip widget decorations - they don't correspond to ProseMirror content.
+    if (node.hasAttribute("data-widget")) {
+        return {type: "NodeSize", nodeSize: 0};
+    }
+
     let nodeSize = 0;
 
     for (let i = node.childNodes.length - 1; i >= 0; i--) {

@@ -1342,21 +1342,27 @@ export function ContentView<Content extends ContentWithReferences>({
             ({startNode, startOffset, endNode, endOffset}) => {
                 const content = events.getContent();
 
-                const startPos = element.contains(startNode)
-                    ? assertExists(
-                          getContentViewPosFromDom(element, startNode, startOffset, {
-                              posAttributeOffset,
-                          })?.[0],
-                      )
-                    : 0;
+                const startPos = !element.contains(startNode)
+                    ? 0
+                    : Math.max(
+                          0,
+                          assertExists(
+                              getContentViewPosFromDom(element, startNode, startOffset, {
+                                  posAttributeOffset,
+                              })?.[0],
+                          ),
+                      );
 
-                const endPos = element.contains(endNode)
-                    ? assertExists(
-                          getContentViewPosFromDom(element, endNode, endOffset, {
-                              posAttributeOffset,
-                          })?.[1],
-                      )
-                    : content.doc.nodeSize - 2;
+                const endPos = !element.contains(endNode)
+                    ? content.doc.nodeSize - 2
+                    : Math.min(
+                          content.doc.nodeSize - 2,
+                          assertExists(
+                              getContentViewPosFromDom(element, endNode, endOffset, {
+                                  posAttributeOffset,
+                              })?.[1],
+                          ),
+                      );
 
                 const slice = content.doc.slice(startPos, endPos, true);
 

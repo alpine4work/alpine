@@ -142,6 +142,12 @@ export function serializeProsemirrorNodeToHtml(
 
             switch (decoration.type) {
                 case "Widget": {
+                    // Make it clear this HTML is a widget so `getContentViewPosFromDom()` can skip
+                    // over the widget. This does mutate the decoration HTML but that should be fine
+                    // since the calling function is unlikely to use the HTML for some
+                    // other purpose.
+                    decoration.html.setAttribute("data-widget", "");
+
                     widgetDecorationQueue.push(decoration);
                     break;
                 }
@@ -203,6 +209,12 @@ export function serializeProsemirrorFragmentToHtmlGenerator(
 
             switch (decoration.type) {
                 case "Widget": {
+                    // Make it clear this HTML is a widget so `getContentViewPosFromDom()` can skip
+                    // over the widget. This does mutate the decoration HTML but that should be fine
+                    // since the calling function is unlikely to use the HTML for some
+                    // other purpose.
+                    decoration.html.setAttribute("data-widget", "");
+
                     widgetDecorationQueue.push(decoration);
                     break;
                 }
