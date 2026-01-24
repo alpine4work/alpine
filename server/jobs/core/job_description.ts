@@ -184,6 +184,17 @@ export type SendWebPushNotificationJobDescription = SchemaType<
     typeof SendWebPushNotificationJobDescriptionSchema
 >;
 
+const SendPendingSubtleNotificationsForInboxJobDescriptionSchema = Schema.object({
+    type: Schema.value("SendPendingSubtleNotificationsForInbox"),
+    accountId: Schema.id<AccountId>(),
+    spaceId: Schema.id<SpaceId>(),
+    sendTime: Schema.date,
+});
+
+export type SendPendingSubtleNotificationsForInboxJobDescription = SchemaType<
+    typeof SendPendingSubtleNotificationsForInboxJobDescriptionSchema
+>;
+
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
@@ -199,4 +210,6 @@ export const JobDescriptionSchema = Schema.union({
     CallBotWebhook: CallBotWebhookJobDescriptionSchema,
     SendNotificationDigest: SendNotificationDigestJobDescriptionSchema,
     SendWebPushNotification: SendWebPushNotificationJobDescriptionSchema,
+    SendPendingSubtleNotificationsForInbox:
+        SendPendingSubtleNotificationsForInboxJobDescriptionSchema,
 });

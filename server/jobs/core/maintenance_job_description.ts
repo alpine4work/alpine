@@ -83,4 +83,8 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
         emailAddress: EmailAddressSchema,
         openSpaceId: Schema.id<SpaceId>().nullable(),
     }),
+
+    SendAllPendingSubtleNotifications: Schema.object({
+        type: Schema.value("SendAllPendingSubtleNotifications"),
+    }),
 });

@@ -39,6 +39,7 @@ export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
     "ForumRealtime_Index1",
     "Inbox_Index1",
     "Inbox_Index2",
+    "Notifications_Index1",
     "SearchEntities_Index1",
     "SearchEntities_Index2",
     "SearchEntities_Index3",

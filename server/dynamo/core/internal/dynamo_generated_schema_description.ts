@@ -9738,6 +9738,199 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             },
                             "childSortRangeByType": {}
+                        },
+                        "PendingSubtleNotifications": {
+                            "id": 2,
+                            "orderKey": "a2",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "lastUpdatedTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "hasPendingSubtleNotifications": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": true
+                                    },
+                                    "pendingSubtleNotifications": {
+                                        "valueSchema": {
+                                            "type": "Map",
+                                            "keySchema": {
+                                                "type": "String"
+                                            },
+                                            "valueSchema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "eventAuthorId": {
+                                                        "valueSchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "eventTime": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "inboxEntryKey": {
+                                                        "valueSchema": {
+                                                            "type": "Union",
+                                                            "typeKey": "type",
+                                                            "variantSchemaByTypeValue": {
+                                                                "Chat": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "type": {
+                                                                            "valueSchema": {
+                                                                                "type": "Value",
+                                                                                "value": "Chat"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "chatId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "PostComments": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "type": {
+                                                                            "valueSchema": {
+                                                                                "type": "Value",
+                                                                                "value": "PostComments"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "postId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "ChannelPosts": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "type": {
+                                                                            "valueSchema": {
+                                                                                "type": "Value",
+                                                                                "value": "ChannelPosts"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "channelId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "bucketGeneration": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "DocumentCommentThread": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "type": {
+                                                                            "valueSchema": {
+                                                                                "type": "Value",
+                                                                                "value": "DocumentCommentThread"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "documentId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "commentThreadId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "DocumentNewCommentThreads": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "type": {
+                                                                            "valueSchema": {
+                                                                                "type": "Value",
+                                                                                "value": "DocumentNewCommentThreads"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "documentId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "bucketGeneration": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "Task": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "type": {
+                                                                            "valueSchema": {
+                                                                                "type": "Value",
+                                                                                "value": "Task"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "taskId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -9862,7 +10055,37 @@ export const dynamoGeneratedSchemaDescription: {
                     }
                 }
             },
-            "indexes": []
+            "indexes": [
+                {
+                    "projection": "KeysOnly",
+                    "partitionKeyBehavior": {
+                        "type": "Separate"
+                    },
+                    "overloadByName": {
+                        "PendingSubtleNotificationsIndex": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "Inbox",
+                                    "sortRangeType": "PendingSubtleNotifications"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "hasPendingSubtleNotifications": {
+                                    "type": "Boolean"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "accountId": {
+                                    "type": "Id"
+                                },
+                                "spaceId": {
+                                    "type": "Id"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         },
         "SearchEntities": {
             "name": "SearchEntities",

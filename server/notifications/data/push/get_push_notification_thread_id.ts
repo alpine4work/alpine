@@ -3,7 +3,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
- * Returns a string that is unique* for a given inbox entry item, limited to 32 characters so it
+ * Returns a string that is unique* for a given inbox topic, limited to 32 characters so it
  * can be used as a topic for web push notifications.
  *
  * *Technically could be non-unique over a long enough timeframe or with a very unlucky combination

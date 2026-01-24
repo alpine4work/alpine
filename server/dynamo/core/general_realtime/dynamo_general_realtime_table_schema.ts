@@ -56,6 +56,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
@@ -2913,6 +2914,24 @@ export class DynamoGeneralRealtimeTableSchema<
                 };
             },
 
+            query: async (
+                context: DynamoContext,
+                options: {
+                    partitionKey: DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>;
+                    startSortKey?: DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>;
+                    endSortKey?: DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>;
+                    isStartSortKeyExclusive?: boolean;
+                    isEndSortKeyExclusive?: boolean;
+                    // Required to specify a limit or the `All` string. So if you intentionally
+                    // want everything you have to say so.
+                    limit: number | "All";
+                    pageLimit?: number;
+                    descending?: boolean;
+                },
+            ) => {
+                return Index.query(context, options);
+            },
+
             backfillRealtimeQuery: (context, {partitionKey, checkpoint}) => {
                 const partitionKeyString = Index.serializeOpaquePartitionKey(partitionKey);
 
@@ -3234,6 +3253,33 @@ export class DynamoGeneralRealtimeTableSchema<
                               },
                     items: finalItems,
                 };
+            },
+
+            query: async (
+                context: DynamoContext,
+                options: {
+                    partitionKey: DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>;
+                    startSortKey?: DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>;
+                    endSortKey?: DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>;
+                    isStartSortKeyExclusive?: boolean;
+                    isEndSortKeyExclusive?: boolean;
+                    // Required to specify a limit or the `All` string. So if you intentionally
+                    // want everything you have to say so.
+                    limit: number | "All";
+                    pageLimit?: number;
+                    descending?: boolean;
+                },
+            ) => {
+                // Query the index to get item keys, then fetch full items from the table.
+                // This is the "join" operation - the index only stores keys, not full items.
+                return asyncIterableFromIterable(
+                    await parallelMapAsyncIterableToArray(
+                        Index.query(context, options),
+                        async itemKey => {
+                            return await this._table.getItem(context, itemKey);
+                        },
+                    ),
+                );
             },
 
             backfillRealtimeQuery: (context, {partitionKey, checkpoint}) => {
@@ -3686,6 +3732,25 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
     };
 
     getRealtimeQueryPartitionKey(partitionKey: IndexPartitionKey): DynamoIndexPartitionKey;
+
+    /**
+     * Query the index. Returns raw items without constructing models or cursors.
+     */
+    query(
+        context: DynamoContext,
+        options: {
+            partitionKey: IndexPartitionKey;
+            startSortKey?: IndexSortKey;
+            endSortKey?: IndexSortKey;
+            isStartSortKeyExclusive?: boolean;
+            isEndSortKeyExclusive?: boolean;
+            // Required to specify a limit or the `All` string. So if you intentionally
+            // want everything you have to say so.
+            limit: number | "All";
+            pageLimit?: number;
+            descending?: boolean;
+        },
+    ): Promise<AsyncIterableIterator<MergeObjectIntersection<IndexPartitionKey & IndexSortKey>>>;
 
     /**
      * Query the index.

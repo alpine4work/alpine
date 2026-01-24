@@ -1107,6 +1107,30 @@ Resources:
                 SqsParameters: {}
         Metadata:
             aws:cdk:path: CyberworldsStack/CronJobs/EnqueueScheduledNotificationDigestsSchedule/Resource
+    CronJobsSendAllPendingSubtleNotificationsScheduleC0779414:
+        Type: AWS::Scheduler::Schedule
+        Properties:
+            FlexibleTimeWindow:
+                Mode: OFF
+            ScheduleExpression: cron(55 * * * ? *)
+            ScheduleExpressionTimezone: Etc/UTC
+            State: ENABLED
+            Target:
+                Arn:
+                    Fn::GetAtt:
+                        - SqsJobQueue62388F96
+                        - Arn
+                Input: '{"type":"Maintenance","sendTime":"<aws.scheduler.scheduled-time>","delaySeconds":0,"job":{"type":"SendAllPendingSubtleNotifications"},"tracerContext":null}'
+                RetryPolicy:
+                    MaximumEventAgeInSeconds: 86400
+                    MaximumRetryAttempts: 5
+                RoleArn:
+                    Fn::GetAtt:
+                        - SchedulerRoleForTarget49d3a1E18AF9C0
+                        - Arn
+                SqsParameters: {}
+        Metadata:
+            aws:cdk:path: CyberworldsStack/CronJobs/SendAllPendingSubtleNotificationsSchedule/Resource
     SchedulerRoleForTarget49d3a1E18AF9C0:
         Type: AWS::IAM::Role
         Properties:
@@ -1544,8 +1568,21 @@ Resources:
                   AttributeType: S
                 - AttributeName: sortKey
                   AttributeType: S
+                - AttributeName: index1PartitionKey
+                  AttributeType: S
+                - AttributeName: index1SortKey
+                  AttributeType: S
             BillingMode: PAY_PER_REQUEST
             DeletionProtectionEnabled: true
+            GlobalSecondaryIndexes:
+                - IndexName: Index1
+                  KeySchema:
+                      - AttributeName: index1PartitionKey
+                        KeyType: HASH
+                      - AttributeName: index1SortKey
+                        KeyType: RANGE
+                  Projection:
+                      ProjectionType: KEYS_ONLY
             KeySchema:
                 - AttributeName: partitionKey
                   KeyType: HASH

@@ -345,7 +345,8 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
 
                 await sendPushNotificationToAccountTargets(context, {
                     accountId,
-                    eventId: event.id,
+                    deduplicationTag: event.id,
+                    notificationEvent: event,
                     newInboxEntryItem: result.newInboxEntryItem,
                     loudNotificationCountDifference: result.loudNotificationCountDifference,
                     getAlertContent: newInboxEntryItem =>

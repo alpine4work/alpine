@@ -3,6 +3,7 @@ import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {getInitialInboxItem} from "~/server/notifications/data/internal/get_initial_inbox_item.js";
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {observeInboxItem} from "~/server/notifications/data/internal/observe_inbox_item.js";
+import {clearPendingSubtleNotificationsForInbox} from "~/server/notifications/data/internal/push/clear_pending_subtle_notifications_for_inbox.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -32,17 +33,20 @@ export async function observeInbox(
         authorizeNotBotSpaceAccount(context, spaceId, accountId),
     ]);
 
-    await InboxTable.updateItem(
-        context,
-        {
-            partitionType: "Account",
-            sortRangeType: "InboxAttributes",
-            spaceId,
-            accountId,
-        },
-        item => {
-            item ??= DynamoItem.create(getInitialInboxItem(spaceId, accountId));
-            return observeInboxItem(item);
-        },
-    );
+    await runAllPromises([
+        clearPendingSubtleNotificationsForInbox(context, {accountId, spaceId}),
+        InboxTable.updateItem(
+            context,
+            {
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
+                spaceId,
+                accountId,
+            },
+            item => {
+                item ??= DynamoItem.create(getInitialInboxItem(spaceId, accountId));
+                return observeInboxItem(item);
+            },
+        ),
+    ]);
 }

@@ -18,6 +18,7 @@ export const jobQueueNameByType = {
     AddFeedCandidateEntry: "Default",
     AddFeedAccountCandidateEntry: "Default",
     CallBotWebhook: "Default",
+    SendPendingSubtleNotificationsForInbox: "Default",
 } as const satisfies Record<JobDescription["type"], string>;
 
 export type JobTypeByQueueName = {

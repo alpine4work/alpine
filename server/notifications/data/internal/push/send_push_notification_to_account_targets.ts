@@ -1,8 +1,10 @@
 import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import type {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {getInboxEntryKey} from "~/server/notifications/data/internal/get_inbox_entry_key.js";
 import {InboxEntryItem, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
+import {queuePendingSubtleNotification} from "~/server/notifications/data/internal/push/queue_pending_subtle_notification.js";
 import {sendApnsPushNotification} from "~/server/notifications/data/internal/push/send_apns_push_notification.js";
 import {sendWebPushNotificationToAllSubscriptions} from "~/server/notifications/data/internal/push/send_web_push_notification_to_all_subscriptions.js";
 import {getPushNotificationThreadId} from "~/server/notifications/data/push/get_push_notification_thread_id.js";
@@ -12,7 +14,7 @@ import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
-import {AccountId, NotificationEventId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getInboxEntryKeyPath} from "~/shared/notifications/inbox_model.js";
 
 export function shouldSendApnsPushNotification() {
@@ -30,39 +32,35 @@ export function shouldSendApnsPushNotification() {
  * `getAlertContent` must be provided.
  *
  * This function is idempotent. If you call it multiple times with the same
- * `eventId` the user will only see one notification on their device.
+ * `deduplicationTag` the user will only see one notification on their device.
  */
 export async function sendPushNotificationToAccountTargets(
     context: Context<ServerActionContextModules & PushContextModules>,
     {
         accountId,
-        eventId,
+        deduplicationTag,
         newInboxEntryItem,
         loudNotificationCountDifference,
+        notificationEvent,
         getAlertContent,
     }: {
         accountId: AccountId;
-        eventId: NotificationEventId;
+        deduplicationTag: string;
         newInboxEntryItem: InboxEntryItem | "Delete";
         loudNotificationCountDifference: number;
-        getAlertContent?: (newInboxEntryItem: InboxEntryItem) => Promise<{
+        notificationEvent: NotificationEvent;
+        getAlertContent: (newInboxEntryItem: InboxEntryItem) => Promise<{
             title: string;
             subtitle?: string;
             body: string;
         }>;
     },
 ) {
+    const isActiveEntry = newInboxEntryItem !== "Delete" && !newInboxEntryItem.isArchived;
     // If we archived an entry (or updated an archived entry) that shouldn't
-    // generate a push notification.
-    //
-    // However, if the loud notification count changed and APNs is enabled then we need to send a
-    // silent push notification updating the badge number. If we're only sending a web push
-    // notification which doesn't support silent notifications, we skip sending a push notification.
-    if (
-        (newInboxEntryItem === "Delete" || newInboxEntryItem.isArchived) &&
-        !shouldSendApnsPushNotification() &&
-        loudNotificationCountDifference === 0
-    ) {
+    // generate a push notification as we do not currently support sending silent background
+    // notifications.
+    if (!isActiveEntry) {
         return;
     }
 
@@ -120,9 +118,7 @@ export async function sendPushNotificationToAccountTargets(
             // we want to send them notifications quickly. So it's worth speeding up
             // notification sending even if sometimes it's a little wasteful to load alert
             // content when we don't need it.
-            newInboxEntryItem !== "Delete" && !newInboxEntryItem.isArchived
-                ? assertExists(getAlertContent)(newInboxEntryItem)
-                : null,
+            assertExists(getAlertContent)(newInboxEntryItem),
 
             // We optimistically get the account's total loud notification count even if we
             // don't need it (e.g. since there are no registered devices).
@@ -133,31 +129,22 @@ export async function sendPushNotificationToAccountTargets(
             // notification count when we don't need it.
             loudNotificationCountDifference !== 0 ? getLoudNotificationCount() : null,
 
-            newInboxEntryItem !== "Delete" && !newInboxEntryItem.isArchived
-                ? getAccountWebPushSubscriptionsForSpace(
-                      context,
-                      accountId,
-                      newInboxEntryItem.spaceId,
-                  )
-                : [],
+            getAccountWebPushSubscriptionsForSpace(context, accountId, newInboxEntryItem.spaceId),
         ]);
 
         // Interrupt the user if the loud notification count increased.
         const isLoud = loudNotificationCountDifference > 0;
 
-        const entryPath =
-            newInboxEntryItem !== "Delete" && !newInboxEntryItem.isArchived
-                ? getInboxEntryKeyPath(
-                      newInboxEntryItem.spaceId,
-                      getInboxEntryKey(newInboxEntryItem),
-                      "narrow",
-                  )
-                : undefined;
+        const entryPath = getInboxEntryKeyPath(
+            newInboxEntryItem.spaceId,
+            getInboxEntryKey(newInboxEntryItem),
+            "narrow",
+        );
 
         if (shouldSendApnsPushNotification()) {
             await sendApnsPushNotification(context, {
                 accountId,
-                eventId,
+                deduplicationTag,
                 newInboxEntryItem,
                 loudNotificationCount,
                 alertContent,
@@ -168,35 +155,45 @@ export async function sendPushNotificationToAccountTargets(
 
         // Send web push notifications to browsers.
         // Most browsers require content to be displayed, so if there's no content, there's
-        // no need to send a web push notification.
-        if (alertContent && newInboxEntryItem !== "Delete" && webPushSubscriptions.length > 0) {
-            const title = alertContent.subtitle
-                ? `${alertContent.title} ${alertContent.subtitle}`
-                : alertContent.title;
-            await sendWebPushNotificationToAllSubscriptions(context, {
-                spaceId: newInboxEntryItem.spaceId,
-                accountId,
-                subscriptions: webPushSubscriptions,
-                notificationContent: {
-                    title,
-                    body: alertContent.body,
-                    // `silent` refers to whether this notification will make a noise on delivery.
-                    // This is different from native 'silent' push notifications where the notification
-                    // is used for updates and not displayed - `silent` web push notifications are always displayed.
-                    silent: isLoud ? false : true,
-                    // The tag is used to identify a specific notification. Sending the same notification
-                    // with the same tag will replace the previous notification.
-                    tag: eventId,
-                    data: {
-                        url: `${context.constants.edgeServiceUrl}${entryPath}`,
+        // no need to send a web push notification. Loud notifications are sent immediately,
+        // otherwise we queue a quiet notification to be sent at a later time.
+        if (webPushSubscriptions.length > 0) {
+            if (!isLoud) {
+                await queuePendingSubtleNotification(context, {
+                    accountId,
+                    spaceId: newInboxEntryItem.spaceId,
+                    notificationEvent,
+                    inboxEntry: newInboxEntryItem,
+                });
+            } else {
+                const title = alertContent.subtitle
+                    ? `${alertContent.title} ${alertContent.subtitle}`
+                    : alertContent.title;
+                await sendWebPushNotificationToAllSubscriptions(context, {
+                    spaceId: newInboxEntryItem.spaceId,
+                    accountId,
+                    subscriptions: webPushSubscriptions,
+                    notificationContent: {
+                        title,
+                        body: alertContent.body,
+                        // `silent` refers to whether this notification will make a noise on delivery.
+                        // This is different from native 'silent' push notifications where the notification
+                        // is used for updates and not displayed - `silent` web push notifications are always displayed.
+                        silent: false,
+                        // The tag is used to identify a specific notification. Sending the same notification
+                        // with the same tag will replace the previous notification.
+                        tag: deduplicationTag,
+                        data: {
+                            url: `${context.constants.edgeServiceUrl}${entryPath}`,
+                        },
                     },
-                },
-                options: {
-                    // Topic is used to group related notifications together on the user's device.
-                    topic: getPushNotificationThreadId(newInboxEntryItem),
-                    urgency: isLoud ? "high" : "normal",
-                },
-            });
+                    options: {
+                        // Topic is used to group related notifications together on the user's device.
+                        topic: getPushNotificationThreadId(newInboxEntryItem),
+                        urgency: "high",
+                    },
+                });
+            }
         }
     });
 }

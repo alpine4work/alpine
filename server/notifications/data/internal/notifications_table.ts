@@ -4,6 +4,7 @@ import {
     DynamoTableItemType,
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
+import {PendingSubtleNotificationStubSchema} from "~/server/notifications/data/internal/push/pending_subtle_notification_stub.js";
 import {
     AccountId,
     BrowserId,
@@ -69,6 +70,25 @@ export const NotificationsTable = DynamoTableSchema.new({
                         }).nullable(),
                     }),
                 },
+
+                // This tracks subtle notifications whose sending has been delayed until they can be
+                // sent as a batch in a single notification. This is used for web push notifications
+                // specifically as otherwise these notifications can be very noisy.
+                {
+                    name: "PendingSubtleNotifications",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        lastUpdatedTime: Schema.date.nullable().default(null),
+                        hasPendingSubtleNotifications: Schema.boolean.default(false),
+                        pendingSubtleNotifications: Schema.map(
+                            // This string should be a unique identifier for the associated inbox
+                            // entry item for a subtle notification. It is used to ensure that
+                            // updating the pending subtle notification list is idempotent.
+                            Schema.string,
+                            PendingSubtleNotificationStubSchema,
+                        ).default(new Map()),
+                    }),
+                },
             ],
         },
         {
@@ -130,6 +150,28 @@ export const NotificationsTable = DynamoTableSchema.new({
         },
     ],
 });
+
+// Reverse index to get all space accounts with pending subtle notifications. Everything is in a
+// single partition so we can get all at once. This likely won't scale past some number of accounts,
+// at which time we'll need to bucket this into multiple partitions.
+export const PendingSubtleNotificationsIndex = NotificationsTable.addIndex({
+    name: "PendingSubtleNotificationsIndex",
+    itemTypes: [{partitionType: "Inbox", sortRangeType: "PendingSubtleNotifications"}],
+    partitionKeyAttributes: {
+        hasPendingSubtleNotifications: DynamoKeyAttributeSchema.boolean,
+    },
+    sortKeyAttributes: {
+        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+    },
+    filter: item => item.hasPendingSubtleNotifications === true,
+});
+
+export type PendingSubtleNotificationsItem = DynamoTableItemType<
+    typeof NotificationsTable,
+    "Inbox",
+    "PendingSubtleNotifications"
+>;
 
 export type InboxPostInChannelPostsEntryItemKey = DynamoTableItemKeyType<
     typeof NotificationsTable,

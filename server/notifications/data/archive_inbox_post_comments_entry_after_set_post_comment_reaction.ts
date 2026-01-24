@@ -1,7 +1,5 @@
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
-import {sendPushNotificationToAccountTargets} from "~/server/notifications/data/internal/push/send_push_notification_to_account_targets.js";
 import {updateInboxPostCommentsEntry} from "~/server/notifications/data/internal/update_inbox_post_comments_entry.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
@@ -18,7 +16,7 @@ export async function archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
         commentIndex: number | null;
     },
 ) {
-    const result = await updateInboxPostCommentsEntry(
+    await updateInboxPostCommentsEntry(
         context,
         context.actor.getAccountId(),
         {
@@ -51,19 +49,4 @@ export async function archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
             };
         },
     );
-
-    // If we're archiving an entry with loud notifications, we need to send an
-    // alert to Apple devices to update the badge count.
-    if (result && result.loudNotificationCountDifference !== 0) {
-        // NOTE(calebmer): Consider turning this into a job on the job queue to
-        // guarantee notification delivery.
-        context.process.waitUntil(
-            sendPushNotificationToAccountTargets(context, {
-                accountId: context.actor.getAccountId(),
-                eventId: generateChronologicalId(),
-                newInboxEntryItem: result.newInboxEntryItem,
-                loudNotificationCountDifference: result.loudNotificationCountDifference,
-            }),
-        );
-    }
 }

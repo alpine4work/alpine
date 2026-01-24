@@ -40,6 +40,7 @@ ts_project(
         "//server/forum/data",
         "//server/helpers",
         "//server/notifications/core",
+        "//server/search/data/table",
         "//server/spaces",
         "//server/tasks/data",
         "//shared/accounts",

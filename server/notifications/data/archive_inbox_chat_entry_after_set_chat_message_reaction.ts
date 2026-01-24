@@ -1,7 +1,5 @@
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
-import {sendPushNotificationToAccountTargets} from "~/server/notifications/data/internal/push/send_push_notification_to_account_targets.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function archiveInboxChatEntryAfterSetChatMessageReaction(
@@ -18,7 +16,7 @@ export async function archiveInboxChatEntryAfterSetChatMessageReaction(
         messageIndex: number;
     },
 ) {
-    const result = await updateInboxEntry(
+    await updateInboxEntry(
         context,
         context.actor.getAccountId(),
         {
@@ -52,19 +50,4 @@ export async function archiveInboxChatEntryAfterSetChatMessageReaction(
             };
         },
     );
-
-    // If we're archiving an entry with loud notifications, we need to send an
-    // alert to Apple devices to update the badge count.
-    if (result && result.loudNotificationCountDifference !== 0) {
-        // NOTE(calebmer): Consider turning this into a job on the job queue to
-        // guarantee notification delivery.
-        context.process.waitUntil(
-            sendPushNotificationToAccountTargets(context, {
-                accountId: context.actor.getAccountId(),
-                eventId: generateChronologicalId(),
-                newInboxEntryItem: result.newInboxEntryItem,
-                loudNotificationCountDifference: result.loudNotificationCountDifference,
-            }),
-        );
-    }
 }

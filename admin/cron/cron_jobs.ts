@@ -76,6 +76,17 @@ export const cronJobs: ReadonlyArray<CronJob> = [
         },
         job: {type: "EnqueueScheduledNotificationDigests"},
     },
+
+    // Send all pending subtle notifications for all inboxes with unseen subtle entries.
+    // This runs at 55 minutes past the hour to allow for processing time so users receive
+    // their batched subtle notifications around the top of the hour.
+    {
+        name: "SendAllPendingSubtleNotifications",
+        cron: {
+            minute: "55",
+        },
+        job: {type: "SendAllPendingSubtleNotifications"},
+    },
 ];
 
 const cronJobNames = new Set<string>();

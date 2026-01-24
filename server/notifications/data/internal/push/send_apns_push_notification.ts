@@ -6,13 +6,13 @@ import {getPushNotificationThreadId} from "~/server/notifications/data/push/get_
 import {getRegisteredAppleDevicesForAccount} from "~/server/notifications/data/push/get_registered_apple_devices_for_account.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId, NotificationEventId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 
 export async function sendApnsPushNotification(
     context: Context<ServerActionContextModules & {apns: ApnsContextModuleBase}>,
     {
         accountId,
-        eventId,
+        deduplicationTag,
         newInboxEntryItem,
         loudNotificationCount,
         alertContent,
@@ -20,7 +20,7 @@ export async function sendApnsPushNotification(
         entryPath,
     }: {
         accountId: AccountId;
-        eventId: NotificationEventId;
+        deduplicationTag: string;
         newInboxEntryItem: InboxEntryItem | "Delete";
         loudNotificationCount: number | null;
         alertContent: {
@@ -89,7 +89,7 @@ export async function sendApnsPushNotification(
 
                         // Make sure notification sending is idempotent. If we send the same
                         // notification twice it should be collapsed into one on the user's device.
-                        collapseId: eventId,
+                        collapseId: deduplicationTag,
                     },
                 );
 
