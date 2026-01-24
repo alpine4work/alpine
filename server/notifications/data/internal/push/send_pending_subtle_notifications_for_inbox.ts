@@ -173,13 +173,17 @@ export async function getPendingSubtleNotificationSummaryContent({
             : null,
     ]);
 
-    const authorCount = sortedAuthorAffinities.length;
+    const authorCount = lexicographicallySortedReferencedNotificationAuthorIds.length;
 
     let inboxEntry: InboxEntryModel | undefined;
-    let authorsListString: string = `from ${printPrettySmallNumberSummary(authorCount, "person", {
-        pluralLabel: "people",
-        startOfSentenceSingularLabel: "1 person",
-    })}`;
+    let authorsListString: string = `from ${printPrettySmallNumberSummary(
+        Math.max(authorCount, 1),
+        "person",
+        {
+            pluralLabel: "people",
+            startOfSentenceSingularLabel: "1 person",
+        },
+    )}`;
 
     // Get the most recent inbox entry for the author with the highest affinity to display in the
     // body of the notification.
