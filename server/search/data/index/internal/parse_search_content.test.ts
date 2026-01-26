@@ -1191,3 +1191,233 @@ c2
         ],
     });
 });
+
+// Test that 4+ spaces followed by list markers in blockquotes are preprocessed
+// to escape the first space, preventing CommonMark from interpreting them as code blocks.
+test("preprocesses blockquotes with 4+ spaces before list markers", () => {
+    // 5 spaces before `-` is preprocessed to escape first space, resulting in paragraph
+    // with text "    - text" (4 spaces preserved as text, not as code block indentation)
+    expect(
+        parseSearchContent(
+            `>     - this looks like a list item but has 4+ spaces before it`,
+        ).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [
+                            {
+                                type: "text",
+                                text: " - this looks like a list item but has 4+ spaces before it",
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+
+    // Test with highlights enabled (the original failing case)
+    expect(
+        parseSearchContent(
+            `>     - \`state.blockConcurrencyWhile\` can appear to “complete” from user <em>code’s</em> perspective`,
+            {shouldParseEmphasisHtmlTagAsHighlight: true},
+        ).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [
+                            {type: "text", text: " - "},
+                            {
+                                type: "text",
+                                text: "state.blockConcurrencyWhile",
+                                marks: [{type: "code"}],
+                            },
+                            {type: "text", text: " can appear to “complete” from user "},
+                            {
+                                type: "text",
+                                text: "code’s",
+                                marks: [{type: "highlight", attrs: {color: "orange"}}],
+                            },
+                            {type: "text", text: " perspective"},
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+
+    // 4+ spaces before ordered list marker is also preprocessed
+    expect(parseSearchContent(`>     1. ordered with 4+ spaces`).toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: " 1. ordered with 4+ spaces"}],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+// Test that code blocks inside blockquotes (not followed by list markers) are
+// gracefully converted to paragraphs as a fallback.
+test("gracefully handles code blocks inside blockquotes without list markers", () => {
+    // 5 spaces before text (no list marker) creates a code block, which is converted to paragraph
+    expect(parseSearchContent(`>     line1`).toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: " line1"}],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+// Test list items inside blockquotes at different indentation levels parse correctly.
+// The preprocessing escapes 4+ spaces before list markers, converting them to paragraphs
+// with the spaces preserved as literal text.
+test("parses list items inside blockquotes at different indentation levels", () => {
+    // indent 0: no preprocessing needed, parses as list item
+    expect(parseSearchContent(`> - unordered indent 0`).toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "unordered indent 0"}],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+
+    // indent 1: 4 spaces before `-`, preprocessed to paragraph with "    - text"
+    expect(parseSearchContent(`>     - unordered indent 1`).toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: " - unordered indent 1"}],
+                    },
+                ],
+            },
+        ],
+    });
+
+    // indent 2: 8 spaces before `-`, preprocessed to paragraph with "        - text"
+    expect(parseSearchContent(`>         - unordered indent 2`).toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: " - unordered indent 2"}],
+                    },
+                ],
+            },
+        ],
+    });
+
+    // Ordered list items - indent 0 parses as list
+    expect(parseSearchContent(`> 1. ordered indent 0`).toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "orderedListItem",
+                        attrs: {indent: 0, orderStart: null},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "ordered indent 0"}],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+
+    // indent 1: preprocessed to paragraph
+    expect(parseSearchContent(`>     1. ordered indent 1`).toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: " 1. ordered indent 1"}],
+                    },
+                ],
+            },
+        ],
+    });
+
+    // indent 2: preprocessed to paragraph
+    expect(parseSearchContent(`>         1. ordered indent 2`).toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: " 1. ordered indent 2"}],
+                    },
+                ],
+            },
+        ],
+    });
+
+    // Also test pre-escaped content (from chunker) still works
+    expect(parseSearchContent(`> &#x0020;   - pre-escaped unordered`).toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "quoteBlock",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "    - pre-escaped unordered"}],
+                    },
+                ],
+            },
+        ],
+    });
+});

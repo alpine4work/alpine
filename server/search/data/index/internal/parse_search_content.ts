@@ -74,7 +74,34 @@ export function parseSearchContent(
         shouldParseEmphasisHtmlTagAsHighlight?: boolean;
     } = {},
 ): DocumentContent | DocumentWithoutTitleContent {
-    const inputRootNode = fromMarkdown(inputText, "utf-8", {
+    // NOTE(ifitzsimmons, 2026-01-23): We saw a bug in prod [1] where the search result
+    // string was being parsed as a code block due to 4+ spaces after a blockquote marker.
+    // We don't allow code blocks within blockquotes in our content schema, so search
+    // crashes when trying to redner the match snippet.
+    //
+    // This happened due to the way chunks are split and returned. Namely, the string
+    // was split between a list item at indent 0 and a list item at indent 1 within a
+    // blockquote. So the following block
+    // ```
+    // > - list item 1
+    // >     - list item 2
+    // ```
+    // would be split into:
+    // ```
+    // >  - list item 1       <----- normal list item
+    // ```
+    // and
+    // ```
+    // >     - list item 2    <----- code block
+    // ```
+    //
+    // The second block is parsed as a code block due to the 4+ spaces after the blockquote
+    // marker. To fix this, we escape the 4+ spaces after the blockquote marker.
+    //
+    // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/posts/pb8zfdz708v774zxvbaxj9jd1c
+    const preprocessedInputText = inputText.replaceAll(/^> ( +)/gm, "> &#x0020;");
+
+    const inputRootNode = fromMarkdown(preprocessedInputText, "utf-8", {
         extensions: [gfmStrikethrough()],
         mdastExtensions: [gfmStrikethroughFromMarkdown()],
     });
