@@ -1,4 +1,5 @@
 import {runBackfillAccountEmailCreationTimeMigration} from "~/server/accounts/migrations/backfill_account_email_creation_time.js";
+import {runUpdateKnownBotSettingsMigration} from "~/server/bots/run_update_known_bot_settings_migration.js";
 import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
@@ -52,4 +53,5 @@ export const allMigrations: {
     BackfillAccountEmailCreationTime: runBackfillAccountEmailCreationTimeMigration,
     UpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries:
         runUpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries,
+    UpdateKnownBotSettings: runUpdateKnownBotSettingsMigration,
 };

@@ -1,10 +1,10 @@
 /* eslint-disable string-quotes */
 
-import {getChatGptInstructions} from "~/server/agents/internal/chat_gpt_instructions.js";
+import {getChatGptAgentInstructions} from "~/server/agents/internal/chat_gpt_agent_instructions.js";
 
 test("reformats the instructions properly", () => {
     expect(
-        getChatGptInstructions({
+        getChatGptAgentInstructions({
             spaceName: "Test",
             messageRoomType: "Chat",
         }).slice(0, 498),

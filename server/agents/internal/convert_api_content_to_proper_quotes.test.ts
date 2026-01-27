@@ -516,3 +516,32 @@ test("handles quotes after mention (possessive)", () => {
         },
     );
 });
+
+test("doesn’t convert quotes to proper quotes in code", () => {
+    testConvertApiContentToProperQuotes(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "A "},
+                        {type: "Text", text: '"danger"', marks: [{type: "Code"}]},
+                        {type: "Text", text: " button variant was added"},
+                    ],
+                },
+            ],
+        },
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "A "},
+                        {type: "Text", text: '"danger"', marks: [{type: "Code"}]},
+                        {type: "Text", text: " button variant was added"},
+                    ],
+                },
+            ],
+        },
+    );
+});

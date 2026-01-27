@@ -15,13 +15,13 @@ test("returns account ID when bot is instantiated in space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const {accountId} = await instantiateBotSpaceAccount(session.action(), {
+    const account = await instantiateBotSpaceAccount(session.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
 
     expect(await getBotAccountIdForSpaceIfExists(session.action(), bot.id, space.id)).toEqual(
-        accountId,
+        account.id,
     );
 });
 
@@ -49,12 +49,12 @@ test("works with system context", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const {accountId} = await instantiateBotSpaceAccount(session.action(), {
+    const account = await instantiateBotSpaceAccount(session.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
 
     expect(await getBotAccountIdForSpaceIfExists(space.systemAction(), bot.id, space.id)).toEqual(
-        accountId,
+        account.id,
     );
 });

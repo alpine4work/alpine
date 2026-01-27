@@ -2844,17 +2844,21 @@ exports[`account long mention 1`] = `
         <span>
           <span>
             <span
-              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #a9edf3"
+              style="width: 1.75rem;height: 1.75rem"
             >
               <span
-                aria-hidden="true"
-                style="transform: scale(0.29166667); transform-origin: top left"
+                style="width: 1.75rem;height: 1.75rem;background-color: #a9edf3"
               >
-                <span>
-                  <img
-                    alt="Pink cat who’s happy"
-                    draggable="false"
-                  />
+                <span
+                  aria-hidden="true"
+                  style="transform: scale(0.29166667); transform-origin: top left"
+                >
+                  <span>
+                    <img
+                      alt="Pink cat who’s happy"
+                      draggable="false"
+                    />
+                  </span>
                 </span>
               </span>
             </span>
@@ -2913,17 +2917,21 @@ exports[`account short mention 1`] = `
         <span>
           <span>
             <span
-              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #a9edf3"
+              style="width: 1.75rem;height: 1.75rem"
             >
               <span
-                aria-hidden="true"
-                style="transform: scale(0.29166667); transform-origin: top left"
+                style="width: 1.75rem;height: 1.75rem;background-color: #a9edf3"
               >
-                <span>
-                  <img
-                    alt="Pink cat who’s happy"
-                    draggable="false"
-                  />
+                <span
+                  aria-hidden="true"
+                  style="transform: scale(0.29166667); transform-origin: top left"
+                >
+                  <span>
+                    <img
+                      alt="Pink cat who’s happy"
+                      draggable="false"
+                    />
+                  </span>
                 </span>
               </span>
             </span>

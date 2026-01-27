@@ -404,7 +404,7 @@ export function parseSearchContent(
     function* actuallyParsePhrasingNode(
         inputNode:
             | PhrasingContent
-            // Make TypeScript happy. `inlineMath` is valid `BlockContent` when we run
+            // Make TypeScript happy. `inlineMath` is valid `PhrasingContent` when we run
             // TypeScript on the entire codebase since it's used in
             // `parseApiContentFromMarkdown()` but it's not available when we run
             // TypeScript just on this Bazel package. Make the two environments consistent

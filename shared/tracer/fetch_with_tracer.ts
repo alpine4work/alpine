@@ -40,7 +40,7 @@ const globalFetch = typeof fetch !== "undefined" ? fetch : undefined;
  *
  * Human readable phrases match our span name style which is why we do this.
  */
-export type ExternalServiceName = "OpenSearch" | "Cohere" | "LogoDev";
+export type ExternalServiceName = "OpenSearch" | "Cohere" | "LogoDev" | "Cursor";
 
 function isExternalServiceName(
     serviceName: TracerServiceName | ExternalServiceName,
@@ -49,6 +49,7 @@ function isExternalServiceName(
         case "OpenSearch":
         case "Cohere":
         case "LogoDev":
+        case "Cursor":
             return true;
         default:
             // Should handle all `ExternalServiceName`s. Only `TracerServiceName`s should

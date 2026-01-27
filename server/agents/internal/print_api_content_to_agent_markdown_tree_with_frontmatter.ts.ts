@@ -14,7 +14,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export async function parseAgentContentToMarkdownTree({
+export async function printApiContentToAgentMarkdownTreeWithFrontmatter({
     transaction,
     request,
     frontmatter,

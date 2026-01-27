@@ -1,9 +1,10 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {getApiChatMessageParentMessageResponse} from "~/server/api/internal/chat/internal/get_api_chat_message_parent_message_response.js";
+import {createIntoApiChatMessageContentPayloadParent} from "~/server/api/internal/chat/internal/create_into_api_chat_message_content_payload_parent.js";
 import {
     ApiOperation200JsonResponseType,
     ApiPaths,
 } from "~/server/api/internal/shared/api_paths_type.js";
+import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
@@ -72,7 +73,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                         context,
                         message.spaceId,
                         message,
-                        getApiChatMessageParentMessageResponse(
+                        createIntoApiChatMessageContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
@@ -146,7 +147,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                                 context,
                                 spaceId,
                                 message,
-                                getApiChatMessageParentMessageResponse(
+                                createIntoApiChatMessageContentPayloadParent(
                                     context,
                                     spaceId,
                                     pathParameters.id,
@@ -158,6 +159,8 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
             };
         },
         post: async (context, {pathParameters, requestBody}) => {
+            const parent = fromApiMessageContentPayloadParent(requestBody.parent);
+
             const content = assertMessageContent(
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
@@ -166,7 +169,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
 
             const {spaceId, index, createdTime} = await sendChatMessage(context, {
                 chatId: pathParameters.id,
-                parent: null,
+                parent,
                 content,
                 fileIds: [],
                 createdTimeZone,
@@ -176,7 +179,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
 
             const payload: MessageContentPayload = {
                 type: "Content",
-                parent: null,
+                parent,
                 content,
                 contentUpdate: null,
                 fileIds: [],
@@ -237,7 +240,11 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        getApiChatMessageParentMessageResponse(context, spaceId, pathParameters.id),
+                        createIntoApiChatMessageContentPayloadParent(
+                            context,
+                            spaceId,
+                            pathParameters.id,
+                        ),
                     ),
                 },
             };
@@ -277,6 +284,22 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                     },
                 },
             };
+        },
+    },
+
+    "/chats/{id}/messages/{index}/stream/parts": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const payload = fromApiMessageStreamPartPayload(requestBody.payload);
+
+            const {spaceId} = await putChatMessageStreamPart(context, {
+                chatId: pathParameters.id,
+                messageIndex: pathParameters.index,
+                partIndex: "Create",
+                payload,
+                consistency: "StrongWithinCache",
+            });
+
+            return {content: {spaceId}};
         },
     },
 

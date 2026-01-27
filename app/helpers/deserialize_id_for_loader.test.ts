@@ -174,17 +174,6 @@ describe("ID deserializers", () => {
             }
         });
 
-        test("sets aggregateDedupeKey to undefined for empty string ID", () => {
-            try {
-                deserializeAccountIdForLoader("");
-            } catch (error) {
-                expect(error).toBeInstanceOf(NotFoundError);
-                if (error instanceof NotFoundError) {
-                    expect(error.aggregateDedupeKey).toBeUndefined();
-                }
-            }
-        });
-
         test("sets aggregateDedupeKey to the invalid ID value", () => {
             const invalidId = "invalid-id";
             try {

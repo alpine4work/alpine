@@ -36,18 +36,14 @@ const mockAgentUsageDatabaseClass = mockAgentUsageDatabase as unknown as AgentUs
 // So for now, just ignore type checking. We don't use them here.
 // This also doesn't fail locally, but fails in CI, so we have to use ts-ignore.
 const mockEnv: AgentServiceEnv = {
-    // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-    // @ts-ignore
-    ChatGptAgentDurableObjectNamespace: {},
-    // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-    // @ts-ignore
-    MockAgentDurableObjectNamespace: {},
-    // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-    // @ts-ignore
-    AgentUsageDatabase: {},
-    API_SERVICE_URL: "https://api.test.cyberworlds.com",
-    EDGE_SERVICE_URL: "https://edge.test.cyberworlds.com",
+    ChatGptAgentDurableObjectNamespace: {} as any,
+    MockAgentDurableObjectNamespace: {} as any,
+    CursorAgentDurableObjectNamespace: {} as any,
+    AgentUsageDatabase: {} as any,
+    API_SERVICE_URL: "https://api.test.cyberworlds.dev",
+    EDGE_SERVICE_URL: "https://edge.test.cyberworlds.dev",
     CHAT_GPT_API_SERVICE_KEY: "test-chat-gpt-key",
+    CURSOR_API_SERVICE_KEY: "test-cursor-key",
     MOCK_CHAT_GPT_API_SERVICE_KEY: "test-mock-key",
     OPEN_AI_API_KEY: "test-openai-key",
     HONEYCOMB_API_KEY: "test-honeycomb-key",

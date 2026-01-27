@@ -11,6 +11,9 @@ export function convertApiContentToProperQuotes(content: ApiContent): ApiContent
         visitInlineElement: (element, {elements, index: currentElementIndex}) => {
             if (element.type !== "Text") return;
 
+            // Don't convert quotes in code to proper quotes.
+            if (element.marks?.some(mark => mark.type === "Code")) return;
+
             let hasChanged = false;
             let text = element.text;
 

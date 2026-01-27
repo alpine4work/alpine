@@ -5238,7 +5238,7 @@ test("can instantiate a bot in a space as an admin", async () => {
         instantiateBotSpaceAccount(memberSession.action(), {spaceId: space.id, botId: bot.id}),
     ).rejects.toThrow("Account doesn’t have `Admin` access to space");
 
-    const {accountId} = await instantiateBotSpaceAccount(adminSession.action(), {
+    const {id: accountId} = await instantiateBotSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5259,7 +5259,7 @@ test("can instantiate a bot in a space as an admin", async () => {
         instantiateBotSpaceAccount(ownerSession.action(), {spaceId: space.id, botId: bot.id}),
     ).rejects.toThrow("Can’t instantiate bot twice in the same space");
 
-    const {accountId: otherAccountId} = await instantiateBotSpaceAccount(otherSession.action(), {
+    const {id: otherAccountId} = await instantiateBotSpaceAccount(otherSession.action(), {
         spaceId: otherSpace.id,
         botId: bot.id,
     });
@@ -5294,7 +5294,7 @@ test("can instantiate a bot in a space as an owner", async () => {
         instantiateBotSpaceAccount(memberSession.action(), {spaceId: space.id, botId: bot.id}),
     ).rejects.toThrow("Account doesn’t have `Admin` access to space");
 
-    const {accountId} = await instantiateBotSpaceAccount(ownerSession.action(), {
+    const {id: accountId} = await instantiateBotSpaceAccount(ownerSession.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5325,7 +5325,7 @@ test("can’t add a bot instantiated in one space to another space", async () =>
     const session = await space.createSession({role: "Admin"});
     const otherSession = await otherSpace.createSession({role: "Admin"});
 
-    const {accountId} = await instantiateBotSpaceAccount(session.action(), {
+    const {id: accountId} = await instantiateBotSpaceAccount(session.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5350,7 +5350,7 @@ test("can remove bot from space it was instantiated in and can add it back", asy
     const session = await space.createSession({role: "Admin"});
     const otherSession = await otherSpace.createSession({role: "Admin"});
 
-    const {accountId} = await instantiateBotSpaceAccount(session.action(), {
+    const {id: accountId} = await instantiateBotSpaceAccount(session.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5421,7 +5421,7 @@ test("can’t make a bot account a space admin", async () => {
     const session1 = await space.createSession({role: "Admin"});
     const [session2, session3] = await space.createSessions(2);
 
-    const {accountId} = await instantiateBotSpaceAccount(session1.action(), {
+    const {id: accountId} = await instantiateBotSpaceAccount(session1.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5477,7 +5477,7 @@ test("can’t make a bot account a space owner", async () => {
     const session1 = await space.createSession({role: "Owner"});
     const session2 = await space.createSession();
 
-    const {accountId} = await instantiateBotSpaceAccount(session1.action(), {
+    const {id: accountId} = await instantiateBotSpaceAccount(session1.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5527,7 +5527,7 @@ test("can check whether an account is a bot or not", async () => {
     const session2 = await space.createSession();
     const otherSession = await otherSpace.createSession();
 
-    const {accountId} = await instantiateBotSpaceAccount(session1.action(), {
+    const {id: accountId} = await instantiateBotSpaceAccount(session1.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5611,7 +5611,7 @@ test("`isBotSpaceAccount()` after `authorizeSpaceAccess()` is cached", async () 
 
     const session1 = await space.createSession({role: "Owner"});
 
-    const {accountId} = await instantiateBotSpaceAccount(session1.action(), {
+    const {id: accountId} = await instantiateBotSpaceAccount(session1.action(), {
         spaceId: space.id,
         botId: bot.id,
     });

@@ -38,9 +38,11 @@ async function main() {
             apiServiceUrl,
             edgeServiceUrl,
             chatGptApiServiceKey: chatGptApiServiceKeyPath,
+            cursorApiServiceKey: cursorApiServiceKeyPath,
             mockChatGptApiServiceKey: mockChatGptApiServiceKeyPath,
             honeycombApiKey,
             openAiDevApiKey,
+            cursorAgentSmeeWebhookUrl,
             inspectorPort: inspectorPortString,
         },
     } = parseArgs({
@@ -52,9 +54,11 @@ async function main() {
             apiServiceUrl: {type: "string"},
             edgeServiceUrl: {type: "string"},
             chatGptApiServiceKey: {type: "string"},
+            cursorApiServiceKey: {type: "string"},
             mockChatGptApiServiceKey: {type: "string"},
             honeycombApiKey: {type: "string"},
             openAiDevApiKey: {type: "string"},
+            cursorAgentSmeeWebhookUrl: {type: "string"},
             inspectorPort: {type: "string"},
         },
     });
@@ -69,9 +73,11 @@ async function main() {
     if (!d1LocalDataPath) throw new Error("Missing `d1LocalDataPath` option");
     if (!apiServiceUrl) throw new Error("Missing `apiServiceUrl` option");
     if (!chatGptApiServiceKeyPath) throw new Error("Missing `chatGptApiServiceKey` option");
+    if (!cursorApiServiceKeyPath) throw new Error("Missing `cursorApiServiceKey` option");
     if (!mockChatGptApiServiceKeyPath) throw new Error("Missing `mockChatGptApiServiceKey` option");
 
     const chatGptApiServiceKey = (await fs.readFile(chatGptApiServiceKeyPath, "utf8")).trim();
+    const cursorApiServiceKey = (await fs.readFile(cursorApiServiceKeyPath, "utf8")).trim();
     const mockChatGptApiServiceKey = (
         await fs.readFile(mockChatGptApiServiceKeyPath, "utf8")
     ).trim();
@@ -106,9 +112,11 @@ async function main() {
             API_SERVICE_URL: apiServiceUrl,
             EDGE_SERVICE_URL: edgeServiceUrl,
             CHAT_GPT_API_SERVICE_KEY: chatGptApiServiceKey,
+            CURSOR_API_SERVICE_KEY: cursorApiServiceKey,
             MOCK_CHAT_GPT_API_SERVICE_KEY: mockChatGptApiServiceKey,
             OPEN_AI_API_KEY: openAiDevApiKey,
             HONEYCOMB_API_KEY: honeycombApiKey,
+            CURSOR_AGENT_SMEE_WEBHOOK_URL: cursorAgentSmeeWebhookUrl,
         },
         globals: {
             __writeTracerEventToFileInDev: writeTracerEventToFileInDev,

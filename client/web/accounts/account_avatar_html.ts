@@ -2,7 +2,6 @@ import {renderAvatarIconOverlay} from "~/client/web/accounts/internal/avatar_ico
 import {renderAvatarDefaultHtml} from "~/client/web/avatar/avatar_default_html.js";
 import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {getAvatarContentType} from "~/shared/avatar/get_avatar_content_type.js";
-import {borderRadius as borderRadiusValues} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -18,14 +17,18 @@ import {
 } from "~/shared/spaces/get_account_avatar_design.js";
 
 export const accountAvatarClassName = sprinkles({
+    display: "block",
     flexShrink: "0",
-    borderRadius: "full",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    color: "grey-80-const",
     position: "relative",
     zIndex: "0",
+});
+
+export const accountAvatarInnerClassName = sprinkles({
+    display: "block",
+    position: "relative",
+    zIndex: "0",
+    borderRadius: "full",
+    overflow: "hidden",
 });
 
 // IMPORTANT: If you update the HTML here you should also update
@@ -54,7 +57,20 @@ export function renderAccountAvatar({
     const outerStyle = {
         width: spacing[size],
         height: spacing[size],
-        borderRadius: borderRadiusValues["full"],
+    };
+    const outerStyleString = Object.entries(outerStyle)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(";");
+
+    outerHtml.setAttribute("style", outerStyleString);
+
+    const innerHtml = new HtmlElementGenerator("span");
+    innerHtml.setAttribute("class", accountAvatarInnerClassName);
+
+    const innerStyle = {
+        width: spacing[size],
+        height: spacing[size],
         "background-color":
             avatarDesign.type === "Default"
                 ? `${colors[`${avatarDesign.backgroundColor}-20`]}`
@@ -64,14 +80,16 @@ export function renderAccountAvatar({
                 ? `0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`
                 : undefined,
     };
-    const outerStyleString = Object.entries(outerStyle)
+    const innerStyleString = Object.entries(innerStyle)
         .filter(([, value]) => value !== undefined)
         .map(([key, value]) => `${key}: ${value}`)
         .join(";");
 
-    outerHtml.setAttribute("style", outerStyleString);
+    innerHtml.setAttribute("style", innerStyleString);
 
-    outerHtml.appendChild(
+    outerHtml.appendChild(innerHtml);
+
+    innerHtml.appendChild(
         renderAccountAvatarDesign({
             size,
             avatarDesign,
@@ -80,13 +98,12 @@ export function renderAccountAvatar({
 
     if (avatarDesign.shouldShowRemovedAvatar) {
         // All removed avatar will have a "greyed-out" effect applied.
-        const avatarContentFilter = outerHtml.appendChild(new HtmlElementGenerator("span"));
+        const avatarContentFilter = innerHtml.appendChild(new HtmlElementGenerator("span"));
         const avatarContentFilterStyleString = [
+            "display: block",
+            "z-index: 10",
             "position: absolute",
-            "overflow: hidden",
-            `width: ${avatarPx}px`,
-            `height: ${avatarPx}px`,
-            `border-radius: ${borderRadiusValues["full"]}`,
+            "inset: 0",
             `background-color: ${colorSchemeVars["grey-0"]}`,
             "opacity: 0.6",
             "pointer-events: none",
@@ -96,7 +113,7 @@ export function renderAccountAvatar({
 
     if (avatarDesign.iconOverlayType) {
         const {iconCutout, iconOverlay} = renderAvatarIconOverlay({
-            avatarPixelSize: avatarPx,
+            avatarPx,
             iconType: avatarDesign.iconOverlayType,
         });
         outerHtml.appendChildren(iconCutout, iconOverlay);
@@ -145,10 +162,11 @@ function renderAccountImageAvatarDesign(avatarDesign: AccountImageAvatarDesign) 
         "height: 100%",
         "object-fit: cover",
         "overflow: hidden",
-        `border-radius: ${borderRadiusValues["full"]}`,
     ].join(";");
     avatarHtml.setAttribute("style", innerHtmlStyleString);
     avatarHtml.setAttribute("aria-hidden", "true");
+    // Do not render an alt tag as avatars are not important for screen readers
+    avatarHtml.setAttribute("alt", "");
 
     return avatarHtml;
 }

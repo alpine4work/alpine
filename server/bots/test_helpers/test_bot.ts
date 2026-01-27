@@ -1,10 +1,10 @@
 import {
-    createBotForTest,
     createScopedApiKeyForTest,
     createUnscopedApiKeyForTest,
-    getBot,
-    getBotItemForTest,
-} from "~/server/bots/bots_table.js";
+} from "~/server/bots/create_api_key_for_test.js";
+import {createBotForTest} from "~/server/bots/create_bot_for_test.js";
+import {getBot} from "~/server/bots/get_bot.js";
+import {getBotItemForTest} from "~/server/bots/get_bot_item_for_test.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -73,13 +73,13 @@ export class TestBot {
         session: TestSpaceSession,
         {id = generateId<AccountId>()}: {id?: AccountId} = {},
     ) {
-        const {name} = await instantiateBotSpaceAccount(session.action(), {
+        const account = await instantiateBotSpaceAccount(session.action(), {
             spaceId: session.space.id,
             botId: this.id,
             accountId: id,
         });
 
-        return TestBotAccount._new(this, session.space, id, name);
+        return TestBotAccount._new(this, session.space, id, account.initialData.name);
     }
 
     public static async createAndInstantiate(

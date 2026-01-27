@@ -2,6 +2,7 @@ import {produce} from "immer";
 import {PhrasingContent, Root, RootContent} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
+import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {
     AgentChatMessagesPageLink,
     AgentDocumentCommentsCommentsPageLink,
@@ -19,6 +20,7 @@ import {
     printAgentPlainTextLabel,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printMessagesListContentToMarkdownRoot} from "~/server/agents/internal/link_references/print_messages_list_content_to_markdown_root.js";
+import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
@@ -30,6 +32,7 @@ import {
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -60,12 +63,17 @@ type LoadAgentMessagesListLinkRequest = Pick<AgentWebhookRequest, "apiClient" | 
  */
 export async function loadAgentMessagesListLinkContent(options: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-}): Promise<Root> {
-    const {messagesContent, isFirstPage} = await loadPageMessages(options);
+    tokenLimitFactor: number;
+}): Promise<{
+    preamble: Array<RootContent>;
+    messages: Array<AgentMessage>;
+    messagesContent: Root;
+}> {
+    const {messages, messagesContent, isFirstPage} = await loadPageMessages(options);
 
     const preamble = await getPagePreambleElements({
         ...options,
@@ -73,18 +81,27 @@ export async function loadAgentMessagesListLinkContent(options: {
     });
 
     return {
-        type: "root",
-        children: [...preamble, ...messagesContent],
+        preamble,
+        messages,
+        messagesContent: {
+            type: "root",
+            children: [...preamble, ...messagesContent],
+        },
     };
 }
 
 async function loadPageMessages(options: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-}): Promise<{messagesContent: Array<RootContent>; isFirstPage: boolean}> {
+    tokenLimitFactor: number;
+}): Promise<{
+    messages: Array<AgentMessage>;
+    messagesContent: Array<RootContent>;
+    isFirstPage: boolean;
+}> {
     const {link} = options;
     switch (link.pageInfo.from) {
         case "Start": {
@@ -123,7 +140,7 @@ async function loadPageMessages(options: {
 async function getPagePreambleElements(options: {
     tracer: TracerBase;
     request: LoadAgentMessagesListLinkRequest;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     link: AgentPaginatedMessagesListLink;
     isFirstPage: boolean;
 }): Promise<Array<RootContent>> {
@@ -155,9 +172,10 @@ async function getMarkdownContentForPageFromStart({
     link,
     conversationState,
     cursorOptions,
+    tokenLimitFactor,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
@@ -165,7 +183,12 @@ async function getMarkdownContentForPageFromStart({
         from: "Start";
         cursor: number | null;
     };
-}): Promise<{messagesContent: Array<RootContent>; isFirstPage: boolean}> {
+    tokenLimitFactor: number;
+}): Promise<{
+    messages: Array<AgentMessage>;
+    messagesContent: Array<RootContent>;
+    isFirstPage: boolean;
+}> {
     const {messages, nextCursor} = await getAgentMessagesFromStartUntilTokenLimitCount(
         tracer,
         transaction,
@@ -174,7 +197,7 @@ async function getMarkdownContentForPageFromStart({
         parseApiMessageRoomPath(getMessageRoomPath(link)),
         {
             startingCursor: cursorOptions.cursor,
-            limitTokenCount: link.tokenLimitForPage,
+            limitTokenCount: Math.floor(link.tokenLimitForPage * tokenLimitFactor),
         },
     );
 
@@ -191,7 +214,11 @@ async function getMarkdownContentForPageFromStart({
         conversationState,
     });
 
-    return {messagesContent, isFirstPage: cursorOptions.cursor === null};
+    return {
+        messages,
+        messagesContent,
+        isFirstPage: cursorOptions.cursor === null,
+    };
 }
 
 async function getMarkdownContentForPageFromEnd({
@@ -201,14 +228,20 @@ async function getMarkdownContentForPageFromEnd({
     link,
     cursorOptions,
     conversationState,
+    tokenLimitFactor,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
     cursorOptions: {from: "End"; cursor: number};
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-}): Promise<{messagesContent: Array<RootContent>; isFirstPage: boolean}> {
+    tokenLimitFactor: number;
+}): Promise<{
+    messages: Array<AgentMessage>;
+    messagesContent: Array<RootContent>;
+    isFirstPage: boolean;
+}> {
     const {messages, nextCursor} = await getAgentMessagesFromEndUntilLimitTokenCount(
         tracer,
         transaction,
@@ -217,7 +250,7 @@ async function getMarkdownContentForPageFromEnd({
         parseApiMessageRoomPath(getMessageRoomPath(link)),
         {
             startingCursor: cursorOptions.cursor,
-            limitTokenCount: link.tokenLimitForPage,
+            limitTokenCount: Math.floor(link.tokenLimitForPage * tokenLimitFactor),
         },
     );
 
@@ -234,7 +267,11 @@ async function getMarkdownContentForPageFromEnd({
         conversationState,
     });
 
-    return {messagesContent, isFirstPage: !previousPageLink};
+    return {
+        messages,
+        messagesContent,
+        isFirstPage: !previousPageLink,
+    };
 }
 
 async function getMarkdownContentForPageFromMiddle({
@@ -244,14 +281,20 @@ async function getMarkdownContentForPageFromMiddle({
     link,
     cursorOptions,
     conversationState,
+    tokenLimitFactor,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
     cursorOptions: {from: "Middle"; index: number};
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-}): Promise<{messagesContent: Array<RootContent>; isFirstPage: boolean}> {
+    tokenLimitFactor: number;
+}): Promise<{
+    messages: Array<AgentMessage>;
+    messagesContent: Array<RootContent>;
+    isFirstPage: boolean;
+}> {
     const [
         {messages: messagesBeforeCurrent, nextCursor: pageStartIndex},
         {messages: messagesAfterCurrent, nextCursor: pageEndIndex},
@@ -265,7 +308,7 @@ async function getMarkdownContentForPageFromMiddle({
             {
                 // get everything before current index
                 startingCursor: cursorOptions.index,
-                limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
+                limitTokenCount: Math.floor((link.tokenLimitForPage / 2) * tokenLimitFactor),
             },
         ),
         getAgentMessagesFromStartUntilTokenLimitCount(
@@ -277,7 +320,7 @@ async function getMarkdownContentForPageFromMiddle({
             {
                 // get everything after and including current index
                 startingCursor: cursorOptions.index - 1,
-                limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
+                limitTokenCount: Math.floor((link.tokenLimitForPage / 2) * tokenLimitFactor),
             },
         ),
     ]);
@@ -291,15 +334,21 @@ async function getMarkdownContentForPageFromMiddle({
             : null,
     ]);
 
+    const messages = [...messagesBeforeCurrent, ...messagesAfterCurrent];
+
     const messagesContent = await printMessagesListContentToMarkdownRoot({
         previousPageLinkString: previousPageLink ? printAgentLinkPath(previousPageLink) : null,
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
-        pageMessages: [...messagesBeforeCurrent, ...messagesAfterCurrent],
+        pageMessages: messages,
         conversationState,
     });
 
-    return {messagesContent, isFirstPage: !previousPageLink};
+    return {
+        messages,
+        messagesContent,
+        isFirstPage: !previousPageLink,
+    };
 }
 
 function getMessageRoomPath(link: AgentPaginatedMessagesListLink): ApiMessageRoomPath {
@@ -319,20 +368,10 @@ function getMessageRoomPath(link: AgentPaginatedMessagesListLink): ApiMessageRoo
 async function getPreambleForChatMessages(_options: {
     tracer: TracerBase;
     request: LoadAgentMessagesListLinkRequest;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     link: AgentChatMessagesPageLink;
 }): Promise<Array<RootContent>> {
-    return [
-        {
-            type: "paragraph",
-            children: [
-                {
-                    type: "text",
-                    value: "This is a chat conversation.",
-                },
-            ],
-        },
-    ];
+    return [];
 }
 
 function getDocumentContentSnippetForThreadExcludingOtherCommentMarks(
@@ -369,7 +408,7 @@ async function getPreambleForDocumentComments({
 }: {
     tracer: TracerBase;
     request: LoadAgentMessagesListLinkRequest;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     link: AgentDocumentCommentsCommentsPageLink;
     isFirstPage: boolean;
 }): Promise<Array<RootContent>> {
@@ -418,19 +457,21 @@ async function getPreambleForDocumentComments({
             });
         }
 
-        paragraphContent.push({
-            type: "text",
-            value: "the document ",
-        });
+        paragraphContent.push({type: "text", value: "the document “"});
+
+        const documentLinkLabel = printAgentPlainTextLabel(documentLink);
+
         paragraphContent.push({
             type: "link",
             url: printAgentLinkPath(documentLink),
-            children: [{type: "text", value: printAgentPlainTextLabel(documentLink)}],
+            children: [{type: "text", value: documentLinkLabel}],
         });
-        paragraphContent.push({
-            type: "text",
-            value: ".",
-        });
+
+        if (doesStringEndWithPunctuation(documentLinkLabel)) {
+            paragraphContent.push({type: "text", value: "”"});
+        } else {
+            paragraphContent.push({type: "text", value: ".”"});
+        }
 
         const commentThread = commentThreadData?.data?.commentThread;
         if (commentThread && commentThread.documentContentSnippet.elements.length > 0) {
@@ -487,13 +528,13 @@ async function getPreambleForTaskComments({
 }: {
     tracer: TracerBase;
     request: LoadAgentMessagesListLinkRequest;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     link: AgentTaskCommentsPageLink;
 }): Promise<Array<RootContent>> {
     const paragraphContent: Array<PhrasingContent> = [
         {
             type: "text",
-            value: "This is a conversation about a ",
+            value: "These are comments on a ",
         },
     ];
 

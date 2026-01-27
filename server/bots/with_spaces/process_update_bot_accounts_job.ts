@@ -1,5 +1,5 @@
 import {dangerouslyUpdateBotAccountAvatarWithoutAuthorization} from "~/server/accounts/dangerously_update_bot_account_avatar_without_authorization.js";
-import {getBotWithAvatar} from "~/server/bots/bots_table.js";
+import {getBotWithAvatar} from "~/server/bots/get_bot_with_avatar.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {dangerouslyGetAllAccountIdsForBot} from "~/server/spaces/dangerously_get_all_account_ids_for_bot.js";

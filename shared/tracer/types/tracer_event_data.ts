@@ -1877,6 +1877,17 @@ export type TracerEventData = {
          */
         readonly searchEntityCount?: number;
     };
+
+    /** Information from our Cursor integration. */
+    readonly cursor?: {
+        /** Information regarding Cursor Cloud Agents. */
+        readonly cloudAgents?: {
+            readonly webhook?: {
+                readonly id?: string;
+                readonly event?: string;
+            };
+        };
+    };
 };
 
 /**

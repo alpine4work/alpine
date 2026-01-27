@@ -17,6 +17,7 @@ export function AvatarImage({
 
     return (
         <img
+            crossOrigin="anonymous"
             src={imageUrl}
             style={{
                 width: "100%",

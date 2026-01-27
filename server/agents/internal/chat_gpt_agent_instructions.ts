@@ -1,44 +1,10 @@
 /* eslint-disable string-quotes */
 
-import {Parent} from "mdast";
 import Mustache from "mustache";
 import OpenAi from "openai";
-import {parseMarkdownTree} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {agentInstructionsMarkdown as markdown} from "~/server/agents/internal/agent_instructions_markdown.js";
 import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-
-// Template string tag that tells Prettier to format the string as Markdown.
-function markdown(template: TemplateStringsArray, ...substitutions: Array<unknown>): Lazy<string> {
-    assert(substitutions.length === 0, "Substitutions break Prettier formatting");
-    assert(template.length === 1);
-    const string = template[0]!;
-
-    // Parse/print our instructions template using the same Markdown parser/printer
-    // that we use for printing API content. The fear is Markdown in an
-    // inconsistent format (the Markdown in this file is formatted by Prettier)
-    // will confuse LLMs.
-    return new Lazy(() => {
-        const root = parseMarkdownTree(string.trim());
-
-        const traverse = (node: Parent) => {
-            for (const child of node.children) {
-                if (child.type === "text") {
-                    child.value = child.value.replaceAll(/\n+/g, " ");
-                }
-
-                if ("children" in child) {
-                    traverse(child);
-                }
-            }
-        };
-
-        traverse(root);
-
-        return printMarkdownTree(root);
-    });
-}
 
 // NOTE(calebmer, 2025-09-03): I constructed the initial version of this prompt
 // by asking ChatGPT to write a prompt for a bot that uses the same tone and
@@ -46,7 +12,7 @@ function markdown(template: TemplateStringsArray, ...substitutions: Array<unknow
 // prompt and make sure it follows best practices.
 //
 // [1]: https://platform.openai.com/chat/edit?models=gpt-5&optimize=true
-const chatGptInstructionsTemplate = markdown`
+const chatGptAgentInstructionsTemplate = markdown`
 # Role and Objective
 
 - You are ChatGPT. An AI assistant developed by OpenAI designed to be helpful, safe, and easy to
@@ -78,6 +44,7 @@ const chatGptInstructionsTemplate = markdown`
 - Conversation history is formatted as Markdown and wrapped in XML tags: \`<human>\` (for humans)
   and \`<bot>\` (for bots/agents), with a \`name\` attribute indicating the source. ChatGPT messages
   appear as \`<bot name="ChatGPT">\`.
+
 - If a message occurs at least an hour after the previous message, the XML tag will include a
   \`time\` property, such as \`<human name="Bob" time="2 hours later">\`.
 
@@ -202,7 +169,7 @@ const chatGptInstructionsTemplate = markdown`
   is needed, stop and seek clarification or escalate.
 `;
 
-const chatGptReadLinkToolDescription = markdown`
+const chatGptAgentReadLinkToolDescription = markdown`
 Read the contents of an Alpine link (e.g. \`[link label](/link-path)\`).
 
 Will return the content as Markdown with YAML frontmatter (containing e.g. the \`type\` of content
@@ -212,13 +179,13 @@ friendly way. The Markdown and frontmatter may contain links (e.g. \`[link label
 other stuff which you can read with this tool.
 `;
 
-export const chatGptReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({
+export const chatGptAgentReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({
     type: "function",
     // NOTE(calebmer): I'm choosing the name `read_link` instead of `get_link`
     // (which would be more typical for our codebase) under the theory the AI
     // will better understand the tool's purpose with the more human verb "read".
     name: "read_link",
-    description: chatGptReadLinkToolDescription.get(),
+    description: chatGptAgentReadLinkToolDescription.get(),
     strict: true,
     parameters: {
         type: "object",
@@ -234,7 +201,7 @@ export const chatGptReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy
     },
 }));
 
-const chatGptSearchAlpineToolDescription = markdown`
+const chatGptAgentSearchAlpineToolDescription = markdown`
 Search for documents, tasks, forum posts, chat messages, and more within the current Alpine space.
 
 Will return a Markdown list of search results. Each result will include:
@@ -246,10 +213,10 @@ Write search queries like you would when searching Google. (Though Google search
 supported, always search using plain English.)
 `;
 
-export const chatGptSearchAlpineTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({
+export const chatGptAgentSearchAlpineTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({
     type: "function",
     name: "search_alpine",
-    description: chatGptSearchAlpineToolDescription.get(),
+    description: chatGptAgentSearchAlpineToolDescription.get(),
     strict: false,
     parameters: {
         type: "object",
@@ -266,7 +233,7 @@ export const chatGptSearchAlpineTool: Lazy<OpenAi.Responses.FunctionTool> = new 
 /**
  * Get ChatGPT developer instructions.
  */
-export function getChatGptInstructions({
+export function getChatGptAgentInstructions({
     spaceName,
     messageRoomType,
 }: {
@@ -289,7 +256,7 @@ export function getChatGptInstructions({
             break;
     }
 
-    return Mustache.render(chatGptInstructionsTemplate.get(), {
+    return Mustache.render(chatGptAgentInstructionsTemplate.get(), {
         SPACE_NAME: spaceName,
         CONVERSATION_SURFACE: conversationSurface,
     });

@@ -9,8 +9,9 @@ import {
 } from "openapi-typescript-helpers";
 import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
 import {
-    ApiContentResponse,
+    ApiContent,
     ApiErrorResponseBody,
+    ApiMessageContentPayloadParent,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
@@ -331,7 +332,12 @@ export function createApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
     roomPathObject: ApiMessageRoomPathObject,
-    body: {isStream?: boolean; content: ApiContentResponse; createdTimeZone?: TimeZone},
+    body: {
+        isStream?: boolean;
+        parent?: ApiMessageContentPayloadParent;
+        content: ApiContent;
+        createdTimeZone?: TimeZone;
+    },
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
@@ -355,6 +361,53 @@ export function createApiMessage(
         case "Task": {
             return apiClient.post(tracer, "/tasks/{id}/messages", {
                 params: {path: {id: roomPathObject.id}},
+                body,
+            });
+        }
+        default:
+            throw exhaustive(roomPathObject);
+    }
+}
+
+export function createApiMessageStreamPart(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    roomPathObject: ApiMessageRoomPathObject,
+    messageIndex: number,
+    body: {payload: ApiMessageStreamPartPayload},
+) {
+    switch (roomPathObject.type) {
+        case "Chat": {
+            return apiClient.post(tracer, "/chats/{id}/messages/{index}/stream/parts", {
+                params: {path: {id: roomPathObject.id, index: messageIndex}},
+                body,
+            });
+        }
+        case "DocumentCommentThread": {
+            return apiClient.post(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts",
+                {
+                    params: {
+                        path: {
+                            id: roomPathObject.id,
+                            threadId: roomPathObject.threadId,
+                            index: messageIndex,
+                        },
+                    },
+                    body,
+                },
+            );
+        }
+        case "Post": {
+            return apiClient.post(tracer, "/posts/{id}/messages/{index}/stream/parts", {
+                params: {path: {id: roomPathObject.id, index: messageIndex}},
+                body,
+            });
+        }
+        case "Task": {
+            return apiClient.post(tracer, "/tasks/{id}/messages/{index}/stream/parts", {
+                params: {path: {id: roomPathObject.id, index: messageIndex}},
                 body,
             });
         }

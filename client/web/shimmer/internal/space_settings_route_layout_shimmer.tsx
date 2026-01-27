@@ -160,6 +160,15 @@ export function SpaceSettingsRouteLayoutShimmer({children}: {children: ReactNode
                         >
                             <TextShimmer fontSize="200" width="16" />
                         </Box>
+                        <Box
+                            paddingX="2.5"
+                            paddingY="1"
+                            display="flex"
+                            alignItems="center"
+                            gap="0.5"
+                        >
+                            <TextShimmer fontSize="200" width="12" />
+                        </Box>
                     </Box>,
                     null,
                 )}

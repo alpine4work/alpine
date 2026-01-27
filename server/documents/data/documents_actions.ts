@@ -57,6 +57,7 @@ import {
     messageStreamIndexSearchEntityDelaySeconds,
     shouldScheduleMessageStreamIndexSearchEntityJob,
 } from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {MessageStreamAttributes} from "~/server/messaging/helpers/message_stream_schema.js";
 import {hasMessageStreamDefinitelyTimedOut} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
@@ -66,6 +67,7 @@ import {
 import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js";
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
+import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {
     markSearchAffinityCreateDocumentEntityInteraction,
     markSearchAffinityEntityInteraction,
@@ -80,6 +82,7 @@ import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specifi
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
     DocumentCommentThreadReference,
@@ -4583,14 +4586,17 @@ export async function createDocumentComment(
 
                 switch (parent.type) {
                     case "Message": {
-                        const commentItem = await DocumentsTable.getItem(context, {
-                            partitionType: "DocumentCommentThread",
-                            sortRangeType: "Comments",
-                            documentId,
-                            commentThreadId,
-                            commentIndex: parent.index,
-                        });
-
+                        const commentItem = await DocumentsTable.getItem(
+                            context,
+                            {
+                                partitionType: "DocumentCommentThread",
+                                sortRangeType: "Comments",
+                                documentId,
+                                commentThreadId,
+                                commentIndex: parent.index,
+                            },
+                            {consistency},
+                        );
                         return {
                             type: "Message",
                             index: parent.index,
@@ -4645,6 +4651,11 @@ export async function createDocumentComment(
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
         const createdTime = new Date(Date.now());
+
+        // If this is a stream message and we have empty content then we only send a
+        // notification event after the first content part has finished.
+        const willSendNotificationEvent = !isStream || !isContentEmpty(content);
+
         const commentIndex = commentThreadItem.commentsSummary.nextCommentIndex;
         const authorId = context.actor.getPossiblyBotAccountId();
 
@@ -4713,6 +4724,7 @@ export async function createDocumentComment(
                           commentIndex,
                           authorId,
                           createdTime,
+                          createdTimeZone,
                           completedTime: null,
                           partCount: 0,
                           lastPartUpdateLockVersion: null,
@@ -4722,6 +4734,9 @@ export async function createDocumentComment(
                               sendTime: createdTime,
                               delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
                           },
+                          pendingNotificationEvent: !willSendNotificationEvent
+                              ? {parent: parentForEvent}
+                              : null,
                       }),
                   ]
                 : []),
@@ -4730,24 +4745,26 @@ export async function createDocumentComment(
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
         const contentSnippet = getNotificationMessageContentSnippet(content);
 
-        context.jobs.send({
-            type: "NotificationEvent",
-            event: {
-                type: "CreateDocumentComment",
-                id: generateChronologicalId(),
-                spaceId,
-                documentId,
-                commentThreadId,
-                commentIndex,
-                createdTime,
-                createdTimeZone,
-                authorId,
-                mentionedAccountIds,
-                parent: parentForEvent,
-                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
-                contentSnippet,
-            },
-        });
+        if (willSendNotificationEvent) {
+            context.jobs.send({
+                type: "NotificationEvent",
+                event: {
+                    type: "CreateDocumentComment",
+                    id: generateChronologicalId(),
+                    spaceId,
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    createdTime,
+                    createdTimeZone,
+                    authorId,
+                    mentionedAccountIds,
+                    parent: parentForEvent,
+                    isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                    contentSnippet,
+                },
+            });
+        }
 
         context.jobs.send(
             {
@@ -4915,6 +4932,20 @@ export function putDocumentCommentStreamPart(
 
         let createdTime: Date;
         if (partIndex === item.partCount) {
+            const notificationEvent = await getNotificationEventForPutDocumentCommentStreamPart(
+                context,
+                {
+                    spaceId,
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    item,
+                    payload,
+                    partIndex,
+                    isTimeoutErrorCompletion,
+                },
+            );
+
             createdTime = currentTime;
 
             const createPartTransactionEntry = DocumentsTable.transactionCreateOrReplaceItem({
@@ -4942,10 +4973,26 @@ export function putDocumentCommentStreamPart(
                     lastPingTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
+                    pendingNotificationEvent: notificationEvent
+                        ? null
+                        : item.pendingNotificationEvent,
                 }),
                 createPartTransactionEntry,
             ]);
+
+            if (notificationEvent) {
+                context.jobs.send({
+                    type: "NotificationEvent",
+                    event: notificationEvent,
+                });
+            }
         } else {
+            if (isTimeoutErrorCompletion) {
+                throw new InternalError(
+                    "Must create a new part when setting `isTimeoutErrorCompletion` to true",
+                );
+            }
+
             if (partIndex !== item.partCount - 1) {
                 throw new FailedPreconditionError(
                     "Only the last part of the stream or the next part can be updated",
@@ -4978,7 +5025,6 @@ export function putDocumentCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 DocumentsTable.transactionDirectlyUpdateItem({
                     ...item,
-                    completedTime: isTimeoutErrorCompletion ? currentTime : null,
                     lastPingTime,
                     lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
                     lastIndexSearchEntityJob:
@@ -5030,6 +5076,94 @@ export function putDocumentCommentStreamPart(
 
         return {spaceId, createdTime};
     });
+}
+
+/**
+ * We send a notification event for a message stream once the first content
+ * stream part is finished. A stream part is considered finished when a new
+ * part is created after. Only the last stream part can be updated, all other
+ * stream parts are frozen.
+ *
+ * So practically this means for most streams the notification is sent once we
+ * put the second part (`partIndex === 1`) not the first part.
+ *
+ * Unless this is a timeout error completion, in that case we send the
+ * notification immediately since there will be no more parts.
+ */
+async function getNotificationEventForPutDocumentCommentStreamPart(
+    context: DynamoContext,
+    {
+        spaceId,
+        documentId,
+        commentThreadId,
+        commentIndex,
+        item,
+        payload,
+        partIndex,
+        isTimeoutErrorCompletion,
+    }: {
+        spaceId: SpaceId;
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        item: MessageStreamAttributes;
+        payload: MessageStreamPartPayload;
+        partIndex: number;
+        isTimeoutErrorCompletion: boolean;
+    },
+): Promise<NotificationEvent | null> {
+    if (!item.pendingNotificationEvent) return null;
+
+    let content: MessageContent;
+
+    // Always send a notification event for timeout error completions if we haven't
+    // sent one already.
+    if (isTimeoutErrorCompletion) {
+        content = payload.type === "Content" ? payload.content : createSimpleMessageContent();
+    } else if (partIndex === 0) {
+        return null;
+    } else {
+        // If we're creating a new part then read the previous part we're finishing. If
+        // the previous part is a content part then send a notification using the
+        // content from that part.
+
+        const previousPartItem = await DocumentsTable.getItem(
+            context,
+            {
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Comments#StreamPart",
+                documentId,
+                commentThreadId,
+                commentIndex,
+                partIndex: partIndex - 1,
+            },
+            // Part's will be added in rapid succession. Make sure we there's no eventual
+            // consistency lag.
+            {consistency: "Strong"},
+        );
+
+        if (previousPartItem.payload.type !== "Content") return null;
+
+        content = previousPartItem.payload.content;
+    }
+
+    const contentSnippet = getNotificationMessageContentSnippet(content);
+
+    return {
+        type: "CreateDocumentComment",
+        id: generateChronologicalId(),
+        spaceId,
+        documentId,
+        commentThreadId,
+        commentIndex,
+        createdTime: item.createdTime,
+        createdTimeZone: item.createdTimeZone,
+        authorId: item.authorId,
+        mentionedAccountIds: getMentionedAccountIdsInContent(content),
+        parent: item.pendingNotificationEvent.parent,
+        isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+        contentSnippet,
+    };
 }
 
 /**
@@ -5092,6 +5226,52 @@ export function completeDocumentCommentStream(
             throw createCantCompleteStaleMessageStreamError();
         }
 
+        let notificationEvent: NotificationEvent | null = null;
+
+        // If we haven't sent a notification event for this message stream yet then
+        // send one now!
+        if (item.pendingNotificationEvent) {
+            const previousPartItem =
+                item.partCount > 0
+                    ? await DocumentsTable.getItem(
+                          context,
+                          {
+                              partitionType: "DocumentCommentThread",
+                              sortRangeType: "Comments#StreamPart",
+                              documentId,
+                              commentThreadId,
+                              commentIndex,
+                              partIndex: item.partCount - 1,
+                          },
+                          // Part's will be added in rapid succession. Make sure we there's no eventual
+                          // consistency lag.
+                          {consistency: "Strong"},
+                      )
+                    : null;
+
+            const content =
+                previousPartItem?.payload.type === "Content"
+                    ? previousPartItem.payload.content
+                    : createSimpleMessageContent();
+            const contentSnippet = getNotificationMessageContentSnippet(content);
+
+            notificationEvent = {
+                type: "CreateDocumentComment",
+                id: generateChronologicalId(),
+                spaceId,
+                documentId,
+                commentThreadId,
+                commentIndex,
+                createdTime: item.createdTime,
+                createdTimeZone: item.createdTimeZone,
+                authorId: item.authorId,
+                mentionedAccountIds: getMentionedAccountIdsInContent(content),
+                parent: item.pendingNotificationEvent.parent,
+                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                contentSnippet,
+            };
+        }
+
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
         const completedTime = new Date(Date.now());
@@ -5099,7 +5279,15 @@ export function completeDocumentCommentStream(
         await DocumentsTable.directlyUpdateItem(context, {
             ...item,
             completedTime,
+            pendingNotificationEvent: notificationEvent ? null : item.pendingNotificationEvent,
         });
+
+        if (notificationEvent) {
+            context.jobs.send({
+                type: "NotificationEvent",
+                event: notificationEvent,
+            });
+        }
 
         // NOTE(calebmer): If the process dies after committing to DynamoDB but before
         // sending this realtime event the user might not see an update to their

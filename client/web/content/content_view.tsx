@@ -74,7 +74,6 @@ import {
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {
     codeBlockWrapperClassName,
     fileClassName,
@@ -92,6 +91,7 @@ import {
     HtmlGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
+import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
@@ -438,7 +438,7 @@ export function ContentView<Content extends ContentWithReferences>({
             if (result !== null) {
                 const shouldAddEllipsis =
                     result.node.childCount > 0 &&
-                    !isTextEndedWithPunctuation(result.node.lastChild!.text!);
+                    !doesStringEndWithPunctuation(result.node.lastChild!.text!);
 
                 const seeButtonContainerHtml = new HtmlElementGenerator("span");
 
@@ -1425,7 +1425,7 @@ export function ContentView<Content extends ContentWithReferences>({
                             html.firstChild.firstChild,
                         );
                     } else {
-                        const prefixElement = document.createTextNode("p");
+                        const prefixElement = document.createElement("p");
                         prefixElement.appendChild(document.createTextNode(prefix));
                         html.insertBefore(prefixElement, html.firstChild);
                     }

@@ -13,18 +13,28 @@ export async function shouldAgentRespondToRequest(
     // Always respond if mentioned.
     if (request.event.wasMentioned) return true;
 
+    // If the message is a reply to a message authored by our bot then the agent
+    // should respond.
     if (
         request.event.type === "NewMessage" &&
         request.event.parent &&
-        request.event.parent.author.id === request.accountId
+        request.event.parent.author.id === request.botAccountId
     ) {
         return true;
     }
 
-    return isOneOnOneChatWithAgent(tracer, request);
+    // If this is a 1:1 chat between the agent and another user, then the agent
+    // will always respond.
+    if (await isOneOnOneChat(tracer, request)) return true;
+
+    return false;
 }
 
-async function isOneOnOneChatWithAgent(
+/**
+ * Is this a 1:1 chat with the bot account? Uses the same cache as
+ * `shouldAgentRespondToRequest()`.
+ */
+export async function isOneOnOneChat(
     tracer: TracerBase,
     request: AgentWebhookRequest,
 ): Promise<boolean> {
@@ -46,6 +56,6 @@ async function isOneOnOneChatWithAgent(
     // will always respond.
     return (
         chat.members.length === 2 &&
-        chat.members.some(member => member.account.id === request.accountId)
+        chat.members.some(member => member.account.id === request.botAccountId)
     );
 }

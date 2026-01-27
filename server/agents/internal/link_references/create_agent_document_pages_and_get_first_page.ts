@@ -1,5 +1,8 @@
 import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o200k_base";
-import {agentDocumentFirstPageTokenLimit} from "~/server/agents/internal/agent_limits.js";
+import {
+    agentDocumentFirstPageTokenLimit,
+    agentPaginationTokenLimitGrowthFactor,
+} from "~/server/agents/internal/agent_limits.js";
 import {DurableObjectStorageInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {
     AgentDocumentPageLink,
@@ -75,9 +78,11 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
     {
         documentKey,
         originalLinkPathObject,
+        tokenLimitFactor,
     }: {
         documentKey: AgentLocalDocumentKey;
         originalLinkPathObject: AgentDocumentPageLink;
+        tokenLimitFactor: number;
     },
 ): Promise<AgentDocumentPageLink> {
     const document = await getAgentLocalDocumentContentIfExists(storage, documentKey);
@@ -86,13 +91,13 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
         throw createAgentLinkNotFoundError(printAgentLinkPath(originalLinkPathObject));
     }
 
-    const {elements} = document;
+    const {elements} = document.content;
     const pageBoundaries: Array<PageBoundary> = [];
 
     let currentPageStartIndex = 0;
     let currentPageTokenCount = 0;
     let currentPageNumber = 1;
-    let tokenLimitForPage = agentDocumentFirstPageTokenLimit;
+    let tokenLimitForPage = Math.floor(agentDocumentFirstPageTokenLimit * tokenLimitFactor);
 
     for (let i = 0; i < elements.length; i++) {
         const element = elements[i]!;
@@ -126,7 +131,9 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
             //
             // By increasing the token exponentially as it paginates, we can spend less reasoning tokens
             // and return results faster.
-            tokenLimitForPage = Math.floor(tokenLimitForPage * 1.5);
+            tokenLimitForPage = Math.floor(
+                tokenLimitForPage * agentPaginationTokenLimitGrowthFactor,
+            );
         } else {
             currentPageTokenCount += elementTokenCount;
         }

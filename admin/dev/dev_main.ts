@@ -77,6 +77,7 @@ const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const openAiDevApiKey = env.OPEN_AI_DEV_API_KEY;
 const logoDevSecretKey = env.LOGO_DEV_SECRET_KEY;
 const logoDevPublishableKey = env.LOGO_DEV_PUBLISHABLE_KEY;
+const cursorAgentSmeeWebhookUrl = env.CURSOR_AGENT_SMEE_WEBHOOK_URL;
 
 const appDevPort = parsePort(env.APP_DEV_PORT);
 const appDevInspectorPort = parsePort(env.APP_DEV_INSPECTOR_PORT);
@@ -158,6 +159,7 @@ const apiServicePublicKeyPath = joinPath(keysDirectoryPath, "api_service_rsa.pub
 const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
 const chatGptUnscopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_unscoped_api_key");
 const chatGptScopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_scoped_api_key");
+const cursorUnscopedApiKeyPath = joinPath(keysDirectoryPath, "cursor_unscoped_api_key");
 const mockChatGptUnscopedApiKeyPath = joinPath(keysDirectoryPath, "mock_chat_gpt_unscoped_api_key");
 
 const apnsCertificatePath = joinPath(
@@ -387,6 +389,7 @@ async function createArtifacts() {
                 `--agentServiceLocalPort=${agentsDevPort}`,
                 `--chatGptLocalUnscopedApiKey=${chatGptUnscopedApiKeyPath}`,
                 `--chatGptLocalScopedApiKey=${chatGptScopedApiKeyPath}`,
+                `--cursorLocalUnscopedApiKey=${cursorUnscopedApiKeyPath}`,
                 `--mockChatGptLocalUnscopedApiKey=${mockChatGptUnscopedApiKeyPath}`,
                 `--cookieNameSuffix=${devEnvPathsNameSuffix}`,
                 ...(logoDevSecretKey ? [`--logoDevSecretKey=${logoDevSecretKey}`] : []),
@@ -637,10 +640,14 @@ async function createArtifacts() {
                 `--apiServiceUrl=http://localhost:${apiDevPort}`,
                 `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
                 `--chatGptApiServiceKey=${chatGptUnscopedApiKeyPath}`,
+                `--cursorApiServiceKey=${cursorUnscopedApiKeyPath}`,
                 `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,
                 `--openAiDevApiKey=${openAiDevApiKey}`,
                 `--inspectorPort=${agentsDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
+                ...(cursorAgentSmeeWebhookUrl
+                    ? [`--cursorAgentSmeeWebhookUrl=${cursorAgentSmeeWebhookUrl}`]
+                    : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
         },

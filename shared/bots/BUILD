@@ -7,5 +7,6 @@ ts_project(
         "//shared/avatar",
         "//shared/id",
         "//shared/schema",
+        "//shared/spaces",
     ],
 )

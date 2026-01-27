@@ -385,14 +385,14 @@ export class TokenAgentJobQueueServicePrivateSide extends TokenAgentPrivateSide 
     }
 
     /**
-     * Sign a bot token for `ApiService`. The token expires after 2 hours. Which
+     * Sign a bot token for `ApiService`. The token expires after 8 hours. Which
      * lets the bot cook for a while in response to the webhook in case it's
      * entering a deep research style flow.
      *
      * If you need to immediately revoke the bot's access you can remove the bot
      * from your space.
      *
-     * If a bot needs to run for more than 2 hours then we should maybe consider an
+     * If a bot needs to run for more than 8 hours then we should maybe consider an
      * access token + refresh token setup. Extending the timeout may be fine too.
      * Need to think through the cancellation model (e.g. should you be able to
      * cancel an individual "token" or just remove a bad bot from the space
@@ -416,8 +416,8 @@ export class TokenAgentJobQueueServicePrivateSide extends TokenAgentPrivateSide 
 
         const currentTime = Date.now();
 
-        // 2 hours
-        const expirationTime = Math.floor((currentTime + 1000 * 60 * 60 * 2) / 1000);
+        // 8 hours
+        const expirationTime = Math.floor((currentTime + 1000 * 60 * 60 * 8) / 1000);
 
         return this._dangerouslySignToken("ApiService", payload, expirationTime);
     }

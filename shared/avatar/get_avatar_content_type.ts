@@ -21,5 +21,18 @@ export function getAvatarContentType(content: Uint8Array): string {
         return "image/png";
     }
 
+    // SVGs are XML and contain an <svg> tag near the start.
+    // Look for "<svg" (case insensitive) in the first 64 bytes.
+    for (let i = 0; i <= Math.min(64, content.length - 4); i++) {
+        if (
+            content[i] === 0x3c && // `<`
+            (content[i + 1] === 0x73 || content[i + 1] === 0x53) && // `s` or `S`
+            (content[i + 2] === 0x76 || content[i + 2] === 0x56) && // `v` or `V`
+            (content[i + 3] === 0x67 || content[i + 3] === 0x47) // `g` or `G`
+        ) {
+            return "image/svg+xml";
+        }
+    }
+
     return "image/avif";
 }

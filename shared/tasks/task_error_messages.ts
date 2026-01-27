@@ -41,7 +41,7 @@ export function createTaskCollectionNotFoundError(collectionId: TaskCollectionId
     });
 }
 
-export function createTaskNotFoundError(taskId?: string) {
+export function createTaskNotFoundError(taskId: string | undefined) {
     return new NotFoundError("Task not found", {
         aggregateDedupeKey: taskId,
         displayMessage: errorDisplayMessage`This task doesn’t exist. Try searching “my tasks” to see tasks you’ve created.`,

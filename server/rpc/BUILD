@@ -26,6 +26,8 @@ ts_project(
         "//server/alpha",
         "//server/apns",
         "//server/billing",
+        "//server/bots",
+        "//server/bots/with_spaces",
         "//server/chat/data",
         "//server/cloudflare/r2",
         "//server/content",

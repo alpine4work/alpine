@@ -5,7 +5,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
-export function getApiTaskCommentParentMessageResponse(
+export function createIntoApiTaskCommentContentPayloadParent(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     taskId: TaskId,

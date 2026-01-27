@@ -5,7 +5,7 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {AgentPaginatedMessagesListLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {loadAgentMessagesListLinkContent} from "~/server/agents/internal/link_references/load_agent_messages_list_link_content.js";
+import {loadAgentMessagesListLinkContent as actuallyLoadAgentMessagesListLinkContent} from "~/server/agents/internal/link_references/load_agent_messages_list_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -44,6 +44,13 @@ function createSampleContent(...texts: Array<string>): ApiContentResponse {
             elements: [{type: "Text", text}],
         })),
     };
+}
+
+async function loadAgentMessagesListLinkContent(
+    options: Parameters<typeof actuallyLoadAgentMessagesListLinkContent>[0],
+) {
+    const {messagesContent} = await actuallyLoadAgentMessagesListLinkContent(options);
+    return messagesContent;
 }
 
 describe("loadAgentMessagesListLinkContent", () => {
@@ -104,12 +111,11 @@ describe("loadAgentMessagesListLinkContent", () => {
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a chat conversation.
-
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
@@ -166,12 +172,11 @@ Hello!
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a chat conversation.
-
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
@@ -258,12 +263,11 @@ Hello hello!
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a chat conversation.
-
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
@@ -335,6 +339,7 @@ Hello David!
                 request,
                 link,
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
@@ -391,11 +396,12 @@ Thanks Alice!
                 request,
                 link,
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a task.
+These are comments on a task.
 
 <time>November 21st at 8:10am EST</time>
 
@@ -483,12 +489,11 @@ Started implementation!
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a chat conversation.
-
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
@@ -572,12 +577,11 @@ I'm doing great, thanks!
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a chat conversation.
-
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
@@ -639,12 +643,11 @@ ${"Hi Alice, how are you?".repeat(200)}
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a chat conversation.
-
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
@@ -696,12 +699,11 @@ Second message
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a chat conversation.
-
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
@@ -782,12 +784,11 @@ ${"Long message content.".repeat(200)}
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a chat conversation.
-
 [« Previous chunk](/chat/long-message-content?chunk=-1)
 
 <time>November 21st at 8:16am EST</time>
@@ -827,7 +828,7 @@ ${"Long message content.".repeat(100)}
                 nextCursor: null,
                 messages: [
                     {
-                        index: 1,
+                        index: 0,
                         author: aliceAccount,
                         createdTime: assertDateString("2025-11-21T13:17:00.000Z"),
                         createdTimeZone: defaultTimeZone,
@@ -837,7 +838,7 @@ ${"Long message content.".repeat(100)}
                         },
                     },
                     {
-                        index: 0,
+                        index: 1,
                         author: aliceAccount,
                         createdTime: assertDateString("2025-11-21T13:19:00.000Z"),
                         createdTimeZone: defaultTimeZone,
@@ -869,12 +870,11 @@ ${"Long message content.".repeat(100)}
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a chat conversation.
-
 <time>November 21st at 8:17am EST</time>
 
 <human name="Alice">
@@ -989,18 +989,17 @@ ${"Long message content.".repeat(100)}
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a comment thread on the document [Code Review](/document/code-review). The following is a \
+This is a comment thread on the document “[Code Review](/document/code-review).” The following is a \
 preview of the document near the comment. The specific text this comment was left on is wrapped in \
 \`<comment></comment>\`.
 
 <document_preview>
-
 This is **bold** and *italic* and \`myFunction()\` inline code. [Alice](/account/alice) is going to take care of this!!.
-
 </document_preview>
 
 <time>November 21st at 8:10am EST</time>
@@ -1165,16 +1164,15 @@ Thanks Alice!
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a comment thread on the document [Code Review](/document/code-review). The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in \`<comment></comment>\`.
+This is a comment thread on the document “[Code Review](/document/code-review).” The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in \`<comment></comment>\`.
 
 <document_preview>
-
 <comment>Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. They promoted a *water boy* **to captain** to the ~~head~~ of their <mark class="highlight-orange">army</mark>.</comment>
-
 </document_preview>
 
 <time>November 21st at 8:10am EST</time>
@@ -1245,11 +1243,12 @@ Thanks Alice!
                         rootMessage: null,
                     },
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a comment thread on the document [Code Review](/document/code-review).
+This is a comment thread on the document “[Code Review](/document/code-review).”
 
 <time>November 21st at 8:10am EST</time>
 
@@ -1311,11 +1310,12 @@ Thanks Alice!
                     request,
                     link,
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a comment thread on the document [Resources Doc](/document/resources-doc).
+This is a comment thread on the document “[Resources Doc](/document/resources-doc).”
 
 <time>November 21st at 8:16am EST</time>
 
@@ -1366,6 +1366,7 @@ Good stuff!
                         rootMessage: null,
                     },
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
@@ -1421,6 +1422,7 @@ First comment.
                         rootMessage: null,
                     },
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
@@ -1480,11 +1482,12 @@ ${"Long comment.".repeat(100)}
                         rootMessage: null,
                     },
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [task](/task/implement-feature-x).
+These are comments on a [task](/task/implement-feature-x).
 
 <time>November 21st at 8:10am EST</time>
 
@@ -1533,11 +1536,12 @@ Started working on this!
                         rootMessage: null,
                     },
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a task.
+These are comments on a task.
 
 <time>November 21st at 8:10am EST</time>
 
@@ -1590,11 +1594,12 @@ Making progress!
                         rootMessage: null,
                     },
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [task](/task/implement-feature-x).
+These are comments on a [task](/task/implement-feature-x).
 
 <time>November 21st at 8:10am EST</time>
 
@@ -1643,11 +1648,12 @@ Investigating the issue.
                         rootMessage: null,
                     },
                     conversationState,
+                    tokenLimitFactor: 1,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a task.
+These are comments on a task.
 
 <time>November 21st at 8:10am EST</time>
 

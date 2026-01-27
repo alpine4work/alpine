@@ -1,4 +1,4 @@
-import {Parent, Root} from "mdast";
+import {Heading, Parent, Root} from "mdast";
 import {DurableObjectStorageInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
@@ -53,6 +53,13 @@ export async function printApiContentToAgentMarkdownTree(
     });
 
     const traverse = (node: Parent) => {
+        // Headings from `ApiContent` should always start at level 2. That way we can
+        // add level 1 headings elsewhere in the agent context (e.g. document titles)
+        // without fear of conflict.
+        if (node.type === "heading") {
+            (node as Heading).depth += 1;
+        }
+
         for (let index = 0; index < node.children.length; index++) {
             const childNode = node.children[index]!;
 
@@ -142,10 +149,8 @@ export function printAgentContentMarkdownTree(markdownRoot: Root): string {
     const markdownString = printMarkdownTree(markdownRoot);
 
     return markdownString
-        .replaceAll(/^(<(?:human|bot)(?:>| [^>]*>))\n/gm, "$1")
-        .replaceAll(/\n(<\/(?:human|bot)(?:>| [^>]*>))$/gm, "$1")
-        .replaceAll(/^(<(?:blockquote)(?:>| [^>]*>))\n/gm, "$1")
-        .replaceAll(/\n(<\/(?:blockquote)(?:>| [^>]*>))$/gm, "$1")
+        .replaceAll(/^(<(?:human|bot|blockquote|document_preview)(?:>| [^>]*>))\n/gm, "$1")
+        .replaceAll(/\n(<\/(?:human|bot|blockquote|document_preview)(?:>| [^>]*>))$/gm, "$1")
         .replaceAll(/\\(\[…\])$/gm, "$1");
 }
 

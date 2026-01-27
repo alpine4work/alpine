@@ -32,6 +32,8 @@ export const AvatarSchema = Schema.object({
      * The underlying bytes for a small version of the avatar image. Usually AVIF
      * but sometimes will be PNG (e.g. for automatically created space avatars from
      * Logo.dev). Always will be a web safe image format.
+     *
+     * Sometimes could be SVG (e.g. for `chatGptDefaultKnownBotAccountModelData`).
      */
     content: Schema.bytes.nullable().default(null),
 });

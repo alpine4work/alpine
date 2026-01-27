@@ -19,7 +19,7 @@ import {
     subscribeToTriggeredOverlayOpenEvent,
 } from "~/client/web/design/overlay_trigger_button_event_listeners.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {Tooltip} from "~/client/web/design/tooltip.js";
+import {Tooltip, TooltipRef} from "~/client/web/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {useTouchSlop} from "~/client/web/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -39,6 +39,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+
+export const buttonMinWidth = "16";
 
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
@@ -169,6 +171,21 @@ function Button(
         isPressed?: boolean;
 
         /**
+         * Is the button disabled? Does not display a reason tooltip like when you use
+         * `disabledReason`. Generally you should prefer `disabledReason`. If you set
+         * `disabledReason` then you don't have to set `isDisabled`. Disabled actions
+         * may not be selected.
+         */
+        isDisabled?: boolean;
+
+        /**
+         * Is this button disabled? If so, for what reason? We will display the reason
+         * as a tooltip if the user tries to interact with a disabled action. Disabled
+         * actions may not be selected.
+         */
+        disabledReason?: string;
+
+        /**
          * Control how much horizontal padding on this button. Default is `3`.
          */
         paddingX?: "1.5" | "2" | "2.5" | "3";
@@ -255,7 +272,8 @@ function Button(
         variant = "quiet",
         icon,
         iconPlacement = "start",
-        isDisabled,
+        isDisabled: isDisabledFromProps = false,
+        disabledReason,
         keyboardShortcutHint,
         keyboardShortcutHintTooltipOffset,
         isPending: isPendingFromProps,
@@ -282,8 +300,12 @@ function Button(
     const reporter = useReporter();
     const localRef = useRef<HTMLButtonElement | null>(null);
 
+    const isDisabled = isDisabledFromProps || disabledReason !== undefined;
+
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
     const isPending = isPendingFromProps || isPendingFromPress;
+
+    const disabledReasonTooltipRef = useRef<TooltipRef>(null);
 
     const handlePress = (event: PressEvent) => {
         if (isDisabled || isPending) return;
@@ -614,7 +636,22 @@ function Button(
                 isFocusable ? "button" : "div",
                 // eslint-disable-next-line react-compiler/react-compiler
                 {
-                    ...mergeProps(buttonProps, hoverProps),
+                    ...mergeProps(
+                        // eslint-disable-next-line react-compiler/react-compiler
+                        {
+                            onPointerDown: () => {
+                                // Make sure to skip the tooltip hover delay and show the disabled reason
+                                // immediately on press.
+                                if (disabledReason !== undefined) {
+                                    assertExists(
+                                        disabledReasonTooltipRef.current,
+                                    ).skipTooltipHoverDelay();
+                                }
+                            },
+                        },
+                        buttonProps,
+                        hoverProps,
+                    ),
                     ref: useCallback(
                         (element: HTMLButtonElement) => {
                             if (element === null) {
@@ -667,7 +704,7 @@ function Button(
                         justifyContent: "center",
                         alignItems: "center",
                         height,
-                        minWidth: !withoutMinWidth && !isQuietVariant ? "16" : undefined,
+                        minWidth: !withoutMinWidth && !isQuietVariant ? buttonMinWidth : undefined,
                         width: fullWidth ? "full" : undefined,
                         paddingX,
                         fontSize,
@@ -753,6 +790,20 @@ function Button(
                         </IconContext.Provider>
                     </Box>
                 }
+            >
+                {node}
+            </Tooltip>
+        );
+    }
+
+    if (disabledReason !== undefined) {
+        node = (
+            <Tooltip
+                ref={disabledReasonTooltipRef}
+                placement="bottom-start"
+                content={disabledReason}
+                // If the user presses a disabled button, keep showing the tooltip.
+                isVisibleAfterPress={true}
             >
                 {node}
             </Tooltip>

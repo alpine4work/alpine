@@ -192,6 +192,20 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
         // This route accepts any chronological ID the user passes in. It'll error on
         // random IDs but this is a legitimate error.
     },
+    "settings.bots.$botId": () => {
+        test("not found error for route `settings.bots.$botId`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/s/${space.id}/settings/bots/${generateId()}`);
+
+            await expect(page.getByText("This bot doesn’t exist")).toBeVisible();
+        });
+    },
     "tasks.$taskId._index": () => {
         test("not found error for route `tasks.$taskId._index`", async ({
             page,

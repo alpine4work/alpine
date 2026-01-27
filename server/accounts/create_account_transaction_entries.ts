@@ -1,5 +1,7 @@
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
+import {createAccountModelWithoutSpaceFromItem} from "~/server/accounts/internal/create_account_model_without_space_from_item.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
@@ -23,7 +25,7 @@ export function createAccountWithEmailAddressTransactionEntries({
     emailAddress: EmailAddress;
 }): Array<DynamoTransactionEntry> {
     return [
-        ...createAccountTransactionEntries({id, currentTime, name}),
+        ...createAccountTransactionEntries({id, currentTime, name}).transactionEntries,
         AccountsTable.transactionCreateItem({
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
@@ -65,32 +67,45 @@ export function createAccountTransactionEntries({
             content: Uint8Array;
         } | null;
     };
-}): Array<DynamoTransactionEntry> {
-    return [
-        AccountsTable.transactionCreateItem({
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId: id,
-            name: name.slice(0, maxLabelStringLength),
-            nameVersion: 0,
-            createdTime: currentTime,
-            observedTimeZone: null,
-            // Always set to true if we're instantiating a non-bot account. Humans must always
-            // go through the `/sign-up` flow.
-            hasNotSignedUp: !dangerouslyInstantiateBot ? true : undefined,
-            bot: dangerouslyInstantiateBot,
-            reactionCharacter: getUnstableReactionCharacterForNewAccountId(id),
-        }),
-        ...(dangerouslyInstantiateBot?.avatar
-            ? [
-                  AccountsTable.transactionCreateItem({
-                      partitionType: "Account",
-                      sortRangeType: "Avatar",
-                      accountId: id,
-                      avatarId: dangerouslyInstantiateBot.avatar.avatarId,
-                      content: dangerouslyInstantiateBot.avatar.content,
-                  }),
-              ]
-            : []),
-    ];
+}): {
+    account: AccountModelWithoutSpace;
+    transactionEntries: Array<DynamoTransactionEntry>;
+} {
+    const createAccountTransactionEntry = AccountsTable.transactionCreateItem({
+        partitionType: "Account",
+        sortRangeType: "Attributes",
+        accountId: id,
+        name: name.slice(0, maxLabelStringLength),
+        nameVersion: 0,
+        createdTime: currentTime,
+        observedTimeZone: null,
+        // Always set to true if we're instantiating a non-bot account. Humans must always
+        // go through the `/sign-up` flow.
+        hasNotSignedUp: !dangerouslyInstantiateBot ? true : undefined,
+        bot: dangerouslyInstantiateBot,
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(id),
+    });
+
+    const createAccountAvatarTransactionEntry = dangerouslyInstantiateBot?.avatar
+        ? AccountsTable.transactionCreateItem({
+              partitionType: "Account",
+              sortRangeType: "Avatar",
+              accountId: id,
+              avatarId: dangerouslyInstantiateBot.avatar.avatarId,
+              content: dangerouslyInstantiateBot.avatar.content,
+          })
+        : null;
+
+    const account = createAccountModelWithoutSpaceFromItem({
+        ...createAccountTransactionEntry.newItem,
+        avatar: createAccountAvatarTransactionEntry?.newItem ?? null,
+    });
+
+    return {
+        account,
+        transactionEntries: [
+            createAccountTransactionEntry,
+            ...(createAccountAvatarTransactionEntry ? [createAccountAvatarTransactionEntry] : []),
+        ],
+    };
 }

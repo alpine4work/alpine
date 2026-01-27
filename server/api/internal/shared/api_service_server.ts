@@ -11,7 +11,7 @@ import Yaml from "yaml";
 import {renderApiBrowser} from "~/server/api/internal/shared/api_browser.js";
 import {ApiPathsBase} from "~/server/api/internal/shared/api_paths_type.js";
 import {ApiServiceProcessContext} from "~/server/api/internal/shared/api_service_context.js";
-import {getApiKeyAttributesIfExists} from "~/server/bots/bots_table.js";
+import {getApiKeyAttributesIfExists} from "~/server/bots/get_api_key_attributes_if_exists.js";
 import {BotActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {

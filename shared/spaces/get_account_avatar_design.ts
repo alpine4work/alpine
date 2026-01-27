@@ -1,6 +1,8 @@
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {Reaction} from "~/shared/reactions/reaction.js";
-import {AccountModelData, AccountModelDataSpaceState} from "~/shared/spaces/account_model.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {AccountId, BotId} from "~/shared/id/types/id_types.js";
+import {Reaction, ReactionCharacter} from "~/shared/reactions/reaction.js";
+import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {getAvatarDefaultDesign} from "~/shared/spaces/get_avatar_default_design.js";
 
 type AccountAvatarDesignBase = {
@@ -21,7 +23,29 @@ export type AccountDefaultAvatarDesign = AccountAvatarDesignBase & {
 
 export type AccountAvatarDesign = AccountImageAvatarDesign | AccountDefaultAvatarDesign;
 
-export function getAccountAvatarDesign(accountData: AccountModelData): AccountAvatarDesign {
+export type AccountModelDataForAvatarDesign = {
+    readonly reactionCharacter: ReactionCharacter | null;
+    readonly avatar: {readonly content: Uint8Array | null} | null;
+    readonly space: {
+        readonly state:
+            | {readonly type: "Active"}
+            | {readonly type: "Removed"}
+            | {readonly type: "InvitePending"; readonly wasPreviouslyRemoved: boolean};
+    };
+} & (
+    | {readonly botId: BotId; readonly id?: AccountId}
+    // If `botId` is undefined then `id` is required since we need it to figure out
+    // the avatar's default design.
+    | {readonly botId?: BotId; readonly id: AccountId}
+);
+
+// Should be able to pass in `AccountModelData` for the `AccountAvatarData`
+// type.
+assertAssignableTypes<AccountModelData, AccountModelDataForAvatarDesign>();
+
+export function getAccountAvatarDesign(
+    accountData: AccountModelDataForAvatarDesign,
+): AccountAvatarDesign {
     const imageContent = getImageContent(accountData);
     const shouldShowRemovedAvatar = wasAccountRemoved(accountData.space.state);
     const iconOverlayType = getAccountAvatarIconOverlayType(accountData, shouldShowRemovedAvatar);
@@ -32,7 +56,14 @@ export function getAccountAvatarDesign(accountData: AccountModelData): AccountAv
         ? {type: "Image", content: imageContent, ...designBase}
         : {
               type: "Default",
-              ...getAvatarDefaultDesign(accountData.id, accountData.reactionCharacter),
+              ...getAvatarDefaultDesign(
+                  accountData.botId !== undefined
+                      ? accountData.botId
+                      : // `id` should always exist in this branch according to the type definition. Seems
+                        // like TypeScript doesn't understand this.
+                        accountData.id!,
+                  accountData.reactionCharacter,
+              ),
               ...designBase,
           };
 }
@@ -52,7 +83,7 @@ export function getAccountFallbackDefaultAvatarDesign(
 }
 
 function getAccountAvatarIconOverlayType(
-    accountData: AccountModelData,
+    accountData: AccountModelDataForAvatarDesign,
     shouldShowRemovedAvatar: boolean,
 ) {
     // If the account is a bot, we should ALWAYS show the bot icon, even if the bot account was
@@ -70,7 +101,7 @@ function getAccountAvatarIconOverlayType(
     return null;
 }
 
-function getImageContent(accountData: AccountModelData) {
+function getImageContent(accountData: AccountModelDataForAvatarDesign) {
     if (!accountData.avatar?.content) {
         return null;
     }
@@ -88,7 +119,7 @@ function getImageContent(accountData: AccountModelData) {
     return accountData.avatar.content;
 }
 
-function wasAccountRemoved(accountState: AccountModelDataSpaceState) {
+function wasAccountRemoved(accountState: AccountModelDataForAvatarDesign["space"]["state"]) {
     // If the account is pending an invite and it was never a member of the space, we should render
     // the default account avatar (their initials with a themed background) WITHOUT the removed
     // account UX – they should appear active until they reject the invite.

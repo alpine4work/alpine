@@ -2251,6 +2251,7 @@ export const linkPressedClassName = style({
 
 export const linkLightColorSchemeOverrideClassName = style({
     color: colorSchemeVars["theme-60-const"],
+    caretColor: colorSchemeVars["theme-60-const"],
     selectors: {
         [`&${linkClassName}${linkPressedClassName}`]: {
             color: colorSchemeVars["theme-60-const-opacity-60"],
@@ -2260,9 +2261,21 @@ export const linkLightColorSchemeOverrideClassName = style({
 
 export const linkDarkColorSchemeOverrideClassName = style({
     color: colorSchemeVars["theme-40-const"],
+    caretColor: colorSchemeVars["theme-40-const"],
     selectors: {
         [`&${linkClassName}${linkPressedClassName}`]: {
             color: colorSchemeVars["theme-40-const-opacity-60"],
+        },
+    },
+});
+
+export const linkInheritColorClassName = style({
+    color: "inherit",
+    caretColor: "inherit",
+    selectors: {
+        [`&${linkClassName}${linkPressedClassName}`]: {
+            color: "inherit",
+            opacity: 0.6,
         },
     },
 });

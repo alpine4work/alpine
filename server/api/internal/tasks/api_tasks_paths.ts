@@ -1,10 +1,11 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
+import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
-import {getApiTaskCommentParentMessageResponse} from "~/server/api/internal/tasks/internal/get_api_task_comment_parent_message_response.js";
+import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {getApiTasksWithoutContent} from "~/server/api/internal/tasks/internal/get_api_tasks_without_content.js";
 import {
     FileTaskAuthorizer,
@@ -141,7 +142,7 @@ export const apiTasksPaths: Pick<
                         context,
                         message.spaceId,
                         message,
-                        getApiTaskCommentParentMessageResponse(
+                        createIntoApiTaskCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
@@ -204,7 +205,7 @@ export const apiTasksPaths: Pick<
                                 context,
                                 spaceId,
                                 message,
-                                getApiTaskCommentParentMessageResponse(
+                                createIntoApiTaskCommentContentPayloadParent(
                                     context,
                                     spaceId,
                                     pathParameters.id,
@@ -216,6 +217,8 @@ export const apiTasksPaths: Pick<
             };
         },
         post: async (context, {pathParameters, requestBody}) => {
+            const parent = fromApiMessageContentPayloadParent(requestBody.parent);
+
             const content = assertMessageContent(
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
@@ -224,7 +227,7 @@ export const apiTasksPaths: Pick<
 
             const {spaceId, index, createdTime} = await createTaskComment(context, {
                 taskId: pathParameters.id,
-                parent: null,
+                parent,
                 content,
                 createdTimeZone,
                 fileIds: [],
@@ -234,7 +237,7 @@ export const apiTasksPaths: Pick<
 
             const payload: MessageContentPayload = {
                 type: "Content",
-                parent: null,
+                parent,
                 content,
                 contentUpdate: null,
                 fileIds: [],
@@ -295,7 +298,11 @@ export const apiTasksPaths: Pick<
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        getApiTaskCommentParentMessageResponse(context, spaceId, pathParameters.id),
+                        createIntoApiTaskCommentContentPayloadParent(
+                            context,
+                            spaceId,
+                            pathParameters.id,
+                        ),
                     ),
                 },
             };
@@ -335,6 +342,22 @@ export const apiTasksPaths: Pick<
                     },
                 },
             };
+        },
+    },
+
+    "/tasks/{id}/messages/{index}/stream/parts": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const payload = fromApiMessageStreamPartPayload(requestBody.payload);
+
+            const {spaceId} = await putTaskCommentStreamPart(context, {
+                taskId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                partIndex: "Create",
+                payload,
+                consistency: "StrongWithinCache",
+            });
+
+            return {content: {spaceId}};
         },
     },
 

@@ -1,5 +1,5 @@
 import {seedTestAccounts} from "~/server/accounts/seed_test_accounts.js";
-import {seedTestBots} from "~/server/bots/bots_table.js";
+import {seedTestBots} from "~/server/bots/seed_test_bots.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {seedTestChannels} from "~/server/forum/data/seed_test_channels.js";
@@ -29,6 +29,7 @@ export function seedDynamo(
         agentServiceLocalPort: string;
         chatGptLocalUnscopedApiKey: string;
         chatGptLocalScopedApiKey: string;
+        cursorLocalUnscopedApiKey: string;
         mockChatGptLocalUnscopedApiKey: string;
     },
 ): Promise<void> {

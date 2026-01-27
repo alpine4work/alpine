@@ -19,13 +19,13 @@ export async function intoApiMessage(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     message: MessageItem,
-    getApiMessageParentResponse: (
+    intoContentPayloadParent: (
         parent: MessageContentPayloadParent,
     ) => Promise<ApiMessageContentPayloadParentResponse | null>,
 ): Promise<ApiMessageResponse> {
     const [author, payload, streamParts] = await runAllPromises([
         getApiAccount(context, spaceId, message.authorId, {consistency: "StrongWithinCache"}),
-        intoApiMessagePayload(context, spaceId, message.payload, getApiMessageParentResponse),
+        intoApiMessagePayload(context, spaceId, message.payload, intoContentPayloadParent),
         message.stream
             ? runAllPromises(
                   message.stream.parts.map(part =>
@@ -106,7 +106,7 @@ async function intoApiMessagePayload(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     payload: MessagePayload,
-    getApiMessageParentResponse: (
+    intoContentPayloadParent: (
         parent: MessageContentPayloadParent,
     ) => Promise<ApiMessageContentPayloadParentResponse | null>,
 ): Promise<ApiMessagePayloadResponse> {
@@ -117,11 +117,7 @@ async function intoApiMessagePayload(
         case "Content":
             const [contentWithReferences, parent] = await runAllPromises([
                 intoApiMessageContentWithReferences(context, spaceId, payload.content),
-                (async () => {
-                    if (!payload.parent) return undefined;
-
-                    return getApiMessageParentResponse(payload.parent);
-                })(),
+                payload.parent ? intoContentPayloadParent(payload.parent) : undefined,
             ]);
 
             return {

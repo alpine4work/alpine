@@ -13379,7 +13379,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can complete stream message and put part update for timeout error", async () => {
+            test("can’t complete stream message and put part update for timeout error", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -13408,16 +13408,20 @@ export function testMessagingImplementation<RoomKey extends string>(
                     },
                 });
 
-                await putMessageStreamPart(space.systemAction(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    partIndex: 0,
-                    payload: {
-                        type: "Content",
-                        content: createSimpleMessageContent("Timeout error"),
-                    },
-                    isTimeoutErrorCompletion: true,
-                });
+                await expect(
+                    putMessageStreamPart(space.systemAction(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Timeout error"),
+                        },
+                        isTimeoutErrorCompletion: true,
+                    }),
+                ).rejects.toThrow(
+                    "Must create a new part when setting `isTimeoutErrorCompletion` to true",
+                );
 
                 expect(
                     await getMessagePayload(session.action(), {
@@ -13426,14 +13430,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                     }).then(({stream}) => stream),
                 ).toEqual(
                     expect.objectContaining({
-                        completedTime: expect.any(Date),
+                        completedTime: null,
                         parts: [
                             {
                                 version: expect.any(Number),
                                 createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
-                                    content: createSimpleMessageContent("Timeout error"),
+                                    content: createSimpleMessageContent("Test part 1"),
                                 },
                             },
                         ],
@@ -14102,6 +14106,751 @@ export function testMessagingImplementation<RoomKey extends string>(
                 } finally {
                     Date.now = originalDateNow;
                 }
+            });
+
+            describe("notification events", () => {
+                test("sends notification event after first content part finishes", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // First content part - notification not sent yet (part in progress)
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("First content"),
+                            },
+                        });
+
+                        // Second part - this finishes the first content part, triggers
+                        // notification
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Second content"),
+                            },
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent("First content"),
+                        }),
+                    });
+                });
+
+                test("sends notification event with parent after first content part finishes", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const parentMessage = await createMessage(context.action(session), {
+                        roomKey: room.key,
+                        parent: null,
+                        content: createSimpleMessageContent(),
+                        fileIds: [],
+                    });
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: {
+                                    type: "Message",
+                                    index: parentMessage.index,
+                                },
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // First content part - notification not sent yet (part in progress)
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("First content"),
+                            },
+                        });
+
+                        // Second part - this finishes the first content part, triggers
+                        // notification
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Second content"),
+                            },
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent("First content"),
+                            parent: expect.objectContaining({
+                                type: "Message",
+                                index: parentMessage.index,
+                                author: expect.objectContaining({id: session.account.id}),
+                            }),
+                        }),
+                    });
+                });
+
+                test("sends notification event only once even with multiple content parts", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("First content"),
+                            },
+                        });
+
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Second content"),
+                            },
+                        });
+
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 2,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Third content"),
+                            },
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                });
+
+                test("sends notification event immediately if stream created with non-empty content", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent("Initial content"),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // Add more parts
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("More content"),
+                            },
+                        });
+
+                        // Complete stream
+                        await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    // Only one notification should be sent at message creation time
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent("Initial content"),
+                        }),
+                    });
+                });
+
+                test("does not send notification when only non-content parts are added", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // Add tool call part
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "ToolCall",
+                                call: {type: "Search", query: "test query"},
+                            },
+                        });
+
+                        // Add reasoning part
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Reasoning",
+                                content: createSimpleMessageContent("Thinking..."),
+                            },
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(0);
+                });
+
+                test("sends notification after content part even if non-content parts came first", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // Add reasoning part first (no notification)
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Reasoning",
+                                content: createSimpleMessageContent("Thinking..."),
+                            },
+                        });
+
+                        // Add content part (no notification yet - part in progress)
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("First content"),
+                            },
+                        });
+
+                        // Add another content part (triggers notification with first content)
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 2,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Second content"),
+                            },
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent("First content"),
+                        }),
+                    });
+                });
+
+                test("sends notification on complete when stream has no parts", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // Complete stream immediately without adding any parts
+                        await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent(),
+                        }),
+                    });
+                });
+
+                test("sends notification on complete when stream only had non-content parts", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // Add tool call part
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "ToolCall",
+                                call: {type: "Search", query: "test query"},
+                            },
+                        });
+
+                        // Add reasoning part
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Reasoning",
+                                content: createSimpleMessageContent("Thinking..."),
+                            },
+                        });
+
+                        // Complete stream
+                        await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent(),
+                        }),
+                    });
+                });
+
+                test("sends notification using current content when completing with timeout error on content part", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // Use timeout error completion with a Content part
+                        await putMessageStreamPart(space.systemAction(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: "Create",
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Timeout content"),
+                            },
+                            isTimeoutErrorCompletion: true,
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent("Timeout content"),
+                        }),
+                    });
+                });
+
+                test("sends notification using current content when completing with timeout error on content part even when there’s a previous unfinished content part", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        await putMessageStreamPart(space.systemAction(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: "Create",
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("First content"),
+                            },
+                        });
+
+                        // Use timeout error completion with a Content part
+                        await putMessageStreamPart(space.systemAction(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: "Create",
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Timeout content"),
+                            },
+                            isTimeoutErrorCompletion: true,
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent("Timeout content"),
+                        }),
+                    });
+                });
+
+                test("doesn’t send notification when completing with timeout error if there was a previous finished content part", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        await putMessageStreamPart(space.systemAction(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: "Create",
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("First content"),
+                            },
+                        });
+
+                        await putMessageStreamPart(space.systemAction(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: "Create",
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Second content"),
+                            },
+                        });
+
+                        // Use timeout error completion with a Content part
+                        await putMessageStreamPart(space.systemAction(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: "Create",
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Timeout content"),
+                            },
+                            isTimeoutErrorCompletion: true,
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent("First content"),
+                        }),
+                    });
+                });
+
+                test("sends notification when completing non-content part with timeout error", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // Use timeout error completion with a ToolCall part - no notification
+                        // is sent because ToolCall is not a Content part, and notifications
+                        // only include Content.
+                        await putMessageStreamPart(space.systemAction(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: "Create",
+                            payload: {
+                                type: "ToolCall",
+                                call: {type: "Search", query: "test query"},
+                            },
+                            isTimeoutErrorCompletion: true,
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                    expect(notificationJobs[0]?.job).toMatchObject({
+                        type: "NotificationEvent",
+                        event: expect.objectContaining({
+                            contentSnippet: createSimpleMessageContent(),
+                        }),
+                    });
+                });
+
+                test("does not send duplicate notifications on stream complete if already sent", async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession({role: "Admin"});
+                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                    const room = await actuallyCreateRoom(context.action(session), space.id, [
+                        {accountId: session.account.id},
+                        {accountId: botAccount.id},
+                    ]);
+
+                    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent(),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        // First content part
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("First content"),
+                            },
+                        });
+
+                        // Second content part (triggers notification)
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Second content"),
+                            },
+                        });
+
+                        // Complete stream - should NOT send another notification
+                        await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        });
+                    });
+
+                    const notificationJobs = sentJobs.filter(
+                        ({job}) => job.type === "NotificationEvent",
+                    );
+                    expect(notificationJobs).toHaveLength(1);
+                });
             });
         });
 

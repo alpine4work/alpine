@@ -106,11 +106,11 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
 
 // We don't need to reload when certain search params change.
 export const shouldRevalidate: ShouldRevalidateFunction = ({
-    currentUrl: _currentUrl,
-    nextUrl: _nextUrl,
+    currentUrl: immutableCurrentUrl,
+    nextUrl: immutableNextUrl,
 }) => {
-    const currentUrl = new URL(_currentUrl);
-    const nextUrl = new URL(_nextUrl);
+    const currentUrl = new URL(immutableCurrentUrl);
+    const nextUrl = new URL(immutableNextUrl);
 
     // Used to initially focus the chat:
     nextUrl.searchParams.delete("focus");
@@ -133,13 +133,19 @@ export default function NewChatRoute() {
         focusSearchParam === "picker" ? ("ChatAccountPicker" as const) : null,
     );
 
+    const hasSearchParamToDelete = searchParams.has("focus");
     useEffect(() => {
-        if (searchParams.has("focus")) {
-            const newSearchParams = new URLSearchParams(searchParams);
-            newSearchParams.delete("focus");
-            setSearchParams(newSearchParams, {replace: true});
+        if (hasSearchParamToDelete) {
+            setSearchParams(
+                oldSearchParams => {
+                    const newSearchParams = new URLSearchParams(oldSearchParams);
+                    newSearchParams.delete("focus");
+                    return newSearchParams;
+                },
+                {replace: true},
+            );
         }
-    }, [searchParams, setSearchParams]);
+    }, [hasSearchParamToDelete, setSearchParams]);
 
     // Having state here allows us to optimistically update selected accounts. Then
     // when we get a new result back from Remix (due to route transition), that

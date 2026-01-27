@@ -1,11 +1,14 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "jobs",
+    name = "with_spaces",
     test_deps = [
+        "//server/bots/test_helpers",
+        "//server/dynamo/test_helpers",
     ],
     visibility = [
-        "//server/jobs:__subpackages__",
+        "//app:__pkg__",
+        "//server:__subpackages__",
     ],
     deps = [
         "//server/accounts",

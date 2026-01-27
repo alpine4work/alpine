@@ -1,6 +1,7 @@
 import {Link, Paragraph, PhrasingContent, Root, RootContent, Text} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
+import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentPostCommentsLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
     createAgentLink,
@@ -21,6 +22,7 @@ import {
     ApiPostResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -53,11 +55,16 @@ type LoadAgentPostCommentsLinkRequest = Pick<AgentWebhookRequest, "apiClient" | 
  */
 export async function loadAgentPostCommentsLinkContent(options: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-}): Promise<Root> {
+    tokenLimitFactor: number;
+}): Promise<{
+    preamble: Array<RootContent>;
+    messages: Array<AgentMessage>;
+    messagesContent: Root;
+}> {
     // We always fetch the post when loading a page of comments. We need the post in order to
     // create the preamble elements for the list of messages. If we're loading the first page,
     // we also need to fetch the post's content.
@@ -71,34 +78,43 @@ export async function loadAgentPostCommentsLinkContent(options: {
     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
     const post = await fetchPost(options.tracer, options.request, options.link.postId);
 
-    const {messagesContent, doesPageContainPost} = await loadPageMessages({
-        ...options,
-        post,
-    });
+    const {messages, messagesContent, doesPageContainPost, doesPageContainPostComments} =
+        await loadPageMessages({
+            ...options,
+            post,
+        });
 
     const preambleElements = await getPreambleForPostComments({
         transaction: options.transaction,
         post,
         doesPageContainPost,
+        doesPageContainPostComments,
         currentPageLink: options.link,
     });
 
     return {
-        type: "root",
-        children: [preambleElements, ...messagesContent],
+        preamble: [preambleElements],
+        messages,
+        messagesContent: {
+            type: "root",
+            children: [preambleElements, ...messagesContent],
+        },
     };
 }
 
 async function loadPageMessages(options: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
     post: ApiPostResponse;
+    tokenLimitFactor: number;
 }): Promise<{
+    messages: Array<AgentMessage>;
     messagesContent: Array<RootContent>;
     doesPageContainPost: boolean;
+    doesPageContainPostComments: boolean;
 }> {
     const {link} = options;
     switch (link.pageInfo.from) {
@@ -133,9 +149,10 @@ async function getMarkdownContentForPageFromStart({
     conversationState,
     cursorOptions,
     post,
+    tokenLimitFactor,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
@@ -144,9 +161,12 @@ async function getMarkdownContentForPageFromStart({
         cursor: number | null;
     };
     post: ApiPostResponse;
+    tokenLimitFactor: number;
 }): Promise<{
+    messages: Array<AgentMessage>;
     messagesContent: Array<RootContent>;
     doesPageContainPost: boolean;
+    doesPageContainPostComments: boolean;
 }> {
     // If we are loading the first page of post comments, we should load the post as
     // well. Any time a post is referenced, it will be stored as the first page of
@@ -162,7 +182,7 @@ async function getMarkdownContentForPageFromStart({
             parseApiMessageRoomPath(getMessageRoomPath(link)),
             {
                 startingCursor: cursorOptions.cursor,
-                limitTokenCount: link.tokenLimitForPage,
+                limitTokenCount: Math.floor(link.tokenLimitForPage * tokenLimitFactor),
             },
         ),
         isFirstPage ? getPostAgentMessage(transaction, request, post) : null,
@@ -184,8 +204,10 @@ async function getMarkdownContentForPageFromStart({
     });
 
     return {
+        messages: pageMessages,
         messagesContent,
         doesPageContainPost: isFirstPage,
+        doesPageContainPostComments: messages.length > 0,
     };
 }
 
@@ -197,9 +219,10 @@ async function getMarkdownContentForPageFromEnd({
     conversationState,
     cursorOptions,
     post,
+    tokenLimitFactor,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
@@ -208,9 +231,12 @@ async function getMarkdownContentForPageFromEnd({
         cursor: number;
     };
     post: ApiPostResponse;
+    tokenLimitFactor: number;
 }): Promise<{
+    messages: Array<AgentMessage>;
     messagesContent: Array<RootContent>;
     doesPageContainPost: boolean;
+    doesPageContainPostComments: boolean;
 }> {
     const {messages, nextCursor} = await getAgentMessagesFromEndUntilLimitTokenCount(
         tracer,
@@ -220,7 +246,7 @@ async function getMarkdownContentForPageFromEnd({
         parseApiMessageRoomPath(getMessageRoomPath(link)),
         {
             startingCursor: cursorOptions.cursor,
-            limitTokenCount: link.tokenLimitForPage,
+            limitTokenCount: Math.floor(link.tokenLimitForPage * tokenLimitFactor),
         },
     );
 
@@ -247,8 +273,10 @@ async function getMarkdownContentForPageFromEnd({
     });
 
     return {
+        messages: pageMessages,
         messagesContent,
         doesPageContainPost: isFirstPage,
+        doesPageContainPostComments: messages.length > 0,
     };
 }
 
@@ -260,9 +288,10 @@ async function getMarkdownContentForPageFromMiddle({
     conversationState,
     cursorOptions,
     post,
+    tokenLimitFactor,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
@@ -271,9 +300,12 @@ async function getMarkdownContentForPageFromMiddle({
         index: number;
     };
     post: ApiPostResponse;
+    tokenLimitFactor: number;
 }): Promise<{
+    messages: Array<AgentMessage>;
     messagesContent: Array<RootContent>;
     doesPageContainPost: boolean;
+    doesPageContainPostComments: boolean;
 }> {
     const [
         {messages: messagesBeforeCurrent, nextCursor: pageStartIndex},
@@ -288,7 +320,7 @@ async function getMarkdownContentForPageFromMiddle({
             {
                 // get everything before current index
                 startingCursor: cursorOptions.index,
-                limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
+                limitTokenCount: Math.floor((link.tokenLimitForPage / 2) * tokenLimitFactor),
             },
         ),
         getAgentMessagesFromStartUntilTokenLimitCount(
@@ -300,7 +332,7 @@ async function getMarkdownContentForPageFromMiddle({
             {
                 // get everything after and including current index
                 startingCursor: cursorOptions.index - 1,
-                limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
+                limitTokenCount: Math.floor((link.tokenLimitForPage / 2) * tokenLimitFactor),
             },
         ),
     ]);
@@ -335,8 +367,11 @@ async function getMarkdownContentForPageFromMiddle({
         conversationState,
     });
     return {
+        messages: pageMessages,
         messagesContent,
         doesPageContainPost: isFirstPage,
+        doesPageContainPostComments:
+            messagesBeforeCurrent.length > 0 || messagesAfterAndIncludingCurrent.length > 0,
     };
 }
 
@@ -349,11 +384,13 @@ async function getPreambleForPostComments({
     post,
     currentPageLink,
     doesPageContainPost,
+    doesPageContainPostComments,
 }: {
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     post: ApiPostResponse;
     currentPageLink: AgentPostCommentsLink;
     doesPageContainPost: boolean;
+    doesPageContainPostComments: boolean;
 }): Promise<Paragraph> {
     // If the page type is "page", we already showed the post content on the first page.
     // For chunks, we want to show a link to the post for the first chunk only.
@@ -396,18 +433,14 @@ async function getPreambleForPostComments({
         : [];
 
     const content: Array<PhrasingContent> = [
-        {type: "text", value: `This is a conversation about a `},
+        {type: "text", value: doesPageContainPost ? "This is a " : "These are comments on a "},
         postElement,
         ...channelElements,
+        ...(doesPageContainPost && doesPageContainPostComments
+            ? cast<Array<PhrasingContent>>([{type: "text", value: " and its comments"}])
+            : []),
         {type: "text", value: "."},
     ];
-
-    if (doesPageContainPost) {
-        content.push({
-            type: "text",
-            value: " The first message on this page contains the original post.",
-        });
-    }
 
     return {
         type: "paragraph",
@@ -429,7 +462,7 @@ async function fetchPost(
 }
 
 async function getPostAgentMessage(
-    transaction: DurableObjectTransaction,
+    transaction: DurableObjectTransactionInterface,
     request: LoadAgentPostCommentsLinkRequest,
     post: ApiPostResponse,
 ): Promise<AgentMessage> {

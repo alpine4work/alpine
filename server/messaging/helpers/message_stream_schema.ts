@@ -1,13 +1,18 @@
 // For stream parts created before we had the `createdTime` property, use a mock time
 
+import {ApiBotWebhookNewMessageEventParentSchema} from "~/server/notifications/core/notification_event.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {MessageStreamPartPayloadSchema} from "~/shared/messaging/message_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 // smaller than future times.
 const MessageStreamPartCreatedTimeSchema = Schema.date.default(
     new Date("2025-11-14T03:54:50.378Z"),
 );
+
+export type MessageStreamAttributes = SchemaType<typeof MessageStreamAttributesSchema>;
 
 export const MessageStreamAttributesSchema = Schema.object({
     // We duplicate `authorId` here to easily check if the bot is allowed to update
@@ -18,9 +23,17 @@ export const MessageStreamAttributesSchema = Schema.object({
      * The time at which the stream was created. This should always be the same
      * as the message's creation time. We set them separately so that we can
      * reliably determine if a stream has timed out without having to fetch
-     * the Message's creation time.
+     * the message's creation time.
      */
     createdTime: Schema.date.default(new Date("2025-11-14T04:24:50.378Z")),
+
+    /**
+     * The time zone at which the stream was created. This should always be the
+     * same as the message's creation time zone. We set them separately so that we
+     * have access to `createdTimeZone` alongside `createdTime` without having to
+     * fetch the message's creation time.
+     */
+    createdTimeZone: TimeZoneSchema.default(defaultTimeZone),
 
     /**
      * If a stream hasn't been pinged in a certain amount of time, it can indicate
@@ -84,6 +97,19 @@ export const MessageStreamAttributesSchema = Schema.object({
      * part is created.
      */
     lastPartCreatedTime: Schema.date.nullable().default(null),
+
+    /**
+     * Have we sent a `NotificationEvent` job for this stream yet? If non-null then
+     * we'll send a `NotificationEvent` once we finish the first content part of
+     * the stream.
+     *
+     * Includes some data we'll want to include in the `NotificationEvent`.
+     */
+    pendingNotificationEvent: Schema.object({
+        parent: ApiBotWebhookNewMessageEventParentSchema.nullable(),
+    })
+        .nullable()
+        .default(null),
 });
 
 export const MessageStreamPartSchema = Schema.object({

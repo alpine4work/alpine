@@ -3,7 +3,7 @@ import {getContentReferencesForNode} from "~/server/content/get_content_referenc
 import {printContentSingleLineTextSnippetForServer} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
-import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function printNotificationEventAlertContentBody(
@@ -24,7 +24,7 @@ export async function printNotificationEventAlertContentBody(
         references: contentReferences,
     });
 
-    if (!event.isContentSnippetComplete && !isTextEndedWithPunctuation(body)) {
+    if (!event.isContentSnippetComplete && !doesStringEndWithPunctuation(body)) {
         body += "…";
     }
 

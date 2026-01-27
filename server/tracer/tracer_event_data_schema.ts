@@ -639,6 +639,14 @@ const TracerEventDataSchema = {
         hasMoreEntries: Schema.boolean,
         searchEntityCount: Schema.integer,
     },
+    cursor: {
+        cloudAgents: {
+            webhook: {
+                id: Schema.string,
+                event: Schema.string,
+            },
+        },
+    },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 
 /**

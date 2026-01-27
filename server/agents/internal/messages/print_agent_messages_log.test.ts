@@ -26,6 +26,12 @@ afterEach(async () => {
     await storage.deleteAll();
 });
 
+let testAgentMessageIndex = 0;
+
+beforeEach(() => {
+    testAgentMessageIndex = 0;
+});
+
 function createTestAgentMessage({
     author,
     createdTime,
@@ -92,7 +98,7 @@ function createTestAgentMessage({
 
         return AgentMessage.new(transaction, {
             spaceId,
-            index: 0,
+            index: testAgentMessageIndex++,
             author: {
                 ...author,
                 shortName: author.name,

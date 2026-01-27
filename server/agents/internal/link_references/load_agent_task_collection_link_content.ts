@@ -54,7 +54,7 @@ export async function loadAgentTaskCollectionLinkContent({
     link,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: Pick<AgentWebhookRequest, "spaceId" | "apiClient">;
     link: AgentTaskCollectionLink;
 }): Promise<Root> {
@@ -226,7 +226,7 @@ function printTaskStatus(status: ApiTaskStatus): string {
 }
 
 async function intoTaskMetadataList(
-    transaction: DurableObjectTransaction,
+    transaction: DurableObjectTransactionInterface,
     task: ApiTaskWithoutContent,
 ): Promise<List> {
     const assigneeListItem = await intoAssigneeListItem(transaction, task.assignee);
@@ -256,7 +256,7 @@ async function intoTaskMetadataList(
 }
 
 async function intoAssigneeListItem(
-    transaction: DurableObjectTransaction,
+    transaction: DurableObjectTransactionInterface,
     assignee: ApiAccount | undefined,
 ): Promise<ListItem | undefined> {
     if (!assignee) return undefined;

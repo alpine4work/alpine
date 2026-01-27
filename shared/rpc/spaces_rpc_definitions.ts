@@ -47,6 +47,19 @@ export const removeSpaceAccount = defineRpc({
     },
 });
 
+export const addSpaceAccount = defineRpc({
+    name: "addSpaceAccount",
+    // Throws if account has already been added to the space.
+    isIdempotent: false,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        accountId: Schema.id<AccountId>(),
+    },
+    output: {
+        account: AccountModel.schema,
+    },
+});
+
 export const getOurAccountSpaces = defineRpc({
     name: "getOurAccountSpaces",
     isIdempotent: true,
@@ -190,7 +203,6 @@ export const instantiateBotSpaceAccount = defineRpc({
         accountId: Schema.id<AccountId>().optional(),
     },
     output: {
-        accountId: Schema.id<AccountId>(),
-        name: Schema.string,
+        account: AccountModel.schema,
     },
 });

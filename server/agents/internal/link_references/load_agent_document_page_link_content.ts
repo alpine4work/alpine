@@ -1,5 +1,6 @@
 import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
+import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {
     AgentDocumentPageLink,
     AgentLocalDocumentPageLink,
@@ -12,6 +13,7 @@ import {createAgentDocumentPagesAndReturnFirstPage} from "~/server/agents/intern
 import {createAgentLinkNotFoundError} from "~/server/agents/internal/link_references/create_agent_link_not_found_error.js";
 import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
+import {visitAndProduceApiContent} from "~/server/agents/internal/visit_and_produce_api_content.js";
 import {InternalError} from "~/shared/error/error.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -33,17 +35,20 @@ export async function loadAgentDocumentPageLinkContent({
     transaction,
     request,
     link,
+    tokenLimitFactor,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
     link: AgentDocumentPageLink;
+    tokenLimitFactor: number;
 }): Promise<Root> {
     const pageLink = await getLocalDocumentPageLink({
         tracer,
         transaction,
         request,
         link,
+        tokenLimitFactor,
     });
 
     const document = await getAgentLocalDocumentContentIfExists(
@@ -55,14 +60,32 @@ export async function loadAgentDocumentPageLinkContent({
         throw createAgentLinkNotFoundError(printAgentLinkPath(link));
     }
 
-    const pageElements = document.elements.slice(
+    const pageElements = document.content.elements.slice(
         pageLink.pageStartElementIndex,
         pageLink.pageEndElementIndexExclusive,
     );
 
     const pageContentTree = await printApiContentToAgentMarkdownTree(
         transaction,
-        {elements: pageElements},
+        visitAndProduceApiContent(
+            {elements: pageElements},
+            {
+                // Remove comment marks from the document content since there's no way for the
+                // agent to currently read document comments so the comment mark is merely
+                // wasted tokens.
+                //
+                // TODO(calebmer, #ai): Provide agents a way to see all the comments in a
+                // document. We're thinking about implementing this as a separate
+                // `/document/${title}-comments` link that has all the comments in the document
+                // and further links to read each comment thread individually.
+                visitInlineElement: element => {
+                    if (!element.marks) return;
+                    const newMarks = element.marks.filter(mark => mark.type !== "Comment");
+                    if (newMarks.length === element.marks.length) return;
+                    element.marks = newMarks;
+                },
+            },
+        ),
         {spaceId: request.spaceId},
     );
 
@@ -81,6 +104,15 @@ export async function loadAgentDocumentPageLinkContent({
         });
     }
 
+    // Include the document title in the first page.
+    if (pageLink.pageStartElementIndex === 0) {
+        children.push({
+            type: "heading",
+            depth: 1,
+            children: [{type: "text", value: document.title}],
+        });
+    }
+
     for (const element of pageContentTree.children) {
         children.push(element);
     }
@@ -92,7 +124,7 @@ export async function loadAgentDocumentPageLinkContent({
                 {
                     type: "link",
                     url: pageLink.nextPageAgentLinkString,
-                    children: [{type: "text", value: "Next Page »"}],
+                    children: [{type: "text", value: "Next page »"}],
                 },
             ],
         });
@@ -110,9 +142,10 @@ export async function loadAgentDocumentPageLinkContent({
 // the first page.
 async function getLocalDocumentPageLink(options: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
     link: AgentDocumentPageLink;
+    tokenLimitFactor: number;
 }): Promise<AgentLocalDocumentPageLink> {
     if (!options.link.localDocumentPage) {
         const documentPageLink = await fetchDocumentContentAndGetFirstPage(options);
@@ -131,11 +164,13 @@ async function fetchDocumentContentAndGetFirstPage({
     transaction,
     request,
     link,
+    tokenLimitFactor,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
     link: AgentDocumentPageLink;
+    tokenLimitFactor: number;
 }): Promise<AgentDocumentPageLink> {
     const {
         data: {document},
@@ -143,11 +178,7 @@ async function fetchDocumentContentAndGetFirstPage({
         params: {path: {id: link.documentId}},
     });
 
-    const documentKey = await putAgentLocalDocumentContent(
-        transaction,
-        link.documentId,
-        document.content,
-    );
+    const documentKey = await putAgentLocalDocumentContent(transaction, link.documentId, document);
 
     // Notably does not create a page link for the first page of the document. The
     // first page in a document will only ever be read when the LLM calls `read_link`
@@ -155,5 +186,6 @@ async function fetchDocumentContentAndGetFirstPage({
     return await createAgentDocumentPagesAndReturnFirstPage(transaction, {
         documentKey,
         originalLinkPathObject: link,
+        tokenLimitFactor,
     });
 }

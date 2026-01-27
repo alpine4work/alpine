@@ -28,7 +28,7 @@ export const spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole: Recor
 /**
  * When a space isn't found, we treat it as permission denied.
  */
-export function createSpaceNotFoundError(spaceId?: string) {
+export function createSpaceNotFoundError(spaceId: string | undefined) {
     return new PermissionDeniedError("Account doesn’t have access to space", {
         aggregateDedupeKey: spaceId,
         displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,

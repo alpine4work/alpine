@@ -1,6 +1,7 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {getApiDocumentCommentParentMessageResponse} from "~/server/api/internal/documents/internal/get_api_document_comment_parent_message_response.js";
+import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
+import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
@@ -135,7 +136,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                         context,
                         message.spaceId,
                         message,
-                        getApiDocumentCommentParentMessageResponse(
+                        createIntoApiDocumentCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
@@ -201,7 +202,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                                 context,
                                 spaceId,
                                 message,
-                                getApiDocumentCommentParentMessageResponse(
+                                createIntoApiDocumentCommentContentPayloadParent(
                                     context,
                                     spaceId,
                                     pathParameters.id,
@@ -214,6 +215,8 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
             };
         },
         post: async (context, {pathParameters, requestBody}) => {
+            const parent = fromApiMessageContentPayloadParent(requestBody.parent);
+
             const content = assertMessageContent(
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
@@ -223,7 +226,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
             const {spaceId, index, createdTime} = await createDocumentComment(context, {
                 documentId: pathParameters.id,
                 commentThreadId: pathParameters.threadId,
-                parent: null,
+                parent,
                 content,
                 createdTimeZone,
                 fileIds: [],
@@ -233,7 +236,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
 
             const payload: MessageContentPayload = {
                 type: "Content",
-                parent: null,
+                parent,
                 content,
                 contentUpdate: null,
                 fileIds: [],
@@ -289,12 +292,12 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                             authorId: context.actor.getBotAccountId(),
                             createdTime,
                             createdTimeZone,
-                            payload: payload,
+                            payload,
                             stream: requestBody.isStream
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        getApiDocumentCommentParentMessageResponse(
+                        createIntoApiDocumentCommentContentPayloadParent(
                             context,
                             spaceId,
                             pathParameters.id,
@@ -341,6 +344,23 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                     },
                 },
             };
+        },
+    },
+
+    "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const payload = fromApiMessageStreamPartPayload(requestBody.payload);
+
+            const {spaceId} = await putDocumentCommentStreamPart(context, {
+                documentId: pathParameters.id,
+                commentThreadId: pathParameters.threadId,
+                commentIndex: pathParameters.index,
+                partIndex: "Create",
+                payload,
+                consistency: "StrongWithinCache",
+            });
+
+            return {content: {spaceId}};
         },
     },
 

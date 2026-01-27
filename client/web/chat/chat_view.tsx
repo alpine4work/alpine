@@ -14,6 +14,7 @@ import {
     navigationBarMobileGap,
 } from "~/client/web/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/web/design/pretty_conjunction_list.js";
+import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {MessagingView, MessagingViewRef} from "~/client/web/messaging/messaging_view.js";
@@ -49,6 +50,7 @@ export function ChatView({
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
+    initiallyFocus,
     initialIsFavorite,
 }: {
     withInboxBanner: boolean;
@@ -57,6 +59,7 @@ export function ChatView({
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
+    initiallyFocus: boolean;
     initialIsFavorite: boolean;
 }) {
     return (
@@ -72,6 +75,7 @@ export function ChatView({
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
                 initialScrollToMessageIndex={initialScrollToMessageIndex}
+                initiallyFocus={initiallyFocus}
             />
         </Box>
     );
@@ -262,12 +266,14 @@ function ChatMessagingView({
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
+    initiallyFocus,
 }: {
     chat: ChatModel;
     initialCheckpoint: ServerSynchronizationCheckpoint;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
+    initiallyFocus?: boolean;
 }) {
     const context = useAppContext();
     const messagingRef = useRef<MessagingViewRef<ChatId>>(null);
@@ -298,7 +304,13 @@ function ChatMessagingView({
                 end: null,
             });
         }
-    }, [chat.id, initialScrollToMessageIndex]);
+
+        if (initiallyFocus) {
+            return scheduleAfterNavigationAnimation(() => {
+                messaging.focusInput();
+            });
+        }
+    }, [chat.id, initialScrollToMessageIndex, initiallyFocus]);
 
     return (
         <MessagingView

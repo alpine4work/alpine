@@ -50,3 +50,4 @@ export type PostDraftId = NominalChronologicalIdType<"PostDraft">;
 export type BotId = NominalRandomIdType<"Bot">;
 export type BotWebhookEventId = NominalChronologicalIdType<"BotWebhookEvent">;
 export type RpcCallId = NominalRandomIdType<"RpcCall">;
+export type CursorCloudAgentId = NominalRandomIdType<"CursorCloudAgent">;

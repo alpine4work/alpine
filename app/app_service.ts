@@ -194,6 +194,13 @@ async function createAppService({
                       ),
                   );
 
+                  const cursorLocalUnscopedApiKey = await getServiceTokenAgentKeyFromOption(
+                      assertExists(
+                          options.cursorLocalUnscopedApiKey,
+                          "Missing `cursorLocalUnscopedApiKey` option in development",
+                      ),
+                  );
+
                   const mockChatGptLocalUnscopedApiKey = await getServiceTokenAgentKeyFromOption(
                       assertExists(
                           options.mockChatGptLocalUnscopedApiKey,
@@ -205,6 +212,7 @@ async function createAppService({
                       agentServiceLocalPort,
                       chatGptLocalUnscopedApiKey: chatGptLocalUnscopedApiKey.trim(),
                       chatGptLocalScopedApiKey: chatGptLocalScopedApiKey.trim(),
+                      cursorLocalUnscopedApiKey: cursorLocalUnscopedApiKey.trim(),
                       mockChatGptLocalUnscopedApiKey: mockChatGptLocalUnscopedApiKey.trim(),
                   };
               })()

@@ -24,6 +24,14 @@ export const agentDocumentFirstPageTokenLimit = 1000;
 export const agentMessageFirstPageTokenLimit = 1000;
 
 /**
+ * How much the token limit increases for each subsequent load of a paginated
+ * link. We increase the tokens loaded on each "Next page" read since the agent
+ * is giving us clear signal it needs more information in the link, we don't
+ * want the agent to waste reasoning tokens continually paginating.
+ */
+export const agentPaginationTokenLimitGrowthFactor = 1.5;
+
+/**
  * The initial token limit for messages to include in context. This is based on
  * 750 words which is about the average length of a Wikipedia article. Then we
  * use the [rule of thumb that 1 token is 3/4 of a word][1] so a Wikipedia
@@ -32,6 +40,13 @@ export const agentMessageFirstPageTokenLimit = 1000;
  * [1]: https://platform.openai.com/tokenizer
  */
 export const agentInitializeMessagesTokenLimit = 1500;
+
+/**
+ * The token limit to use when initializing the cursor agent. It's more than
+ * our default token limit because Cursor doesn't have the ability to call
+ * tools to load more context.
+ */
+export const cursorAgentInitializeMessagesTokenLimit = agentInitializeMessagesTokenLimit * 3;
 
 /**
  * When the agent uses the `search_alpine` tool, we want Alpine to return up to

@@ -10,12 +10,11 @@ import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o2
 // However, there's no blessed way from Prettier to import the full version
 // with types.
 import * as prettier from "prettier/index.mjs";
-import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
+import {chatGptKnownBotId} from "~/server/bots/settings_default_known_bot_account_model_data.js";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
 import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
-import {chatGptKnownBotId} from "~/shared/bots/known_bot_ids.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
     ChatGptConversationItem,
@@ -35,16 +34,11 @@ export async function loadChatGptConversationItems(
 ): Promise<ReadonlyArray<ChatGptConversationItem>> {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
-    const chatGptBotId =
-        process.env.NODE_ENV !== "production"
-            ? getDynamoSeedConstants().chatGptBotId
-            : chatGptKnownBotId;
-
     const [, chatGptAccountId] = await runAllPromises([
         // Safety check: Make sure the actor has access to the space.
         authorizeSpaceAccess(context, spaceId),
 
-        getBotAccountIdForSpaceIfExists(context, chatGptBotId, spaceId),
+        getBotAccountIdForSpaceIfExists(context, chatGptKnownBotId, spaceId),
     ]);
 
     if (!chatGptAccountId)

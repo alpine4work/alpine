@@ -5,7 +5,7 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {AgentPostCommentsLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {loadAgentPostCommentsLinkContent} from "~/server/agents/internal/link_references/load_agent_post_comments_link_content.js";
+import {loadAgentPostCommentsLinkContent as actuallyLoadAgentPostCommentsLinkContent} from "~/server/agents/internal/link_references/load_agent_post_comments_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
@@ -44,6 +44,13 @@ function createSampleContent(...texts: Array<string>): ApiContentResponse {
             elements: [{type: "Text", text}],
         })),
     };
+}
+
+async function loadAgentPostCommentsLinkContent(
+    options: Parameters<typeof actuallyLoadAgentPostCommentsLinkContent>[0],
+) {
+    const {messagesContent} = await actuallyLoadAgentPostCommentsLinkContent(options);
+    return messagesContent;
 }
 
 describe("loadAgentPostCommentsLinkContent", () => {
@@ -114,11 +121,12 @@ describe("loadAgentPostCommentsLinkContent", () => {
                 request,
                 link,
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a post in [Announcements](/channel/announcements). The first message on this page contains the original post.
+This is a post in [Announcements](/channel/announcements) and its comments.
 
 <time>November 20th at 8:05am EST</time>
 
@@ -199,11 +207,12 @@ This is a comment on the post.
                     startTime: new Date(),
                     timeZone: defaultTimeZone,
                 },
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a post in [Announcements](/channel/announcements). The first message on this page contains the original post.
+This is a post in [Announcements](/channel/announcements) and its comments.
 
 <time>November 20th at 8:05am EST</time>
 
@@ -291,11 +300,12 @@ ${"This is a comment on the post.".repeat(200)}
                     tokenLimitForPage: 1000,
                 },
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [post](/post/test-post-content-preview) in [Announcements](/channel/announcements). The first message on this page contains the original post.
+This is a [post](/post/test-post-content-preview) in [Announcements](/channel/announcements) and its comments.
 
 <time>November 20th at 8:05am EST</time>
 
@@ -380,11 +390,12 @@ ${"Hi Alice, how are you?".repeat(200)}
                 request,
                 link,
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a post in [General](/channel/general). The first message on this page contains the original post.
+This is a post in [General](/channel/general) and its comments.
 
 <time>November 20th at 8:05am EST</time>
 
@@ -397,7 +408,7 @@ Nice post!
 </human>
 
 <human name="Bob" timezone="PST">
-## This is a heading
+### This is a heading
 
 - with
 
@@ -477,11 +488,12 @@ Nice post!
                 request,
                 link,
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [post](/post/test-post-content-preview) in [General](/channel/general). The first message on this page contains the original post.
+This is a [post](/post/test-post-content-preview) in [General](/channel/general) and its comments.
 
 <time>November 20th at 8:05am EST</time>
 
@@ -576,11 +588,12 @@ Third comment!
                 request,
                 link,
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [post](/post/alice-in-announcements-big-news) in [Announcements](/channel/announcements).
+These are comments on a [post](/post/alice-in-announcements-big-news) in [Announcements](/channel/announcements).
 
 [« Previous chunk](/post/third-comment?chunk=-1)
 
@@ -658,11 +671,12 @@ ${"Fourth comment!".repeat(200)}
                 request,
                 link,
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [post](/post/alice-in-announcements-big-news) in [Announcements](/channel/announcements).
+These are comments on a [post](/post/alice-in-announcements-big-news) in [Announcements](/channel/announcements).
 
 [« Previous chunk](/post/exciting-stuff?chunk=-1)
 
@@ -733,17 +747,20 @@ Thanks Alice!
                 request,
                 link,
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a post in [General](/channel/general). The first message on this page contains the original post.
+This is a post in [General](/channel/general) and its comments.
 
 <time>November 20th at 8:05am EST</time>
 
 <human name="Alice">
 Post content.
+</human>
 
+<human name="Alice">
 First comment!
 </human>
 
@@ -789,11 +806,12 @@ Second comment!
                 request,
                 link,
                 conversationState,
+                tokenLimitFactor: 1,
             });
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a post in [Announcements](/channel/announcements). The first message on this page contains the original post.
+This is a post in [Announcements](/channel/announcements).
 
 <time>November 20th at 8:05am EST</time>
 

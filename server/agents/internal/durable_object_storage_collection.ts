@@ -1,13 +1,18 @@
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 const durableObjectStorageCollectionPrefixes = new Set<OrderKey>();
 
-type DurableObjectStorageInterfaceBase = Pick<
-    DurableObjectTransaction,
-    "get" | "put" | "delete" | "list"
->;
+type DurableObjectStorageInterfaceBase = {
+    get<T = unknown>(key: string, options?: DurableObjectGetOptions): Promise<T | undefined>;
+    list<T = unknown>(options?: DurableObjectListOptions): Promise<Map<string, T>>;
+    put<T>(key: string, value: T, options?: DurableObjectPutOptions): Promise<void>;
+    delete(key: string, options?: DurableObjectPutOptions): Promise<boolean>;
+};
+
+assertAssignableTypes<DurableObjectStorage, DurableObjectStorageInterfaceBase>();
 
 /**
  * An interface that's compatible with `DurableObjectStorage`,

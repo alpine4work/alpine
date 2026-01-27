@@ -16,7 +16,6 @@ import {
     ContentCodeBlockLanguageIdSchema,
     isContentCodeBlockLanguageId,
 } from "~/shared/content/content_code_block_language_id.js";
-import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
 import {contentTableProsemirrorSchemaSpec} from "~/shared/content/table/content_table_schema.js";
 import {
     boldClassName,
@@ -46,11 +45,7 @@ import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {parseUserInputSafeUrl} from "~/shared/helpers/string/parse_user_input_safe_url.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
-import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
@@ -436,84 +431,6 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             selectable: false,
             toDOM: () => ["br"],
             parseDOM: [{tag: "br"}],
-        },
-
-        /**
-         * A mention is an inline reference to an account. Mentioning an account also
-         * sends a notification to the account to get their attention.
-         *
-         * A mention node alone in content does not include all the data we need to
-         * render it. When sending content to the client we need to load extra related
-         * data. In the case of an account, their name and avatar.
-         */
-        mention: {
-            inline: true,
-            group: "inline",
-            selectable: true,
-            // Allow all marks on `mention`.
-            marks: "_",
-            attrs: {
-                mention: {
-                    schema: ContentMentionSchema,
-                },
-            },
-            // The rendering of mentions is entirely managed with a custom renderer since
-            // we need to get data from `ContentReferences`.
-            toDOM: () => ["span", {}, ""],
-            parseDOM: [
-                {
-                    tag: "span[data-cy-mention]",
-                    getAttrs: node => {
-                        if (!(node instanceof HTMLElement)) return false;
-
-                        const accountId = node.getAttribute("data-cy-mention");
-                        if (!accountId) return false;
-                        if (!isId<AccountId>(accountId)) return false;
-
-                        const isShort = node.getAttribute("data-cy-mention-short") !== null;
-
-                        const mention: ContentMention = {
-                            type: "Account",
-                            accountId,
-                            isShort,
-                        };
-
-                        return {mention};
-                    },
-                },
-                {
-                    priority: 100,
-                    tag: "a[data-cy-mention]",
-                    getAttrs: node => {
-                        if (!(node instanceof HTMLElement)) return false;
-
-                        const href = node.getAttribute("href");
-                        if (!href) return false;
-
-                        const spaceIdMatch = href.match(/\/s\/([^/]+)/);
-                        if (!spaceIdMatch) return false;
-                        if (!isId<SpaceId>(spaceIdMatch[1]!)) return false;
-
-                        const spaceId = spaceIdMatch[1];
-
-                        // We parse the `SearchEntityId` in `data-cy-mention` using whatever `SpaceId`
-                        // is in the URL. It's the responsibility of `<ContentEditor>`'s
-                        // `transformPastedDOM` to remove the `data-cy-mention` attribute from any
-                        // mentions in the wrong space. Since only `<ContentEditor>` will know if we're
-                        // in the right space.
-                        const entityId = parseSearchEntityIdFromUrl(spaceId, href);
-                        if (!entityId) return false;
-                        if (!isSearchMentionEntityId(entityId)) return false;
-
-                        const mention: ContentMention = {
-                            type: "SearchEntity",
-                            entityId,
-                        };
-
-                        return {mention};
-                    },
-                },
-            ],
         },
 
         /*

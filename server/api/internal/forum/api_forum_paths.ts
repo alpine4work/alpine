@@ -1,6 +1,7 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {getApiPostCommentParentMessageResponse} from "~/server/api/internal/forum/internal/get_api_post_comment_parent_message_response.js";
+import {createIntoApiPostCommentContentPayloadParent} from "~/server/api/internal/forum/internal/create_into_api_post_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
+import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {
@@ -190,7 +191,7 @@ export const apiForumPaths: Pick<
                         context,
                         message.spaceId,
                         message,
-                        getApiPostCommentParentMessageResponse(
+                        createIntoApiPostCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
@@ -253,7 +254,7 @@ export const apiForumPaths: Pick<
                                 context,
                                 spaceId,
                                 message,
-                                getApiPostCommentParentMessageResponse(
+                                createIntoApiPostCommentContentPayloadParent(
                                     context,
                                     spaceId,
                                     pathParameters.id,
@@ -265,6 +266,8 @@ export const apiForumPaths: Pick<
             };
         },
         post: async (context, {pathParameters, requestBody}) => {
+            const parent = fromApiMessageContentPayloadParent(requestBody.parent);
+
             const content = assertMessageContent(
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
@@ -273,7 +276,7 @@ export const apiForumPaths: Pick<
 
             const {spaceId, index, createdTime} = await createPostComment(context, {
                 postId: pathParameters.id,
-                parent: null,
+                parent,
                 content,
                 createdTimeZone,
                 fileIds: [],
@@ -283,7 +286,7 @@ export const apiForumPaths: Pick<
 
             const payload: MessageContentPayload = {
                 type: "Content",
-                parent: null,
+                parent,
                 content,
                 contentUpdate: null,
                 fileIds: [],
@@ -344,7 +347,11 @@ export const apiForumPaths: Pick<
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        getApiPostCommentParentMessageResponse(context, spaceId, pathParameters.id),
+                        createIntoApiPostCommentContentPayloadParent(
+                            context,
+                            spaceId,
+                            pathParameters.id,
+                        ),
                     ),
                 },
             };
@@ -384,6 +391,22 @@ export const apiForumPaths: Pick<
                     },
                 },
             };
+        },
+    },
+
+    "/posts/{id}/messages/{index}/stream/parts": {
+        post: async (context, {pathParameters, requestBody}) => {
+            const payload = fromApiMessageStreamPartPayload(requestBody.payload);
+
+            const {spaceId} = await putPostCommentStreamPart(context, {
+                postId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                partIndex: "Create",
+                payload,
+                consistency: "StrongWithinCache",
+            });
+
+            return {content: {spaceId}};
         },
     },
 

@@ -1,4 +1,5 @@
-import {useSearchParams} from "@remix-run/react";
+import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
+import {useEffect, useState} from "react";
 import {
     deserializeChatIdForLoader,
     deserializeSpaceIdForLoader,
@@ -103,6 +104,21 @@ export async function loader({context: unauthenticatedContext, request, params}:
     });
 }
 
+// We don't need to reload when certain search params change.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: immutableCurrentUrl,
+    nextUrl: immutableNextUrl,
+}) => {
+    const currentUrl = new URL(immutableCurrentUrl);
+    const nextUrl = new URL(immutableNextUrl);
+
+    // Used to initially focus the chat:
+    nextUrl.searchParams.delete("focus");
+    currentUrl.searchParams.delete("focus");
+
+    return nextUrl.toString() !== currentUrl.toString();
+};
+
 export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentData}) => {
     const spaceRouteData = getParentData("routes/s.$spaceId", SpaceRouteLoaderSchema);
 
@@ -130,7 +146,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
 });
 
 export default function ChatRoute() {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const {
         checkpoint,
         chat,
@@ -144,6 +160,23 @@ export default function ChatRoute() {
 
     const messageIndexString = searchParams.get("message");
     const messageIndex = messageIndexString ? parseInt(messageIndexString, 10) : null;
+
+    const focusSearchParam = searchParams.get("focus");
+    const [initiallyFocus] = useState(focusSearchParam !== null);
+
+    const hasSearchParamToDelete = searchParams.has("focus");
+    useEffect(() => {
+        if (hasSearchParamToDelete) {
+            setSearchParams(
+                oldSearchParams => {
+                    const newSearchParams = new URLSearchParams(oldSearchParams);
+                    newSearchParams.delete("focus");
+                    return newSearchParams;
+                },
+                {replace: true},
+            );
+        }
+    }, [hasSearchParamToDelete, setSearchParams]);
 
     // If you're spending time in a 1:1 chat, then we give affinity points to the
     // account you're messaging. Not the chat itself. The page we route you to for
@@ -169,6 +202,7 @@ export default function ChatRoute() {
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
                 initialScrollToMessageIndex={messageIndex}
                 initialIsFavorite={isFavorite}
+                initiallyFocus={initiallyFocus}
             />
         </Box>
     );

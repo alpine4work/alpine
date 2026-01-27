@@ -1,6 +1,7 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiSearchResult} from "~/server/api/internal/spaces/into_api_search_result.js";
+import {getBotSpaceSettingsValues} from "~/server/bots/with_spaces/get_bot_space_settings_values.js";
 import {
     searchByKeywords,
     searchBySemantics,
@@ -65,6 +66,25 @@ export const apiSpacesPaths: Pick<
             return {
                 content: {
                     account,
+                },
+            };
+        },
+    },
+
+    "/spaces/{id}/bots/{botId}/settings": {
+        get: async (context, {pathParameters}) => {
+            const settings = await getBotSpaceSettingsValues(
+                context,
+                pathParameters.id,
+                pathParameters.botId,
+                {consistency: "StrongWithinCache"},
+            );
+
+            return {
+                content: {
+                    settings: {
+                        values: Object.fromEntries(settings.values),
+                    },
                 },
             };
         },

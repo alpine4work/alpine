@@ -275,6 +275,11 @@ EOF
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:path -- ${@:2}
         ;;
 
+    # Alias for `dev path` in case you typo.
+    paths)
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:path -- ${@:2}
+        ;;
+
     deployed)
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:deployed -- ${@:2}
         ;;

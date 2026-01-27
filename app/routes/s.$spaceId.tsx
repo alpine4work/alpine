@@ -516,12 +516,12 @@ export default function SpaceLayoutRoute() {
             return output;
         },
         instantiateBotSpaceAccount: async (input: {botId: BotId; botAccountId?: AccountId}) => {
-            const {accountId} = await instantiateBotSpaceAccount(context, {
+            const {account} = await instantiateBotSpaceAccount(context, {
                 spaceId,
                 botId: input.botId,
                 accountId: input.botAccountId,
             });
-            return accountId;
+            return account.id;
         },
     }));
 

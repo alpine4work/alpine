@@ -66,7 +66,7 @@ export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, Re
     ["Accounts", ["Account", "AccountEmailAddress", "Session", "StripeCustomer", "TryOnDesktopEmailOptOut", "SentTryOnDesktopEmail"]],
     ["AlphaAccess", ["AlphaConfiguration", "AlphaAccessRequests"]],
     ["BotWebhookEvents", ["BotSpace"]],
-    ["Bots", ["Bot", "ApiKey"]],
+    ["Bots", ["Bot", "ApiKey", "Space"]],
     ["Chat", ["Chat"]],
     ["Deploy", ["Deploy"]],
     ["Documents", ["Document", "DocumentCommentThread"]],

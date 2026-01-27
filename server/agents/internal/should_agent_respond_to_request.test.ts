@@ -6,7 +6,7 @@ import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object
 import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChatId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, ChatId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const {span} = testTracer.getRoot().startSpan("test-span");
@@ -33,10 +33,13 @@ describe("shouldAgentRespondToRequest", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: {} as any,
             agentUsageDatabase: {} as any,
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId: generateId<SpaceId>(),
-            accountId: agentAccountId,
+            botId: generateId<BotId>(),
+            botAccountId: agentAccountId,
             event: {
                 type: "NewMessage",
                 roomPath: `/chats/${generateId<ChatId>()}`,
@@ -63,10 +66,13 @@ describe("shouldAgentRespondToRequest", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: {} as any,
             agentUsageDatabase: {} as any,
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId: generateId<SpaceId>(),
-            accountId: agentAccountId,
+            botId: generateId<BotId>(),
+            botAccountId: agentAccountId,
             event: {
                 type: "NewMessage",
                 roomPath: `/chats/${chatId}`,
@@ -112,10 +118,13 @@ describe("shouldAgentRespondToRequest", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: {} as any,
             agentUsageDatabase: {} as any,
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId: generateId<SpaceId>(),
-            accountId: agentAccountId,
+            botId: generateId<BotId>(),
+            botAccountId: agentAccountId,
             event: {
                 type: "NewMessage",
                 wasMentioned: false,
@@ -146,10 +155,13 @@ describe("shouldAgentRespondToRequest", () => {
             const request: AgentWebhookRequest = {
                 storage,
                 apiClient,
+                apiAccessToken: "test-access-token",
                 openAiClient: {} as any,
                 agentUsageDatabase: {} as any,
+                origin: "https://agent-service.cyberworlds.workers.dev",
                 spaceId: generateId<SpaceId>(),
-                accountId: agentAccountId,
+                botId: generateId<BotId>(),
+                botAccountId: agentAccountId,
                 event: {
                     type: "NewMessage",
                     roomPath: `/posts/${generateId<PostId>()}`,
@@ -190,10 +202,13 @@ describe("shouldAgentRespondToRequest", () => {
             const request: AgentWebhookRequest = {
                 storage,
                 apiClient,
+                apiAccessToken: "test-access-token",
                 openAiClient: {} as any,
                 agentUsageDatabase: {} as any,
+                origin: "https://agent-service.cyberworlds.workers.dev",
                 spaceId: generateId<SpaceId>(),
-                accountId: agentAccountId,
+                botId: generateId<BotId>(),
+                botAccountId: agentAccountId,
                 event: {
                     type: "NewMessage",
                     wasMentioned: false,
@@ -236,10 +251,13 @@ describe("shouldAgentRespondToRequest", () => {
             const request: AgentWebhookRequest = {
                 storage,
                 apiClient,
+                apiAccessToken: "test-access-token",
                 openAiClient: {} as any,
                 agentUsageDatabase: {} as any,
+                origin: "https://agent-service.cyberworlds.workers.dev",
                 spaceId: generateId<SpaceId>(),
-                accountId: agentAccountId,
+                botId: generateId<BotId>(),
+                botAccountId: agentAccountId,
                 event: {
                     type: "NewMessage",
                     wasMentioned: false,

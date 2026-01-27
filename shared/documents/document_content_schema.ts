@@ -11,6 +11,7 @@ import {
     toDebugStringWithIndent,
 } from "~/shared/content/content_schema.js";
 import {
+    contentMentionProsemirrorNodeSpecs,
     createContentFileFloatProsemirrorNodeSpecs,
     createContentFileProsemirrorNodeSpecs,
 } from "~/shared/content/content_schema_extra.js";
@@ -37,6 +38,7 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
         // we do in `DocumentContent`. Since this schema only represents the document
         // visually.
         ...contentBaseProsemirrorSchemaSpec.nodes,
+        ...contentMentionProsemirrorNodeSpecs,
         // Allow comments on files.
         ...createContentFileProsemirrorNodeSpecs({fileMarks: "comment", withTable: true}),
         ...createContentFileFloatProsemirrorNodeSpecs({fileMarks: "comment"}),

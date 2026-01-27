@@ -1,4 +1,5 @@
 import {createAccountNotFoundError} from "~/shared/accounts/account_error_messages.js";
+import {createBotNotFoundError} from "~/shared/bots/bot_error_messages.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
 import {
     createDocumentCommentThreadNotFoundError,
@@ -13,6 +14,7 @@ import {
 import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
+    BotId,
     ChannelId,
     ChatId,
     DocumentCommentThreadId,
@@ -21,75 +23,82 @@ import {
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
 import {createSpaceNotFoundError} from "~/shared/spaces/space_error_messages.js";
 import {createTaskNotFoundError} from "~/shared/tasks/task_error_messages.js";
 
 export function deserializeAccountIdForLoader(id: string | null | undefined): AccountId {
-    if (!id || !isId(id)) {
-        throw createAccountNotFoundError(id || undefined);
+    if (!id || !isId<AccountId>(id)) {
+        throw createAccountNotFoundError(id ?? undefined);
     }
 
-    return Schema.id<AccountId>().deserialize(id);
+    return id;
 }
 
 export function deserializeDocumentIdForLoader(id: string | null | undefined): DocumentId {
-    if (!id || !isId(id)) {
-        throw createDocumentNotFoundError(id || undefined);
+    if (!id || !isId<DocumentId>(id)) {
+        throw createDocumentNotFoundError(id ?? undefined);
     }
 
-    return Schema.id<DocumentId>().deserialize(id);
+    return id;
 }
 
 export function deserializeDocumentCommentThreadIdForLoader(
     documentId: DocumentId,
     id: string | null | undefined,
 ): DocumentCommentThreadId {
-    if (!id || !isId(id)) {
-        throw createDocumentCommentThreadNotFoundError(documentId, id || undefined);
+    if (!id || !isId<DocumentCommentThreadId>(id)) {
+        throw createDocumentCommentThreadNotFoundError(documentId, id ?? undefined);
     }
 
-    return Schema.id<DocumentCommentThreadId>().deserialize(id);
+    return id;
 }
 
 export function deserializeChannelIdForLoader(id: string | null | undefined): ChannelId {
-    if (!id || !isId(id)) {
-        throw createChannelNotFoundError(id || undefined);
+    if (!id || !isId<ChannelId>(id)) {
+        throw createChannelNotFoundError(id ?? undefined);
     }
 
-    return Schema.id<ChannelId>().deserialize(id);
+    return id;
 }
 
 export function deserializeChatIdForLoader(id: string | null | undefined): ChatId {
-    if (!id || !isId(id)) {
-        throw createChatNotFoundError(id || undefined);
+    if (!id || !isId<ChatId>(id)) {
+        throw createChatNotFoundError(id ?? undefined);
     }
 
-    return Schema.id<ChatId>().deserialize(id);
+    return id;
 }
 
 export function deserializeTaskIdForLoader(id: string | null | undefined): TaskId {
-    if (!id || !isId(id)) {
-        throw createTaskNotFoundError(id || undefined);
+    if (!id || !isId<TaskId>(id)) {
+        throw createTaskNotFoundError(id ?? undefined);
     }
 
-    return Schema.id<TaskId>().deserialize(id);
+    return id;
 }
 
 export function deserializePostIdForLoader(id: string | null | undefined): PostId {
-    if (!id || !isId(id)) {
-        throw createPostNotFoundError(id || undefined);
+    if (!id || !isId<PostId>(id)) {
+        throw createPostNotFoundError(id ?? undefined);
     }
 
-    return Schema.id<PostId>().deserialize(id);
+    return id;
 }
 
 export function deserializeSpaceIdForLoader(id: string | null | undefined): SpaceId {
-    if (!id || !isId(id)) {
-        throw createSpaceNotFoundError(id || undefined);
+    if (!id || !isId<SpaceId>(id)) {
+        throw createSpaceNotFoundError(id ?? undefined);
     }
 
-    return Schema.id<SpaceId>().deserialize(id);
+    return id;
+}
+
+export function deserializeBotIdForLoader(id: string | null | undefined): BotId {
+    if (!id || !isId<BotId>(id)) {
+        throw createBotNotFoundError(id ?? undefined);
+    }
+
+    return id;
 }
 
 export function deserializeMessageIndexForLoader(

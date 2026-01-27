@@ -30,7 +30,6 @@ export function BuildingsIcon({
         <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 256 256"
-            fill={color ?? contextColor}
             {...context}
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
@@ -47,7 +46,7 @@ export function BuildingsIcon({
             <path fill="none" d="M0 0h256v256H0z" />
             <path
                 fill="none"
-                stroke="currentColor"
+                stroke={color ?? contextColor}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={16}

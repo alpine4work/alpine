@@ -2,29 +2,17 @@ import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
 } from "~/server/agents/internal/durable_object_storage_collection.js";
-import {ApiBotWebhookRequestBody} from "~/shared/api/types/api_specification_convenience_types.js";
 import {ChronologicalId, generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
 import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 
-type AgentScheduleEventRequestBase = {
+export type AgentScheduleEventRequest = {
+    readonly type: string;
+
     /** Date when the task should execute */
     readonly date: Date;
 
     readonly tracerPropagationContext?: TracerSpanPropagationContext;
 };
-
-type AgentClearStorageScheduleEventRequest = AgentScheduleEventRequestBase & {
-    readonly type: "ClearStorage";
-};
-
-type AgentProcessWebhookScheduleEventRequest = AgentScheduleEventRequestBase & {
-    readonly type: "ProcessWebhook";
-    readonly payload: ApiBotWebhookRequestBody;
-};
-
-export type AgentScheduleEventRequest =
-    | AgentClearStorageScheduleEventRequest
-    | AgentProcessWebhookScheduleEventRequest;
 
 /**
  * Represents a scheduled task within an Agent
@@ -41,19 +29,19 @@ const ScheduleCollection = new DurableObjectStorageCollection<ChronologicalId, A
     "a6",
 );
 
-export async function putAgentScheduleEvent<T extends AgentScheduleEventRequest>(
+export async function putAgentScheduleEvent<EventRequest extends AgentScheduleEventRequest>(
     storage: DurableObjectStorageInterface,
-    event: T,
-): Promise<AgentScheduleEvent & {type: T["type"]}> {
-    const eventId = generateChronologicalIdWithTime(event.date.getTime());
+    eventRequest: EventRequest,
+): Promise<EventRequest & {readonly id: ChronologicalId}> {
+    const eventId = generateChronologicalIdWithTime(eventRequest.date.getTime());
 
-    const scheduledEvent = {
+    const event = {
         id: eventId,
-        ...event,
+        ...eventRequest,
     };
-    await ScheduleCollection.put(storage, eventId, scheduledEvent);
+    await ScheduleCollection.put(storage, eventId, event);
 
-    return scheduledEvent;
+    return event;
 }
 
 export async function getAgentScheduleEvents(storage: DurableObjectStorageInterface) {

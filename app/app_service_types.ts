@@ -33,6 +33,7 @@ export type AppServiceConstants = {
             readonly agentServiceLocalPort?: string;
             readonly chatGptLocalUnscopedApiKey?: string;
             readonly chatGptLocalScopedApiKey?: string;
+            readonly cursorLocalUnscopedApiKey?: string;
             readonly mockChatGptLocalUnscopedApiKey?: string;
             readonly resourceServiceUrl?: string;
             readonly logoDevSecretKey?: string;

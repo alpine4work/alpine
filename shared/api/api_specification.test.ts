@@ -8,6 +8,7 @@ import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
@@ -60,7 +61,14 @@ function validate(specification: JsonValue) {
             if (value.type === "object") {
                 // Rule: Require `additionalProperties: false` (or a schema is fine too) to be
                 // set on all object schemas.
-                if (value.additionalProperties !== false && !isObject(value.additionalProperties)) {
+                const isAdditionalPropertiesOk =
+                    value.additionalProperties === false ||
+                    isObject(value.additionalProperties) ||
+                    // `additionalProperties: true` may be set if `properties` is not set. For
+                    // JSON objects with unknown schemas.
+                    (value.additionalProperties === true && !hasOwnProperty(value, "properties"));
+
+                if (!isAdditionalPropertiesOk) {
                     addError(
                         quote`\`additionalProperties\` must be set to \`false\` on all object schemas in the API specification`,
                     );

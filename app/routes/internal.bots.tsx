@@ -15,7 +15,8 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
-import {expensivelyGetAllBotsForAdminSettingsPage} from "~/server/bots/bots_table.js";
+import {expensivelyGetAllBotsForAdminSettingsPage} from "~/server/bots/expensively_get_all_bots_for_admin_settings_page.js";
+import {settingsDefaultKnownBotAccountModelDataById} from "~/server/bots/settings_default_known_bot_account_model_data.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
@@ -29,6 +30,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {BotId} from "~/shared/id/types/id_types.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {getAvatarDefaultDesign} from "~/shared/spaces/get_avatar_default_design.js";
@@ -39,17 +41,19 @@ export function meta() {
 }
 
 const LoaderSchema = Schema.object({
+    knownBotIds: Schema.set(Schema.id<BotId>()),
     bots: Schema.array(BotForAdminSchema),
 });
 
 export async function loader({context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {
+        knownBotIds: new Set(settingsDefaultKnownBotAccountModelDataById.get().keys()),
         bots: await expensivelyGetAllBotsForAdminSettingsPage(await context.actor.authenticate()),
     });
 }
 
 export default function BotsManagementPage() {
-    const {bots} = useLoaderDataWithSchema(LoaderSchema);
+    const {knownBotIds, bots} = useLoaderDataWithSchema(LoaderSchema);
     const context = useAppContext();
 
     const handleUploadAvatar = async (bot: Bot, file: File): Promise<AvatarModel> => {
@@ -100,7 +104,11 @@ export default function BotsManagementPage() {
                             padding="6"
                             backgroundColor="grey-20"
                         >
-                            <BotRow bot={bot} onUploadAvatar={handleUploadAvatar} />
+                            <BotRow
+                                bot={bot}
+                                isKnownBot={knownBotIds.has(bot.id)}
+                                onUploadAvatar={handleUploadAvatar}
+                            />
                         </Box>
                     ))}
                 </Box>
@@ -111,9 +119,11 @@ export default function BotsManagementPage() {
 
 function BotRow({
     bot,
+    isKnownBot,
     onUploadAvatar,
 }: {
     bot: BotForAdmin;
+    isKnownBot: boolean;
     onUploadAvatar: (bot: Bot, file: File) => Promise<AvatarModel>;
 }) {
     const [visibleApiKeys, setVisibleApiKeys] = useState<Set<number>>(new Set());
@@ -165,6 +175,19 @@ function BotRow({
                     </Box>
                 </Box>
             </Box>
+
+            {isKnownBot && (
+                <Box fontSize="200" userSelect="text">
+                    ⚠️{" "}
+                    <Box as="span" fontStyle="bold">
+                        IMPORTANT:
+                    </Box>{" "}
+                    Make sure to also update this bot’s avatar in{" "}
+                    <Box as="span" fontStyle="code">
+                        settings_default_known_bot_account_model_data.ts
+                    </Box>
+                </Box>
+            )}
 
             {/* Integration Settings */}
             <Box display="flex" flexDirection="column" gap="4">
@@ -321,7 +344,7 @@ function BotAvatar({
             }}
         >
             <BotAvatarDesignView size={size} avatarDesign={avatarDesign} />
-            <BotIconOverlay avatarPixelSize={avatarPx} />
+            <BotIconOverlay avatarPx={avatarPx} />
         </span>
     );
 }
@@ -363,8 +386,8 @@ function getBotAvatarDesign(bot: Bot): BotAvatarDesign {
           };
 }
 
-export function BotIconOverlay({avatarPixelSize}: {avatarPixelSize: number}) {
-    const iconSize = avatarPixelSize / 1.618033988749; // golden ratio
+export function BotIconOverlay({avatarPx}: {avatarPx: number}) {
+    const iconSize = avatarPx / 1.618033988749; // golden ratio
     const iconStyleBase = {
         position: "absolute",
         width: iconSize,

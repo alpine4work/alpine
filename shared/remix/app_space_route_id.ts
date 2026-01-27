@@ -33,6 +33,8 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.posts.new.$draftId"
     | "routes/s.$spaceId.search"
     | "routes/s.$spaceId.settings._index"
+    | "routes/s.$spaceId.settings.bots.$botId"
+    | "routes/s.$spaceId.settings.bots._index"
     | "routes/s.$spaceId.settings.general"
     | "routes/s.$spaceId.settings.notifications"
     | "routes/s.$spaceId.settings.people"

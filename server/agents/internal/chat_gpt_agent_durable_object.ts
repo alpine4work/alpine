@@ -1,3 +1,4 @@
+import {addHours} from "date-fns";
 import OpenAi from "openai";
 import {createApiClient, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
 import {
@@ -7,6 +8,13 @@ import {
 } from "~/server/agents/internal/agent_durable_object_base.js";
 import {agentMaxTokenCountPerWebhookCall} from "~/server/agents/internal/agent_limits.js";
 import {AgentMessageStreamSession} from "~/server/agents/internal/agent_message_stream_session.js";
+import {
+    AgentScheduleEvent,
+    AgentScheduleEventRequest,
+    deleteAgentScheduleEvent,
+    getAgentScheduleEvents,
+    putAgentScheduleEvent,
+} from "~/server/agents/internal/agent_schedule_events_collection.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {
     AgentUsageWindowWithWindowLimitsAndUsedMillicents,
@@ -16,10 +24,10 @@ import {
     shouldDowngradeModelForAgentUsageLimit,
 } from "~/server/agents/internal/agent_usage_limits.js";
 import {
-    chatGptReadLinkTool,
-    chatGptSearchAlpineTool,
-    getChatGptInstructions,
-} from "~/server/agents/internal/chat_gpt_instructions.js";
+    chatGptAgentReadLinkTool,
+    chatGptAgentSearchAlpineTool,
+    getChatGptAgentInstructions,
+} from "~/server/agents/internal/chat_gpt_agent_instructions.js";
 import {
     ChatGptAgentConversationItemCollection,
     ChatGptAgentConversationState,
@@ -35,6 +43,10 @@ import {initializeMessagesInAgentConversation} from "~/server/agents/internal/me
 import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messages/load_new_messages_in_agent_conversation.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
+import {
+    agentDeleteAllStorageAlarmHours,
+    shouldResetAgentDeleteAllStorageAlarm,
+} from "~/server/agents/internal/should_reset_agent_delete_all_storage_alarm.js";
 import {
     SupportedAgentModels,
     agentMillicentsPerToken,
@@ -62,10 +74,12 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {serializeError} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -77,11 +91,12 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
+// The `/webhook` route is shared across all agents and parsed/handled in
+// `AgentDurableObjectBase`.
 type ChatGptAgentRoute = "NotFound" | "FetchConversationState";
 
-type ChatAgentGptResponse = {
-    usedMillicents: number;
-    model: SupportedAgentModels["openai"];
+type ChatGptAgentScheduleEventRequest = AgentScheduleEventRequest & {
+    readonly type: "ClearStorage";
 };
 
 // Model configuration for ChatGPT agent.
@@ -89,7 +104,12 @@ const defaultModel: SupportedAgentModels["openai"] = "gpt-5.1";
 const downgradedModel: SupportedAgentModels["openai"] = "gpt-5-mini";
 const downgradeModelAtPercent = 0.75;
 
-export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAgentRoute> {
+export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
+    ChatGptAgentRoute,
+    ChatGptAgentScheduleEventRequest
+> {
+    private readonly _alarmTimeMutex: MutexValue<AgentScheduleEvent | null> = new MutexValue(null);
+
     constructor(state: DurableObjectState, env: AgentServiceEnv) {
         super("ChatGptAgentService", state, env);
     }
@@ -115,19 +135,50 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         route: ChatGptAgentRoute,
         span: TracerSpan,
     ): Promise<Response> {
-        if (route === "FetchConversationState") {
-            return this._fetchConversationState(context, request, span);
+        switch (route) {
+            case "FetchConversationState": {
+                return this._fetchConversationState(context, request, span);
+            }
+            case "NotFound": {
+                return new Response("404 Not Found", {
+                    status: 404,
+                    headers: {"content-type": "text/plain"},
+                });
+            }
+            default:
+                throw exhaustive(route);
         }
+    }
 
-        return new Response("404 Not Found", {
-            status: 404,
-            headers: {"content-type": "text/plain"},
-        });
+    protected override async _event(
+        span: TracerSpan,
+        event: ChatGptAgentScheduleEventRequest,
+    ): Promise<void> {
+        // The only scheduled event type right now is `ClearStorage`.
+        cast<"ClearStorage">(event.type);
+
+        // NOTE(ifitzsimmons): There's a race condition where we receive a request as the
+        // `ClearStorage` event is running, in which case the message will not be responded
+        // to.
+        //
+        // If this becomes a problem later, I think we could check to see if there are any
+        // scheduled events left and, if there are, ignore this `ClearStorage` event and
+        // schedule a new one for after the last event. That could potentially extend the
+        // durable object's lifespan indefinitely, so I don't think we should do that
+        // without a good reason.
+        //
+        // Until then, I think it's fair to assume that any event you schedule is at the
+        // mercy of the durable object's state.
+        await this._state.storage.deleteAll();
     }
 
     public override async webhook(span: TracerSpan, request: AgentWebhookRequest): Promise<void> {
         // Check if the agent should respond before continuing.
         if (!(await shouldAgentRespondToRequest(span, request))) return;
+
+        // We fully clear the ChatGPT agent's conversation state every 6 hours or so.
+        // ChatGPT should be perfectly capable of booting up from empty state.
+        await this._maybeResetTimeToLive();
 
         const currentTime = new Date();
 
@@ -151,7 +202,9 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         });
 
         const conversationState = await request.storage.transaction(async transaction => {
-            const conversation = await ChatGptAgentConversationStore.new(transaction);
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: request.event.createdTimeZone,
+            });
             return conversation.getState();
         });
 
@@ -267,7 +320,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
             await this._authorizeFetchConversationState(span, accessToken, roomPathObject);
 
             const conversationState = await ChatGptAgentConversationItemCollection.list(
-                this.getStorage(),
+                this._state.storage,
             );
 
             const items = Array.from(conversationState.values(), ({item}) => item);
@@ -320,6 +373,59 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
                 "Can’t fetch conversation state for empty messaging room",
             );
         }
+    }
+
+    /**
+     * We maintain an alarm that'll run a 6 hours from now that deletes all storage
+     * associated with the Durable Object. This function checks if the alarm will
+     * run soon and if so resets the alarm to a point later in the future.
+     */
+    private async _maybeResetTimeToLive() {
+        const currentTime = new Date();
+
+        await this._alarmTimeMutex.withLock(async alarmTimeRef => {
+            // If no alarm time is set, read the alarm time from storage. If there's no
+            // alarm time in storage then set an alarm to cleanup the durable object.
+            if (alarmTimeRef.current === null) {
+                const scheduleEvents = await getAgentScheduleEvents(this._state.storage);
+                const clearStorageEvent = scheduleEvents.find(
+                    event => event.type === "ClearStorage",
+                );
+
+                if (clearStorageEvent) {
+                    alarmTimeRef.current = clearStorageEvent;
+                } else {
+                    alarmTimeRef.current = await putAgentScheduleEvent(this._state.storage, {
+                        type: "ClearStorage",
+                        date: addHours(currentTime, agentDeleteAllStorageAlarmHours),
+                    });
+                }
+            }
+
+            assert(alarmTimeRef.current);
+            if (
+                shouldResetAgentDeleteAllStorageAlarm({
+                    currentTime,
+                    alarmTime: alarmTimeRef.current.date,
+                })
+            ) {
+                const [newClearStorageEvent] = await runAllPromises([
+                    putAgentScheduleEvent(this._state.storage, {
+                        type: "ClearStorage",
+                        date: addHours(currentTime, agentDeleteAllStorageAlarmHours),
+                    }),
+                    deleteAgentScheduleEvent(this._state.storage, alarmTimeRef.current.id),
+                ]);
+
+                alarmTimeRef.current = newClearStorageEvent;
+            }
+        });
+
+        // TODO(calebmer): This method mucks around with the internal scheduled events
+        // state and manually schedules the next alarm. Ideally we'd have a nice
+        // abstraction for event scheduling that supports this use case without us
+        // needing to much around in internals.
+        await this._scheduleNextAlarm();
     }
 }
 
@@ -378,6 +484,11 @@ function sendDowngradeWarningMessage(
     );
 }
 
+type ChatGptAgentRequestResult = {
+    usedMillicents: number;
+    model: SupportedAgentModels["openai"];
+};
+
 async function requestChatGptAgent(
     span: TracerSpan,
     request: AgentWebhookRequest,
@@ -392,7 +503,7 @@ async function requestChatGptAgent(
         session: AgentMessageStreamSession;
         sendDowngradeWarningMessageIfNeeded: () => Promise<void>;
     },
-): Promise<ChatAgentGptResponse> {
+): Promise<ChatGptAgentRequestResult> {
     // Make sure we have the latest messages from the messaging room in
     // conversation history.
     //
@@ -414,7 +525,9 @@ async function ensureMessagesInChatGptAgentConversation(
     newMessageIndex: number,
 ): Promise<void> {
     await request.storage.transaction(async transaction => {
-        const state = await ChatGptAgentConversationStore.new(transaction);
+        const state = await ChatGptAgentConversationStore.new(transaction, {
+            initialTimeZone: request.event.createdTimeZone,
+        });
 
         await initializeInChatGptAgentConversationIfNeeded(tracer, transaction, request, state);
 
@@ -458,28 +571,21 @@ async function initializeInChatGptAgentConversationIfNeeded(
     // maybe another process was killed during initialization?
     assert(conversation.getState().lastOrderKey === null);
 
-    await runAllPromises([
-        (async () => {
-            // These both act on ChatGptAgentConversationItemCollection and the insertion
-            // order matters, so they must be serialized.
-            await initializeInstructionsInChatGptAgentConversation(
-                tracer,
-                transaction,
-                request,
-                conversation,
-            );
+    // These both act on ChatGptAgentConversationItemCollection and the insertion
+    // order matters, so they must be serialized.
+    await initializeInstructionsInChatGptAgentConversation(
+        tracer,
+        transaction,
+        request,
+        conversation,
+    );
 
-            await initializeMessagesInAgentConversation({
-                tracer,
-                transaction,
-                request,
-                conversation,
-            });
-        })(),
-        conversation.setState(transaction, {
-            timeZone: request.event.createdTimeZone,
-        }),
-    ]);
+    await initializeMessagesInAgentConversation({
+        tracer,
+        transaction,
+        request,
+        conversation,
+    });
 
     assert(conversation.getState().lastMessageIndex !== null);
 }
@@ -498,7 +604,7 @@ async function initializeInstructionsInChatGptAgentConversation(
         params: {path: {id: request.spaceId}},
     });
 
-    const instructions = getChatGptInstructions({
+    const instructions = getChatGptAgentInstructions({
         spaceName: space.name,
         messageRoomType: request.room.type,
     });
@@ -532,7 +638,7 @@ async function createChatGptAgentMessage(
         session: AgentMessageStreamSession;
         sendDowngradeWarningMessageIfNeeded: () => Promise<void>;
     },
-): Promise<ChatAgentGptResponse> {
+): Promise<ChatGptAgentRequestResult> {
     try {
         return await createChatGptAgentResponse(span, env, request, model, session);
     } finally {
@@ -563,7 +669,7 @@ async function createChatGptAgentResponse(
     model: SupportedAgentModels["openai"],
     session: AgentMessageStreamSession,
     totalUsedMillicents = 0,
-): Promise<ChatAgentGptResponse> {
+): Promise<ChatGptAgentRequestResult> {
     // Calls any pending functions in the conversation history. Important for our
     // ChatGPT agent loop. If an agent response has function calls then we call
     // `createChatGptAgentResponse()` again. Which starts with this function that
@@ -619,7 +725,7 @@ async function createChatGptAgentResponse(
         // [1]: https://platform.openai.com/docs/guides/tools-web-search
         // [2]: https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
         // [3]: https://platform.openai.com/docs/pricing#built-in-tools
-        tools: [chatGptReadLinkTool.get(), chatGptSearchAlpineTool.get()],
+        tools: [chatGptAgentReadLinkTool.get(), chatGptAgentSearchAlpineTool.get()],
         reasoning: {
             // Default reasoning effort is "medium", so we're just being explicit here.
             effort: "medium",
@@ -648,7 +754,9 @@ async function createChatGptAgentResponse(
                 // invoke OpenAI again it's previous messages, function calls, reasoning
                 // tokens, etc.
                 await request.storage.transaction(async transaction => {
-                    const state = await ChatGptAgentConversationStore.new(transaction);
+                    const state = await ChatGptAgentConversationStore.new(transaction, {
+                        initialTimeZone: request.event.createdTimeZone,
+                    });
 
                     const orderKey = generateOrderKeyBetween(state.getState().lastOrderKey, null);
 
@@ -736,7 +844,9 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
         // No pending function calls! Return the input as is.
         if (pendingFunctionCallById.size === 0) return input;
 
-        const state = await ChatGptAgentConversationStore.new(transaction);
+        const state = await ChatGptAgentConversationStore.new(transaction, {
+            initialTimeZone: request.event.createdTimeZone,
+        });
 
         const functionCallOutputs = await runAllPromises(
             mapIterable(pendingFunctionCallById.values(), functionCall => {
@@ -1070,7 +1180,7 @@ async function requestChatGptAgentWithRetry(
         sendDowngradeWarningMessageIfNeeded: () => Promise<void>;
     },
     attemptCount: number = 0,
-): Promise<ChatAgentGptResponse> {
+): Promise<ChatGptAgentRequestResult> {
     // NOTE(ifitzsimmons, 2026-01-21): We retry here because after clearing state, we
     // must re-initialize the conversation state before sending the request to OpenAI.
     // `requestChatGptAgent()` loads messages into the conversation state.

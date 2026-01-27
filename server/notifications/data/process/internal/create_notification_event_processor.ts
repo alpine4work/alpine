@@ -1,4 +1,4 @@
-import {getBot} from "~/server/bots/bots_table.js";
+import {getBot} from "~/server/bots/get_bot.js";
 import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {
     ServerImpersonatedAccountActionContext,

@@ -41,7 +41,7 @@ export async function signUpAccountWithEmailAddress(
                 id: accountId,
                 currentTime: currentTime,
                 name: emailAddress,
-            }),
+            }).transactionEntries,
             AccountsTable.transactionCreateItem({
                 partitionType: "AccountEmailAddress",
                 sortRangeType: "Attributes",

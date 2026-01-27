@@ -7,7 +7,10 @@ import {
     contentBaseProsemirrorSchemaSpec,
     createProsemirrorSchemaSpec,
 } from "~/shared/content/content_schema.js";
-import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
+import {
+    contentMentionProsemirrorNodeSpecs,
+    createContentFileProsemirrorNodeSpecs,
+} from "~/shared/content/content_schema_extra.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -15,6 +18,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 const postContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
         ...contentBaseProsemirrorSchemaSpec.nodes,
+        ...contentMentionProsemirrorNodeSpecs,
         // Currently we only allow `fileFloat`s in documents. They're mostly useful for
         // narrative storytelling and can create odd layouts if not carefully designed.
         // So in posts and task notes where file attachments mostly serve as a utility

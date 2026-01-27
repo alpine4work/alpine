@@ -208,10 +208,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: new Lazy(() => mockOpenAiClient),
             agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId,
-            accountId: generateId<AccountId>(),
+            botId,
+            botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
                 roomPath: `/chats/${chatId}`,
@@ -397,10 +400,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: new Lazy(() => mockOpenAiClient),
             agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId,
-            accountId: generateId<AccountId>(),
+            botId,
+            botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
                 roomPath: `/chats/${chatId}`,
@@ -571,10 +577,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: new Lazy(() => mockOpenAiClient),
             agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId,
-            accountId: generateId<AccountId>(),
+            botId,
+            botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
                 roomPath: `/chats/${chatId}`,
@@ -767,10 +776,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: new Lazy(() => mockOpenAiClient),
             agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId,
-            accountId: generateId<AccountId>(),
+            botId,
+            botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
                 roomPath: `/chats/${chatId}`,
@@ -1008,10 +1020,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: new Lazy(() => mockOpenAiClient),
             agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId,
-            accountId: generateId<AccountId>(),
+            botId,
+            botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
                 roomPath: `/chats/${chatId}`,
@@ -1255,10 +1270,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: new Lazy(() => mockOpenAiClient),
             agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId,
-            accountId: generateId<AccountId>(),
+            botId,
+            botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
                 roomPath: `/chats/${chatId}`,
@@ -1419,10 +1437,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         const request: AgentWebhookRequest = {
             storage,
             apiClient,
+            apiAccessToken: "test-access-token",
             openAiClient: new Lazy(() => mockOpenAiClient),
             agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+            origin: "https://agent-service.cyberworlds.workers.dev",
             spaceId,
-            accountId: generateId<AccountId>(),
+            botId,
+            botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
                 roomPath: `/chats/${chatId}`,
@@ -1668,10 +1689,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             const request: AgentWebhookRequest = {
                 storage,
                 apiClient,
+                apiAccessToken: "test-access-token",
                 openAiClient: new Lazy(() => mockOpenAiClient),
                 agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                origin: "https://agent-service.cyberworlds.workers.dev",
                 spaceId,
-                accountId: generateId<AccountId>(),
+                botId,
+                botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
                     roomPath: `/chats/${chatId}`,
@@ -1822,10 +1846,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             const request: AgentWebhookRequest = {
                 storage,
                 apiClient,
+                apiAccessToken: "test-access-token",
                 openAiClient: new Lazy(() => mockOpenAiClient),
                 agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                origin: "https://agent-service.cyberworlds.workers.dev",
                 spaceId,
-                accountId: generateId<AccountId>(),
+                botId,
+                botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
                     roomPath: `/chats/${chatId}`,
@@ -2031,10 +2058,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             const request: AgentWebhookRequest = {
                 storage,
                 apiClient,
+                apiAccessToken: "test-access-token",
                 openAiClient: new Lazy(() => mockOpenAiClient),
                 agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                origin: "https://agent-service.cyberworlds.workers.dev",
                 spaceId,
-                accountId: generateId<AccountId>(),
+                botId,
+                botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
                     roomPath: `/chats/${chatId}`,
@@ -2283,10 +2313,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             const request: AgentWebhookRequest = {
                 storage,
                 apiClient,
+                apiAccessToken: "test-access-token",
                 openAiClient: new Lazy(() => mockOpenAiClient),
                 agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                origin: "https://agent-service.cyberworlds.workers.dev",
                 spaceId,
-                accountId: generateId<AccountId>(),
+                botId,
+                botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
                     roomPath: `/chats/${chatId}`,
@@ -2450,10 +2483,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             const request: AgentWebhookRequest = {
                 storage,
                 apiClient,
+                apiAccessToken: "test-access-token",
                 openAiClient: new Lazy(() => mockOpenAiClient),
                 agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                origin: "https://agent-service.cyberworlds.workers.dev",
                 spaceId,
-                accountId: generateId<AccountId>(),
+                botId,
+                botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
                     roomPath: `/chats/${chatId}`,
@@ -2611,10 +2647,13 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             const request: AgentWebhookRequest = {
                 storage,
                 apiClient,
+                apiAccessToken: "test-access-token",
                 openAiClient: new Lazy(() => mockOpenAiClient),
                 agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+                origin: "https://agent-service.cyberworlds.workers.dev",
                 spaceId,
-                accountId: generateId<AccountId>(),
+                botId,
+                botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
                     roomPath: `/chats/${chatId}`,

@@ -709,6 +709,140 @@ export function testMessagingApiImplementation(
             ).toEqual("Hello, world!\n");
         });
 
+        test("can create message with parent", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session, {
+                name: "Rosey the Robot",
+            });
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+            await TestMessagingRoomBase.createMessage(room, session);
+            const message2 = await TestMessagingRoomBase.createMessage(room, session, "foobar");
+            await TestMessagingRoomBase.createMessage(room, session);
+            const message4 = await TestMessagingRoomBase.createMessage(room, session);
+
+            const response = await server.POST(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    parent: {type: "Message", index: message2.index},
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Hello, world!"}],
+                            },
+                        ],
+                    },
+                },
+            });
+
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: message4.index + 1,
+                        author: expect.objectContaining({
+                            id: botAccount.id,
+                            name: "Rosey the Robot",
+                            botId: botAccount.bot.id,
+                        }),
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            parent: expect.objectContaining({
+                                type: "Message",
+                                index: message2.index,
+                                author: expect.objectContaining({id: session.account.id}),
+                                contentSnippet: {
+                                    isTruncated: false,
+                                    elements: [{type: "Text", text: "foobar"}],
+                                },
+                            }),
+                        }),
+                    }),
+                }),
+            });
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual("Hello, world!\n");
+        });
+
+        test("can create message with parent then read it back", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session, {
+                name: "Rosey the Robot",
+            });
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+            await TestMessagingRoomBase.createMessage(room, session);
+            const message2 = await TestMessagingRoomBase.createMessage(room, session, "foobar");
+            await TestMessagingRoomBase.createMessage(room, session);
+            const message4 = await TestMessagingRoomBase.createMessage(room, session);
+
+            await server.POST(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    parent: {type: "Message", index: message2.index},
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Hello, world!"}],
+                            },
+                        ],
+                    },
+                },
+            });
+
+            const response = await server.GET(`${roomPath}/messages/${message4.index + 1}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: message4.index + 1,
+                        author: expect.objectContaining({
+                            id: botAccount.id,
+                            name: "Rosey the Robot",
+                            botId: botAccount.bot.id,
+                        }),
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            parent: expect.objectContaining({
+                                type: "Message",
+                                index: message2.index,
+                                author: expect.objectContaining({id: session.account.id}),
+                                contentSnippet: {
+                                    isTruncated: false,
+                                    elements: [{type: "Text", text: "foobar"}],
+                                },
+                            }),
+                        }),
+                    }),
+                }),
+            });
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual("Hello, world!\n");
+        });
+
         test("can read messages", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({name: "Sarah Smith", role: "Admin"});
@@ -1960,6 +2094,186 @@ export function testMessagingApiImplementation(
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
+                                        },
+                                    ],
+                                },
+                            }),
+                        }),
+                    }),
+                });
+            });
+
+            test("can post stream message part", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+                const apiKey = await botAccount.createApiKey(room.getBotScope());
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                expect(
+                    await server.POST(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/parts`,
+                        {
+                            headers: {authorization: `bearer ${apiKey}`},
+                            body: {
+                                payload: {
+                                    type: "Content",
+                                    content: {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Test part 1"}],
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ),
+                ).toEqual(expect.objectContaining({status: 200}));
+
+                expect(
+                    await server.GET(`${roomPath}/messages/${messageResponse.body.message.index}`, {
+                        headers: {authorization: `bearer ${apiKey}`},
+                    }),
+                ).toEqual({
+                    status: 200,
+                    headers: expect.objectContaining({"content-type": "application/json"}),
+                    body: expect.objectContaining({
+                        message: expect.objectContaining({
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Test part 1"}],
+                                        },
+                                    ],
+                                },
+                            }),
+                        }),
+                    }),
+                });
+            });
+
+            test("can post multiple stream message parts", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+                const apiKey = await botAccount.createApiKey(room.getBotScope());
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                expect(
+                    await server.POST(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/parts`,
+                        {
+                            headers: {authorization: `bearer ${apiKey}`},
+                            body: {
+                                payload: {
+                                    type: "Content",
+                                    content: {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Test part 1"}],
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ),
+                ).toEqual(expect.objectContaining({status: 200}));
+
+                expect(
+                    await server.POST(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/parts`,
+                        {
+                            headers: {authorization: `bearer ${apiKey}`},
+                            body: {
+                                payload: {
+                                    type: "Content",
+                                    content: {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Test part 2"}],
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ),
+                ).toEqual(expect.objectContaining({status: 200}));
+
+                expect(
+                    await server.POST(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/parts`,
+                        {
+                            headers: {authorization: `bearer ${apiKey}`},
+                            body: {
+                                payload: {
+                                    type: "Content",
+                                    content: {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Test part 3"}],
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ),
+                ).toEqual(expect.objectContaining({status: 200}));
+
+                expect(
+                    await server.GET(`${roomPath}/messages/${messageResponse.body.message.index}`, {
+                        headers: {authorization: `bearer ${apiKey}`},
+                    }),
+                ).toEqual({
+                    status: 200,
+                    headers: expect.objectContaining({"content-type": "application/json"}),
+                    body: expect.objectContaining({
+                        message: expect.objectContaining({
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Test part 1"}],
+                                        },
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Test part 2"}],
+                                        },
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Test part 3"}],
                                         },
                                     ],
                                 },

@@ -7,7 +7,7 @@ import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {assertMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
-export function getApiPostCommentParentMessageResponse(
+export function createIntoApiPostCommentContentPayloadParent(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     postId: PostId,

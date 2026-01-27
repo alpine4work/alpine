@@ -55,6 +55,7 @@ export const options = {
     agentServiceUrl: {type: "string"},
     chatGptLocalUnscopedApiKey: {type: "string"},
     chatGptLocalScopedApiKey: {type: "string"},
+    cursorLocalUnscopedApiKey: {type: "string"},
     mockChatGptLocalUnscopedApiKey: {type: "string"},
     logoDevSecretKey: {type: "string"},
     logoDevPublishableKey: {type: "string"},

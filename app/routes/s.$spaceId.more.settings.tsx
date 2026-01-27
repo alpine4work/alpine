@@ -1,4 +1,4 @@
-import {Bell, User, Users} from "phosphor-react";
+import {Bell, Robot, User, Users} from "phosphor-react";
 import {Box} from "~/client/web/design/box.js";
 import {MobileSettingsRow} from "~/client/web/design/mobile_settings_row.js";
 import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
@@ -79,6 +79,14 @@ export default function MobileSpaceSettingsRoute() {
                         pressErrorTitle="Couldn’t open people settings"
                         onPress={async () => {
                             await rootNavigate(`/s/${space.id}/settings/people`);
+                        }}
+                    />
+                    <MobileSettingsRow
+                        icon={<Robot />}
+                        label="Bots"
+                        pressErrorTitle="Couldn’t open bot settings"
+                        onPress={async () => {
+                            await rootNavigate(`/s/${space.id}/settings/bots`);
                         }}
                     />
                 </Box>

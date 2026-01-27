@@ -10,17 +10,18 @@ import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js
  * It then draws the icon within that cutout space.
  */
 export function AvatarIconOverlay({
-    avatarPixelSize,
+    avatarPx,
     iconType,
 }: {
-    avatarPixelSize: number;
+    avatarPx: number;
     iconType: "ghost" | "bot";
 }) {
-    const iconSize = avatarPixelSize / 1.618033988749; // golden ratio
+    const iconSizePx = avatarPx / 1.618033988749; // golden ratio
+
     const iconStyleBase = {
         position: "absolute",
-        width: iconSize,
-        height: iconSize,
+        width: iconSizePx,
+        height: iconSizePx,
         // Position the SVG container just past the bounding box so that the ghost icon itself is
         // drawn almost exactly at the bottom right corner of the box. This looks correct at all
         // (tested) scales

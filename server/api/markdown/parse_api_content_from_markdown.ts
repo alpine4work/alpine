@@ -65,7 +65,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 
 export type ApiContentMarkdownParserOptions = {
-    readonly spaceId: SpaceId;
+    readonly spaceId: SpaceId | null;
 };
 
 export {actuallyParseApiContentFromMarkdown as parseApiContentFromMarkdown};
@@ -1625,9 +1625,10 @@ function* parseApiContentInlineElementFromMarkdown(
                 // Noop
             }
 
-            const mentionTargetPath = url
-                ? parseApiMentionPathIfPossible(options.spaceId, url)
-                : null;
+            const mentionTargetPath =
+                url !== undefined && options.spaceId !== null
+                    ? parseApiMentionPathIfPossible(options.spaceId, url)
+                    : null;
 
             if (mentionTargetPath === null) {
                 markStack.push({type: "Link", url: content.url});

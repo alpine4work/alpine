@@ -11,4 +11,4 @@
 export const getObjectEntriesWithKeyofType = Object.entries as <
     Key extends string | number,
     Value,
->(object: {[_Key in Key]?: Value}) => Array<[`${Key}`, Value]>;
+>(object: {[_Key in Key]?: Value}) => Array<[Key, Value]>;

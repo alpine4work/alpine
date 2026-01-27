@@ -189,6 +189,9 @@ export type ApiMessagePayloadResponse =
 export type ApiMessageContentPayloadResponse =
     ApiSpecification.components["schemas"]["MessageContentPayload_Response"];
 
+export type ApiMessageContentPayloadParent =
+    ApiSpecification.components["schemas"]["MessageContentPayloadParent"];
+
 export type ApiMessageContentPayloadParentResponse =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent_Response"];
 

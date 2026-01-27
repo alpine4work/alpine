@@ -11,12 +11,14 @@ import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagat
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type AgentServiceRoute =
-    | "ChatGptWebhook"
-    | "ChatGptConversationState"
-    | "RefreshAccountEntitlements"
-    | "MockWebhook"
-    | "MockRecording"
-    | "NotFound";
+    | {type: "ChatGptWebhook"}
+    | {type: "ChatGptConversationState"}
+    | {type: "CursorWebhook"}
+    | {type: "CursorCloudAgentsWebhook"; durableObjectId: string; agentId: string}
+    | {type: "MockWebhook"}
+    | {type: "MockRecording"}
+    | {type: "RefreshAccountEntitlements"}
+    | {type: "NotFound"};
 
 async function handleFetch(
     request: Request,
@@ -28,36 +30,57 @@ async function handleFetch(
     let routeString: string;
     let route: AgentServiceRoute;
 
-    switch (url.pathname) {
-        case "/chat-gpt/webhook": {
-            routeString = "/chat-gpt/webhook";
-            route = "ChatGptWebhook";
-            break;
-        }
-        case "/chat-gpt/conversation-state": {
-            routeString = "/chat-gpt/conversation-state";
-            route = "ChatGptConversationState";
-            break;
-        }
-        case "/refresh-account-entitlements": {
-            routeString = "/refresh-account-entitlements";
-            route = "RefreshAccountEntitlements";
-            break;
-        }
-        case "/mock/webhook": {
-            routeString = "/mock/webhook";
-            route = "MockWebhook";
-            break;
-        }
-        case "/mock/recording": {
-            routeString = "/mock/recording";
-            route = "MockRecording";
-            break;
-        }
-        default: {
+    if (url.pathname.startsWith("/cursor/cloud-agents-webhook/")) {
+        const pathnameParts = url.pathname.slice("/cursor/cloud-agents-webhook/".length).split("/");
+
+        if (pathnameParts.length === 2) {
+            routeString = "/cursor/cloud-agents-webhook/:durableObjectId/:agentId";
+            route = {
+                type: "CursorCloudAgentsWebhook",
+                durableObjectId: pathnameParts[0]!,
+                agentId: pathnameParts[1]!,
+            };
+        } else {
             routeString = "/*";
-            route = "NotFound";
-            break;
+            route = {type: "NotFound"};
+        }
+    } else {
+        switch (url.pathname) {
+            case "/chat-gpt/webhook": {
+                routeString = "/chat-gpt/webhook";
+                route = {type: "ChatGptWebhook"};
+                break;
+            }
+            case "/chat-gpt/conversation-state": {
+                routeString = "/chat-gpt/conversation-state";
+                route = {type: "ChatGptConversationState"};
+                break;
+            }
+            case "/cursor/webhook": {
+                routeString = "/cursor/webhook";
+                route = {type: "CursorWebhook"};
+                break;
+            }
+            case "/mock/webhook": {
+                routeString = "/mock/webhook";
+                route = {type: "MockWebhook"};
+                break;
+            }
+            case "/mock/recording": {
+                routeString = "/mock/recording";
+                route = {type: "MockRecording"};
+                break;
+            }
+            case "/refresh-account-entitlements": {
+                routeString = "/refresh-account-entitlements";
+                route = {type: "RefreshAccountEntitlements"};
+                break;
+            }
+            default: {
+                routeString = "/*";
+                route = {type: "NotFound"};
+                break;
+            }
         }
     }
 
@@ -73,7 +96,7 @@ async function handleFetch(
 
     return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
         try {
-            switch (route) {
+            switch (route.type) {
                 case "NotFound": {
                     return new Response("404 Not Found", {
                         status: 404,
@@ -119,29 +142,37 @@ async function handleFetch(
                         }),
                     );
                 }
-                case "RefreshAccountEntitlements": {
-                    if (request.method !== "POST") {
-                        return new Response("405 Method Not Allowed", {
-                            status: 405,
-                            headers: {"content-type": "text/plain"},
-                        });
-                    }
+                case "CursorWebhook": {
+                    const requestBody: ApiBotWebhookRequestBody = await request.json();
 
-                    const {accountId} = await request.json();
+                    const newUrl = new URL(request.url);
+                    newUrl.pathname = "/webhook";
 
-                    if (!accountId) throw new InvalidArgumentError("Missing `accountId`");
-
-                    await refreshAccountEntitlements(
-                        tracer,
-                        env,
-                        new AgentUsageDatabase(env.AgentUsageDatabase),
-                        accountId,
+                    return fetchFromDurableObject(
+                        span,
+                        env.CursorAgentDurableObjectNamespace,
+                        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
+                        new Request(newUrl, {
+                            method: request.method,
+                            headers: request.headers,
+                            body: JSON.stringify(requestBody),
+                        }),
                     );
+                }
+                case "CursorCloudAgentsWebhook": {
+                    const newUrl = new URL(request.url);
+                    newUrl.pathname = `/cloud-agents-webhook/${route.agentId}`;
 
-                    return new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    });
+                    return fetchFromDurableObjectWithId(
+                        span,
+                        env.CursorAgentDurableObjectNamespace,
+                        env.CursorAgentDurableObjectNamespace.idFromString(route.durableObjectId),
+                        new Request(newUrl, {
+                            method: request.method,
+                            headers: request.headers,
+                            body: request.body,
+                        }),
+                    );
                 }
                 case "MockWebhook": {
                     const requestBody: ApiBotWebhookRequestBody = await request.json();
@@ -182,6 +213,30 @@ async function handleFetch(
                             body: request.body,
                         }),
                     );
+                }
+                case "RefreshAccountEntitlements": {
+                    if (request.method !== "POST") {
+                        return new Response("405 Method Not Allowed", {
+                            status: 405,
+                            headers: {"content-type": "text/plain"},
+                        });
+                    }
+
+                    const {accountId} = await request.json();
+
+                    if (!accountId) throw new InvalidArgumentError("Missing `accountId`");
+
+                    await refreshAccountEntitlements(
+                        tracer,
+                        env,
+                        new AgentUsageDatabase(env.AgentUsageDatabase),
+                        accountId,
+                    );
+
+                    return new Response("200 OK", {
+                        status: 200,
+                        headers: {"content-type": "text/plain"},
+                    });
                 }
                 default:
                     throw exhaustive(route);
@@ -229,9 +284,9 @@ function fetchFromDurableObjectWithId(
 function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {
     switch (request.event.type) {
         case "NewMessage":
-            return `${request.accountId}:${request.event.roomPath}`;
+            return `${request.botAccountId}:${request.event.roomPath}`;
         case "NewPost":
-            return `${request.accountId}:${request.event.postId}`;
+            return `${request.botAccountId}:${request.event.postId}`;
     }
 }
 
@@ -240,3 +295,4 @@ export default {fetch: handleFetch};
 
 export {ChatGptAgentDurableObject} from "~/server/agents/internal/chat_gpt_agent_durable_object.js";
 export {MockAgentDurableObject} from "~/server/agents/internal/mock_agent_durable_object.js";
+export {CursorAgentDurableObject} from "~/server/agents/internal/cursor/cursor_agent_durable_object.js";

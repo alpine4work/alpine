@@ -1,6 +1,7 @@
 import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
+import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {loadAgentAccountLinkContent} from "~/server/agents/internal/link_references/load_agent_account_link_content.js";
 import {loadAgentChannelLinkContent} from "~/server/agents/internal/link_references/load_agent_channel_link_content.js";
@@ -14,51 +15,63 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 export async function loadAgentLinkContent(options: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: AgentWebhookRequest;
     link: AgentLink;
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "timeZone" | "startTime">;
+    tokenLimitFactor?: number;
 }): Promise<Root> {
     const {link} = options;
     switch (link.type) {
-        case "Account":
+        case "Account": {
             return loadAgentAccountLinkContent({
                 ...options,
                 link,
             });
-        case "Channel":
+        }
+        case "Channel": {
             return loadAgentChannelLinkContent({
                 ...options,
                 link,
             });
-        case "DocumentPage":
+        }
+        case "DocumentPage": {
             return loadAgentDocumentPageLinkContent({
                 ...options,
                 link,
+                tokenLimitFactor: options.tokenLimitFactor ?? 1,
             });
-        case "Task":
+        }
+        case "Task": {
             return loadAgentTaskLinkContent({
                 ...options,
                 link,
             });
+        }
         case "TaskCollection": {
             return loadAgentTaskCollectionLinkContent({
                 ...options,
                 link,
             });
         }
-        case "PostComments":
-            return loadAgentPostCommentsLinkContent({
+        case "PostComments": {
+            const {messagesContent} = await loadAgentPostCommentsLinkContent({
                 ...options,
                 link,
+                tokenLimitFactor: options.tokenLimitFactor ?? 1,
             });
+            return messagesContent;
+        }
         case "ChatMessages":
         case "DocumentCommentThreadComments":
-        case "TaskComments":
-            return loadAgentMessagesListLinkContent({
+        case "TaskComments": {
+            const {messagesContent} = await loadAgentMessagesListLinkContent({
                 ...options,
                 link,
+                tokenLimitFactor: options.tokenLimitFactor ?? 1,
             });
+            return messagesContent;
+        }
         default:
             throw exhaustive(link);
     }

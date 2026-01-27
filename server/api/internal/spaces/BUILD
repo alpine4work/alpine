@@ -15,6 +15,8 @@ ts_project(
     visibility = ["//server/api:__subpackages__"],
     deps = [
         "//server/api/internal/shared",
+        "//server/bots",
+        "//server/bots/with_spaces",
         "//server/context",
         "//server/forum/data",
         "//server/search/data/index",

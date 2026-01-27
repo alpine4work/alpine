@@ -3,6 +3,7 @@
         "allow": [
             "Bash(find:*)",
             "Bash(grep:*)",
+            "Bash(git show:*)",
             "Bash(dev check:*)",
             "Bash(dev test:*)",
             "Bash(dev format:*)",

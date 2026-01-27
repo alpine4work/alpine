@@ -7,6 +7,7 @@ ts_project(
     name = "migration_lib",
     deps = [
         "//server/accounts",
+        "//server/bots",
         "//server/chat/data",
         "//server/documents/data",
         "//server/forum/data",

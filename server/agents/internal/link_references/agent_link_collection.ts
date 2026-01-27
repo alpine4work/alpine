@@ -1,4 +1,7 @@
-import {agentMessageFirstPageTokenLimit} from "~/server/agents/internal/agent_limits.js";
+import {
+    agentMessageFirstPageTokenLimit,
+    agentPaginationTokenLimitGrowthFactor,
+} from "~/server/agents/internal/agent_limits.js";
 import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
@@ -289,7 +292,9 @@ export async function putAgentNextMessagesPageLink<
             dedupeNumber: currentPageLink.dedupeNumber ?? 1,
         },
 
-        tokenLimitForPage: Math.floor(currentPageLink.tokenLimitForPage * 1.5),
+        tokenLimitForPage: Math.floor(
+            currentPageLink.tokenLimitForPage * agentPaginationTokenLimitGrowthFactor,
+        ),
     });
 }
 
@@ -324,7 +329,9 @@ export async function putAgentPreviousMessagesPageLink<
             dedupeNumber: currentPageLink.dedupeNumber ?? 1,
         },
 
-        tokenLimitForPage: Math.floor(currentPageLink.tokenLimitForPage * 1.5),
+        tokenLimitForPage: Math.floor(
+            currentPageLink.tokenLimitForPage * agentPaginationTokenLimitGrowthFactor,
+        ),
     });
 }
 

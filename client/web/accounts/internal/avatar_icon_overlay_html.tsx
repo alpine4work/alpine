@@ -7,16 +7,16 @@ import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 // IMPORTANT: If you update the HTML here you should also update
 // `<AvatarIconOverlay>` for code that render avatars in React.
 export function renderAvatarIconOverlay({
-    avatarPixelSize,
+    avatarPx,
     iconType,
 }: {
-    avatarPixelSize: number;
+    avatarPx: number;
     iconType: "ghost" | "bot";
 }): {
     iconCutout: HtmlElementGenerator;
     iconOverlay: HtmlElementGenerator;
 } {
-    const iconSize = avatarPixelSize / 1.618033988749; // golden ratio
+    const iconSize = avatarPx / 1.618033988749; // golden ratio
     const iconStyleBase = [
         "position: absolute",
         `width: ${iconSize}px`,

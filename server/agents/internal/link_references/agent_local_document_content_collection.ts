@@ -3,6 +3,7 @@ import {
     DurableObjectStorageInterface,
 } from "~/server/agents/internal/durable_object_storage_collection.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -27,13 +28,17 @@ export type AgentLocalDocumentKey = `/local/document/${DocumentId}-${number}`;
 // the collection and update the document's dedupe number.
 const AgentLocalDocumentContentCollection = new DurableObjectStorageCollection<
     AgentLocalDocumentKey,
-    ApiContentResponse
+    // NOTE(calebmer): We still support `ApiContentResponse` in the collection for
+    // backwards compatibility purposes. After deploying this change and all
+    // ChatGPT agent durable objects reset their storage we should be able to drop
+    // `ApiContentResponse` from this union.
+    ApiContentResponse | {title: string; content: ApiContentResponse}
 >("a5");
 
 export async function putAgentLocalDocumentContent(
     storage: DurableObjectStorageInterface,
     documentId: DocumentId,
-    documentContent: ApiContentResponse,
+    document: {title: string; content: ApiContentResponse},
 ) {
     let dedupeNumber = 1;
     let documentKey: AgentLocalDocumentKey = `/local/document/${documentId}-${dedupeNumber}`;
@@ -45,15 +50,21 @@ export async function putAgentLocalDocumentContent(
         dedupeNumber += 1;
         documentKey = `/local/document/${documentId}-${dedupeNumber}`;
     }
-    await AgentLocalDocumentContentCollection.put(storage, documentKey, documentContent);
+    await AgentLocalDocumentContentCollection.put(storage, documentKey, document);
     return documentKey;
 }
 
 export async function getAgentLocalDocumentContentIfExists(
     storage: DurableObjectStorageInterface,
     documentKey: AgentLocalDocumentKey,
-) {
+): Promise<{title: string; content: ApiContentResponse} | null> {
     const documentContent = await AgentLocalDocumentContentCollection.get(storage, documentKey);
+    if (!documentContent) return null;
 
-    return documentContent || null;
+    return {
+        title: hasOwnProperty(documentContent, "title") ? documentContent.title : "",
+        content: hasOwnProperty(documentContent, "title")
+            ? documentContent.content
+            : documentContent,
+    };
 }

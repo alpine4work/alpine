@@ -14,14 +14,14 @@ export const channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Re
     Manage: errorDisplayMessage`You aren’t allowed to share this channel. Ask someone who can share the channel to give you share access.`,
 };
 
-export function createChannelNotFoundError(channelId?: string) {
+export function createChannelNotFoundError(channelId: string | undefined) {
     return new NotFoundError("Channel not found", {
         aggregateDedupeKey: channelId,
         displayMessage: errorDisplayMessage`This channel doesn’t exist. Try searching “my channels” to see channels you’ve posted in.`,
     });
 }
 
-export function createPostNotFoundError(postId?: string) {
+export function createPostNotFoundError(postId: string | undefined) {
     return new NotFoundError("Post not found", {
         aggregateDedupeKey: postId,
         displayMessage: errorDisplayMessage`This post doesn’t exist. Try searching “my posts” to see posts you’ve created.`,

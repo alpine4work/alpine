@@ -5,7 +5,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
-export function getApiChatMessageParentMessageResponse(
+export function createIntoApiChatMessageContentPayloadParent(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     chatId: ChatId,

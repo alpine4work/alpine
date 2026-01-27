@@ -31,7 +31,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             ],
         };
 
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Test Document",
+            content,
+        });
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
             documentKey,
@@ -41,6 +44,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 title: "Test Document",
                 localDocumentPage: null,
             },
+            tokenLimitFactor: 1,
         });
 
         expect(firstPage).toEqual({
@@ -64,7 +68,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             elements: [],
         };
 
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Empty Document",
+            content,
+        });
 
         await expect(
             createAgentDocumentPagesAndReturnFirstPage(storage, {
@@ -75,6 +82,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                     title: "Empty Document",
                     localDocumentPage: null,
                 },
+                tokenLimitFactor: 1,
             }),
         ).rejects.toThrow();
     });
@@ -88,7 +96,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             ],
         };
 
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Long Document",
+            content,
+        });
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
             documentKey,
@@ -98,6 +109,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 title: "Long Document",
                 localDocumentPage: null,
             },
+            tokenLimitFactor: 1,
         });
 
         expect(firstPage).toEqual({
@@ -157,7 +169,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             ],
         };
 
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Long Document",
+            content,
+        });
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
             documentKey,
@@ -167,6 +182,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 title: "Long Document",
                 localDocumentPage: null,
             },
+            tokenLimitFactor: 1,
         });
 
         expect(firstPage).toEqual({
@@ -211,7 +227,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
         }
 
         const content: ApiContentResponse = {elements};
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Many Elements",
+            content,
+        });
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
             documentKey,
@@ -221,6 +240,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 title: "Many Elements",
                 localDocumentPage: null,
             },
+            tokenLimitFactor: 1,
         });
 
         expect(firstPage.localDocumentPage?.pageNumber).toBe(1);
@@ -239,7 +259,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             ],
         };
 
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Large Element",
+            content,
+        });
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
             documentKey,
@@ -249,6 +272,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 title: "Large Element",
                 localDocumentPage: null,
             },
+            tokenLimitFactor: 1,
         });
 
         // First page should contain only the large element
@@ -266,7 +290,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             elements: [createParagraphElement(veryLongText)],
         };
 
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Large Element",
+            content,
+        });
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
             documentKey,
@@ -276,6 +303,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 title: "Large Element",
                 localDocumentPage: null,
             },
+            tokenLimitFactor: 1,
         });
 
         // First page should contain only the large element
@@ -289,7 +317,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             elements: [createParagraphElement("Single paragraph")],
         };
 
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Single Element",
+            content,
+        });
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
             documentKey,
@@ -299,6 +330,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 title: "Single Element",
                 localDocumentPage: null,
             },
+            tokenLimitFactor: 1,
         });
 
         expect(firstPage.localDocumentPage?.pageNumber).toBe(1);
@@ -316,7 +348,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             ],
         };
 
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Version Document",
+            content,
+        });
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
             documentKey,
@@ -326,6 +361,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 title: "Version Document",
                 localDocumentPage: null,
             },
+            tokenLimitFactor: 1,
         });
 
         expect(firstPage.localDocumentPage?.localDocumentVersion).toBe(1);
@@ -345,7 +381,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             ],
         };
 
-        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+            title: "Five Pages",
+            content,
+        });
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
             documentKey,
@@ -355,6 +394,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 title: "Five Pages",
                 localDocumentPage: null,
             },
+            tokenLimitFactor: 1,
         });
 
         expect(firstPage.localDocumentPage?.pageNumber).toBe(1);
@@ -373,8 +413,14 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 elements: [createParagraphElement("Version 2 content with more text")],
             };
 
-            const documentKey1 = await putAgentLocalDocumentContent(storage, documentId, content1);
-            const documentKey2 = await putAgentLocalDocumentContent(storage, documentId, content2);
+            const documentKey1 = await putAgentLocalDocumentContent(storage, documentId, {
+                title: "Versioned Document",
+                content: content1,
+            });
+            const documentKey2 = await putAgentLocalDocumentContent(storage, documentId, {
+                title: "Versioned Document",
+                content: content2,
+            });
 
             expect(documentKey1).toBe(`/local/document/${documentId}-1`);
             expect(documentKey2).toBe(`/local/document/${documentId}-2`);
@@ -387,6 +433,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                     title: "Versioned Document",
                     localDocumentPage: null,
                 },
+                tokenLimitFactor: 1,
             });
 
             const firstPage2 = await createAgentDocumentPagesAndReturnFirstPage(storage, {
@@ -397,6 +444,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                     title: "Versioned Document",
                     localDocumentPage: null,
                 },
+                tokenLimitFactor: 1,
             });
 
             expect(firstPage1.localDocumentPage?.localDocumentVersion).toBe(1);
@@ -410,7 +458,10 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 elements: [createParagraphElement("Test content for serialization")],
             };
 
-            const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+            const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
+                title: "Serialize Document",
+                content,
+            });
 
             const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
                 documentKey,
@@ -420,6 +471,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                     title: "Serialize Document",
                     localDocumentPage: null,
                 },
+                tokenLimitFactor: 1,
             });
 
             expect(firstPage.type).toBe("DocumentPage");

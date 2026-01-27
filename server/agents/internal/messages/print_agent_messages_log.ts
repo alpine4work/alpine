@@ -82,6 +82,7 @@ export function printAgentMessagesIntoMarkdownTree(
 
         // If there are consecutive messages from the same author, we put them
         // within the same <human> or <bot> tag IF:
+        //
         // 1. The current message is not a reply to a previous message.
         // 2. They're less than 10 minutes apart.
         // 3. The author did not switch timezones.
@@ -95,7 +96,15 @@ export function printAgentMessagesIntoMarkdownTree(
             currentBlock !== null &&
             currentBlock.authorId === message.author.id &&
             currentBlock.formattedTimeZone === currentMessageFormattedTimeZone &&
-            differenceInMinutesSinceLastMessage < 10;
+            differenceInMinutesSinceLastMessage < 10 &&
+            // Special case: `index` -1 is used for posts which are formatted like a message
+            // (see `getPostAgentMessage()`). We don't want the post to be merged with the
+            // first comment from the same author as they'll be rendered as two distinct
+            // text blocks in the UI.
+            //
+            // This is a bit of a hack. It relies on the knowledge that
+            // `getPostAgentMessage()` uses `index` -1 for posts.
+            message.index > 0;
 
         if (shouldContinueBlock) {
             // shouldContinueBlock can only be true if currentBlock is not null.

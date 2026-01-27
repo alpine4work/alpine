@@ -8,6 +8,7 @@ import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {Spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export type TextInputProps = {
@@ -106,6 +107,11 @@ export type TextInputProps = {
     fontStyle?: "normal" | "code";
 
     /**
+     * Override the right padding of the text input.
+     */
+    paddingRight?: Spacing;
+
+    /**
      * Are we forcing the focus ring to be visible? See the `isVisible` prop on
      * `<FocusRing>` for more information.
      */
@@ -180,6 +186,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         formName,
         fontSize = "75",
         fontStyle = "normal",
+        paddingRight,
         isFocusRingVisible = false,
         maxLength,
     }: Omit<TextInputProps, "label"> &
@@ -226,6 +233,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                     width: "full",
                     height: ({"75": "7", "100": "9"} as const)[fontSize],
                     paddingX: ({"75": "2", "100": "2.5"} as const)[fontSize],
+                    paddingRight,
                     fontSize,
                     fontStyle,
                     backgroundColor: isDisabled || isReadOnly ? "grey-5" : "grey-0",
@@ -247,6 +255,10 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                 readOnly={isReadOnly}
                 autoComplete={autoComplete}
                 autoCapitalize={autoCapitalize}
+                // If this is a password input and we've set `autoComplete` to `off`, then also
+                // tell 1Password to ignore this field.
+                // https://developer.1password.com/docs/web/compatible-website-design/#ignore-offers-to-save-or-fill-specific-fields
+                data-1p-ignore={inputType === "password" && autoComplete === "off" ? "" : undefined}
                 name={formName}
                 enterKeyHint={onEnter ? "done" : undefined}
                 maxLength={maxLength}

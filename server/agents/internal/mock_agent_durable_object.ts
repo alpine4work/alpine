@@ -12,26 +12,25 @@ import {
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {MockAgentRecording} from "~/shared/agents/mock_agent_recording.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
+// The `/webhook` route is shared across all agents and parsed/handled in
+// `AgentDurableObjectBase`.
 type MockAgentRoute = "NotFound" | "Recording";
 
 const MockAgentRecordingCollection = new DurableObjectStorageCollection<"", MockAgentRecording>(
     "Zz",
 );
 
-export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRoute> {
-    // We store the mock agent's recording in the durable object's storage. We don't
-    // want to delete it after 6 hours of inactivity, that would break any scenarios
-    // environments that use `MockAgentDurableObject`.
-    protected override readonly _withoutStorageTimeToLiveForTest = false;
-
+export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRoute, never> {
     constructor(state: DurableObjectState, env: AgentServiceEnv) {
         super("MockAgentService", state, env);
 
@@ -59,14 +58,25 @@ export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRout
         request: Request,
         route: MockAgentRoute,
     ): Promise<Response> {
-        if (route === "Recording") {
-            return this._fetchRecording(context, request);
+        switch (route) {
+            case "Recording": {
+                return this._fetchRecording(context, request);
+            }
+            case "NotFound": {
+                return new Response("404 Not Found", {
+                    status: 404,
+                    headers: {"content-type": "text/plain"},
+                });
+            }
+            default:
+                throw exhaustive(route);
         }
+    }
 
-        return new Response("404 Not Found", {
-            status: 404,
-            headers: {"content-type": "text/plain"},
-        });
+    protected override async _event(tracer: TracerBase, event: never): Promise<void> {
+        cast<never>(event);
+
+        throw new UnimplementedError("Mock agent has no scheduled events");
     }
 
     private async _fetchRecording(context: AgentContext, request: Request): Promise<Response> {
@@ -82,7 +92,7 @@ export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRout
 
         const recording: MockAgentRecording = await request.json();
 
-        await MockAgentRecordingCollection.put(this.getStorage(), "", recording);
+        await MockAgentRecordingCollection.put(this._state.storage, "", recording);
 
         return new Response(null, {status: 200});
     }
@@ -95,7 +105,7 @@ export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRout
         if (!request.event.wasMentioned) return;
 
         let recording =
-            (await MockAgentRecordingCollection.get(this.getStorage(), "")) ?? emptyArray;
+            (await MockAgentRecordingCollection.get(this._state.storage, "")) ?? emptyArray;
 
         const {
             data: {message},

@@ -1,7 +1,8 @@
 import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
+import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentChannelLink} from "~/server/agents/internal/link_references/agent_link.js";
-import {parseAgentContentToMarkdownTree} from "~/server/agents/internal/link_references/parse_agent_content_to_markdown_tree.js";
+import {printApiContentToAgentMarkdownTreeWithFrontmatter} from "~/server/agents/internal/print_api_content_to_agent_markdown_tree_with_frontmatter.ts.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 // TODO(ifitzsimmons, #ai): Add sample content once we land on content format
@@ -13,7 +14,7 @@ export async function loadAgentChannelLinkContent({
     link,
 }: {
     tracer: TracerBase;
-    transaction: DurableObjectTransaction;
+    transaction: DurableObjectTransactionInterface;
     request: Pick<AgentWebhookRequest, "spaceId" | "apiClient">;
     link: AgentChannelLink;
 }): Promise<Root> {
@@ -23,7 +24,7 @@ export async function loadAgentChannelLinkContent({
         params: {path: {id: link.channelId}},
     });
 
-    return parseAgentContentToMarkdownTree({
+    return printApiContentToAgentMarkdownTreeWithFrontmatter({
         transaction,
         request,
         frontmatter: {

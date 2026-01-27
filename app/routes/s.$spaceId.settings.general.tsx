@@ -1,5 +1,5 @@
 import {useId, useRef, useState} from "react";
-import {AvatarUploader} from "~/client/web/avatar/avatar_uploader.js";
+import {AvatarUploader, avatarUploaderSize} from "~/client/web/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
@@ -177,7 +177,7 @@ export default function SpaceGeneralSettingsRoute() {
                     >
                         <SpaceAvatarWithThemeOverride
                             space={originalSpace}
-                            size="12"
+                            size={avatarUploaderSize}
                             theme="light"
                         />
                     </AvatarUploader>
@@ -215,7 +215,7 @@ export default function SpaceGeneralSettingsRoute() {
                     >
                         <SpaceAvatarWithThemeOverride
                             space={originalSpace}
-                            size="12"
+                            size={avatarUploaderSize}
                             theme="dark"
                         />
                     </AvatarUploader>

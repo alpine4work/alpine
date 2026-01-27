@@ -60,13 +60,9 @@ export function useAccountRegistryForSpaceId(spaceId: SpaceId): AccountRegistry 
  * everywhere else the account is presented. If we observe the account's data
  * change this hook will re-render with the new data.
  */
-export function useAccountModel(account: AccountModel | AccountModelData): AccountModelData;
-export function useAccountModel(
-    account: AccountModel | AccountModelData | null,
-): AccountModelData | null;
-export function useAccountModel(
-    account: AccountModel | AccountModelData | null,
-): AccountModelData | null {
+export function useAccountModel(account: AccountModel): AccountModelData;
+export function useAccountModel<Value>(account: AccountModel | Value): AccountModelData | Value;
+export function useAccountModel<Value>(account: AccountModel | Value): AccountModelData | Value {
     const accountRegistry = useAccountRegistry();
 
     const accountData = useStore(
@@ -74,7 +70,7 @@ export function useAccountModel(
     );
 
     if (accountData === null) {
-        return account as AccountModelData | null;
+        return account as Value;
     } else {
         return accountData;
     }

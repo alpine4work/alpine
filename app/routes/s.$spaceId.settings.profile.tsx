@@ -2,7 +2,7 @@ import {CaretDown, Star} from "phosphor-react";
 import {useId, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
-import {AvatarUploader} from "~/client/web/avatar/avatar_uploader.js";
+import {AvatarUploader, avatarUploaderSize} from "~/client/web/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
@@ -188,7 +188,7 @@ export default function SpaceProfileSettingsRoute() {
                         </Box>
                     </Box>
                     <AvatarUploader onUploadAvatar={handleUploadAvatar} borderRadius="full">
-                        <AccountAvatar account={account} size="12" />
+                        <AccountAvatar account={account} size={avatarUploaderSize} />
                     </AvatarUploader>
                 </Box>
                 <Box display="flex" gap="6" alignItems="flex-start" justifyContent="space-between">
@@ -242,11 +242,17 @@ export default function SpaceProfileSettingsRoute() {
                         </Box>
                     )}
                 </Box>
-                <Box display="flex" gap="4" alignItems="center" justifyContent="space-between">
+                <Box
+                    paddingY="5"
+                    display="flex"
+                    gap="4"
+                    alignItems="flex-start"
+                    justifyContent="space-between"
+                >
                     <Box display="flex" flexDirection="column" gap="1">
                         <Box userSelect="text" display="flex" alignItems="center" gap="2">
                             <Box display="inline" fontSize="100" fontStyle="semi-bold">
-                                Lifetime access{" "}
+                                Lifetime access
                             </Box>
                             <Star
                                 weight="fill"
@@ -266,7 +272,11 @@ export default function SpaceProfileSettingsRoute() {
                             </Box>
                         </Box>
                     </Box>
-                    <Box marginLeft="24">
+                    <Box
+                        // Optically align "Purchase" text baseline with "Lifetime access" text baseline.
+                        marginTop="-1"
+                        paddingLeft="24"
+                    >
                         <Button
                             variant="accent"
                             isDisabled={hasLifetimeAccess}

@@ -3451,7 +3451,7 @@ test("`parseMarkdownTree()` parses link reference in curly quotes without valid 
 test("single newlines are turned into spaces", () => {
     expect(
         parseApiContentFromMarkdown("This is\na test\ncool.", {
-            spaceId: generateId(),
+            spaceId: generateId<SpaceId>(),
         }),
     ).toEqual({
         elements: [
@@ -3466,7 +3466,7 @@ test("single newlines are turned into spaces", () => {
 test("double newlines create new paragraphs", () => {
     expect(
         parseApiContentFromMarkdown("This is\n\na test\n\ncool.", {
-            spaceId: generateId(),
+            spaceId: generateId<SpaceId>(),
         }),
     ).toEqual({
         elements: [
@@ -3489,7 +3489,7 @@ test("double newlines create new paragraphs", () => {
 test("triple newlines create new paragraphs", () => {
     expect(
         parseApiContentFromMarkdown("This is\n\n\na test\n\n\ncool.", {
-            spaceId: generateId(),
+            spaceId: generateId<SpaceId>(),
         }),
     ).toEqual({
         elements: [
@@ -3512,7 +3512,7 @@ test("triple newlines create new paragraphs", () => {
 test("escaped newlines are turned into a break", () => {
     expect(
         parseApiContentFromMarkdown("A paragraph\\\nwith a break!", {
-            spaceId: generateId(),
+            spaceId: generateId<SpaceId>(),
         }),
     ).toEqual({
         elements: [

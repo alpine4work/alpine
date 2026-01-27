@@ -1,5 +1,6 @@
 import {getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
+import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {loadApiMessagesForAgentBatchCount} from "~/server/agents/internal/messages/load_api_messages_for_agent_batch_count.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -12,7 +13,7 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  */
 export async function getAgentMessagesBetweenIndexes(
     tracer: TracerBase,
-    transaction: DurableObjectTransaction,
+    transaction: DurableObjectTransactionInterface,
     // We don't want to use `request.event.index` in this function. So omit it from
     // the type.
     request: Omit<AgentWebhookRequest, "event">,

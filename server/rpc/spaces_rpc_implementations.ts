@@ -3,6 +3,7 @@ import {getOurAccountInboxes} from "~/server/notifications/data/get_our_account_
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_actions.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
+import {addSpaceAccount} from "~/server/spaces/add_space_account.js";
 import {createSpace} from "~/server/spaces/create/create_space.js";
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
 import {finishUploadingSpaceAvatar} from "~/server/spaces/finish_uploading_space_avatar.js";
@@ -69,6 +70,14 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             const account = await removeSpaceAccount(context, input);
+            return {account};
+        },
+    },
+
+    addSpaceAccount: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const account = await addSpaceAccount(context, input);
             return {account};
         },
     },
@@ -234,11 +243,12 @@ export default implementRpcs(definitions, {
     instantiateBotSpaceAccount: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {accountId, name} = await instantiateBotSpaceAccount(
+            const account = await instantiateBotSpaceAccount(
                 context.actor.authorizeSession(),
                 input,
             );
-            return {accountId, name};
+
+            return {account};
         },
     },
 });

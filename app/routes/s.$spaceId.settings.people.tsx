@@ -177,6 +177,10 @@ function SpacePeopleSettingsRouteAccounts({
         let ownerAccount: AccountModelData | undefined;
 
         for (const account of allAccountsDatas) {
+            // Don't render bots in the people settings page. They'll be managed in the
+            // bots settings page.
+            if (account.botId) continue;
+
             if (account.space.state.type === "Removed") {
                 if (account.space.state.reason === "InviteRejectedAsSpam") {
                     inviteRejectedAsSpamAccounts.push(account as AccountModelDataWithRemovedState);
@@ -285,14 +289,6 @@ function SpacePeopleSettingsRouteAccounts({
         setModalState({type: "ConfirmDelete", accountData: accountData});
     };
 
-    const getRoleOptionsForAccount = (account: AccountModelData) => {
-        if (account.botId) {
-            return [];
-        }
-
-        return roleOptions;
-    };
-
     return (
         <Box display="flex" flexDirection="column" gap="10">
             <Box display="flex" flexDirection="column" gap="6">
@@ -347,15 +343,13 @@ function SpacePeopleSettingsRouteAccounts({
                                     <MenuButton
                                         placement="bottom-end"
                                         actions={[
-                                            ...getRoleOptionsForAccount(account).map(
-                                                roleOption => ({
-                                                    isSelected: roleOption === account.space.role,
-                                                    label: roleOption,
-                                                    onPress: async () =>
-                                                        await handleRoleChange(account, roleOption),
-                                                    pressErrorTitle: "Can’t change role",
-                                                }),
-                                            ),
+                                            ...roleOptions.map(roleOption => ({
+                                                isSelected: roleOption === account.space.role,
+                                                label: roleOption,
+                                                onPress: async () =>
+                                                    await handleRoleChange(account, roleOption),
+                                                pressErrorTitle: "Can’t change role",
+                                            })),
                                             [
                                                 {
                                                     label: "Remove from space",

@@ -4,7 +4,11 @@ load("//server/dynamo/core:dynamo_core_visibility.bzl", "DYNAMO_CORE_VISIBILITY"
 
 ts_project(
     name = "core",
-    test_deps = ["//:node_modules/expect-type", "//server/dynamo/test_helpers", "//server/spaces/test_helpers"],
+    test_deps = [
+        "//:node_modules/expect-type",
+        "//server/dynamo/test_helpers",
+        "//server/spaces/test_helpers",
+    ],
     visibility = [
         "{}:__pkg__".format(label)
         for label in DYNAMO_CORE_VISIBILITY

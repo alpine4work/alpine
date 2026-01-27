@@ -1,4 +1,4 @@
-import {ArrowsLeftRight, Gear, Plus, Users} from "phosphor-react";
+import {ArrowsLeftRight, Gear, Plus, Robot, Users} from "phosphor-react";
 import {useRef} from "react";
 import {useButton} from "react-aria";
 import {useAppContext} from "~/client/web/context/app_context.js";
@@ -28,26 +28,6 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
         buttonRef,
     );
 
-    const settingsAction = {
-        icon: <Gear />,
-        size: "lg",
-        label: "Settings",
-        pressErrorTitle: "Couldn’t open settings",
-        onPress: async () => {
-            await rootNavigate(`/s/${space.id}/settings/general`);
-        },
-    };
-
-    const membersSettingsAction = {
-        icon: <Users />,
-        size: "lg",
-        label: "People",
-        pressErrorTitle: "Couldn’t open people settings",
-        onPress: async () => {
-            await rootNavigate(`/s/${space.id}/settings/people`);
-        },
-    };
-
     return (
         <MenuButton
             ref={menuButtonRef}
@@ -65,8 +45,33 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                 </>
             }
             actions={[
-                settingsAction,
-                membersSettingsAction,
+                {
+                    icon: <Gear />,
+                    size: "lg",
+                    label: "Settings",
+                    pressErrorTitle: "Couldn’t open settings",
+                    onPress: async () => {
+                        await rootNavigate(`/s/${space.id}/settings/general`);
+                    },
+                },
+                {
+                    icon: <Users />,
+                    size: "lg",
+                    label: "People",
+                    pressErrorTitle: "Couldn’t open people settings",
+                    onPress: async () => {
+                        await rootNavigate(`/s/${space.id}/settings/people`);
+                    },
+                },
+                {
+                    icon: <Robot />,
+                    size: "lg",
+                    label: "Bots",
+                    pressErrorTitle: "Couldn’t open bot settings",
+                    onPress: async () => {
+                        await rootNavigate(`/s/${space.id}/settings/bots`);
+                    },
+                },
                 [
                     {
                         hasChildren: true,

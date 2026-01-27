@@ -18,6 +18,8 @@ ts_project(
     deps = [
         "//:node_modules/date-fns",
         "//server/accounts",
+        "//server/api/content",
+        "//server/api/markdown",
         "//server/context",
         "//server/dynamo/core",
         "//shared/bots",

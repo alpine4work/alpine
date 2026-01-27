@@ -37,7 +37,7 @@ const ApiBotWebhookNewMessageEventPostParentSchema: Schema<ApiBotWebhookNewMessa
         }),
     });
 
-const ApiBotWebhookNewMessageEventParentSchema: Schema<ApiBotWebhookNewMessageEventParent> =
+export const ApiBotWebhookNewMessageEventParentSchema: Schema<ApiBotWebhookNewMessageEventParent> =
     Schema.union({
         Message: ApiBotWebhookNewMessageEventMessageParentSchema,
         Post: ApiBotWebhookNewMessageEventPostParentSchema,

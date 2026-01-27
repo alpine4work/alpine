@@ -1,5 +1,5 @@
 import {Outlet, useLocation, useNavigation} from "@remix-run/react";
-import {Bell, IconContext, User, Users} from "phosphor-react";
+import {Bell, IconContext, Robot, User, Users} from "phosphor-react";
 import {ReactNode} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
@@ -8,6 +8,7 @@ import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {Spacer} from "~/client/web/design/spacer.js";
+import {useStateWithDependencies} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
 import {SpaceRouteScrollView} from "~/client/web/navigation/space_route_scroll_view.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
@@ -28,6 +29,7 @@ type SettingsRoute = keyof typeof titleBySettingsRoute;
 const titleBySettingsRoute = {
     general: "Space settings",
     people: "People settings",
+    bots: "Bot settings",
     profile: "My profile settings",
     notifications: "Notification settings",
 } as const;
@@ -69,9 +71,13 @@ function SettingsNavigationItem({
     isActive?: boolean;
     onPressStart: () => void;
 }) {
-    const {pressProps} = usePress({
+    const {isPressed, pressProps} = usePress({
         onPressStart,
     });
+
+    // Was the item active the last time `isPressed` changed? If the item is active
+    // when pressed we want to show a different press state.
+    const [wasActive] = useStateWithDependencies(() => isActive, [isPressed]);
 
     return (
         <li>
@@ -86,7 +92,9 @@ function SettingsNavigationItem({
                     display="flex"
                     alignItems="center"
                     gap="1.5"
-                    backgroundColor={isActive ? "grey-5" : undefined}
+                    backgroundColor={
+                        isPressed && wasActive ? "grey-10" : isActive ? "grey-5" : undefined
+                    }
                     borderRadius="1"
                     aria-label={label}
                     aria-current={isActive ? "page" : undefined}
@@ -291,6 +299,14 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                                     isActive={nextRoute === "people"}
                                     onPressStart={() => {
                                         rootNavigate(`/s/${space.id}/settings/people`);
+                                    }}
+                                />
+                                <SettingsNavigationItem
+                                    icon={<Robot />}
+                                    label="Bots"
+                                    isActive={nextRoute === "bots"}
+                                    onPressStart={() => {
+                                        rootNavigate(`/s/${space.id}/settings/bots`);
                                     }}
                                 />
                             </ul>

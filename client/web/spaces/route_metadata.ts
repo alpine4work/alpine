@@ -112,6 +112,12 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.settings._index": {
         errorTitle: "Couldn’t open settings",
     },
+    "routes/s.$spaceId.settings.bots._index": {
+        errorTitle: "Couldn’t open bot settings",
+    },
+    "routes/s.$spaceId.settings.bots.$botId": {
+        errorTitle: "Couldn’t open bot settings",
+    },
     "routes/s.$spaceId.settings.general": {
         errorTitle: "Couldn’t open general settings",
     },

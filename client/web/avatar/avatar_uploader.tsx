@@ -14,6 +14,12 @@ import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
+// TODO(calebmer): Avatars look bad in settings! If the avatar size is greater
+// than 8 we should try using the larger image available in Cloudflare R2
+// instead. Maybe we start with the blurred scaled up image and transition once
+// we have the larger image.
+export const avatarUploaderSize = "12";
+
 export function AvatarUploader({
     borderRadius,
     children,
@@ -100,7 +106,13 @@ export function AvatarUploader({
                         }
                     }}
                 />
-                <Box position="relative" height="12" width="12" {...pressProps} cursor="pointer">
+                <Box
+                    position="relative"
+                    height={avatarUploaderSize}
+                    width={avatarUploaderSize}
+                    {...pressProps}
+                    cursor="pointer"
+                >
                     {children}
 
                     {isPressed && (

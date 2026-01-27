@@ -124,8 +124,8 @@ js_run_binary(
     name = "aws_app_templates_json",
     outs = [
         "output_lite/CyberworldsLifecycleStack.template.json",
-        "output_lite/CyberworldsStack.template.json",
         "output_lite/CyberworldsObservabilityStack.template.json",
+        "output_lite/CyberworldsStack.template.json",
     ],
     args = [
         "synth",
@@ -146,13 +146,13 @@ js_run_binary(
     name = "aws_app_templates",
     srcs = [
         "output_lite/CyberworldsLifecycleStack.template.json",
-        "output_lite/CyberworldsStack.template.json",
         "output_lite/CyberworldsObservabilityStack.template.json",
+        "output_lite/CyberworldsStack.template.json",
     ],
     outs = [
         "output_lite/CyberworldsLifecycleStack.template.yaml",
-        "output_lite/CyberworldsStack.template.yaml",
         "output_lite/CyberworldsObservabilityStack.template.yaml",
+        "output_lite/CyberworldsStack.template.yaml",
     ],
     args = [
         "output_lite/CyberworldsLifecycleStack.template.json",

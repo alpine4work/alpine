@@ -24,6 +24,8 @@ import {
     MobileBackButtonSpacer,
 } from "~/client/web/shimmer/internal/mobile_back_button.js";
 import {MobileSettingsRowsShimmer} from "~/client/web/shimmer/internal/mobile_settings_rows_shimmer.js";
+import {SpaceBotListSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_bot_list_settings_route_shimmer.js";
+import {SpaceBotSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_bot_settings_route_shimmer.js";
 import {SpaceGeneralSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_general_settings_route_shimmer.js";
 import {SpaceNotificationsSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_notification_settings_route_shimmer.js";
 import {SpacePeopleSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_people_settings_route_shimmer.js";
@@ -240,6 +242,8 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.posts.$postId.comments.$index.reactions": {component: ReactionsRouteShimmer},
     "routes/s.$spaceId.posts.new.$draftId": {component: NewPostRouteShimmer},
     "routes/s.$spaceId.search": {component: SearchRouteShimmer},
+    "routes/s.$spaceId.settings.bots._index": {component: SpaceBotListSettingsRouteShimmer},
+    "routes/s.$spaceId.settings.bots.$botId": {component: SpaceBotSettingsRouteShimmer},
     "routes/s.$spaceId.settings.general": {component: SpaceGeneralSettingsRouteShimmer},
     "routes/s.$spaceId.settings.people": {component: SpacePeopleSettingsRouteShimmer},
     "routes/s.$spaceId.settings.profile": {component: SpaceProfileSettingsRouteShimmer},

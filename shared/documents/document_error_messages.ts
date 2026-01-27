@@ -19,7 +19,7 @@ export const documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: R
 export const documentBackfillFutureVersionErrorMessage =
     "Tried to backfill a future document version";
 
-export function createDocumentNotFoundError(documentId?: string) {
+export function createDocumentNotFoundError(documentId: string | undefined) {
     return new NotFoundError("Document not found", {
         aggregateDedupeKey: documentId,
         displayMessage: errorDisplayMessage`This document doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
@@ -28,7 +28,7 @@ export function createDocumentNotFoundError(documentId?: string) {
 
 export function createDocumentCommentThreadNotFoundError(
     documentId: DocumentId,
-    commentThreadId?: string,
+    commentThreadId: string | undefined,
 ) {
     return new NotFoundError("Document comment thread not found", {
         aggregateDedupeKey:

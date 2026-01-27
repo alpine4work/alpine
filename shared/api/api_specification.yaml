@@ -99,6 +99,36 @@ paths:
                                     account:
                                         $ref: "#/components/schemas/Account"
 
+    /spaces/{id}/bots/{botId}/settings:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: botId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/BotId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [settings]
+                                additionalProperties: false
+                                properties:
+                                    settings:
+                                        type: object
+                                        required: [values]
+                                        additionalProperties: false
+                                        properties:
+                                            values:
+                                                type: object
+                                                additionalProperties: true
+
     /chats/{id}:
         parameters:
             - name: id
@@ -209,6 +239,25 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamPing"}
+
+    /chats/{id}/messages/{index}/stream/parts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        post:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
 
     /chats/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
@@ -390,6 +439,29 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamPing"}
 
+    /documents/{id}/threads/{threadId}/messages/{index}/stream/parts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        post:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
     /documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
@@ -564,6 +636,25 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamPing"}
 
+    /posts/{id}/messages/{index}/stream/parts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        post:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
     /posts/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
@@ -734,6 +825,25 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamPing"}
 
+    /tasks/{id}/messages/{index}/stream/parts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        post:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
     /tasks/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
@@ -837,11 +947,18 @@ webhooks:
                     application/json:
                         schema:
                             type: object
-                            required: [spaceId, accountId, attempt, accessToken, eventId, event]
+                            required:
+                                [spaceId, botId, botAccountId, attempt, accessToken, eventId, event]
                             additionalProperties: false
                             properties:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
+                                botId:
+                                    $ref: "#/components/schemas/BotId"
+                                botAccountId:
+                                    $ref: "#/components/schemas/AccountId"
+                                # TODO(calebmer, #public-api): Remove `accountId` after this commit deploys.
+                                # It's only here for backwards compatibility purposes.
                                 accountId:
                                     $ref: "#/components/schemas/AccountId"
                                 attempt:
@@ -1010,6 +1127,8 @@ components:
                                 type: boolean
                             createdTimeZone:
                                 $ref: "#/components/schemas/TimeZone"
+                            parent:
+                                $ref: "#/components/schemas/MessageContentPayloadParent"
                             content:
                                 $ref: "#/components/schemas/Content"
 
