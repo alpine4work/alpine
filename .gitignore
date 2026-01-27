@@ -33,6 +33,9 @@ yarn-error.log*
 # dotenv
 .env*.local
 
+# direnv
+.envrc
+
 # Swift
 /.build
 
