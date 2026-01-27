@@ -1,8 +1,10 @@
 import {
+    ApiBotWebhookNewMessageEventParent,
     ApiContentTextInlineElement,
     ApiMentionTarget,
     ApiMentionTargetResponse,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
+    ApiMessageContentPayloadParentResponse,
     ApiSearchResult,
     ApiSearchResultBodyMatch,
     ApiSearchResultParsedFilter,
@@ -72,4 +74,11 @@ test("all `_Response` schemas are assignable to the corresponding base schema", 
     function assertAssignableReturnType(left: Left): Right {
         return left;
     }
+});
+
+test("`ApiMessageContentPayloadParentResponse` is assignable to `ApiBotWebhookNewMessageEventParent`", () => {
+    assertAssignableTypes<
+        ApiMessageContentPayloadParentResponse,
+        ApiBotWebhookNewMessageEventParent
+    >();
 });

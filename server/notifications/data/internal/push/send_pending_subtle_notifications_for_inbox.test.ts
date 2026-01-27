@@ -114,6 +114,7 @@ function createChatMessageNotificationEvent(
         createdTimeZone: defaultTimeZone,
         authorId,
         mentionedAccountIds: new Set<AccountId>(),
+        parent: null,
         isContentSnippetComplete: true,
         contentSnippet: createSimpleMessageContent("Hello"),
     };

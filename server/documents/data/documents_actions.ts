@@ -76,6 +76,7 @@ import {getAccount} from "~/server/spaces/get_account.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -3245,6 +3246,7 @@ export async function updateDocumentContent(
                                     createdTimeZone: createCommentThread.createdTimeZone,
                                     authorId: context.actor.getAccountId(),
                                     mentionedAccountIds,
+                                    parent: null,
                                     isContentSnippetComplete:
                                         contentSnippet.nodeSize ===
                                         createCommentThread.initialCommentContent.nodeSize,
@@ -4545,7 +4547,7 @@ export async function createDocumentComment(
     createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [spaceId, commentThreadItem] = await runAllPromises([
+        const [spaceId, commentThreadItem, parentForEvent] = await runAllPromises([
             (async () => {
                 const {spaceId} = await authorizeDocumentAccess(context, documentId, "Comment", {
                     consistency,
@@ -4576,19 +4578,24 @@ export async function createDocumentComment(
                 commentThreadId,
                 consistency,
             }),
-            (async () => {
-                if (!parent) return;
+            (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+                if (!parent) return null;
 
                 switch (parent.type) {
                     case "Message": {
-                        await DocumentsTable.getItem(context, {
+                        const commentItem = await DocumentsTable.getItem(context, {
                             partitionType: "DocumentCommentThread",
                             sortRangeType: "Comments",
                             documentId,
                             commentThreadId,
                             commentIndex: parent.index,
                         });
-                        break;
+
+                        return {
+                            type: "Message",
+                            index: parent.index,
+                            author: {id: commentItem.authorId},
+                        };
                     }
                     case "MessagesRange": {
                         const commentItems = await arrayFromAsyncIterable(
@@ -4614,7 +4621,12 @@ export async function createDocumentComment(
                         );
 
                         validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
-                        break;
+
+                        return {
+                            type: "Message",
+                            index: parent.startIndex,
+                            author: {id: commentItems[0]!.authorId},
+                        };
                     }
                     case "PostRange": {
                         throw new InvalidArgumentError(
@@ -4731,6 +4743,7 @@ export async function createDocumentComment(
                 createdTimeZone,
                 authorId,
                 mentionedAccountIds,
+                parent: parentForEvent,
                 isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
                 contentSnippet,
             },

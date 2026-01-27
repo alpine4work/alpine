@@ -51,6 +51,7 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {getAccount} from "~/server/spaces/get_account.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
@@ -140,7 +141,7 @@ export async function createPostComment(
     return context.dynamo.retryTransaction(async context => {
         const postItemPromise = getPostItemForAuthorizationIfExists(context, postId, {consistency});
 
-        const [postItem] = await runAllPromises([
+        const [postItem, parentForEvent] = await runAllPromises([
             postItemPromise.then(async postItem => {
                 if (!postItem) throw createPostNotFoundError(postId);
 
@@ -166,18 +167,22 @@ export async function createPostComment(
                 return postItem;
             }),
 
-            (async () => {
-                if (!parent) return;
+            (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+                if (!parent) return null;
 
                 switch (parent.type) {
                     case "Message": {
-                        await ForumTable.getItem(context, {
+                        const commentItem = await ForumTable.getItem(context, {
                             partitionType: "Post",
                             sortRangeType: "Comments",
                             postId,
                             commentIndex: parent.index,
                         });
-                        break;
+                        return {
+                            type: "Message",
+                            index: parent.index,
+                            author: {id: commentItem.authorId},
+                        };
                     }
                     case "MessagesRange": {
                         const commentItems = await arrayFromAsyncIterable(
@@ -199,7 +204,12 @@ export async function createPostComment(
                         );
 
                         validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
-                        break;
+
+                        return {
+                            type: "Message",
+                            index: parent.startIndex,
+                            author: {id: commentItems[0]!.authorId},
+                        };
                     }
                     case "PostRange": {
                         const postItem = await postItemPromise;
@@ -210,7 +220,11 @@ export async function createPostComment(
                         ) {
                             throw new FailedPreconditionError("Invalid post range content version");
                         }
-                        break;
+
+                        return {
+                            type: "Post",
+                            author: {id: postItem.authorId},
+                        };
                     }
                     default:
                         throw exhaustive(parent);
@@ -397,6 +411,7 @@ export async function createPostComment(
                 createdTimeZone,
                 authorId,
                 mentionedAccountIds,
+                parent: parentForEvent,
                 isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
                 contentSnippet,
             },

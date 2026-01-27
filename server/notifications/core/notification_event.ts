@@ -1,3 +1,8 @@
+import {
+    ApiBotWebhookNewMessageEventMessageParent,
+    ApiBotWebhookNewMessageEventParent,
+    ApiBotWebhookNewMessageEventPostParent,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {
     AccountId,
@@ -15,6 +20,29 @@ import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_sc
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
+const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookNewMessageEventMessageParent> =
+    Schema.object({
+        type: Schema.value("Message"),
+        index: Schema.integer,
+        author: Schema.object({
+            id: Schema.id<AccountId>(),
+        }),
+    });
+
+const ApiBotWebhookNewMessageEventPostParentSchema: Schema<ApiBotWebhookNewMessageEventPostParent> =
+    Schema.object({
+        type: Schema.value("Post"),
+        author: Schema.object({
+            id: Schema.id<AccountId>(),
+        }),
+    });
+
+const ApiBotWebhookNewMessageEventParentSchema: Schema<ApiBotWebhookNewMessageEventParent> =
+    Schema.union({
+        Message: ApiBotWebhookNewMessageEventMessageParentSchema,
+        Post: ApiBotWebhookNewMessageEventPostParentSchema,
+    });
+
 export type NotificationCreateChatMessageEvent = SchemaType<
     typeof NotificationCreateChatMessageEventSchema
 >;
@@ -29,6 +57,7 @@ const NotificationCreateChatMessageEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
+    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
     clerical: MessageContentPayloadClericalSchema.optional(),
@@ -48,6 +77,7 @@ const NotificationCreatePostCommentEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
+    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
@@ -83,6 +113,7 @@ const NotificationCreateDocumentCommentEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
+    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
@@ -101,6 +132,7 @@ const NotificationCreateTaskCommentEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
+    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });

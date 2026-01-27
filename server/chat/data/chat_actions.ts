@@ -62,6 +62,7 @@ import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {
     createChatMessageNotFoundError,
     createChatNotFoundError,
@@ -729,7 +730,7 @@ function sendChatMessageForAccount(
         // Make sure we're either a system actor or a session actor for this account.
         await authorizeOwnSpaceAccountAccess(context, authorId);
 
-        const [{chatAttributesItem, chatAccountItem}] = await runAllPromises([
+        const [{chatAttributesItem, chatAccountItem}, parentForEvent] = await runAllPromises([
             (async () => {
                 const items = await authorizeChatAccessForAccountAndReturnItems(
                     context,
@@ -755,18 +756,22 @@ function sendChatMessageForAccount(
 
                 return items;
             })(),
-            (async () => {
-                if (!parent) return;
+            (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+                if (!parent) return null;
 
                 switch (parent.type) {
                     case "Message": {
-                        await ChatTable.getItem(context, {
+                        const messageItem = await ChatTable.getItem(context, {
                             partitionType: "Chat",
                             sortRangeType: "Messages",
                             chatId,
                             messageIndex: parent.index,
                         });
-                        break;
+                        return {
+                            type: "Message",
+                            index: parent.index,
+                            author: {id: messageItem.authorId},
+                        };
                     }
                     case "MessagesRange": {
                         const messageItems = await arrayFromAsyncIterable(
@@ -788,7 +793,12 @@ function sendChatMessageForAccount(
                         );
 
                         validateMessageContentPayloadMessagesRangeParent(parent, messageItems);
-                        break;
+
+                        return {
+                            type: "Message",
+                            index: parent.startIndex,
+                            author: {id: messageItems[0]!.authorId},
+                        };
                     }
                     case "PostRange": {
                         throw new InvalidArgumentError(
@@ -908,6 +918,7 @@ function sendChatMessageForAccount(
                 createdTimeZone,
                 authorId,
                 mentionedAccountIds,
+                parent: parentForEvent,
                 isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
                 contentSnippet,
                 clerical,

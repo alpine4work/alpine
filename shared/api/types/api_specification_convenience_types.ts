@@ -100,15 +100,6 @@ export type ApiContentHeadingBlockElementResponse =
 export type ApiContentDividerBlockElement =
     ApiSpecification.components["schemas"]["ContentDividerBlockElement"];
 
-export type ApiMessageContentPayloadParentContentSnippet =
-    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippet"];
-
-export type ApiMessageContentPayloadParentContentSnippetTextInlineElement =
-    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippetTextInlineElement"];
-
-export type ApiMessageContentPayloadParentContentSnippetInlineElementMark =
-    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippetInlineElementMark"];
-
 export type ApiContentTableBlockElement =
     ApiSpecification.components["schemas"]["ContentTableBlockElement"];
 
@@ -195,17 +186,26 @@ export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Respo
 export type ApiMessagePayloadResponse =
     ApiSpecification.components["schemas"]["MessagePayload_Response"];
 
-export type ApiMessageStreamPartPayload =
-    ApiSpecification.components["schemas"]["MessageStreamPartPayload"];
-
-export type ApiMessageStreamPartPayloadResponse =
-    ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
-
 export type ApiMessageContentPayloadResponse =
     ApiSpecification.components["schemas"]["MessageContentPayload_Response"];
 
 export type ApiMessageContentPayloadParentResponse =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent_Response"];
+
+export type ApiMessageContentPayloadParentContentSnippet =
+    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippet"];
+
+export type ApiMessageContentPayloadParentContentSnippetTextInlineElement =
+    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippetTextInlineElement"];
+
+export type ApiMessageContentPayloadParentContentSnippetInlineElementMark =
+    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippetInlineElementMark"];
+
+export type ApiMessageStreamPartPayload =
+    ApiSpecification.components["schemas"]["MessageStreamPartPayload"];
+
+export type ApiMessageStreamPartPayloadResponse =
+    ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
 
 export type ApiMessageStreamToolCallPartPayloadCall =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
@@ -244,6 +244,18 @@ export type ApiBotWebhookRequestBody =
     ApiSpecification.webhooks["bot"]["post"]["requestBody"]["content"]["application/json"];
 
 export type ApiBotWebhookEvent = ApiBotWebhookRequestBody["event"];
+
+export type ApiBotWebhookNewMessageEvent =
+    ApiSpecification.components["schemas"]["BotWebhookNewMessageEvent"];
+
+export type ApiBotWebhookNewMessageEventParent =
+    ApiSpecification.components["schemas"]["BotWebhookNewMessageEventParent"];
+
+export type ApiBotWebhookNewMessageEventMessageParent =
+    ApiSpecification.components["schemas"]["BotWebhookNewMessageEventMessageParent"];
+
+export type ApiBotWebhookNewMessageEventPostParent =
+    ApiSpecification.components["schemas"]["BotWebhookNewMessageEventPostParent"];
 
 export type ApiTaskWithoutContent = ApiSpecification.components["schemas"]["TaskWithoutContent"];
 

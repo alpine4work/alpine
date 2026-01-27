@@ -2094,6 +2094,31 @@ export namespace ApiSpecification {
                 readonly authorId: components["schemas"]["AccountId"];
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly wasMentioned?: boolean;
+                readonly parent?: components["schemas"]["BotWebhookNewMessageEventParent"];
+            };
+            readonly BotWebhookNewMessageEventParent:
+                | components["schemas"]["BotWebhookNewMessageEventMessageParent"]
+                | components["schemas"]["BotWebhookNewMessageEventPostParent"];
+            readonly BotWebhookNewMessageEventMessageParent: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Message";
+                readonly index: number;
+                readonly author: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+            };
+            readonly BotWebhookNewMessageEventPostParent: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Post";
+                readonly author: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
             };
             readonly BotWebhookNewPostEvent: {
                 /**

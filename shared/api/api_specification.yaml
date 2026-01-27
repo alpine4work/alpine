@@ -2450,6 +2450,50 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 wasMentioned:
                     type: boolean
+                parent:
+                    $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
+
+        BotWebhookNewMessageEventParent:
+            oneOf:
+                - $ref: "#/components/schemas/BotWebhookNewMessageEventMessageParent"
+                - $ref: "#/components/schemas/BotWebhookNewMessageEventPostParent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Message: "#/components/schemas/BotWebhookNewMessageEventMessageParent"
+                    Post: "#/components/schemas/BotWebhookNewMessageEventPostParent"
+
+        BotWebhookNewMessageEventMessageParent:
+            type: object
+            required: [type, index, author]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Message
+                index:
+                    type: integer
+                author:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+
+        BotWebhookNewMessageEventPostParent:
+            type: object
+            required: [type, author]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                author:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
 
         BotWebhookNewPostEvent:
             type: object

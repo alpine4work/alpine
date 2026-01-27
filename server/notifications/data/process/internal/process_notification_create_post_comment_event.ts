@@ -158,6 +158,7 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
         authorId: event.authorId,
         createdTimeZone: event.createdTimeZone,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
+        parent: event.parent ?? undefined,
     }),
     getAlertContent: async (context, event, {accountId}) => {
         const [author, post, body] = await runAllPromises([
