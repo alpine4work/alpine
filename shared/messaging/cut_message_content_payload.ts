@@ -1,4 +1,5 @@
 import {Node} from "prosemirror-model";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
@@ -66,4 +67,28 @@ export function cutMessageContentPayload(
             clamp(0, to ?? contentWithStream.content.size, contentWithStream.content.size),
         ),
     );
+}
+
+/**
+ * Cut the message content. If the message is a stream then we include stream
+ * parts in the cut content. Behaves the same as `cutMessageContentPayload` but
+ * also returns any references from the message payload.
+ */
+export function cutMessageContentPayloadWithReferences(
+    message: {
+        payload: {
+            type: "Content";
+            content:
+                | MessageContentWithReferences
+                | (MessageContent & {doc?: undefined; references?: undefined});
+        };
+        stream: MessageStream | null;
+    },
+    from?: number,
+    to?: number,
+): MessageContentWithReferences {
+    return {
+        doc: cutMessageContentPayload(message, from, to),
+        references: message.payload.content.references ?? emptyContentReferences,
+    };
 }

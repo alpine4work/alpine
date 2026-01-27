@@ -19,6 +19,7 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cutMessageContentPayloadWithReferences} from "~/shared/messaging/cut_message_content_payload.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 
 export function MessageViewTouchMenu<
@@ -114,8 +115,14 @@ export function MessageViewTouchMenu<
             pressErrorTitle: `Couldn’t copy ${messageNoun} text`,
             onPress: async () => {
                 assert(message.payload.type === "Content");
-
-                await writeContentToClipboard(space.id, message.payload.content, null);
+                await writeContentToClipboard(
+                    space.id,
+                    cutMessageContentPayloadWithReferences({
+                        payload: message.payload,
+                        stream: message.stream,
+                    }),
+                    null,
+                );
             },
         });
     }
