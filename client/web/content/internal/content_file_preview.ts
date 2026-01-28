@@ -991,7 +991,11 @@ export function getFileImagePreviewRenderingAdjustments(placeholder: FileImagePr
     const isNearBlack = averageLuminosity < 0.08;
 
     // Less than luminosity of `colors-0` - 0.05
-    const isNearWhite = averageLuminosity > 0.95;
+    //
+    // The constant was picked to support rendering the screenshots in this blog
+    // post with a transparent background:
+    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/4xpwf206e4bq72kxvb7d0bm110
+    const isNearWhite = averageLuminosity > 0.97;
 
     // If we have a subject on a transparent background then we don't want to
     // render borders around the image and instead let the subject bleed into the
