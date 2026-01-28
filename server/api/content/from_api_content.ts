@@ -1,6 +1,5 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {intoApiContentParagraphBlockElement} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -221,38 +220,37 @@ function fromApiContentMentionInlineElement(
     element: ApiContentMentionInlineElement,
     marks: ReadonlyArray<Mark> | undefined,
 ) {
-    const targetPathObject = parseApiMentionTarget(element.target);
-
+    const mentionTarget = element.target;
     let mention: ContentMention;
 
-    if (targetPathObject.type === "Account") {
+    if (mentionTarget.type === "Account") {
         mention = {
             type: "Account",
-            accountId: targetPathObject.id,
+            accountId: mentionTarget.id,
             isShort: element.isAccountShortName ?? false,
         };
     } else {
         let entityId: SearchMentionEntityId;
 
-        switch (targetPathObject.type) {
+        switch (mentionTarget.type) {
             case "Document": {
-                entityId = `Document:${targetPathObject.id}`;
+                entityId = `Document:${mentionTarget.id}`;
                 break;
             }
             case "Channel": {
-                entityId = `Channel:${targetPathObject.id}`;
+                entityId = `Channel:${mentionTarget.id}`;
                 break;
             }
             case "Task": {
-                entityId = `Task:${targetPathObject.id}`;
+                entityId = `Task:${mentionTarget.id}`;
                 break;
             }
             case "TaskCollection": {
-                entityId = `TaskCollection:${targetPathObject.id}`;
+                entityId = `TaskCollection:${mentionTarget.id}`;
                 break;
             }
             case "Post": {
-                entityId = `Post:${targetPathObject.id}`;
+                entityId = `Post:${mentionTarget.id}`;
                 break;
             }
             default:

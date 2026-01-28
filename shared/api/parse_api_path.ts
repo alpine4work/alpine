@@ -1,17 +1,13 @@
 import {
     ApiBotWebhookEvent,
-    ApiMentionPath,
     ApiMentionTarget,
-    ApiMentionTargetResponse,
     ApiMessageRoomPath,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -34,9 +30,6 @@ export type ApiPath = ApiPathsType[number]["path"];
  */
 export type ApiPathObject = ApiPathsType[number]["pathObject"];
 
-// TODO(calebmer): Consolidate `ApiTarget` and `ApiPathObject` someday?
-assertAssignableTypes<ApiMentionTargetResponse, ApiMentionPathObject>();
-
 /**
  * A parsed object representation of `ApiMessageRoomPath`.
  */
@@ -44,17 +37,12 @@ export type ApiMessageRoomPathObject = ApiContentFilteredPathObjectType<ApiMessa
 
 export type ApiMessageRoomMessagesListPath = `${ApiMessageRoomPath}/messages`;
 
-/**
- * A parsed object representation of `ApiMentionPath`.
- */
-export type ApiMentionPathObject = ApiContentFilteredPathObjectType<ApiMentionPath>;
+export type ApiMentionTargetPath = ApiContentFilteredPathType<ApiMentionTarget>;
 
-assertAssignableTypes<ApiMentionPathObject, ApiMentionTarget>();
+type ApiNotMentionTargetPath = Exclude<ApiPath, ApiMentionTargetPath>;
 
 // All `ApiPath`s excluding mentionable paths (`ApiMentionPathObject`).
-type ApiNotMentionPath = Exclude<ApiPath, ApiMentionPath>;
-
-export type ApiNotMentionPathObject = ApiContentFilteredPathObjectType<ApiNotMentionPath>;
+export type ApiNotMentionPathObject = ApiContentFilteredPathObjectType<ApiNotMentionTargetPath>;
 
 export type ApiContentFilteredPathObjectType<Path extends ApiPath> =
     ApiContentFilteredPathObjectTypeInner<Path, ApiPathsType>;
@@ -66,9 +54,19 @@ type ApiContentFilteredPathObjectTypeInner<
     [Key in keyof Paths]: Paths[Key]["path"] extends Path ? Paths[Key]["pathObject"] : never;
 }[number];
 
-const apiMentionPathObjectTypes = new Set<string>(
+export type ApiContentFilteredPathType<PathObject extends ApiPathObject> =
+    ApiContentFilteredPathTypeInnter<PathObject, ApiPathsType>;
+
+type ApiContentFilteredPathTypeInnter<
+    PathObject extends ApiPathObject,
+    Paths extends Array<{path: string; pathObject: object}>,
+> = {
+    [Key in keyof Paths]: Paths[Key]["pathObject"] extends PathObject ? Paths[Key]["path"] : never;
+}[number];
+
+const apiMentionTargetTypes = new Set<string>(
     getObjectKeysWithKeyofType(
-        cast<Record<ApiMentionPathObject["type"], true>>({
+        cast<Record<ApiMentionTarget["type"], true>>({
             Account: true,
             Channel: true,
             Document: true,
@@ -443,29 +441,6 @@ export function parseApiPath(path: string): ApiPathObject {
     }
 }
 
-export function printApiMessageRoomPath(path: ApiMessageRoomPathObject): ApiMessageRoomPath {
-    return printApiPath(path) as ApiMessageRoomPath;
-}
-
-export function printApiMentionPath(path: ApiMentionPathObject): ApiMentionPath {
-    return printApiPath(path) as ApiMentionPath;
-}
-
-/**
- * Prints a mention path to the API response format for mention targets
- * `ApiMentionTargetResponse`. `ApiMentionTargetResponse` has _both_ a string
- * `path` and properties parsed from the path like `type`, `id`, `index` etc.
- * for convenience. A developer can either use the standard path interface or
- * the parsed object format.
- */
-export function printApiMentionTargetResponse(
-    path: ApiMentionPath | ApiMentionPathObject,
-): ApiMentionTargetResponse {
-    const pathObject = typeof path === "string" ? parseApiMentionPath(path) : path;
-    path = typeof path !== "string" ? printApiMentionPath(pathObject) : path;
-    return {path, ...pathObject} as ApiMentionTargetResponse;
-}
-
 export function printApiPath(path: ApiPathObject): ApiPath {
     switch (path.type) {
         case "Account":
@@ -557,36 +532,39 @@ export function parseApiBotWebhookEventIntoMessageRoomPath(
     }
 }
 
+export function printApiMessageRoomPath(path: ApiMessageRoomPathObject): ApiMessageRoomPath {
+    return printApiPath(path) as ApiMessageRoomPath;
+}
+
 export function parseApiMessageRoomPath(path: ApiMessageRoomPath): ApiMessageRoomPathObject {
     return parseApiPath(path) as ApiMessageRoomPathObject;
 }
 
-export function parseApiMentionPath(path: ApiMentionPath): ApiMentionPathObject {
-    return parseApiPath(path) as ApiMentionPathObject;
+export function printApiMentionTarget(path: ApiMentionTarget): ApiMentionTargetPath {
+    return printApiPath(path) as ApiMentionTargetPath;
 }
 
-export function parseApiMentionTarget(target: ApiMentionTarget): ApiMentionPathObject {
-    if (hasOwnProperty(target, "type")) return target;
-    return parseApiPath(target.path) as ApiMentionPathObject;
+export function parseApiMentionTarget(path: ApiMentionTargetPath): ApiMentionTarget {
+    return parseApiPath(path) as ApiMentionTarget;
 }
 
-export function parseApiNotMentionPath(path: ApiNotMentionPath): ApiNotMentionPathObject {
+export function parseApiNotMentionTarget(path: ApiNotMentionTargetPath): ApiNotMentionPathObject {
     return parseApiPath(path) as ApiNotMentionPathObject;
 }
 
-export function isApiMentionPath(path: ApiPath): path is ApiMentionPath {
+export function isApiMentionTargetPath(path: ApiPath): path is ApiMentionTargetPath {
     const pathObject = parseApiPath(path);
-    return apiMentionPathObjectTypes.has(pathObject.type);
+    return apiMentionTargetTypes.has(pathObject.type);
 }
 
-export function isApiNotMentionPath(path: ApiPath): path is ApiNotMentionPath {
-    return !isApiMentionPath(path);
+export function isApiNotMentionTargetPath(path: ApiPath): path is ApiNotMentionTargetPath {
+    return !isApiMentionTargetPath(path);
 }
 
-export function getApiMentionPathIfExists(path: ApiPath): ApiMentionPath | null {
-    if (isApiMentionPath(path)) return path;
+export function getApiMentionTargetPathIfExists(path: ApiPath): ApiMentionTargetPath | null {
+    if (isApiMentionTargetPath(path)) return path;
 
-    const pathObject = parseApiNotMentionPath(path);
+    const pathObject = parseApiNotMentionTarget(path);
 
     switch (pathObject.type) {
         case "DocumentCommentThread":

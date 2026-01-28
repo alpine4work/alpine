@@ -2,7 +2,6 @@ import {
     MockAgentRecording,
     MockAgentRecordingAction,
 } from "~/shared/agents/mock_agent_recording.js";
-import {ApiMentionPathObject} from "~/shared/api/parse_api_path.js";
 import {
     ApiContentBlockElement,
     ApiContentInlineElement,
@@ -13,6 +12,7 @@ import {
     ApiContentParagraphBlockElement,
     ApiContentTextInlineElement,
     ApiContentUnorderedListBlockElement,
+    ApiMentionTarget,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
@@ -60,8 +60,8 @@ function text(
     return {type: "Text", text, marks};
 }
 
-function mention(path: ApiMentionPathObject): ApiContentMentionInlineElement {
-    return {type: "Mention", target: path};
+function mention(target: ApiMentionTarget): ApiContentMentionInlineElement {
+    return {type: "Mention", target};
 }
 
 const bold: ApiContentInlineElementMark = {type: "Bold"};

@@ -56,10 +56,10 @@ import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js"
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {
     ApiMessageRoomPathObject,
-    getApiMentionPathIfExists,
+    getApiMentionTargetPathIfExists,
     isApiMessageRoomPathObject,
     parseApiBotWebhookEventIntoMessageRoomPath,
-    parseApiMentionPath,
+    parseApiMentionTarget,
     parseApiMessageRoomPath,
     parseApiPath,
 } from "~/shared/api/parse_api_path.js";
@@ -1007,7 +1007,7 @@ async function callChatGptAgentFunction({
             }
 
             const targetApiPath = printApiPathForAgentLink(link);
-            const mentionApiPath = getApiMentionPathIfExists(targetApiPath);
+            const mentionApiPath = getApiMentionTargetPathIfExists(targetApiPath);
 
             // TODO(ifitzsimmons, #ai): Change the read tool call interface such that
             // we pass in the SearchEntityId. Then we can load the content for that entity
@@ -1017,7 +1017,7 @@ async function callChatGptAgentFunction({
             if (mentionApiPath) {
                 session.pushToolCall({
                     type: "Read",
-                    target: parseApiMentionPath(mentionApiPath),
+                    target: parseApiMentionTarget(mentionApiPath),
                 });
             }
 

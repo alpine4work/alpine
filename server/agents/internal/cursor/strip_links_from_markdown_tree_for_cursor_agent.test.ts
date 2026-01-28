@@ -27,11 +27,7 @@ describe("account mentions", () => {
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Alice",
                         },
                         {type: "Text", text: ", can you help?"},
@@ -63,21 +59,13 @@ describe("account mentions", () => {
                         {type: "Text", text: "Hey "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: aliceId,
-                                path: `/accounts/${aliceId}`,
-                            },
+                            target: {type: "Account", id: aliceId},
                             title: "Alice",
                         },
                         {type: "Text", text: " and "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: bobId,
-                                path: `/accounts/${bobId}`,
-                            },
+                            target: {type: "Account", id: bobId},
                             title: "Bob",
                         },
                         {type: "Text", text: "!"},
@@ -108,11 +96,7 @@ describe("account mentions", () => {
                         {type: "Text", text: "Talk to "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Charlie",
                         },
                         {type: "Text", text: " about this."},
@@ -148,11 +132,7 @@ describe("account mentions", () => {
                         {type: "Text", text: "Hey "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: cursorAccountId,
-                                path: `/accounts/${cursorAccountId}`,
-                            },
+                            target: {type: "Account", id: cursorAccountId},
                             title: "Cursor",
                         },
                         {type: "Text", text: ", can you help me with this code?"},
@@ -187,11 +167,7 @@ describe("non-account links", () => {
                         {type: "Text", text: "Check out "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Document",
-                                id: documentId,
-                                path: `/documents/${documentId}`,
-                            },
+                            target: {type: "Document", id: documentId},
                             title: "Project Plan",
                         },
                         {type: "Text", text: " for details."},
@@ -223,11 +199,7 @@ describe("non-account links", () => {
                         {type: "Text", text: "Check out "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Document",
-                                id: documentId,
-                                path: `/documents/${documentId}`,
-                            },
+                            target: {type: "Document", id: documentId},
                             title: "Project Plan",
                         },
                         {type: "Text", text: " for details."},
@@ -263,7 +235,6 @@ describe("non-account links", () => {
                             target: {
                                 type: "Task",
                                 id: taskId,
-                                path: `/tasks/${taskId}`,
                                 status: {type: "Open", isActive: false},
                             },
                             title: "Fix the bug",
@@ -299,21 +270,13 @@ describe("mixed content", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Alice",
                         },
                         {type: "Text", text: " should review "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Document",
-                                id: documentId,
-                                path: `/documents/${documentId}`,
-                            },
+                            target: {type: "Document", id: documentId},
                             title: "Design Doc",
                         },
                         {type: "Text", text: "."},
@@ -345,21 +308,13 @@ describe("mixed content", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Alice",
                         },
                         {type: "Text", text: " should review "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Document",
-                                id: documentId,
-                                path: `/documents/${documentId}`,
-                            },
+                            target: {type: "Document", id: documentId},
                             title: "Design Doc",
                         },
                         {type: "Text", text: "."},
@@ -401,11 +356,7 @@ describe("nested content", () => {
                                         {type: "Text", text: "Assigned to "},
                                         {
                                             type: "Mention",
-                                            target: {
-                                                type: "Account",
-                                                id: accountId,
-                                                path: `/accounts/${accountId}`,
-                                            },
+                                            target: {type: "Account", id: accountId},
                                             title: "Bob",
                                         },
                                     ],
@@ -441,11 +392,7 @@ describe("nested content", () => {
                             elements: [
                                 {
                                     type: "Mention",
-                                    target: {
-                                        type: "Account",
-                                        id: accountId,
-                                        path: `/accounts/${accountId}`,
-                                    },
+                                    target: {type: "Account", id: accountId},
                                     title: "Eve",
                                 },
                                 {type: "Text", text: " said this."},
@@ -479,11 +426,7 @@ describe("nested content", () => {
                         {type: "Text", text: "Message from "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Admin",
                         },
                     ],
@@ -551,11 +494,7 @@ describe("edge cases", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Alice",
                         },
                         {type: "Text", text: " is here."},
@@ -586,11 +525,7 @@ describe("edge cases", () => {
                         {type: "Text", text: "Ask "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Bob",
                         },
                     ],
@@ -619,11 +554,7 @@ describe("edge cases", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Solo",
                         },
                     ],
@@ -654,31 +585,19 @@ describe("edge cases", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: aliceId,
-                                path: `/accounts/${aliceId}`,
-                            },
+                            target: {type: "Account", id: aliceId},
                             title: "Alice",
                         },
                         {type: "Text", text: " "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: bobId,
-                                path: `/accounts/${bobId}`,
-                            },
+                            target: {type: "Account", id: bobId},
                             title: "Bob",
                         },
                         {type: "Text", text: " "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: charlieId,
-                                path: `/accounts/${charlieId}`,
-                            },
+                            target: {type: "Account", id: charlieId},
                             title: "Charlie",
                         },
                     ],

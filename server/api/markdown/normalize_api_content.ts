@@ -1,6 +1,5 @@
 import {Draft, castDraft, produce} from "immer";
 import {assertApiChecklistBlockElementItem} from "~/server/api/markdown/assert_api_checklist_block_element_item.js";
-import {parseApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -233,21 +232,11 @@ function normalizeApiContentInlineElements(
                 delete element.title;
             }
 
-            // If we're using the path form of `target` then convert to non-path form.
-            if (!isDeepEqual(Object.keys(element.target), ["path"])) {
-                element.target = hasOwnProperty(element.target, "path")
-                    ? parseApiMentionPath(element.target.path)
-                    : element.target;
-            }
-
             // `isAccountShortName` can only be true for account targets. Otherwise set
             // to undefined.
             if (
                 element.isAccountShortName === false ||
-                (element.isAccountShortName &&
-                    !(hasOwnProperty(element.target, "path")
-                        ? element.target.path.startsWith("/accounts/")
-                        : element.target.type === "Account"))
+                (element.isAccountShortName && element.target.type !== "Account")
             ) {
                 element.isAccountShortName = undefined;
             }

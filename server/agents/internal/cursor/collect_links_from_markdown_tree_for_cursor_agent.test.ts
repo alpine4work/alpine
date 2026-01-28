@@ -27,11 +27,7 @@ describe("account mentions", () => {
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Alice",
                         },
                         {type: "Text", text: ", can you help?"},
@@ -65,21 +61,13 @@ describe("account mentions", () => {
                         {type: "Text", text: "Hey "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: aliceId,
-                                path: `/accounts/${aliceId}`,
-                            },
+                            target: {type: "Account", id: aliceId},
                             title: "Alice",
                         },
                         {type: "Text", text: " and "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: bobId,
-                                path: `/accounts/${bobId}`,
-                            },
+                            target: {type: "Account", id: bobId},
                             title: "Bob",
                         },
                         {type: "Text", text: "!"},
@@ -110,11 +98,7 @@ describe("non-account links", () => {
                         {type: "Text", text: "Check out "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Document",
-                                id: documentId,
-                                path: `/documents/${documentId}`,
-                            },
+                            target: {type: "Document", id: documentId},
                             title: "Project Plan",
                         },
                         {type: "Text", text: " for details."},
@@ -147,7 +131,6 @@ describe("non-account links", () => {
                             target: {
                                 type: "Task",
                                 id: taskId,
-                                path: `/tasks/${taskId}`,
                                 status: {type: "Open", isActive: false},
                             },
                             title: "Fix the bug",
@@ -180,11 +163,7 @@ describe("non-account links", () => {
                         {type: "Text", text: "Join "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Channel",
-                                id: channelId,
-                                path: `/channels/${channelId}`,
-                            },
+                            target: {type: "Channel", id: channelId},
                             title: "Engineering",
                         },
                         {type: "Text", text: " for updates."},
@@ -215,21 +194,13 @@ describe("non-account links", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                id: accountId,
-                                path: `/accounts/${accountId}`,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Alice",
                         },
                         {type: "Text", text: " should review "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Document",
-                                id: documentId,
-                                path: `/documents/${documentId}`,
-                            },
+                            target: {type: "Document", id: documentId},
                             title: "Design Doc",
                         },
                         {type: "Text", text: " for "},
@@ -238,7 +209,6 @@ describe("non-account links", () => {
                             target: {
                                 type: "Task",
                                 id: taskId,
-                                path: `/tasks/${taskId}`,
                                 status: {type: "Open", isActive: false},
                             },
                             title: "Implement feature",
@@ -284,11 +254,7 @@ describe("nested content", () => {
                                         {type: "Text", text: "See "},
                                         {
                                             type: "Mention",
-                                            target: {
-                                                type: "Document",
-                                                id: documentId,
-                                                path: `/documents/${documentId}`,
-                                            },
+                                            target: {type: "Document", id: documentId},
                                             title: "Nested Doc",
                                         },
                                     ],
@@ -324,11 +290,7 @@ describe("nested content", () => {
                                 {type: "Text", text: "From "},
                                 {
                                     type: "Mention",
-                                    target: {
-                                        type: "Document",
-                                        id: documentId,
-                                        path: `/documents/${documentId}`,
-                                    },
+                                    target: {type: "Document", id: documentId},
                                     title: "Quoted Source",
                                 },
                             ],
@@ -393,11 +355,7 @@ describe("edge cases", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {
-                                type: "Document",
-                                id: documentId,
-                                path: `/documents/${documentId}`,
-                            },
+                            target: {type: "Document", id: documentId},
                             title: "Important Doc",
                             marks: [{type: "Bold"}],
                         },

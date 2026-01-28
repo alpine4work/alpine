@@ -16,8 +16,7 @@ import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_regis
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {parseApiMentionPath} from "~/shared/api/parse_api_path.js";
-import {ApiMentionPath} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMentionTargetPath, parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -122,49 +121,49 @@ function renderMessageStreamNonContentPart(
     }
 }
 
-function getApiMentionPathContentMention(targetPath: ApiMentionPath): ContentMention {
-    const targetPathObject = parseApiMentionPath(targetPath);
+function getApiMentionPathContentMention(targetPath: ApiMentionTargetPath): ContentMention {
+    const mentionTarget = parseApiMentionTarget(targetPath);
 
-    switch (targetPathObject.type) {
+    switch (mentionTarget.type) {
         case "Account": {
             return {
                 type: "Account",
-                accountId: targetPathObject.id,
+                accountId: mentionTarget.id,
                 isShort: false,
             };
         }
         case "Channel": {
             return {
                 type: "SearchEntity",
-                entityId: `Channel:${targetPathObject.id}`,
+                entityId: `Channel:${mentionTarget.id}`,
             };
         }
         case "Document": {
             return {
                 type: "SearchEntity",
-                entityId: `Document:${targetPathObject.id}`,
+                entityId: `Document:${mentionTarget.id}`,
             };
         }
         case "Post": {
             return {
                 type: "SearchEntity",
-                entityId: `Post:${targetPathObject.id}`,
+                entityId: `Post:${mentionTarget.id}`,
             };
         }
         case "Task": {
             return {
                 type: "SearchEntity",
-                entityId: `Task:${targetPathObject.id}`,
+                entityId: `Task:${mentionTarget.id}`,
             };
         }
         case "TaskCollection": {
             return {
                 type: "SearchEntity",
-                entityId: `TaskCollection:${targetPathObject.id}`,
+                entityId: `TaskCollection:${mentionTarget.id}`,
             };
         }
         default:
-            throw exhaustive(targetPathObject);
+            throw exhaustive(mentionTarget);
     }
 }
 

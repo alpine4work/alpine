@@ -1,6 +1,6 @@
 import {Mark, Node} from "prosemirror-model";
 import {intoApiTaskStatus} from "~/server/api/content/into_api_task_status.js";
-import {getApiMentionPathNoun} from "~/server/api/markdown/get_api_mention_path_type_noun.js";
+import {getApiMentionTargetNoun} from "~/server/api/markdown/get_api_mention_target_noun.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
@@ -522,7 +522,7 @@ function intoApiContentInlineElement(
                     target,
                     title:
                         options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
-                        `Unknown ${getApiMentionPathNoun(target.type)}`,
+                        `Unknown ${getApiMentionTargetNoun(target.type)}`,
                     marks:
                         node.marks.length > 0
                             ? intoApiContentInlineElementMarks(node.marks)

@@ -24,8 +24,6 @@ export type ApiTaskCollectionPath = ApiSpecification.components["schemas"]["Task
 
 export type ApiMessageRoomPath = ApiSpecification.components["schemas"]["MessageRoomPath"];
 
-export type ApiMentionPath = ApiSpecification.components["schemas"]["MentionPath"];
-
 export type ApiMentionTarget = ApiSpecification.components["schemas"]["MentionTarget"];
 
 export type ApiMentionTargetResponse =
@@ -213,12 +211,7 @@ export type ApiMessageStreamPartPayloadResponse =
 export type ApiMessageStreamToolCallPartPayloadCall =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
 
-export type ApiMessageStreamToolCallPartPayloadCallResponse =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
-
 export type ApiSearchResult = ApiSpecification.components["schemas"]["SearchResult"];
-
-export type ApiSearchResultPath = ApiSpecification.components["schemas"]["SearchResultPath"];
 
 export type ApiSearchTaskMessageResult =
     ApiSpecification.components["schemas"]["SearchTaskMessageResult"];

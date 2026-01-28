@@ -16,13 +16,9 @@ import {gfmTaskListItemToMarkdown} from "mdast-util-gfm-task-list-item";
 import {mathToMarkdown} from "mdast-util-math";
 import {toMarkdown} from "mdast-util-to-markdown";
 import {assertApiChecklistBlockElementItem} from "~/server/api/markdown/assert_api_checklist_block_element_item.js";
-import {getApiMentionPathNoun} from "~/server/api/markdown/get_api_mention_path_type_noun.js";
+import {getApiMentionTargetNoun} from "~/server/api/markdown/get_api_mention_target_noun.js";
 import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/normalize_api_content.js";
-import {
-    ApiMentionPathObject,
-    ApiNotMentionPathObject,
-    parseApiMentionTarget,
-} from "~/shared/api/parse_api_path.js";
+import {ApiNotMentionPathObject} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -36,6 +32,7 @@ import {
     ApiContentMentionInlineElement,
     ApiContentParagraphBlockElement,
     ApiContentTableBlockElement,
+    ApiMentionTarget,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -1101,15 +1098,15 @@ function* printApiContentInlineElementToMarkdown(
                 }
             }
 
-            const targetPathObject = parseApiMentionTarget(element.target);
+            const mentionTarget = element.target;
 
             const title =
                 element.title ??
-                (targetPathObject.type === "Account"
+                (mentionTarget.type === "Account"
                     ? "Unknown"
-                    : `Unknown ${getApiMentionPathNoun(targetPathObject.type)}`);
+                    : `Unknown ${getApiMentionTargetNoun(mentionTarget.type)}`);
 
-            const targetUrl = printApiMentionPathToMentionLinkUrl(targetPathObject, {
+            const targetUrl = printApiMentionPathToMentionLinkUrl(mentionTarget, {
                 spaceId: options.spaceId,
                 isAccountShortName: element.isAccountShortName,
             });
@@ -1165,27 +1162,27 @@ function* printApiContentInlineElementToMarkdown(
 }
 
 export function printApiMentionPathToMentionLinkUrl(
-    targetPathObject: ApiMentionPathObject,
+    target: ApiMentionTarget,
     {spaceId, isAccountShortName}: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
 ) {
-    switch (targetPathObject.type) {
+    switch (target.type) {
         case "Account": {
-            return `https://alpine.inc/s/${spaceId}/accounts/${targetPathObject.id}?mention${
+            return `https://alpine.inc/s/${spaceId}/accounts/${target.id}?mention${
                 isAccountShortName ? "=short" : ""
             }`;
         }
         case "Channel":
-            return `https://alpine.inc/s/${spaceId}/channels/${targetPathObject.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/channels/${target.id}?mention`;
         case "Document":
-            return `https://alpine.inc/s/${spaceId}/documents/${targetPathObject.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/documents/${target.id}?mention`;
         case "Post":
-            return `https://alpine.inc/s/${spaceId}/posts/${targetPathObject.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/posts/${target.id}?mention`;
         case "Task":
-            return `https://alpine.inc/s/${spaceId}/tasks/${targetPathObject.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/tasks/${target.id}?mention`;
         case "TaskCollection":
-            return `https://alpine.inc/s/${spaceId}/tasks/collections/${targetPathObject.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/tasks/collections/${target.id}?mention`;
         default:
-            throw exhaustive(targetPathObject);
+            throw exhaustive(target);
     }
 }
 

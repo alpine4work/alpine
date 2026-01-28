@@ -6,42 +6,21 @@ import {
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
     ApiSearchResult,
-    ApiSearchResultBodyMatch,
-    ApiSearchResultParsedFilter,
-    ApiSearchResultPath,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
-import {ApiTarget, ApiTargetResponse} from "~/shared/api/types/api_target.js";
+import {ApiTarget} from "~/shared/api/types/api_target.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 
-test("all search results conform to the expected shape", () => {
-    assertAssignableTypes<
-        ApiSearchResult,
-        {
-            readonly type: string;
-            readonly path?: ApiSearchResultPath;
-            readonly title: string | null;
-            readonly bodyMatch: ApiSearchResultBodyMatch | null;
-            readonly parsedFilter?: ApiSearchResultParsedFilter | null;
-        }
-    >();
-
-    // Make sure `ApiSearchResultPath` is exactly equal to the search result
-    // union's path property.
-    assertEqualTypes<ApiSearchResult["path"], ApiSearchResultPath | undefined>();
+test("all search results are assignable to `ApiTarget`", () => {
+    assertAssignableTypes<ApiSearchResult, ApiTarget>();
 });
 
-test("all search results are assignable to `ApiTargetResponse`", () => {
-    assertAssignableTypes<ApiSearchResult, ApiTargetResponse>();
-});
-
-test("all mention targets are assignable to `ApiTargetResponse`", () => {
-    assertAssignableTypes<ApiMentionTargetResponse, ApiTargetResponse>();
-});
-
-test("all input mention targets are assignable to `ApiTarget`", () => {
+test("all mention targets are assignable to `ApiTarget`", () => {
     assertAssignableTypes<ApiMentionTarget, ApiTarget>();
+});
+
+test("`ApiMentionTargetResponse` is assignable to `ApiMentionTarget`", () => {
+    assertAssignableTypes<ApiMentionTargetResponse, ApiMentionTarget>();
 });
 
 test("`MessageContentPayloadParentContentSnippetTextInlineElement` is assignable to `ContentTextInlineElement`", () => {

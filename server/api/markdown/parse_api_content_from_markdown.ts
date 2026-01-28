@@ -21,7 +21,7 @@ import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
 import {math} from "micromark-extension-math";
 import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/normalize_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/api_content_code_block_language_definition.js";
-import {parseApiMentionPath} from "~/shared/api/parse_api_path.js";
+import {ApiMentionTargetPath, parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -39,7 +39,6 @@ import {
     ApiContentTableBlockElement,
     ApiContentTableBlockElementCell,
     ApiContentTableBlockElementCellBlockElement,
-    ApiMentionPath,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -1649,7 +1648,7 @@ function* parseApiContentInlineElementFromMarkdown(
 
                 yield {
                     type: "Mention",
-                    target: parseApiMentionPath(mentionTargetPath),
+                    target: parseApiMentionTarget(mentionTargetPath),
                     isAccountShortName: isAccountShortName || undefined,
                     marks: markStack.getMarks(),
                 };
@@ -2036,7 +2035,7 @@ function* parseApiContentInlineElementFromMarkdown(
     }
 }
 
-export function parseApiMentionPathIfPossible(spaceId: SpaceId, url: URL): ApiMentionPath | null {
+function parseApiMentionPathIfPossible(spaceId: SpaceId, url: URL): ApiMentionTargetPath | null {
     const isMentionUrl =
         url?.protocol === "https:" &&
         url.host === "alpine.inc" &&

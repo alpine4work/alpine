@@ -1,8 +1,7 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {printApiMentionPath} from "~/shared/api/parse_api_path.js";
+import {printApiMentionTarget} from "~/shared/api/parse_api_path.js";
 import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -26,9 +25,7 @@ export function fromApiMessageStreamPartPayload(
                         type: "ToolCall",
                         call: {
                             type: "Read",
-                            targetPath: hasOwnProperty(payload.call.target, "path")
-                                ? payload.call.target.path
-                                : printApiMentionPath(payload.call.target),
+                            targetPath: printApiMentionTarget(payload.call.target),
                         },
                     };
                 }

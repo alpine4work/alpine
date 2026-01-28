@@ -1,8 +1,8 @@
-import {ApiMentionPathObject} from "~/shared/api/parse_api_path.js";
+import {ApiMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
-export function getApiMentionPathNoun(
-    type: Exclude<ApiMentionPathObject["type"], "Account">,
+export function getApiMentionTargetNoun(
+    type: Exclude<ApiMentionTarget["type"], "Account">,
 ): string {
     switch (type) {
         case "Channel":

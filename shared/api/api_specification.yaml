@@ -1297,156 +1297,65 @@ components:
                 - $ref: "#/components/schemas/PostMessagesListPath"
                 - $ref: "#/components/schemas/TaskMessagesListPath"
 
-        MentionPath:
-            oneOf:
-                - $ref: "#/components/schemas/AccountPath"
-                - $ref: "#/components/schemas/ChannelPath"
-                - $ref: "#/components/schemas/DocumentPath"
-                - $ref: "#/components/schemas/PostPath"
-                - $ref: "#/components/schemas/TaskPath"
-                - $ref: "#/components/schemas/TaskCollectionPath"
-
-        SearchResultPath:
-            oneOf:
-                - $ref: "#/components/schemas/AccountPath"
-                - $ref: "#/components/schemas/ChannelPath"
-                - $ref: "#/components/schemas/ChatPath"
-                - $ref: "#/components/schemas/ChatMessagePath"
-                - $ref: "#/components/schemas/DocumentPath"
-                - $ref: "#/components/schemas/DocumentMessagePath"
-                - $ref: "#/components/schemas/PostPath"
-                - $ref: "#/components/schemas/PostMessagePath"
-                - $ref: "#/components/schemas/TaskPath"
-                - $ref: "#/components/schemas/TaskMessagePath"
-                - $ref: "#/components/schemas/TaskCollectionPath"
-
         # =========================================================================== #
         #                               Mention targets                               #
         # =========================================================================== #
 
-        AccountMentionTarget_Response:
+        AccountMentionTarget:
             type: object
             required: [type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/AccountPath"
                 type:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
 
-        AccountMentionTarget:
-            oneOf:
-                - type: object
-                  required: [path]
-                  additionalProperties: false
-                  properties:
-                      path:
-                          $ref: "#/components/schemas/AccountPath"
-                - type: object
-                  required: [type, id]
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: Account
-                      id:
-                          $ref: "#/components/schemas/AccountId"
-
-        ChannelMentionTarget_Response:
+        ChannelMentionTarget:
             type: object
             required: [type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/ChannelPath"
                 type:
                     const: Channel
                 id:
                     $ref: "#/components/schemas/ChannelId"
 
-        ChannelMentionTarget:
-            oneOf:
-                - type: object
-                  required: [path]
-                  additionalProperties: false
-                  properties:
-                      path:
-                          $ref: "#/components/schemas/ChannelPath"
-                - type: object
-                  required: [type, id]
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: Channel
-                      id:
-                          $ref: "#/components/schemas/ChannelId"
-
-        DocumentMentionTarget_Response:
+        DocumentMentionTarget:
             type: object
             required: [type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/DocumentPath"
                 type:
                     const: Document
                 id:
                     $ref: "#/components/schemas/DocumentId"
 
-        DocumentMentionTarget:
-            oneOf:
-                - type: object
-                  required: [path]
-                  additionalProperties: false
-                  properties:
-                      path:
-                          $ref: "#/components/schemas/DocumentPath"
-                - type: object
-                  required: [type, id]
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: Document
-                      id:
-                          $ref: "#/components/schemas/DocumentId"
-
-        PostMentionTarget_Response:
+        PostMentionTarget:
             type: object
             required: [type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/PostPath"
                 type:
                     const: Post
                 id:
                     $ref: "#/components/schemas/PostId"
 
-        PostMentionTarget:
-            oneOf:
-                - type: object
-                  required: [path]
-                  additionalProperties: false
-                  properties:
-                      path:
-                          $ref: "#/components/schemas/PostPath"
-                - type: object
-                  required: [type, id]
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: Post
-                      id:
-                          $ref: "#/components/schemas/PostId"
+        TaskMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
 
         TaskMentionTarget_Response:
             type: object
             required: [type, id, status]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/TaskPath"
                 type:
                     const: Task
                 id:
@@ -1454,51 +1363,15 @@ components:
                 status:
                     $ref: "#/components/schemas/TaskStatus"
 
-        TaskMentionTarget:
-            oneOf:
-                - type: object
-                  required: [path]
-                  additionalProperties: false
-                  properties:
-                      path:
-                          $ref: "#/components/schemas/TaskPath"
-                - type: object
-                  required: [type, id]
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: Task
-                      id:
-                          $ref: "#/components/schemas/TaskId"
-
-        TaskCollectionMentionTarget_Response:
+        TaskCollectionMentionTarget:
             type: object
             required: [type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/TaskCollectionPath"
                 type:
                     const: TaskCollection
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
-
-        TaskCollectionMentionTarget:
-            oneOf:
-                - type: object
-                  required: [path]
-                  additionalProperties: false
-                  properties:
-                      path:
-                          $ref: "#/components/schemas/TaskCollectionPath"
-                - type: object
-                  required: [type, id]
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: TaskCollection
-                      id:
-                          $ref: "#/components/schemas/TaskCollectionId"
 
         MentionTarget:
             oneOf:
@@ -1508,27 +1381,15 @@ components:
                 - $ref: "#/components/schemas/PostMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
-
-        # NOTE(calebmer): We define both `MentionTarget` and `MentionTarget_Response`
-        # (instead of letting our build step generate `MentionTarget_Response`) because
-        # the `discriminator` property doesn't work for `MentionTarget`.
-        MentionTarget_Response:
-            oneOf:
-                - $ref: "#/components/schemas/AccountMentionTarget_Response"
-                - $ref: "#/components/schemas/ChannelMentionTarget_Response"
-                - $ref: "#/components/schemas/DocumentMentionTarget_Response"
-                - $ref: "#/components/schemas/PostMentionTarget_Response"
-                - $ref: "#/components/schemas/TaskMentionTarget_Response"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/AccountMentionTarget_Response"
-                    Channel: "#/components/schemas/ChannelMentionTarget_Response"
-                    Document: "#/components/schemas/DocumentMentionTarget_Response"
-                    Post: "#/components/schemas/PostMentionTarget_Response"
-                    Task: "#/components/schemas/TaskMentionTarget_Response"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget_Response"
+                    Account: "#/components/schemas/AccountMentionTarget"
+                    Channel: "#/components/schemas/ChannelMentionTarget"
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
 
         # =========================================================================== #
         #                                   Content                                   #
@@ -2709,8 +2570,6 @@ components:
             required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/AccountPath"
                 title:
                     type: string
                 bodyMatch:
@@ -2727,8 +2586,6 @@ components:
             required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/ChannelPath"
                 title:
                     type: string
                 bodyMatch:
@@ -2747,8 +2604,6 @@ components:
             required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/ChatPath"
                 title:
                     type: string
                 bodyMatch:
@@ -2765,8 +2620,6 @@ components:
             required: [title, bodyMatch, type, id, index, author]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/ChatMessagePath"
                 title:
                     const: null
                 bodyMatch:
@@ -2788,8 +2641,6 @@ components:
             required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/DocumentPath"
                 title:
                     type: string
                 bodyMatch:
@@ -2808,8 +2659,6 @@ components:
             required: [title, bodyMatch, type, id, threadId, index, author]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/DocumentMessagePath"
                 title:
                     const: null
                 bodyMatch:
@@ -2835,8 +2684,6 @@ components:
             required: [title, bodyMatch, type, id, author]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/PostPath"
                 title:
                     type: string
                 bodyMatch:
@@ -2857,8 +2704,6 @@ components:
             required: [title, bodyMatch, type, id, index, author]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/PostMessagePath"
                 title:
                     const: null
                 bodyMatch:
@@ -2882,8 +2727,6 @@ components:
             required: [title, bodyMatch, type, id, status]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/TaskPath"
                 title:
                     type: string
                 bodyMatch:
@@ -2904,8 +2747,6 @@ components:
             required: [title, bodyMatch, type, id, index, author]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/TaskMessagePath"
                 title:
                     const: null
                 bodyMatch:
@@ -2929,8 +2770,6 @@ components:
             required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                path:
-                    $ref: "#/components/schemas/TaskCollectionPath"
                 title:
                     type: string
                 bodyMatch:

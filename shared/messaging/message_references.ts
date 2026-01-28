@@ -1,4 +1,5 @@
-import {ApiMentionPathObject, parseApiMentionPath} from "~/shared/api/parse_api_path.js";
+import {parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
+import {ApiMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
 import {
     ContentReferencedIds,
     ContentReferencedIdsSchema,
@@ -123,7 +124,7 @@ function collectContentReferencedIdsForStreamPartInto(
         case "ToolCall": {
             switch (part.call.type) {
                 case "Read": {
-                    const targetObject = parseApiMentionPath(part.call.targetPath);
+                    const targetObject = parseApiMentionTarget(part.call.targetPath);
                     if (targetObject.type === "Account") {
                         referencedIds.accountIds.add(targetObject.id);
                     } else {
@@ -147,20 +148,20 @@ function collectContentReferencedIdsForStreamPartInto(
 }
 
 function intoSearchEntityIdFromApiMentionPathObject(
-    pathObject: Exclude<ApiMentionPathObject, {readonly type: "Account"}>,
+    target: Exclude<ApiMentionTarget, {readonly type: "Account"}>,
 ): SearchMentionEntityId {
-    switch (pathObject.type) {
+    switch (target.type) {
         case "Channel":
-            return `Channel:${pathObject.id}`;
+            return `Channel:${target.id}`;
         case "Document":
-            return `Document:${pathObject.id}`;
+            return `Document:${target.id}`;
         case "Post":
-            return `Post:${pathObject.id}`;
+            return `Post:${target.id}`;
         case "Task":
-            return `Task:${pathObject.id}`;
+            return `Task:${target.id}`;
         case "TaskCollection":
-            return `TaskCollection:${pathObject.id}`;
+            return `TaskCollection:${target.id}`;
         default:
-            throw exhaustive(pathObject);
+            throw exhaustive(target);
     }
 }

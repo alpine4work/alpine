@@ -1,4 +1,4 @@
-import {ApiMentionPath} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMentionTargetPath} from "~/shared/api/parse_api_path.js";
 import {FileIdOrFileEntityIdSchema, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -266,7 +266,7 @@ export type MessageStreamToolCallPartPayloadCall = SchemaType<
 const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
     Read: Schema.object({
         type: Schema.value("Read"),
-        targetPath: Schema.string as Schema<ApiMentionPath>,
+        targetPath: Schema.string as Schema<ApiMentionTargetPath>,
     }),
     Search: Schema.object({
         type: Schema.value("Search"),

@@ -9,10 +9,10 @@ import {
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiPath,
-    isApiMentionPath,
-    isApiNotMentionPath,
-    parseApiMentionPath,
-    parseApiNotMentionPath,
+    isApiMentionTargetPath,
+    isApiNotMentionTargetPath,
+    parseApiMentionTarget,
+    parseApiNotMentionTarget,
 } from "~/shared/api/parse_api_path.js";
 import {
     ApiContentBlockElement,
@@ -315,12 +315,12 @@ export class AgentMessageStream {
 
                         if (!targetPath) return null;
 
-                        if (isApiMentionPath(targetPath)) {
-                            const mentionTargetPathObject = parseApiMentionPath(targetPath);
+                        if (isApiMentionTargetPath(targetPath)) {
+                            const mentionTarget = parseApiMentionTarget(targetPath);
 
                             node.children[index] = {
                                 type: "link",
-                                url: printApiMentionPathToMentionLinkUrl(mentionTargetPathObject, {
+                                url: printApiMentionPathToMentionLinkUrl(mentionTarget, {
                                     spaceId: this._spaceId,
                                     isAccountShortName: undefined,
                                 }),
@@ -331,8 +331,8 @@ export class AgentMessageStream {
                             // If it's not mentionable, we'll create a direct link to the content.
                             // For exampe, the link to a chat message will look someting like
                             // `/chats/${chatId}?message=${messageIndex}
-                            assert(isApiNotMentionPath(targetPath));
-                            const targetPathObject = parseApiNotMentionPath(targetPath);
+                            assert(isApiNotMentionTargetPath(targetPath));
+                            const targetPathObject = parseApiNotMentionTarget(targetPath);
 
                             node.children[index] = {
                                 type: "link",
