@@ -125,7 +125,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
 
         let awsTracerSharedData:
             | {
-                  ec2InstanceId: string;
+                  ec2InstanceId: string | undefined;
                   ecsTaskId: string | undefined;
               }
             | undefined;
@@ -133,6 +133,10 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         if (process.env.NODE_ENV === "production") {
             const [ec2InstanceId, ecsTaskId] = await runAllPromiseThunks(
                 async () => {
+                    // IMDSv2 isn't available in ECS Fargate. `MigrationService` runs in ECS
+                    // Fargate and throws if we try to access http://169.254.169.254.
+                    if (process.env.AWS_EXECUTION_ENV === "AWS_ECS_FARGATE") return;
+
                     // IMDSv2 requires a token first
                     // eslint-disable-next-line no-global-fetch
                     const tokenResponse = await fetch("http://169.254.169.254/latest/api/token", {
