@@ -793,7 +793,7 @@ function PostCreatorChannelSelectorListBoxOptionItem({
 
     return (
         <Box display="flex" alignItems="center" gap="3">
-            <Box flexGrow="1">
+            <Box flexGrow="1" overflow="hidden" style={{minWidth: 0}}>
                 <Box fontStyle="truncate">{item.channel.name}</Box>
                 {item.descriptionTextSnippet.length > 0 && (
                     <Box
