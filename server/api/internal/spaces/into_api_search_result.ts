@@ -34,7 +34,6 @@ export function intoApiSearchResult(entity: SearchEntityResultModel): ApiSearchR
 
         const expectedKeys = [];
 
-        expectedKeys.push("path");
         expectedKeys.push("title");
         expectedKeys.push("bodyMatch");
 
@@ -71,7 +70,6 @@ function actuallyIntoApiSearchResult({
 
     if (model instanceof AccountModel) {
         return {
-            path: `/accounts/${model.id}`,
             title: model.initialData.name,
             bodyMatch: null,
             type: "Account",
@@ -96,7 +94,6 @@ function actuallyIntoApiSearchResult({
     switch (entity.type) {
         case "Channel": {
             return {
-                path: `/channels/${entity.channelId}`,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch: null,
                 parsedFilter,
@@ -106,7 +103,6 @@ function actuallyIntoApiSearchResult({
         }
         case "Chat": {
             return {
-                path: `/chats/${entity.chatId}`,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch: null,
                 parsedFilter,
@@ -124,7 +120,6 @@ function actuallyIntoApiSearchResult({
             assert(bodyMatch !== null);
 
             return {
-                path: `/chats/${entity.chatId}/messages/${entity.messageIndex}`,
                 title: null,
                 bodyMatch,
                 parsedFilter,
@@ -136,7 +131,6 @@ function actuallyIntoApiSearchResult({
         }
         case "Document": {
             return {
-                path: `/documents/${entity.documentId}`,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
@@ -152,7 +146,6 @@ function actuallyIntoApiSearchResult({
             const author = intoApiAccount(model.initialData.media.account.initialData);
 
             return {
-                path: `/documents/${entity.documentId}/threads/${entity.commentThreadId}/messages/${entity.commentIndex}`,
                 title: null,
                 bodyMatch,
                 parsedFilter,
@@ -171,7 +164,6 @@ function actuallyIntoApiSearchResult({
             const author = intoApiAccount(model.initialData.media.account.initialData);
 
             return {
-                path: `/posts/${entity.postId}`,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
@@ -188,7 +180,6 @@ function actuallyIntoApiSearchResult({
             const author = intoApiAccount(model.initialData.media.account.initialData);
 
             return {
-                path: `/posts/${entity.postId}/messages/${entity.commentIndex}`,
                 title: null,
                 bodyMatch,
                 parsedFilter,
@@ -202,7 +193,6 @@ function actuallyIntoApiSearchResult({
             assert(model.initialData.media?.type === "TaskDisplayStatus");
 
             return {
-                path: `/tasks/${entity.taskId}`,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
@@ -213,7 +203,6 @@ function actuallyIntoApiSearchResult({
         }
         case "TaskCollection": {
             return {
-                path: `/task-collections/${entity.collectionId}`,
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch: null,
                 parsedFilter,
@@ -229,7 +218,6 @@ function actuallyIntoApiSearchResult({
             const author = intoApiAccount(model.initialData.media.account.initialData);
 
             return {
-                path: `/tasks/${entity.taskId}/messages/${entity.commentIndex}`,
                 title: null,
                 bodyMatch,
                 parsedFilter,

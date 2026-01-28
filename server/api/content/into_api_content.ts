@@ -455,7 +455,6 @@ function intoApiContentInlineElement(
                     type: "Mention",
                     target: {
                         type: "Account",
-                        path: `/accounts/${mention.accountId}`,
                         id: mention.accountId,
                     },
                     title:
@@ -475,7 +474,6 @@ function intoApiContentInlineElement(
                 switch (entityIdObject.type) {
                     case "Document": {
                         target = {
-                            path: `/documents/${entityIdObject.documentId}`,
                             type: "Document",
                             id: entityIdObject.documentId,
                         };
@@ -483,7 +481,6 @@ function intoApiContentInlineElement(
                     }
                     case "Channel": {
                         target = {
-                            path: `/channels/${entityIdObject.channelId}`,
                             type: "Channel",
                             id: entityIdObject.channelId,
                         };
@@ -491,7 +488,6 @@ function intoApiContentInlineElement(
                     }
                     case "Task": {
                         target = {
-                            path: `/tasks/${entityIdObject.taskId}`,
                             type: "Task",
                             id: entityIdObject.taskId,
                             status: intoApiTaskStatus(
@@ -505,7 +501,6 @@ function intoApiContentInlineElement(
                     }
                     case "TaskCollection": {
                         target = {
-                            path: `/task-collections/${entityIdObject.collectionId}`,
                             type: "TaskCollection",
                             id: entityIdObject.collectionId,
                         };
@@ -513,7 +508,6 @@ function intoApiContentInlineElement(
                     }
                     case "Post": {
                         target = {
-                            path: `/posts/${entityIdObject.postId}`,
                             type: "Post",
                             id: entityIdObject.postId,
                         };

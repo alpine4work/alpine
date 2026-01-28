@@ -46,7 +46,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Account",
-                path: `/accounts/${accountId}`,
                 id: accountId,
                 title: "Test User",
                 bodyMatch: null,
@@ -75,7 +74,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Document",
-                path: `/documents/${documentId}`,
                 id: documentId,
                 title: "Test Document",
                 bodyMatch: null,
@@ -106,7 +104,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Document",
-                path: `/documents/${documentId}`,
                 id: documentId,
                 title: "Test Document",
                 bodyMatch: [
@@ -137,7 +134,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Document",
-                path: `/documents/${documentId}`,
                 id: documentId,
                 title: "Test Document",
                 bodyMatch: [{text: "Plain text"}],
@@ -166,7 +162,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Channel",
-                path: `/channels/${channelId}`,
                 id: channelId,
                 title: "General Channel",
                 bodyMatch: null,
@@ -193,7 +188,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Channel",
-                path: `/channels/${channelId}`,
                 id: channelId,
                 title: "Unknown channel",
                 bodyMatch: null,
@@ -222,7 +216,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Chat",
-                path: `/chats/${chatId}`,
                 id: chatId,
                 title: "Team Discussion",
                 bodyMatch: null,
@@ -249,7 +242,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Chat",
-                path: `/chats/${chatId}`,
                 id: chatId,
                 title: "Unknown chat",
                 bodyMatch: null,
@@ -288,7 +280,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "ChatMessage",
-                path: `/chats/${chatId}/messages/${messageIndex}`,
                 id: chatId,
                 index: messageIndex,
                 title: null,
@@ -322,7 +313,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Document",
-                path: `/documents/${documentId}`,
                 id: documentId,
                 title: "Project Proposal",
                 bodyMatch: [{text: "Document content"}],
@@ -349,7 +339,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Document",
-                path: `/documents/${documentId}`,
                 id: documentId,
                 title: "Unknown document",
                 bodyMatch: null,
@@ -389,7 +378,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "DocumentMessage",
-                path: `/documents/${documentId}/threads/${commentThreadId}/messages/${commentIndex}`,
                 id: documentId,
                 threadId: commentThreadId,
                 index: commentIndex,
@@ -433,7 +421,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Post",
-                path: `/posts/${postId}`,
                 id: postId,
                 title: "Announcement",
                 bodyMatch: [{text: "Post content"}],
@@ -473,7 +460,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Post",
-                path: `/posts/${postId}`,
                 id: postId,
                 title: "Unknown post",
                 bodyMatch: null,
@@ -516,7 +502,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "PostMessage",
-                path: `/posts/${postId}/messages/${commentIndex}`,
                 id: postId,
                 index: commentIndex,
                 title: null,
@@ -554,7 +539,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 id: taskId,
                 title: "Fix the bug",
                 bodyMatch: [{text: "Task description"}],
@@ -586,7 +570,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 id: taskId,
                 title: "Implement feature",
                 bodyMatch: null,
@@ -618,7 +601,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 id: taskId,
                 title: "Completed task",
                 bodyMatch: null,
@@ -650,7 +632,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 id: taskId,
                 title: "Unknown task",
                 bodyMatch: null,
@@ -680,7 +661,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "TaskCollection",
-                path: `/task-collections/${collectionId}`,
                 id: collectionId,
                 title: "Sprint 1 Tasks",
                 bodyMatch: null,
@@ -707,7 +687,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "TaskCollection",
-                path: `/task-collections/${collectionId}`,
                 id: collectionId,
                 title: "Unknown task collection",
                 bodyMatch: null,
@@ -746,7 +725,6 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "TaskMessage",
-                path: `/tasks/${taskId}/messages/${commentIndex}`,
                 id: taskId,
                 index: commentIndex,
                 title: null,

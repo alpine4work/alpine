@@ -1303,7 +1303,7 @@ test("converts account mention into API content", () => {
                     {type: "Text", text: "Hello "},
                     {
                         type: "Mention",
-                        target: {type: "Account", path: `/accounts/${accountId}`, id: accountId},
+                        target: {type: "Account", id: accountId},
                         title: "Unknown",
                         isAccountShortName: false,
                     },
@@ -1330,7 +1330,7 @@ test("converts account mention with short name into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Account", path: `/accounts/${accountId}`, id: accountId},
+                        target: {type: "Account", id: accountId},
                         title: "Unknown",
                         isAccountShortName: true,
                     },
@@ -1356,11 +1356,7 @@ test("converts document mention into API content", () => {
                     {type: "Text", text: "See "},
                     {
                         type: "Mention",
-                        target: {
-                            type: "Document",
-                            path: `/documents/${documentId}`,
-                            id: documentId,
-                        },
+                        target: {type: "Document", id: documentId},
                         title: "Unknown document",
                     },
                 ],
@@ -1384,7 +1380,7 @@ test("converts channel mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Channel", path: `/channels/${channelId}`, id: channelId},
+                        target: {type: "Channel", id: channelId},
                         title: "Unknown channel",
                     },
                 ],
@@ -1408,12 +1404,7 @@ test("converts task mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {
-                            type: "Task",
-                            path: `/tasks/${taskId}`,
-                            id: taskId,
-                            status: {type: "Closed"},
-                        },
+                        target: {type: "Task", id: taskId, status: {type: "Closed"}},
                         title: "Unknown task",
                     },
                 ],
@@ -1437,11 +1428,7 @@ test("converts task collection mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {
-                            type: "TaskCollection",
-                            path: `/task-collections/${taskCollectionId}`,
-                            id: taskCollectionId,
-                        },
+                        target: {type: "TaskCollection", id: taskCollectionId},
                         title: "Unknown task collection",
                     },
                 ],
@@ -1465,7 +1452,7 @@ test("converts post mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Post", path: `/posts/${postId}`, id: postId},
+                        target: {type: "Post", id: postId},
                         title: "Unknown post",
                     },
                 ],
@@ -1629,11 +1616,7 @@ test("converts marked mention into API content", () => {
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {
-                                type: "Account",
-                                path: `/accounts/${accountId}`,
-                                id: accountId,
-                            },
+                            target: {type: "Account", id: accountId},
                             title: "Unknown",
                             isAccountShortName: false,
                             marks: [{type: "Bold"}, {type: "Italic"}],
