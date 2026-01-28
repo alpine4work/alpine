@@ -933,11 +933,7 @@ ${"Long message content.".repeat(100)}
                                 {type: "Text", text: " inline code. "},
                                 {
                                     type: "Mention",
-                                    target: {
-                                        type: "Account",
-                                        id: aliceAccount.id,
-                                        path: `/accounts/${aliceAccount.id}`,
-                                    },
+                                    target: {type: "Account", id: aliceAccount.id},
                                     title: aliceAccount.name,
                                 },
                                 {type: "Text", text: " is going to take care of this!!."},

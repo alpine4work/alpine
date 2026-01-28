@@ -1326,7 +1326,7 @@ components:
 
         AccountMentionTarget_Response:
             type: object
-            required: [type, path, id]
+            required: [type, id]
             additionalProperties: false
             properties:
                 path:
@@ -1346,7 +1346,7 @@ components:
                           $ref: "#/components/schemas/AccountPath"
                 - type: object
                   required: [type, id]
-                  additionalProperties: {const: path}
+                  additionalProperties: false
                   properties:
                       type:
                           const: Account
@@ -1355,7 +1355,7 @@ components:
 
         ChannelMentionTarget_Response:
             type: object
-            required: [type, path, id]
+            required: [type, id]
             additionalProperties: false
             properties:
                 path:
@@ -1375,7 +1375,7 @@ components:
                           $ref: "#/components/schemas/ChannelPath"
                 - type: object
                   required: [type, id]
-                  additionalProperties: {const: path}
+                  additionalProperties: false
                   properties:
                       type:
                           const: Channel
@@ -1384,7 +1384,7 @@ components:
 
         DocumentMentionTarget_Response:
             type: object
-            required: [type, path, id]
+            required: [type, id]
             additionalProperties: false
             properties:
                 path:
@@ -1404,7 +1404,7 @@ components:
                           $ref: "#/components/schemas/DocumentPath"
                 - type: object
                   required: [type, id]
-                  additionalProperties: {const: path}
+                  additionalProperties: false
                   properties:
                       type:
                           const: Document
@@ -1413,7 +1413,7 @@ components:
 
         PostMentionTarget_Response:
             type: object
-            required: [type, path, id]
+            required: [type, id]
             additionalProperties: false
             properties:
                 path:
@@ -1433,7 +1433,7 @@ components:
                           $ref: "#/components/schemas/PostPath"
                 - type: object
                   required: [type, id]
-                  additionalProperties: {const: path}
+                  additionalProperties: false
                   properties:
                       type:
                           const: Post
@@ -1442,7 +1442,7 @@ components:
 
         TaskMentionTarget_Response:
             type: object
-            required: [type, path, id, status]
+            required: [type, id, status]
             additionalProperties: false
             properties:
                 path:
@@ -1464,7 +1464,7 @@ components:
                           $ref: "#/components/schemas/TaskPath"
                 - type: object
                   required: [type, id]
-                  additionalProperties: {const: path}
+                  additionalProperties: false
                   properties:
                       type:
                           const: Task
@@ -1473,7 +1473,7 @@ components:
 
         TaskCollectionMentionTarget_Response:
             type: object
-            required: [type, path, id]
+            required: [type, id]
             additionalProperties: false
             properties:
                 path:
@@ -1493,7 +1493,7 @@ components:
                           $ref: "#/components/schemas/TaskCollectionPath"
                 - type: object
                   required: [type, id]
-                  additionalProperties: {const: path}
+                  additionalProperties: false
                   properties:
                       type:
                           const: TaskCollection
@@ -2706,7 +2706,7 @@ components:
 
         SearchAccountResult:
             type: object
-            required: [path, title, bodyMatch, type, id]
+            required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
                 path:
@@ -2724,7 +2724,7 @@ components:
 
         SearchChannelResult:
             type: object
-            required: [path, title, bodyMatch, type, id]
+            required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
                 path:
@@ -2744,7 +2744,7 @@ components:
 
         SearchChatResult:
             type: object
-            required: [path, title, bodyMatch, type, id]
+            required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
                 path:
@@ -2762,7 +2762,7 @@ components:
 
         SearchChatMessageResult:
             type: object
-            required: [path, title, bodyMatch, type, id, index, author]
+            required: [title, bodyMatch, type, id, index, author]
             additionalProperties: false
             properties:
                 path:
@@ -2785,7 +2785,7 @@ components:
 
         SearchDocumentResult:
             type: object
-            required: [path, title, bodyMatch, type, id]
+            required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
                 path:
@@ -2805,7 +2805,7 @@ components:
 
         SearchDocumentMessageResult:
             type: object
-            required: [path, title, bodyMatch, type, id, threadId, index, author]
+            required: [title, bodyMatch, type, id, threadId, index, author]
             additionalProperties: false
             properties:
                 path:
@@ -2832,7 +2832,7 @@ components:
 
         SearchPostResult:
             type: object
-            required: [path, title, bodyMatch, type, id, author]
+            required: [title, bodyMatch, type, id, author]
             additionalProperties: false
             properties:
                 path:
@@ -2854,7 +2854,7 @@ components:
 
         SearchPostMessageResult:
             type: object
-            required: [path, title, bodyMatch, type, id, index, author]
+            required: [title, bodyMatch, type, id, index, author]
             additionalProperties: false
             properties:
                 path:
@@ -2879,7 +2879,7 @@ components:
 
         SearchTaskResult:
             type: object
-            required: [path, title, bodyMatch, type, id, status]
+            required: [title, bodyMatch, type, id, status]
             additionalProperties: false
             properties:
                 path:
@@ -2901,7 +2901,7 @@ components:
 
         SearchTaskMessageResult:
             type: object
-            required: [path, title, bodyMatch, type, id, index, author]
+            required: [title, bodyMatch, type, id, index, author]
             additionalProperties: false
             properties:
                 path:
@@ -2926,7 +2926,7 @@ components:
 
         SearchTaskCollectionResult:
             type: object
-            required: [path, title, bodyMatch, type, id]
+            required: [title, bodyMatch, type, id]
             additionalProperties: false
             properties:
                 path:

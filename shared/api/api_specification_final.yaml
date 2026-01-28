@@ -1344,7 +1344,6 @@ components:
             type: object
             required:
                 - type
-                - path
                 - id
             additionalProperties: false
             properties:
@@ -1367,8 +1366,7 @@ components:
                   required:
                       - type
                       - id
-                  additionalProperties:
-                      const: path
+                  additionalProperties: false
                   properties:
                       type:
                           const: Account
@@ -1378,7 +1376,6 @@ components:
             type: object
             required:
                 - type
-                - path
                 - id
             additionalProperties: false
             properties:
@@ -1401,8 +1398,7 @@ components:
                   required:
                       - type
                       - id
-                  additionalProperties:
-                      const: path
+                  additionalProperties: false
                   properties:
                       type:
                           const: Channel
@@ -1412,7 +1408,6 @@ components:
             type: object
             required:
                 - type
-                - path
                 - id
             additionalProperties: false
             properties:
@@ -1435,8 +1430,7 @@ components:
                   required:
                       - type
                       - id
-                  additionalProperties:
-                      const: path
+                  additionalProperties: false
                   properties:
                       type:
                           const: Document
@@ -1446,7 +1440,6 @@ components:
             type: object
             required:
                 - type
-                - path
                 - id
             additionalProperties: false
             properties:
@@ -1469,8 +1462,7 @@ components:
                   required:
                       - type
                       - id
-                  additionalProperties:
-                      const: path
+                  additionalProperties: false
                   properties:
                       type:
                           const: Post
@@ -1480,7 +1472,6 @@ components:
             type: object
             required:
                 - type
-                - path
                 - id
                 - status
             additionalProperties: false
@@ -1506,8 +1497,7 @@ components:
                   required:
                       - type
                       - id
-                  additionalProperties:
-                      const: path
+                  additionalProperties: false
                   properties:
                       type:
                           const: Task
@@ -1517,7 +1507,6 @@ components:
             type: object
             required:
                 - type
-                - path
                 - id
             additionalProperties: false
             properties:
@@ -1540,8 +1529,7 @@ components:
                   required:
                       - type
                       - id
-                  additionalProperties:
-                      const: path
+                  additionalProperties: false
                   properties:
                       type:
                           const: TaskCollection
@@ -2805,7 +2793,6 @@ components:
         SearchAccountResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -2827,7 +2814,6 @@ components:
         SearchChannelResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -2851,7 +2837,6 @@ components:
         SearchChatResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -2873,7 +2858,6 @@ components:
         SearchChatMessageResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -2902,7 +2886,6 @@ components:
         SearchDocumentResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -2926,7 +2909,6 @@ components:
         SearchDocumentMessageResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -2960,7 +2942,6 @@ components:
         SearchPostResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -2987,7 +2968,6 @@ components:
         SearchPostMessageResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -3018,7 +2998,6 @@ components:
         SearchTaskResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -3045,7 +3024,6 @@ components:
         SearchTaskMessageResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type
@@ -3076,7 +3054,6 @@ components:
         SearchTaskCollectionResult:
             type: object
             required:
-                - path
                 - title
                 - bodyMatch
                 - type

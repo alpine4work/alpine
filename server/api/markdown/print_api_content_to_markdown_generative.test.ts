@@ -10,7 +10,7 @@ import {
     printApiMentionPathToMentionLinkUrl,
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/api_content_code_block_language_definition.js";
-import {ApiMentionPathObject, printApiMentionPath} from "~/shared/api/parse_api_path.js";
+import {ApiMentionPathObject} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -38,7 +38,6 @@ import {
     ApiContentTableBlockElementCellBlockElement,
     ApiContentTextInlineElement,
     ApiContentUnorderedListBlockElement,
-    ApiMentionTarget,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -164,9 +163,7 @@ const ApiContentBreakInlineElementArbitrary: Arbitrary<ApiContentBreakInlineElem
 const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInlineElement> =
     fc.record({
         type: fc.constant("Mention"),
-        target: fc.record({
-            path: ApiMentionPathObjectArbitrary.map(path => printApiMentionPath(path)),
-        }) as Arbitrary<ApiMentionTarget>,
+        target: ApiMentionPathObjectArbitrary,
         title: fc.oneof(
             {arbitrary: fc.constant(undefined), weight: 10},
             {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 10},

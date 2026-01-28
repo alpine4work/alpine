@@ -9,7 +9,6 @@ function createTestSearchResult(bodyMatch: ApiSearchResultBodyMatch) {
         bodyMatch,
         author: createApiAccountMock({name: "John"}),
         type: "ChatMessage",
-        path: `/chats/${generateId<ChatId>()}/messages/0`,
         id: generateId<ChatId>(),
         index: 0,
         title: null,

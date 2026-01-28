@@ -59,6 +59,7 @@ import {
     getApiMentionPathIfExists,
     isApiMessageRoomPathObject,
     parseApiBotWebhookEventIntoMessageRoomPath,
+    parseApiMentionPath,
     parseApiMessageRoomPath,
     parseApiPath,
 } from "~/shared/api/parse_api_path.js";
@@ -1016,7 +1017,7 @@ async function callChatGptAgentFunction({
             if (mentionApiPath) {
                 session.pushToolCall({
                     type: "Read",
-                    target: {path: mentionApiPath},
+                    target: parseApiMentionPath(mentionApiPath),
                 });
             }
 

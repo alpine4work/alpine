@@ -21,6 +21,7 @@ import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
 import {math} from "micromark-extension-math";
 import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/normalize_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/api_content_code_block_language_definition.js";
+import {parseApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -1648,7 +1649,7 @@ function* parseApiContentInlineElementFromMarkdown(
 
                 yield {
                     type: "Mention",
-                    target: {path: mentionTargetPath},
+                    target: parseApiMentionPath(mentionTargetPath),
                     isAccountShortName: isAccountShortName || undefined,
                     marks: markStack.getMarks(),
                 };

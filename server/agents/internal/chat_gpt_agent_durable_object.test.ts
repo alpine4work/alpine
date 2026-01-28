@@ -1096,7 +1096,6 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     {
                         type: "Document",
                         id: documentId,
-                        path: `/documents/${documentId}`,
                         title: "AI Overview",
                         bodyMatch: null,
                         parsedFilter: undefined,
@@ -1199,7 +1198,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 body: {
                     payload: {
                         type: "ToolCall",
-                        call: {type: "Read", target: {path: `/documents/${documentId}`}},
+                        call: {type: "Read", target: {type: "Document", id: documentId}},
                     },
                 },
             }),
@@ -2107,7 +2106,6 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         {
                             type: "Document",
                             id: documentId,
-                            path: `/documents/${documentId}`,
                             title: "AI Overview",
                             bodyMatch: null,
                             parsedFilter: undefined,

@@ -20,7 +20,7 @@ test("all search results conform to the expected shape", () => {
         ApiSearchResult,
         {
             readonly type: string;
-            readonly path: ApiSearchResultPath;
+            readonly path?: ApiSearchResultPath;
             readonly title: string | null;
             readonly bodyMatch: ApiSearchResultBodyMatch | null;
             readonly parsedFilter?: ApiSearchResultParsedFilter | null;
@@ -29,7 +29,7 @@ test("all search results conform to the expected shape", () => {
 
     // Make sure `ApiSearchResultPath` is exactly equal to the search result
     // union's path property.
-    assertEqualTypes<ApiSearchResult["path"], ApiSearchResultPath>();
+    assertEqualTypes<ApiSearchResult["path"], ApiSearchResultPath | undefined>();
 });
 
 test("all search results are assignable to `ApiTargetResponse`", () => {

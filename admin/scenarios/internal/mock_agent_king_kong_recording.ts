@@ -2,6 +2,7 @@ import {
     MockAgentRecording,
     MockAgentRecordingAction,
 } from "~/shared/agents/mock_agent_recording.js";
+import {ApiMentionPathObject} from "~/shared/api/parse_api_path.js";
 import {
     ApiContentBlockElement,
     ApiContentInlineElement,
@@ -12,7 +13,6 @@ import {
     ApiContentParagraphBlockElement,
     ApiContentTextInlineElement,
     ApiContentUnorderedListBlockElement,
-    ApiMentionPath,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
@@ -60,8 +60,8 @@ function text(
     return {type: "Text", text, marks};
 }
 
-function mention(path: ApiMentionPath): ApiContentMentionInlineElement {
-    return {type: "Mention", target: {path}};
+function mention(path: ApiMentionPathObject): ApiContentMentionInlineElement {
+    return {type: "Mention", target: path};
 }
 
 const bold: ApiContentInlineElementMark = {type: "Bold"};
@@ -133,7 +133,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {path: `/documents/${documentIds.universalVsNintendo}`},
+            target: {type: "Document", id: documentIds.universalVsNintendo},
         },
     });
 
@@ -141,7 +141,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {path: `/documents/${documentIds.universalVsNintendo}`},
+            target: {type: "Document", id: documentIds.universalVsNintendo},
         },
     });
 
@@ -190,7 +190,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {path: `/documents/${documentIds.kingKongVsGodzilla}`},
+            target: {type: "Document", id: documentIds.kingKongVsGodzilla},
         },
     });
 
@@ -198,7 +198,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {path: `/documents/${documentIds.kingKongVsGodzilla}`},
+            target: {type: "Document", id: documentIds.kingKongVsGodzilla},
         },
     });
 
@@ -206,7 +206,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {path: `/documents/${documentIds.kingKong2005Film}`},
+            target: {type: "Document", id: documentIds.kingKong2005Film},
         },
     });
 
@@ -331,7 +331,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         (part22Paragraph2 = part22Paragraph2.slice(0, -9)),
-                        mention(`/documents/${documentIds.universalVsNintendo}`),
+                        mention({type: "Document", id: documentIds.universalVsNintendo}),
                     ),
                 ),
             ),
@@ -477,7 +477,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         (part24Paragraph2 = part24Paragraph2.slice(0, -39)),
-                        mention(`/documents/${documentIds.universalVsNintendo}`),
+                        mention({type: "Document", id: documentIds.universalVsNintendo}),
                     ),
                 ),
             ),
@@ -661,7 +661,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         text((part25Paragraph2A = part25Paragraph2A.slice(0, -22))),
-                        mention(`/documents/${documentIds.kingKongVsGodzilla}`),
+                        mention({type: "Document", id: documentIds.kingKongVsGodzilla}),
                         text((part25Paragraph2B = " (")),
                     ),
                 ),
@@ -678,7 +678,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         text(part25Paragraph2A),
-                        mention(`/documents/${documentIds.kingKongVsGodzilla}`),
+                        mention({type: "Document", id: documentIds.kingKongVsGodzilla}),
                         text((part25Paragraph2B += "see “Conception” and production")),
                     ),
                 ),
@@ -695,7 +695,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         text(part25Paragraph2A),
-                        mention(`/documents/${documentIds.kingKongVsGodzilla}`),
+                        mention({type: "Document", id: documentIds.kingKongVsGodzilla}),
                         text((part25Paragraph2B += " notes)")),
                     ),
                 ),
@@ -832,9 +832,9 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         text((part26Paragraph2 = part26Paragraph2.slice(0, -24))),
-                        mention(`/documents/${documentIds.kingKong2005Film}`),
+                        mention({type: "Document", id: documentIds.kingKong2005Film}),
                         text(" and discussion in "),
-                        mention(`/documents/${documentIds.universalVsNintendo}`),
+                        mention({type: "Document", id: documentIds.universalVsNintendo}),
                     ),
                 ),
             ),

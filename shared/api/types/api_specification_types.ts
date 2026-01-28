@@ -1605,7 +1605,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskMessagePath"]
                 | components["schemas"]["TaskCollectionPath"];
             readonly AccountMentionTarget_Response: {
-                readonly path: components["schemas"]["AccountPath"];
+                readonly path?: components["schemas"]["AccountPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
@@ -1617,15 +1617,13 @@ export namespace ApiSpecification {
                 | {
                       readonly path: components["schemas"]["AccountPath"];
                   }
-                | ({
+                | {
                       /** @constant */
                       readonly type: "Account";
                       readonly id: components["schemas"]["AccountId"];
-                  } & {
-                      readonly [key: string]: "path";
-                  });
+                  };
             readonly ChannelMentionTarget_Response: {
-                readonly path: components["schemas"]["ChannelPath"];
+                readonly path?: components["schemas"]["ChannelPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
@@ -1637,15 +1635,13 @@ export namespace ApiSpecification {
                 | {
                       readonly path: components["schemas"]["ChannelPath"];
                   }
-                | ({
+                | {
                       /** @constant */
                       readonly type: "Channel";
                       readonly id: components["schemas"]["ChannelId"];
-                  } & {
-                      readonly [key: string]: "path";
-                  });
+                  };
             readonly DocumentMentionTarget_Response: {
-                readonly path: components["schemas"]["DocumentPath"];
+                readonly path?: components["schemas"]["DocumentPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
@@ -1657,15 +1653,13 @@ export namespace ApiSpecification {
                 | {
                       readonly path: components["schemas"]["DocumentPath"];
                   }
-                | ({
+                | {
                       /** @constant */
                       readonly type: "Document";
                       readonly id: components["schemas"]["DocumentId"];
-                  } & {
-                      readonly [key: string]: "path";
-                  });
+                  };
             readonly PostMentionTarget_Response: {
-                readonly path: components["schemas"]["PostPath"];
+                readonly path?: components["schemas"]["PostPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
@@ -1677,15 +1671,13 @@ export namespace ApiSpecification {
                 | {
                       readonly path: components["schemas"]["PostPath"];
                   }
-                | ({
+                | {
                       /** @constant */
                       readonly type: "Post";
                       readonly id: components["schemas"]["PostId"];
-                  } & {
-                      readonly [key: string]: "path";
-                  });
+                  };
             readonly TaskMentionTarget_Response: {
-                readonly path: components["schemas"]["TaskPath"];
+                readonly path?: components["schemas"]["TaskPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
@@ -1698,15 +1690,13 @@ export namespace ApiSpecification {
                 | {
                       readonly path: components["schemas"]["TaskPath"];
                   }
-                | ({
+                | {
                       /** @constant */
                       readonly type: "Task";
                       readonly id: components["schemas"]["TaskId"];
-                  } & {
-                      readonly [key: string]: "path";
-                  });
+                  };
             readonly TaskCollectionMentionTarget_Response: {
-                readonly path: components["schemas"]["TaskCollectionPath"];
+                readonly path?: components["schemas"]["TaskCollectionPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
@@ -1718,13 +1708,11 @@ export namespace ApiSpecification {
                 | {
                       readonly path: components["schemas"]["TaskCollectionPath"];
                   }
-                | ({
+                | {
                       /** @constant */
                       readonly type: "TaskCollection";
                       readonly id: components["schemas"]["TaskCollectionId"];
-                  } & {
-                      readonly [key: string]: "path";
-                  });
+                  };
             readonly MentionTarget:
                 | components["schemas"]["AccountMentionTarget"]
                 | components["schemas"]["ChannelMentionTarget"]
@@ -2344,7 +2332,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["SearchTaskMessageResult"]
                 | components["schemas"]["SearchTaskCollectionResult"];
             readonly SearchAccountResult: {
-                readonly path: components["schemas"]["AccountPath"];
+                readonly path?: components["schemas"]["AccountPath"];
                 readonly title: string;
                 /** @constant */
                 readonly bodyMatch: null;
@@ -2357,7 +2345,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["AccountId"];
             };
             readonly SearchChannelResult: {
-                readonly path: components["schemas"]["ChannelPath"];
+                readonly path?: components["schemas"]["ChannelPath"];
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
@@ -2369,7 +2357,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["ChannelId"];
             };
             readonly SearchChatResult: {
-                readonly path: components["schemas"]["ChatPath"];
+                readonly path?: components["schemas"]["ChatPath"];
                 readonly title: string;
                 /** @constant */
                 readonly bodyMatch: null;
@@ -2382,7 +2370,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["ChatId"];
             };
             readonly SearchChatMessageResult: {
-                readonly path: components["schemas"]["ChatMessagePath"];
+                readonly path?: components["schemas"]["ChatMessagePath"];
                 /** @constant */
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
@@ -2397,7 +2385,7 @@ export namespace ApiSpecification {
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchDocumentResult: {
-                readonly path: components["schemas"]["DocumentPath"];
+                readonly path?: components["schemas"]["DocumentPath"];
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
@@ -2409,7 +2397,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["DocumentId"];
             };
             readonly SearchDocumentMessageResult: {
-                readonly path: components["schemas"]["DocumentMessagePath"];
+                readonly path?: components["schemas"]["DocumentMessagePath"];
                 /** @constant */
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
@@ -2425,7 +2413,7 @@ export namespace ApiSpecification {
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchPostResult: {
-                readonly path: components["schemas"]["PostPath"];
+                readonly path?: components["schemas"]["PostPath"];
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
@@ -2438,7 +2426,7 @@ export namespace ApiSpecification {
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchPostMessageResult: {
-                readonly path: components["schemas"]["PostMessagePath"];
+                readonly path?: components["schemas"]["PostMessagePath"];
                 /** @constant */
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
@@ -2453,7 +2441,7 @@ export namespace ApiSpecification {
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchTaskResult: {
-                readonly path: components["schemas"]["TaskPath"];
+                readonly path?: components["schemas"]["TaskPath"];
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
@@ -2466,7 +2454,7 @@ export namespace ApiSpecification {
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchTaskMessageResult: {
-                readonly path: components["schemas"]["TaskMessagePath"];
+                readonly path?: components["schemas"]["TaskMessagePath"];
                 /** @constant */
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
@@ -2481,7 +2469,7 @@ export namespace ApiSpecification {
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchTaskCollectionResult: {
-                readonly path: components["schemas"]["TaskCollectionPath"];
+                readonly path?: components["schemas"]["TaskCollectionPath"];
                 readonly title: string;
                 /** @constant */
                 readonly bodyMatch: null;

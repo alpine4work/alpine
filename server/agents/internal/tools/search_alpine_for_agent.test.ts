@@ -59,14 +59,12 @@ describe("searchAlpineForAgent", () => {
         const results: Array<ApiSearchResult> = [
             {
                 type: "Document",
-                path: `/documents/${documentId}`,
                 title: "Test Document",
                 bodyMatch: null,
                 id: documentId,
             },
             {
                 type: "Post",
-                path: `/posts/${postId}`,
                 title: "Test Post",
                 bodyMatch: null,
                 id: postId,
@@ -74,7 +72,6 @@ describe("searchAlpineForAgent", () => {
             },
             {
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 title: "Test Task Open active",
                 bodyMatch: null,
                 status: {
@@ -85,7 +82,6 @@ describe("searchAlpineForAgent", () => {
             },
             {
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 title: "Test Task Open inactive",
                 bodyMatch: null,
                 status: {
@@ -96,7 +92,6 @@ describe("searchAlpineForAgent", () => {
             },
             {
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 title: "Test Task Closed",
                 bodyMatch: null,
                 status: {type: "Closed"},
@@ -104,7 +99,6 @@ describe("searchAlpineForAgent", () => {
             },
             {
                 type: "TaskMessage",
-                path: `/tasks/${taskId}/messages/5`,
                 title: null,
                 bodyMatch: null,
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -113,35 +107,30 @@ describe("searchAlpineForAgent", () => {
             },
             {
                 type: "TaskCollection",
-                path: `/task-collections/${taskCollectionId}`,
                 title: "Test Collection",
                 bodyMatch: null,
                 id: taskCollectionId,
             },
             {
                 type: "Chat",
-                path: `/chats/${chatId}`,
                 title: "Test Chat",
                 bodyMatch: null,
                 id: chatId,
             },
             {
                 type: "Account",
-                path: `/accounts/${accountId}`,
                 title: "Test Account",
                 bodyMatch: null,
                 id: accountId,
             },
             {
                 type: "Channel",
-                path: `/channels/${channelId}`,
                 title: "Test Channel",
                 bodyMatch: null,
                 id: channelId,
             },
             {
                 type: "ChatMessage",
-                path: `/chats/${chatId}/messages/5`,
                 title: null,
                 bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -187,14 +176,12 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "Document",
-                path: `/documents/${documentId}`,
                 title: "Test Document",
                 bodyMatch: [{text: "Test Document", isMatch: true}, {text: " test document"}],
                 id: documentId,
             },
             {
                 type: "Post",
-                path: `/posts/${postId}`,
                 title: "Test Post",
                 bodyMatch: [
                     {text: "Test Post", isMatch: true},
@@ -207,7 +194,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 title: "Test Task Open active",
                 bodyMatch: [
                     {text: "Test Task Open active", isMatch: true},
@@ -223,7 +209,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 title: "Test Task Open inactive",
                 bodyMatch: [],
                 status: {
@@ -234,7 +219,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 title: "Test Task Closed",
                 bodyMatch: [
                     {text: "Test Task Closed", isMatch: true},
@@ -247,7 +231,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "TaskMessage",
-                path: `/tasks/${taskId}/messages/5`,
                 title: null,
                 bodyMatch: [{text: "test task message"}],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -256,35 +239,30 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "TaskCollection",
-                path: `/task-collections/${taskCollectionId}`,
                 title: "Test Collection",
                 bodyMatch: null,
                 id: taskCollectionId,
             },
             {
                 type: "Chat",
-                path: `/chats/${chatId}`,
                 title: "Test Chat",
                 bodyMatch: null,
                 id: chatId,
             },
             {
                 type: "Account",
-                path: `/accounts/${accountId}`,
                 title: "Test Account",
                 bodyMatch: null,
                 id: accountId,
             },
             {
                 type: "Channel",
-                path: `/channels/${channelId}`,
                 title: "Test Channel",
                 bodyMatch: null,
                 id: channelId,
             },
             {
                 type: "ChatMessage",
-                path: `/chats/${chatId}/messages/5`,
                 title: null,
                 bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -339,7 +317,6 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "Chat",
-                path: `/chats/${currentChatId}`,
                 title: "Test Chat",
                 bodyMatch: null,
                 id: currentChatId,
@@ -367,14 +344,12 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "Chat",
-                path: `/chats/${currentChatId}`,
                 title: "Current Chat",
                 bodyMatch: null,
                 id: currentChatId,
             },
             {
                 type: "ChatMessage",
-                path: `/chats/${currentChatId}/messages/5`,
                 title: null,
                 bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -383,14 +358,12 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Chat",
-                path: `/chats/${otherChatId}`,
                 title: "Other Chat",
                 bodyMatch: null,
                 id: otherChatId,
             },
             {
                 type: "ChatMessage",
-                path: `/chats/${otherChatId}/messages/3`,
                 title: null,
                 bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
@@ -427,7 +400,6 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "Post",
-                path: `/posts/${currentPostId}`,
                 title: "Current Post",
                 bodyMatch: null,
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -435,7 +407,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "PostMessage",
-                path: `/posts/${currentPostId}/messages/2`,
                 title: null,
                 bodyMatch: null,
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -444,7 +415,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Post",
-                path: `/posts/${otherPostId}`,
                 title: "Other Post",
                 bodyMatch: null,
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
@@ -452,7 +422,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "PostMessage",
-                path: `/posts/${otherPostId}/messages/1`,
                 title: null,
                 bodyMatch: null,
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
@@ -489,7 +458,6 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "Task",
-                path: `/tasks/${currentTaskId}`,
                 title: "Current Task",
                 bodyMatch: null,
                 status: {type: "Open", isActive: true},
@@ -497,7 +465,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "TaskMessage",
-                path: `/tasks/${currentTaskId}/messages/3`,
                 title: null,
                 bodyMatch: null,
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -506,7 +473,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Task",
-                path: `/tasks/${otherTaskId}`,
                 title: "Other Task",
                 bodyMatch: null,
                 status: {type: "Open", isActive: false},
@@ -514,7 +480,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "TaskMessage",
-                path: `/tasks/${otherTaskId}/messages/1`,
                 title: null,
                 bodyMatch: null,
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
@@ -555,14 +520,12 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "Document",
-                path: `/documents/${currentDocumentId}`,
                 title: "Current Document",
                 bodyMatch: null,
                 id: currentDocumentId,
             },
             {
                 type: "DocumentMessage",
-                path: `/documents/${currentDocumentId}/threads/${currentThreadId}/messages/2`,
                 title: null,
                 bodyMatch: null,
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -572,14 +535,12 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Document",
-                path: `/documents/${otherDocumentId}`,
                 title: "Other Document",
                 bodyMatch: null,
                 id: otherDocumentId,
             },
             {
                 type: "DocumentMessage",
-                path: `/documents/${otherDocumentId}/threads/${otherThreadId}/messages/1`,
                 title: null,
                 bodyMatch: null,
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
@@ -622,14 +583,12 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "Chat",
-                path: `/chats/${currentChatId}`,
                 title: "Current Chat",
                 bodyMatch: null,
                 id: currentChatId,
             },
             {
                 type: "ChatMessage",
-                path: `/chats/${currentChatId}/messages/1`,
                 title: null,
                 bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -638,7 +597,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "ChatMessage",
-                path: `/chats/${currentChatId}/messages/2`,
                 title: null,
                 bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
@@ -670,7 +628,6 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "DocumentMessage",
-                path: `/documents/${otherDocumentId}/threads/${otherThreadId}/messages/1`,
                 title: null,
                 bodyMatch: [
                     {text: "Important", isMatch: true},
@@ -686,7 +643,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "ChatMessage",
-                path: `/chats/${chatId}/messages/10`,
                 title: null,
                 bodyMatch: [
                     {text: "This", isMatch: true},
@@ -700,7 +656,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "PostMessage",
-                path: `/posts/${postId}/messages/3`,
                 title: null,
                 bodyMatch: [
                     {text: "Check out this amazing post about "},
@@ -717,7 +672,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "TaskMessage",
-                path: `/tasks/${taskId}/messages/7`,
                 title: null,
                 bodyMatch: [
                     {
@@ -730,7 +684,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "ChatMessage",
-                path: `/chats/${chatId}/messages/15`,
                 title: null,
                 bodyMatch: [
                     {text: "search", isMatch: true},
@@ -782,28 +735,24 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "Account",
-                path: `/accounts/${accountId}`,
                 title: "Test Account",
                 bodyMatch: null,
                 id: accountId,
             },
             {
                 type: "Channel",
-                path: `/channels/${channelId}`,
                 title: "Test Channel",
                 bodyMatch: null,
                 id: channelId,
             },
             {
                 type: "Document",
-                path: `/documents/${documentId}`,
                 title: "Test Document",
                 bodyMatch: null,
                 id: documentId,
             },
             {
                 type: "TaskCollection",
-                path: `/task-collections/${taskCollectionId}`,
                 title: "Test Collection",
                 bodyMatch: null,
                 id: taskCollectionId,
@@ -840,7 +789,6 @@ The following search results matched the keyword search but did not match any sp
         const results: Array<ApiSearchResult> = [
             {
                 type: "Document",
-                path: `/documents/${documentId}`,
                 title: "Matching Document 1",
                 bodyMatch: [{text: "content", isMatch: true}],
                 parsedFilter: {summary: "documents created yesterday"},
@@ -848,7 +796,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Document",
-                path: `/documents/${documentId2}`,
                 title: "Matching Document 2",
                 bodyMatch: null,
                 parsedFilter: {summary: "documents created yesterday"},
@@ -856,7 +803,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Post",
-                path: `/posts/${postId}`,
                 title: "Non-matching Post",
                 bodyMatch: [{text: "post content"}],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -864,7 +810,6 @@ The following search results matched the keyword search but did not match any sp
             },
             {
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 title: "Non-matching Task",
                 bodyMatch: null,
                 status: {type: "Open", isActive: true},
@@ -906,7 +851,6 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
         const results: Array<ApiSearchResult> = [
             {
                 type: "Document",
-                path: `/documents/${documentId}`,
                 title: "Matching Document 1",
                 bodyMatch: [{text: "content", isMatch: true}],
                 parsedFilter: {summary: "documents created yesterday"},
@@ -914,7 +858,6 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
             },
             {
                 type: "Document",
-                path: `/documents/${documentId2}`,
                 title: "Matching Document 2",
                 bodyMatch: null,
                 parsedFilter: {summary: "documents created yesterday"},
@@ -922,7 +865,6 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
             },
             {
                 type: "Post",
-                path: `/posts/${postId}`,
                 title: "Non-matching Post",
                 bodyMatch: [{text: "post content"}],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
@@ -931,7 +873,6 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
             },
             {
                 type: "Task",
-                path: `/tasks/${taskId}`,
                 title: "Non-matching Task",
                 bodyMatch: null,
                 status: {type: "Open", isActive: true},

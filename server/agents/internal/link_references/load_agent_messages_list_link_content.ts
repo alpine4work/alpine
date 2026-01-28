@@ -397,8 +397,6 @@ function getDocumentContentSnippetForThreadExcludingOtherCommentMarks(
     });
 }
 
-// TODO(ifitzsimmons, #ai): This preamble should eventually include the snippet
-// of text that the comment was created on.
 async function getPreambleForDocumentComments({
     tracer,
     request,

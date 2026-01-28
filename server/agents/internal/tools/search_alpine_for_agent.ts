@@ -9,12 +9,7 @@ import {
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {
-    ApiMessageRoomPathObject,
-    ApiPathObject,
-    parseApiPath,
-    printApiMessageRoomPath,
-} from "~/shared/api/parse_api_path.js";
+import {ApiMessageRoomPathObject, printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiMessageRoomPath,
     ApiSearchChatMessageResult,
@@ -367,8 +362,7 @@ function isApiSearchResultInConversationState(
     currentMessageRoomPath: ApiMessageRoomPath,
     result: ApiSearchResult,
 ): boolean {
-    const pathObject = parseApiPath(result.path);
-    const resultMessageRoomPath = intoApiMessageRoomPathFromPathIfPossible(pathObject);
+    const resultMessageRoomPath = intoApiMessageRoomPathFromPathIfPossible(result);
 
     if (resultMessageRoomPath === null) {
         return false;
@@ -388,7 +382,7 @@ function intoPhrasingContent(bodyMatch: ApiSearchResultBodyMatch | null): Array<
 }
 
 function intoApiMessageRoomPathFromPathIfPossible(
-    apiPath: ApiPathObject,
+    apiPath: ApiSearchResult,
 ): ApiMessageRoomPathObject | null {
     switch (apiPath.type) {
         case "Account":
@@ -401,23 +395,18 @@ function intoApiMessageRoomPathFromPathIfPossible(
         case "Task":
             return null;
         case "Post":
-        case "PostComment":
-        case "PostComments":
+        case "PostMessage":
             return {type: "Post", id: apiPath.id};
         case "Chat":
         case "ChatMessage":
-        case "ChatMessages":
             return {type: "Chat", id: apiPath.id};
-        case "DocumentComment":
-        case "DocumentCommentThread":
-        case "DocumentCommentThreadComments":
+        case "DocumentMessage":
             return {
                 type: "DocumentCommentThread",
                 id: apiPath.id,
                 threadId: apiPath.threadId,
             };
-        case "TaskComment":
-        case "TaskComments":
+        case "TaskMessage":
             return {type: "Task", id: apiPath.id};
         default:
             throw exhaustive(apiPath);

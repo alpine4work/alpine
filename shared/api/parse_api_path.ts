@@ -49,6 +49,8 @@ export type ApiMessageRoomMessagesListPath = `${ApiMessageRoomPath}/messages`;
  */
 export type ApiMentionPathObject = ApiContentFilteredPathObjectType<ApiMentionPath>;
 
+assertAssignableTypes<ApiMentionPathObject, ApiMentionTarget>();
+
 // All `ApiPath`s excluding mentionable paths (`ApiMentionPathObject`).
 type ApiNotMentionPath = Exclude<ApiPath, ApiMentionPath>;
 

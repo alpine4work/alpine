@@ -491,7 +491,7 @@ test("handles quotes after mention (possessive)", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {path: `/accounts/${accountId}`},
+                            target: {type: "Account", id: accountId},
                             title: "Caleb",
                         },
                         {type: "Text", text: "'s idea"},
@@ -506,7 +506,7 @@ test("handles quotes after mention (possessive)", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {path: `/accounts/${accountId}`},
+                            target: {type: "Account", id: accountId},
                             title: "Caleb",
                         },
                         {type: "Text", text: "’s idea"},

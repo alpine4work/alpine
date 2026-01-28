@@ -1215,7 +1215,7 @@ field when they receive them. Comment on ideas you like!
                     type: "ToolCall",
                     call: {
                         type: "Read",
-                        target: {path: `/documents/${brainstormDocument.id}`},
+                        target: {type: "Document", id: brainstormDocument.id},
                     },
                 },
             });

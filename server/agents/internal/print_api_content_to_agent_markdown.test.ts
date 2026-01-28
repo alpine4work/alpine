@@ -94,7 +94,6 @@ test("mention preserves structure but changes URL", async () => {
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${documentId}`,
                                 type: "Document",
                                 id: documentId,
                             },
@@ -242,7 +241,6 @@ test("mention with nested formatting preserves formatting but removes URL", asyn
                         {
                             type: "Mention",
                             target: {
-                                path: `/tasks/${taskId}`,
                                 type: "Task",
                                 id: taskId,
                                 status: {type: "Open", isActive: false},
@@ -280,7 +278,7 @@ test("mixed mentions and external links", async () => {
                         {type: "Text", text: "Check "},
                         {
                             type: "Mention",
-                            target: {path: `/posts/${postId}`, type: "Post", id: postId},
+                            target: {type: "Post", id: postId},
                             title: "This Post",
                         },
                         {type: "Text", text: " and also visit "},
@@ -327,7 +325,6 @@ test("mention with link mark becomes HTML anchor tag with replaced href", async 
                         {
                             type: "Mention",
                             target: {
-                                path: `/tasks/${taskId}`,
                                 type: "Task",
                                 id: taskId,
                                 status: {type: "Open", isActive: false},
@@ -436,7 +433,6 @@ test("mentions with conflicting link Ids get dedupe numbers but labels are uncha
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${documentId}`,
                                 type: "Document",
                                 id: documentId,
                             },
@@ -446,7 +442,6 @@ test("mentions with conflicting link Ids get dedupe numbers but labels are uncha
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${otherDocumentId}`,
                                 type: "Document",
                                 id: otherDocumentId,
                             },
@@ -493,7 +488,6 @@ test("identical mentions with same label and target path reuse the same referenc
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${documentId}`,
                                 type: "Document",
                                 id: documentId,
                             },
@@ -503,7 +497,6 @@ test("identical mentions with same label and target path reuse the same referenc
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${documentId}`,
                                 type: "Document",
                                 id: documentId,
                             },
@@ -542,7 +535,6 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
                             {
                                 type: "Mention",
                                 target: {
-                                    path: `/documents/${documentId}`,
                                     type: "Document",
                                     id: documentId,
                                 },
@@ -569,7 +561,6 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
                             {
                                 type: "Mention",
                                 target: {
-                                    path: `/documents/${otherDocumentId}`,
                                     type: "Document",
                                     id: otherDocumentId,
                                 },
@@ -631,7 +622,6 @@ test("mentions with same link Ids increment dedupe numbers up to 5", async () =>
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${documentId}`,
                                 type: "Document",
                                 id: documentId,
                             },
@@ -641,7 +631,6 @@ test("mentions with same link Ids increment dedupe numbers up to 5", async () =>
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${secondDocumentId}`,
                                 type: "Document",
                                 id: secondDocumentId,
                             },
@@ -651,7 +640,6 @@ test("mentions with same link Ids increment dedupe numbers up to 5", async () =>
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${thirdDocumentId}`,
                                 type: "Document",
                                 id: thirdDocumentId,
                             },
@@ -661,7 +649,6 @@ test("mentions with same link Ids increment dedupe numbers up to 5", async () =>
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${fourthDocumentId}`,
                                 type: "Document",
                                 id: fourthDocumentId,
                             },
@@ -671,7 +658,6 @@ test("mentions with same link Ids increment dedupe numbers up to 5", async () =>
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${fifthDocumentId}`,
                                 type: "Document",
                                 id: fifthDocumentId,
                             },
@@ -752,7 +738,6 @@ test("dedupes by entity and label combination", async () => {
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${documentId}`,
                                 type: "Document",
                                 id: documentId,
                             },
@@ -762,7 +747,6 @@ test("dedupes by entity and label combination", async () => {
                         {
                             type: "Mention",
                             target: {
-                                path: `/tasks/${taskId}`,
                                 type: "Task",
                                 id: taskId,
                                 status: {type: "Open", isActive: false},
@@ -772,14 +756,13 @@ test("dedupes by entity and label combination", async () => {
                         {type: "Text", text: ", third: "},
                         {
                             type: "Mention",
-                            target: {path: `/posts/${postId}`, type: "Post", id: postId},
+                            target: {type: "Post", id: postId},
                             title: "Task",
                         },
                         {type: "Text", text: ", fourth: "},
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${thirdDocumentId}`,
                                 type: "Document",
                                 id: thirdDocumentId,
                             },
@@ -789,7 +772,6 @@ test("dedupes by entity and label combination", async () => {
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${fourthDocumentId}`,
                                 type: "Document",
                                 id: fourthDocumentId,
                             },
@@ -799,7 +781,6 @@ test("dedupes by entity and label combination", async () => {
                         {
                             type: "Mention",
                             target: {
-                                path: `/documents/${fifthDocumentId}`,
                                 type: "Document",
                                 id: fifthDocumentId,
                             },
