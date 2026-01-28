@@ -7,9 +7,16 @@ import {
     UnknownError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {
+    ErrorDisplayMessage,
+    ErrorDisplayMessageSegment,
+} from "~/shared/error/types/error_display_message_type.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
+import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
 import {BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -120,11 +127,66 @@ export class CursorClient {
                         }
                         default: {
                             if (!response.ok) {
-                                const body: CursorCloudAgentsApiSpecification.components["schemas"]["Error"] =
-                                    await response.json();
+                                const body: SchemaSerializedValue = await response.json();
+
+                                let displayMessage: ErrorDisplayMessage | undefined;
+
+                                // When Cursor requires usage based pricing to be turned on they return status
+                                // code 400 with the message:
+                                //
+                                // > Usage-based pricing required. Background Agent requires at least $2
+                                // > remaining until your hard limit. Enable usage-based pricing and set a
+                                // > Spend Limit at https://www.cursor.com/dashboard?tab=settings.
+                                //
+                                // Look for a string `error` property from Cursor and linkify it.
+                                if (isObject(body) && typeof body.error === "string") {
+                                    const urlRegExp = getUrlRegExp({global: true});
+
+                                    const workingDisplayMessage: Array<ErrorDisplayMessageSegment> =
+                                        [];
+
+                                    let index = 0;
+
+                                    for (const match of body.error.matchAll(urlRegExp)) {
+                                        workingDisplayMessage.push({
+                                            type: "SensitiveText",
+                                            text: body.error.slice(index, match.index),
+                                        });
+
+                                        const length =
+                                            match[0].length - (match[0].endsWith(".") ? 1 : 0);
+
+                                        workingDisplayMessage.push({
+                                            type: "Link",
+                                            text: body.error.slice(
+                                                match.index,
+                                                match.index + length,
+                                            ),
+                                            url: body.error.slice(
+                                                match.index,
+                                                match.index + length,
+                                            ),
+                                        });
+
+                                        index = match.index + length;
+                                    }
+
+                                    if (index < body.error.length) {
+                                        workingDisplayMessage.push({
+                                            type: "SensitiveText",
+                                            text: body.error.slice(index),
+                                        });
+                                    }
+
+                                    displayMessage =
+                                        workingDisplayMessage as any as ErrorDisplayMessage;
+                                }
 
                                 throw new UnknownError(
-                                    `Cursor error: ${body.error?.message ?? "Unknown error"} (${body.error?.code ? `code: ${body.error.code}, ` : ""}HTTP status: ${response.status})`,
+                                    // In Cursor's documentation they have a `body.error.code` property (look at
+                                    // their OpenAPI types) but we haven't seen an error with this in practice.
+                                    `Cursor unknown error (HTTP status: ${response.status}${isObject(body) && isObject(body.error) && typeof body.error.code === "string" ? `, code: ${body.error.code}` : ""})`,
+                                    {displayMessage},
                                 );
                             }
                             break;
