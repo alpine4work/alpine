@@ -1,6 +1,5 @@
 import {CursorCloudAgentsApiSpecification} from "~/server/agents/internal/cursor/cursor_cloud_agents_api_specification_types.js";
 import {
-    InternalError,
     NotFoundError,
     PermissionDeniedError,
     ResourceExhaustedError,
@@ -99,7 +98,7 @@ export class CursorClient {
                     route,
                     headers: requestHeaders,
                 },
-                response => {
+                async response => {
                     // Implements classification for common Cursor API errors.
                     // https://cursor.com/docs/api#common-error-responses
                     switch (response.status) {
@@ -119,12 +118,15 @@ export class CursorClient {
                         case 404: {
                             throw new NotFoundError("Cursor resource not found");
                         }
-                        case 500: {
-                            throw new InternalError("Cursor unexpected error");
-                        }
                         default: {
-                            if (!response.ok)
-                                throw new UnknownError(`Cursor API error: ${response.status}`);
+                            if (!response.ok) {
+                                const body: CursorCloudAgentsApiSpecification.components["schemas"]["Error"] =
+                                    await response.json();
+
+                                throw new UnknownError(
+                                    `Cursor error: ${body.error?.message ?? "Unknown error"} (${body.error?.code ? `code: ${body.error.code}, ` : ""}HTTP status: ${response.status})`,
+                                );
+                            }
                             break;
                         }
                     }
