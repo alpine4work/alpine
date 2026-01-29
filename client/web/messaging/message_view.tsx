@@ -17,7 +17,6 @@ import {
 } from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {
-    getAccountRegistry,
     useAccountModel,
     useAccountRegistry,
 } from "~/client/web/accounts/account_registry_context.js";
@@ -454,14 +453,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [message.payload]);
 
     const events = useEvents({
-        getClipboardSerializerPrefix: () => {
+        getClipboardSerializerAuthorPrefix: () => {
             if (shouldMergeWithPreviousMessage) return null;
-
-            const authorName = getAccountRegistry(space.id)
-                .getAccountStore(message.author)
-                .getSnapshot().name;
-
-            return `${authorName}: `;
+            return message.author;
         },
 
         onReplyToMessage: () => {
@@ -1160,7 +1154,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdate?.time}
                     withUserSelectNone={!canPrimaryInputHover}
-                    getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                    getClipboardSerializerAuthorPrefix={events.getClipboardSerializerAuthorPrefix}
                     jumpAnimation={jumpAnimation}
                 />
             );
@@ -1176,7 +1170,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdate?.time}
                     withUserSelectNone={!canPrimaryInputHover}
-                    getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                    getClipboardSerializerAuthorPrefix={events.getClipboardSerializerAuthorPrefix}
                     jumpAnimation={jumpAnimation}
                     reactionsByPos={reactionsByPos}
                     onSetReaction={handleSetReaction}
@@ -1199,7 +1193,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [
         canPrimaryInputHover,
         currentAccountId,
-        events.getClipboardSerializerPrefix,
+        events.getClipboardSerializerAuthorPrefix,
         handleDeleteReaction,
         handleSetReaction,
         jumpAnimation,
@@ -1221,13 +1215,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 content={message.payload.content}
                 stream={message.stream}
                 withUserSelectNone={!canPrimaryInputHover}
-                getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                getClipboardSerializerAuthorPrefix={events.getClipboardSerializerAuthorPrefix}
                 jumpAnimation={jumpAnimation}
             />
         );
     }, [
         canPrimaryInputHover,
-        events.getClipboardSerializerPrefix,
+        events.getClipboardSerializerAuthorPrefix,
         isLastMessage,
         jumpAnimation,
         message,

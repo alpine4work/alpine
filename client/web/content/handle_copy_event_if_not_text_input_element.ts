@@ -1,20 +1,37 @@
+import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {isDisplayBlockLevel} from "~/client/web/helpers/elements/is_node_block_level.js";
 import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
 import {getSelectionStartNodeAndEndNode} from "~/client/web/helpers/get_selection_start_node_and_end_node.js";
+import {trimDomSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/web/helpers/trim_dom_selection_invisible_extension_into_adjacent_nodes.js";
 import {writeTextToClipboardFallback} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type ClipboardSerializer = (selection: {
     startNode: Node;
     startOffset: number;
     endNode: Node;
     endOffset: number;
-}) => {
+}) => ClipboardSerializerResult;
+
+export type ClipboardSerializerResult = {
     requiredLineBreakAroundCount?: number;
     text: string;
     html: Node;
+
+    /**
+     * If provided, indicates the author of this content. When copying content
+     * from multiple different authors, we'll prepend the author's name as a
+     * prefix to distinguish who wrote what. If all copied content is from the
+     * same author, no prefix is added.
+     *
+     * We store the `AccountModel` and `spaceId` so we can look up the latest
+     * account name from the registry at copy time.
+     */
+    authorPrefix?: {spaceId: SpaceId; account: AccountModel};
 };
 
 let clipboardSerializerByNode: WeakMap<Node, ClipboardSerializer> | null = null;
@@ -88,7 +105,7 @@ export function handleCopyEventIfNotTextInputElement(event: ClipboardEvent) {
 /**
  * Get the data we write to the clipboard for a selection.
  */
-export function getSelectionClipboardData(selection: {
+export function getSelectionClipboardData(initialSelection: {
     anchorNode: Node;
     anchorOffset: number;
     focusNode: Node;
@@ -98,18 +115,67 @@ export function getSelectionClipboardData(selection: {
     //
     // - `startNode` is inclusive of its child nodes
     // - `endNode` is not inclusive of its child nodes
-    const {
-        startNode,
-        startOffset,
-        startParentNodes,
-        endNode,
-        endOffset,
-        endParentNodes,
-        commonParentReverseIndex,
-    } = getSelectionStartNodeAndEndNode(selection);
+
+    // First pass: determine start/end from the original selection so we know
+    // which direction the selection goes.
+    const selectionAfterFirstPass = getSelectionStartNodeAndEndNode(initialSelection);
+
+    // Trim invisible selection extensions that Chrome creates when selections
+    // extend to the very edge of a text node. We need to know start vs end
+    // to trim correctly (trim the end backwards, not forwards).
+    const trimmedSelection =
+        trimDomSelectionInvisibleExtensionIntoAdjacentNodes(selectionAfterFirstPass);
+
+    const {startNode, startOffset, endNode, endOffset} = trimmedSelection;
+
+    // Get `startParentNodes` and `endParentNodes` for the new, trimmed selection.
+    // These are available in `getSelectionStartNodeAndEndNode()` but may have
+    // changed after trimming.
+    const startParentNodes: Array<Node> = [];
+    const endParentNodes: Array<Node> = [];
+
+    {
+        let startParentNode: Node | null = startNode;
+        while (startParentNode) {
+            startParentNodes.push(startParentNode);
+            startParentNode = startParentNode.parentNode;
+        }
+    }
+
+    {
+        let endParentNode: Node | null = endNode;
+        while (endParentNode) {
+            endParentNodes.push(endParentNode);
+            endParentNode = endParentNode.parentNode;
+        }
+    }
+
+    // Get `commonParentReverseIndex` for the new, trimmed selection. These are
+    // available in `getSelectionStartNodeAndEndNode()` but may have changed after
+    // trimming.
+    let commonParentReverseIndex = 1;
+    const minParentNodesLength = Math.min(startParentNodes.length, endParentNodes.length);
+
+    for (let reverseIndex = 1; reverseIndex <= minParentNodesLength; reverseIndex++) {
+        if (
+            startParentNodes[startParentNodes.length - reverseIndex] !==
+            endParentNodes[endParentNodes.length - reverseIndex]
+        ) {
+            break;
+        }
+
+        commonParentReverseIndex = reverseIndex;
+    }
 
     const results: Array<
-        string | {requiredLineBreakAroundCount?: number; text: string; html: Node | null} | number
+        | string
+        | {
+              requiredLineBreakAroundCount?: number;
+              text: string;
+              html: Node | null;
+              authorPrefix?: {spaceId: SpaceId; account: AccountModel};
+          }
+        | number
     > = [];
 
     for (
@@ -420,6 +486,16 @@ export function getSelectionClipboardData(selection: {
         }
     }
 
+    // Check if we have multiple different authors. If so, we'll add author
+    // prefixes to distinguish who wrote what.
+    const authorIds = new Set<string>();
+    for (const result of results) {
+        if (typeof result !== "string" && typeof result !== "number" && result.authorPrefix) {
+            authorIds.add(result.authorPrefix.account.id);
+        }
+    }
+    const hasMultipleAuthors = authorIds.size > 1;
+
     let text = "";
     const html = document.createElement("div");
 
@@ -458,8 +534,37 @@ export function getSelectionClipboardData(selection: {
             text += result;
             if (result.length > 0) html.appendChild(document.createTextNode(result));
         } else {
-            text += result.text;
-            if (result.html !== null) html.appendChild(result.html);
+            // Add author prefix if we have multiple authors and this result has one.
+            // The prefix format is "Author Name: ". We use getAccountRegistry to get
+            // the latest account name rather than using potentially stale data.
+            let prefix = "";
+            if (hasMultipleAuthors && result.authorPrefix) {
+                const accountName = getAccountRegistry(result.authorPrefix.spaceId)
+                    .getAccountStore(result.authorPrefix.account)
+                    .getSnapshot().name;
+                prefix = `${accountName}: `;
+            }
+
+            text += prefix + result.text;
+
+            if (result.html !== null) {
+                if (prefix.length > 0) {
+                    // Add the prefix to the HTML. If the first element is a <p>, add the
+                    // prefix inside it. Otherwise, prepend a text node.
+                    if (result.html instanceof Element && result.html.tagName === "P") {
+                        result.html.insertBefore(
+                            document.createTextNode(prefix),
+                            result.html.firstChild,
+                        );
+                    } else {
+                        const prefixElement = document.createElement("p");
+                        prefixElement.appendChild(document.createTextNode(prefix));
+                        result.html.insertBefore(prefixElement, result.html.firstChild);
+                    }
+                }
+
+                html.appendChild(result.html);
+            }
         }
     }
 

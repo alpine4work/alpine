@@ -11,6 +11,7 @@ import {
     MessageStreamContentPartPayload,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -39,7 +40,7 @@ export function MessageStreamViewSection({
     content,
     streamCompletedTime,
     withUserSelectNone,
-    getClipboardSerializerPrefix,
+    getClipboardSerializerAuthorPrefix,
     jumpAnimation,
     orderedListItemNumberByNode,
     section,
@@ -52,7 +53,7 @@ export function MessageStreamViewSection({
     content: MessageContentWithReferences;
     streamCompletedTime: Date | null;
     withUserSelectNone: boolean;
-    getClipboardSerializerPrefix: Memo<() => string | null>;
+    getClipboardSerializerAuthorPrefix: Memo<() => AccountModel | null>;
     jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
     orderedListItemNumberByNode: ReadonlyMap<Node, number>;
     section: MessageStreamSection;
@@ -78,8 +79,8 @@ export function MessageStreamViewSection({
                 posAttributeOffset={posAttributeOffset}
                 orderedListItemNumberByNode={orderedListItemNumberByNode}
                 withUserSelectNone={withUserSelectNone}
-                getClipboardSerializerPrefix={
-                    isFirstSection && i === 0 ? getClipboardSerializerPrefix : undefined
+                getClipboardSerializerAuthorPrefix={
+                    isFirstSection && i === 0 ? getClipboardSerializerAuthorPrefix : undefined
                 }
                 jumpAnimation={jumpAnimation}
                 previousBlockNodeTypeName={previousBlockNodeTypeName}

@@ -16,6 +16,7 @@ import {cutContent} from "~/shared/content/cut_content.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 // Allow list the props that definitely work with our reaction party rendering
 // which splits up the `<ContentView>` into multiple smaller `<ContentView>`s.
@@ -45,7 +46,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     content,
     contentUpdatedTime,
     posAttributeOffset = 0,
-    getClipboardSerializerPrefix,
+    getClipboardSerializerAuthorPrefix,
     jumpAnimation = null,
     reactionsByPos,
     onSetReaction,
@@ -57,7 +58,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     | "content"
     | "contentUpdatedTime"
     | "posAttributeOffset"
-    | "getClipboardSerializerPrefix"
+    | "getClipboardSerializerAuthorPrefix"
     | "jumpAnimation"
     | ContentViewWithReactionPartiesSupportedPropsKey
 > & {
@@ -97,7 +98,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
                     content={content}
                     contentUpdatedTime={contentUpdatedTime}
                     posAttributeOffset={posAttributeOffset}
-                    getClipboardSerializerPrefix={getClipboardSerializerPrefix}
+                    getClipboardSerializerAuthorPrefix={getClipboardSerializerAuthorPrefix}
                     jumpAnimation={jumpAnimation}
                     props={props}
                     partIndex={index}
@@ -119,7 +120,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     content,
     contentUpdatedTime,
     posAttributeOffset: originalPosAttributeOffset = 0,
-    getClipboardSerializerPrefix,
+    getClipboardSerializerAuthorPrefix,
     jumpAnimation: originalJumpAnimation,
     props,
     partIndex,
@@ -135,7 +136,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     content: Content;
     contentUpdatedTime: Date | null | undefined;
     posAttributeOffset: number;
-    getClipboardSerializerPrefix: Memo<() => string | null> | undefined;
+    getClipboardSerializerAuthorPrefix: Memo<() => AccountModel | null> | undefined;
     jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
     props: Pick<ContentViewProps<Content>, ContentViewWithReactionPartiesSupportedPropsKey>;
     partIndex: number;
@@ -198,8 +199,8 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                 )}
                 posAttributeOffset={posAttributeOffset}
                 contentUpdatedTime={partIndex === partCount - 1 ? contentUpdatedTime : undefined}
-                getClipboardSerializerPrefix={
-                    partIndex === 0 ? getClipboardSerializerPrefix : undefined
+                getClipboardSerializerAuthorPrefix={
+                    partIndex === 0 ? getClipboardSerializerAuthorPrefix : undefined
                 }
                 jumpAnimation={jumpAnimation}
             />

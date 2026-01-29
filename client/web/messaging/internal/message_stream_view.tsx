@@ -22,6 +22,7 @@ import {
     MessageStreamContentPartPayload,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -57,7 +58,7 @@ export function MessageStreamView({
     content,
     stream,
     withUserSelectNone,
-    getClipboardSerializerPrefix,
+    getClipboardSerializerAuthorPrefix,
     jumpAnimation,
 }: {
     message: MessageModel<string> | OptimisticMessageModel;
@@ -65,7 +66,7 @@ export function MessageStreamView({
     content: MessageContentWithReferences;
     stream: MessageStream;
     withUserSelectNone: boolean;
-    getClipboardSerializerPrefix: Memo<() => string | null>;
+    getClipboardSerializerAuthorPrefix: Memo<() => AccountModel | null>;
     jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
 }) {
     const orderedListItemNumberByNode = useMemo(() => {
@@ -206,7 +207,7 @@ export function MessageStreamView({
                 content={content}
                 streamCompletedTime={stream.completedTime}
                 withUserSelectNone={withUserSelectNone}
-                getClipboardSerializerPrefix={getClipboardSerializerPrefix}
+                getClipboardSerializerAuthorPrefix={getClipboardSerializerAuthorPrefix}
                 jumpAnimation={jumpAnimation}
                 orderedListItemNumberByNode={orderedListItemNumberByNode}
                 section={section}

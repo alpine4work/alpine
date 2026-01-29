@@ -98,6 +98,7 @@ import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {areProsemirrorNodesEqualExceptText} from "~/shared/prosemirror/are_prosemirror_nodes_equal_except_text.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore, undefinedStore} from "~/shared/store/const_store.js";
 
@@ -250,11 +251,12 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     transformScale?: number;
 
     /**
-     * Optionally add a prefix string to the beginning of the content we serialize
-     * to the user's clipboard. We only add the prefix if the selection starts at
-     * the beginning of our view's content.
+     * Optionally provide author information for the content we serialize to the
+     * user's clipboard. When copying content from multiple different authors,
+     * we'll prepend the author's name as a prefix to distinguish who wrote what.
+     * If all copied content is from the same author, no prefix is added.
      */
-    getClipboardSerializerPrefix?: Memo<() => string | null>;
+    getClipboardSerializerAuthorPrefix?: Memo<() => AccountModel | null>;
 
     /**
      * Custom `isBodyEmpty` prop. We'll consider the body empty if
@@ -295,7 +297,7 @@ export function ContentView<Content extends ContentWithReferences>({
     onSeeLessContent,
     withoutBlockMaxWidth = false,
     transformScale = 1,
-    getClipboardSerializerPrefix,
+    getClipboardSerializerAuthorPrefix,
     isBodyEmpty: isBodyEmptyFromProps = false,
     jumpAnimation = null,
 }: ContentViewProps<Content>) {
@@ -1412,33 +1414,33 @@ export function ContentView<Content extends ContentWithReferences>({
                     html = htmlFragment;
                 }
 
-                const prefix =
-                    getClipboardSerializerPrefix && startPos <= Selection.atStart(content.doc).from
-                        ? getClipboardSerializerPrefix()
+                // Get the author for this content. Only include author if we're copying
+                // from the start of the content (so the author info applies to the
+                // entire copied content, not just a partial selection).
+                const authorPrefixAccount =
+                    getClipboardSerializerAuthorPrefix &&
+                    startPos <= Selection.atStart(content.doc).from
+                        ? getClipboardSerializerAuthorPrefix()
                         : null;
-
-                // If we have a prefix, then add it to our HTML.
-                if (prefix !== null) {
-                    if (html.firstChild instanceof Element && html.firstChild.tagName === "P") {
-                        html.firstChild.insertBefore(
-                            document.createTextNode(prefix),
-                            html.firstChild.firstChild,
-                        );
-                    } else {
-                        const prefixElement = document.createElement("p");
-                        prefixElement.appendChild(document.createTextNode(prefix));
-                        html.insertBefore(prefixElement, html.firstChild);
-                    }
-                }
 
                 return {
                     requiredLineBreakAroundCount: 2,
-                    text: prefix !== null ? prefix + text : text,
+                    text,
                     html,
+                    authorPrefix:
+                        spaceId && authorPrefixAccount
+                            ? {spaceId, account: authorPrefixAccount}
+                            : undefined,
                 };
             },
         );
-    }, [events, fileAttachmentTarget, getClipboardSerializerPrefix, posAttributeOffset, spaceId]);
+    }, [
+        events,
+        fileAttachmentTarget,
+        getClipboardSerializerAuthorPrefix,
+        posAttributeOffset,
+        spaceId,
+    ]);
 
     return (
         <>

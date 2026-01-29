@@ -12,6 +12,7 @@ import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -34,7 +35,7 @@ export function MessageStreamViewContentPart({
     posAttributeOffset,
     orderedListItemNumberByNode,
     withUserSelectNone,
-    getClipboardSerializerPrefix,
+    getClipboardSerializerAuthorPrefix,
     jumpAnimation: originalJumpAnimation,
     previousBlockNodeTypeName,
 }: {
@@ -44,7 +45,7 @@ export function MessageStreamViewContentPart({
     posAttributeOffset: number;
     orderedListItemNumberByNode: ReadonlyMap<Node, number>;
     withUserSelectNone: boolean;
-    getClipboardSerializerPrefix: Memo<() => string | null> | undefined;
+    getClipboardSerializerAuthorPrefix: Memo<() => AccountModel | null> | undefined;
     jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
     previousBlockNodeTypeName: ContentBlockNodeTypeName | null;
 }) {
@@ -130,7 +131,7 @@ export function MessageStreamViewContentPart({
                 content={content}
                 posAttributeOffset={posAttributeOffset}
                 withUserSelectNone={withUserSelectNone}
-                getClipboardSerializerPrefix={getClipboardSerializerPrefix}
+                getClipboardSerializerAuthorPrefix={getClipboardSerializerAuthorPrefix}
                 jumpAnimation={jumpAnimation}
             />
         </>
