@@ -217,6 +217,7 @@ export function createDurableObject<
                 serviceName,
                 jsHost: "CloudflareWorker",
                 honeycombApiKey: env.HONEYCOMB_API_KEY,
+                honeycombDataset: "tracer",
                 waitUntil: promise => state.waitUntil(promise),
             });
 

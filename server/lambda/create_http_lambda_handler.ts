@@ -12,7 +12,7 @@ import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js"
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
-import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {HoneycombDataset, HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {
     createTraceServerResponseHandleSpanName,
     startTracerSpanFromPropagationContextHeader,
@@ -35,6 +35,7 @@ export function createHttpLambdaHandler({
     serviceSecretsSchema,
     route,
     serviceName,
+    honeycombDataset,
 }: {
     handleRequest: (
         processContext: LambdaActionContext,
@@ -55,6 +56,7 @@ export function createHttpLambdaHandler({
     serviceSecretsSchema: Schema<ServerSecrets>;
     route: string;
     serviceName: TokenServiceName;
+    honeycombDataset: HoneycombDataset;
 }): APIGatewayProxyHandler {
     const awsSigner = new AwsRequestSigner();
     let tokenAgentAndOptionsPromise: Promise<{
@@ -88,6 +90,7 @@ export function createHttpLambdaHandler({
                 jsHost: "Node",
                 promiseWaiter,
                 honeycombApiKey,
+                honeycombDataset,
             });
             ({span, finishSpan} = getSpanForRequest(tracer, request, route));
 

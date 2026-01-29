@@ -91,6 +91,7 @@ async function handleFetch(
         serviceName: "AgentService",
         jsHost: "CloudflareWorker",
         honeycombApiKey: env.HONEYCOMB_API_KEY,
+        honeycombDataset: "tracer",
         waitUntil: promise => executionContext.waitUntil(promise),
     });
 

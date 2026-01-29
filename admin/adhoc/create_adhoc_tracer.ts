@@ -10,6 +10,7 @@ export function createAdhocTracer() {
         // TODO(calebmer): If we are running an adhoc script against our production
         // database then events should go to our production Honeycomb environment?
         honeycombApiKey: env.HONEYCOMB_API_KEY,
+        honeycombDataset: "tracer",
         // Node.js automatically waits for all promises to finish before exiting
         // the process.
         waitUntil: promise => {

@@ -15,4 +15,5 @@ export const handler = createHttpLambdaHandler({
     serviceSecretsSchema: FileProcessorServiceSecretsSchema,
     route,
     serviceName: "FileProcessorService",
+    honeycombDataset: "tracer",
 });

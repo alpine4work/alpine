@@ -7,6 +7,8 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
+export type HoneycombDataset = "tracer" | "lifecycle" | "resource-service";
+
 /**
  * Client we use for sending our tracer events to Honeycomb.
  */
@@ -28,6 +30,11 @@ export class HoneycombTracerClient {
      */
     private readonly _waitUntil: (promise: Promise<void>) => void;
 
+    /**
+     * The Honeycomb dataset we are sending events to.
+     */
+    private readonly _dataset: HoneycombDataset;
+
     private _scheduledEventBatch: {
         events: Array<TracerEvent>;
         flush: () => Promise<void>;
@@ -36,14 +43,17 @@ export class HoneycombTracerClient {
     constructor({
         apiKey,
         tracer,
+        dataset,
         waitUntil,
     }: {
         apiKey: string;
         tracer: TracerRoot;
+        dataset: HoneycombDataset;
         waitUntil: (promise: Promise<void>) => void;
     }) {
         this._apiKey = apiKey;
         this._tracer = tracer;
+        this._dataset = dataset;
         this._waitUntil = waitUntil;
     }
 
@@ -110,14 +120,17 @@ export class HoneycombTracerClient {
                         );
 
                         // eslint-disable-next-line no-global-fetch
-                        const response = await fetch("https://api.honeycomb.io/1/batch/tracer", {
-                            method: "POST",
-                            headers: {
-                                "x-honeycomb-team": this._apiKey,
-                                "content-type": "application/json",
+                        const response = await fetch(
+                            `https://api.honeycomb.io/1/batch/${this._dataset}`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "x-honeycomb-team": this._apiKey,
+                                    "content-type": "application/json",
+                                },
+                                body: bodyString,
                             },
-                            body: bodyString,
-                        });
+                        );
 
                         if (response.status >= 400) {
                             retry(
@@ -204,7 +217,7 @@ export class HoneycombTracerClient {
         endTime?: Date;
     }) {
         // eslint-disable-next-line no-global-fetch
-        const response = await fetch("https://api.honeycomb.io/1/markers/tracer", {
+        const response = await fetch("https://api.honeycomb.io/1/markers/__all__", {
             method: "POST",
             headers: {
                 "x-honeycomb-team": this._apiKey,

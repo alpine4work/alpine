@@ -17,6 +17,7 @@ import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js"
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
+import {HoneycombDataset} from "~/server/tracer/honeycomb_tracer_client.js";
 import {Context} from "~/shared/context/context.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -39,6 +40,7 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
     processJob,
     serviceName,
     serviceSecretsSchema,
+    honeycombDataset,
 }: {
     processJob: (
         context: LambdaSystemActionContext,
@@ -48,6 +50,7 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
     ) => Promise<void>;
     serviceName: TokenServiceName;
     serviceSecretsSchema: Schema<ServerSecrets>;
+    honeycombDataset: HoneycombDataset;
 }): Handler<SQSEvent, {batchItemFailures: BatchItemFailures}> {
     const awsSigner = new AwsRequestSigner();
     let tokenAgentAndOptionsPromise: Promise<{
@@ -66,6 +69,7 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
                 jsHost: "Node",
                 promiseWaiter,
                 honeycombApiKey,
+                honeycombDataset,
             });
             ({span: parentSpan, finishSpan: finishParentSpan} = tracer
                 .getRoot()

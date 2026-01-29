@@ -16,6 +16,7 @@ export const handler = createLambdaJobQueueConsumerHandler({
     processJob: processFileJob,
     serviceName: "FileProcessorService",
     serviceSecretsSchema: FileProcessorServiceSecretsSchema,
+    honeycombDataset: "tracer",
 });
 
 /**

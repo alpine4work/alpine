@@ -1,4 +1,4 @@
-import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {HoneycombDataset, HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {writeTracerEventToFileInDev} from "~/shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
@@ -13,6 +13,7 @@ export function createServerTracer(options: {
     jsHost: TracerEventJsHost;
     honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
+    honeycombDataset: HoneycombDataset;
 }): TracerRoot {
     return createServerTracerAndHoneycombClient(options)[0];
 }
@@ -24,6 +25,7 @@ export function createServerTracerAndHoneycombClient({
     awsEcsTaskId,
     honeycombApiKey,
     waitUntil,
+    honeycombDataset,
 }: {
     serviceName: TracerServiceName;
     jsHost: TracerEventJsHost;
@@ -31,6 +33,7 @@ export function createServerTracerAndHoneycombClient({
     awsEcsTaskId?: string;
     honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
+    honeycombDataset: HoneycombDataset;
 }): [TracerRoot, HoneycombTracerClient | null] {
     const tracer = TracerRoot.new({
         serviceName,
@@ -53,6 +56,7 @@ export function createServerTracerAndHoneycombClient({
               apiKey: honeycombApiKey,
               tracer,
               waitUntil,
+              dataset: honeycombDataset,
           })
         : null;
 

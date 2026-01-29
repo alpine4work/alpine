@@ -1,7 +1,8 @@
-import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {HoneycombDataset, HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {writeTracerEventToFileInDev} from "~/shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.js";
@@ -11,11 +12,13 @@ export function createLambdaTracerAndHoneycombClient({
     jsHost,
     promiseWaiter,
     honeycombApiKey,
+    honeycombDataset,
 }: {
     serviceName: TracerServiceName;
     jsHost: TracerEventJsHost;
     promiseWaiter: PromiseWaiter;
     honeycombApiKey?: string;
+    honeycombDataset?: HoneycombDataset;
 }): [TracerRoot, HoneycombTracerClient | null] {
     // If a Honeycomb API key is not provided in production then we get no logging
     // from our service.
@@ -52,6 +55,10 @@ export function createLambdaTracerAndHoneycombClient({
                       }),
                   );
               },
+              dataset: assertExists(
+                  honeycombDataset,
+                  "Must provide `honeycombDataset` when `honeycombApiKey` is provided",
+              ),
           })
         : null;
 

@@ -144,6 +144,7 @@ export async function withDevContext<Value>(
         serviceName: "Admin",
         jsHost: "Node",
         honeycombApiKey: env.HONEYCOMB_API_KEY,
+        honeycombDataset: "tracer",
         waitUntil: promiseWaiter.waitUntil,
     });
 

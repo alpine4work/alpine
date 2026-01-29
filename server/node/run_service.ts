@@ -4,7 +4,7 @@ import * as os from "os";
 import process from "process";
 import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {HoneycombDataset, HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
@@ -56,6 +56,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     serviceName,
     import: importService,
     withoutCluster = false,
+    honeycombDataset,
 }: {
     serviceName: TracerServiceName;
     import: () => Promise<{
@@ -70,6 +71,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         }) => Promise<void>;
     }>;
     withoutCluster?: boolean;
+    honeycombDataset: HoneycombDataset;
 }) {
     // Make our service easy to find in process managers. We include
     // "cyberworlds" and "node" so you can grep by those strings.
@@ -186,6 +188,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             awsEc2InstanceId: awsTracerSharedData?.ec2InstanceId,
             awsEcsTaskId: awsTracerSharedData?.ecsTaskId,
             honeycombApiKey,
+            honeycombDataset,
             waitUntil: promise => {
                 shutdownManager.registerWaitUntilPromise(
                     promise.catch(error => {

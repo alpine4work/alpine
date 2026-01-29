@@ -181,6 +181,7 @@ async function handleFetch(
         serviceName: "ResourceService",
         jsHost: "CloudflareWorker",
         honeycombApiKey: env.HONEYCOMB_API_KEY,
+        honeycombDataset: "resource-service",
         waitUntil: promise => executionContext.waitUntil(promise),
     });
 
