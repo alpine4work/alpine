@@ -7463,7 +7463,7 @@ test("unicode code point with two utf-16 code units at the end of strike mark", 
     );
 });
 
-test("doesn’t parse angle brackets with @ content as autolink", async () => {
+test("doesn\u2019t parse angle brackets with @ content as autolink", async () => {
     await testPrintApiContentToMarkdown(
         {
             elements: [
@@ -7482,7 +7482,7 @@ test("doesn’t parse angle brackets with @ content as autolink", async () => {
     );
 });
 
-test("doesn’t parse angle brackets with number content as autolink", async () => {
+test("doesn\u2019t parse angle brackets with number content as autolink", async () => {
     await testPrintApiContentToMarkdown(
         {
             elements: [
@@ -7498,7 +7498,7 @@ test("doesn’t parse angle brackets with number content as autolink", async () 
     );
 });
 
-test("doesn’t parse angle brackets with bracket content as autolink", async () => {
+test("doesn\u2019t parse angle brackets with bracket content as autolink", async () => {
     await testPrintApiContentToMarkdown(
         {
             elements: [
@@ -7514,7 +7514,7 @@ test("doesn’t parse angle brackets with bracket content as autolink", async ()
     );
 });
 
-test("doesn’t parse angle brackets with space content as autolink", async () => {
+test("doesn\u2019t parse angle brackets with space content as autolink", async () => {
     await testPrintApiContentToMarkdown(
         {
             elements: [
@@ -8344,7 +8344,7 @@ test("table with more column widths than columns", async () => {
     );
 });
 
-test("paragraph that’s a single space in table cell", async () => {
+test("paragraph that\u2019s a single space in table cell", async () => {
     await testPrintApiContentToMarkdown(
         {
             elements: [
@@ -8446,7 +8446,7 @@ test("paragraph with leading spaces in table cell", async () => {
     );
 });
 
-test("paragraph with trailing spaces that’s a single space in table cell", async () => {
+test("paragraph with trailing spaces that\u2019s a single space in table cell", async () => {
     await testPrintApiContentToMarkdown(
         {
             elements: [

@@ -382,7 +382,7 @@ function DocumentNewCommentThreadsRouteInner2({
                         size="md"
                         description="Previous thread"
                         isDisabled={mobileCommentThreadIndex === 0}
-                        pressErrorTitle="Can’t go to previous thread"
+                        pressErrorTitle="Can\u2019t go to previous thread"
                         onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex - 1)}
                     >
                         <CaretLeft />
@@ -400,7 +400,7 @@ function DocumentNewCommentThreadsRouteInner2({
                         size="md"
                         description="Next thread"
                         isDisabled={mobileCommentThreadIndex === commentThreadCount - 1}
-                        pressErrorTitle="Can’t go to next thread"
+                        pressErrorTitle="Can\u2019t go to next thread"
                         onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex + 1)}
                     >
                         <CaretRight />
@@ -499,7 +499,7 @@ function DocumentNewCommentThreadsRouteInner2({
             });
 
             promise.catch(error => {
-                reporter.displayError("Couldn’t mark commentThread as done", error);
+                reporter.displayError("Couldn\u2019t mark commentThread as done", error);
             });
 
             archiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically({
@@ -534,7 +534,7 @@ function DocumentNewCommentThreadsRouteInner2({
             });
 
             promise.catch(error => {
-                reporter.displayError("Couldn’t move notification to new", error);
+                reporter.displayError("Couldn\u2019t move notification to new", error);
             });
 
             // Wait for our inbox entry to update in realtime. The realtime update event

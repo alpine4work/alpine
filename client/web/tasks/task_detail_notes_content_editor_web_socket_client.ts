@@ -233,11 +233,11 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                                 // message to let them know we threw away their changes.
                                 if (state.pendingSendableSteps) {
                                     this._displayError(
-                                        "Couldn’t save changes to task",
+                                        "Couldn\u2019t save changes to task",
                                         new UnavailableError(
                                             "Throwing away local task notes changes because collaboration service is missing the steps we need to backfill",
                                             {
-                                                displayMessage: errorDisplayMessage`The task’s notes changed while you were offline and we didn’t know how to update your changes to the task’s notes to avoid conflicting updates. Now if you type your changes again they’ll save.`,
+                                                displayMessage: errorDisplayMessage`The task\u2019s notes changed while you were offline and we didn\u2019t know how to update your changes to the task\u2019s notes to avoid conflicting updates. Now if you type your changes again they\u2019ll save.`,
                                             },
                                         ),
                                     );
@@ -353,7 +353,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
 
                         this._getContext()
                             .tracer.getRoot()
-                            .logException("Couldn’t update content after disconnect", error);
+                            .logException("Couldn\u2019t update content after disconnect", error);
 
                         // Next time we send updates, we'll silently retry updating content if another
                         // `updateContent()` call hasn't happened in the meantime.

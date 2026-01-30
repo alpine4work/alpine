@@ -140,7 +140,7 @@ export function transformChunkForTest(chunk: Buffer): ReadonlyArray<ChunkLine> {
 /**
  * Parses an ANSI color escape code.
  *
- * To implement this we referenced the syntax in “[ANSI Escape Codes][1].”
+ * To implement this we referenced the syntax in "[ANSI Escape Codes][1]."
  *
  * Originally used the same implementation as [`parseAnsiCode()` in
  * `slice-ansi`][2] but that implementation is too generous and parses

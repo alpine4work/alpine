@@ -23,14 +23,18 @@ test("can not invite accounts for a space we are not in", async () => {
             spaceId: spaceB.id,
             emailAddresses: ["test@test.cyberworlds.dev"],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have `Admin` access to space"));
+    ).rejects.toThrow(
+        new PermissionDeniedError("Account doesn\u2019t have `Admin` access to space"),
+    );
 
     await expect(
         inviteEmailAddressesToSpace(context.action(sessionB), {
             spaceId: spaceA.id,
             emailAddresses: ["test@test.cyberworlds.dev"],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have `Admin` access to space"));
+    ).rejects.toThrow(
+        new PermissionDeniedError("Account doesn\u2019t have `Admin` access to space"),
+    );
 });
 
 test("only owners and admins can invite members", async () => {
@@ -54,7 +58,9 @@ test("only owners and admins can invite members", async () => {
             spaceId: space.id,
             emailAddresses: ["test3@test.cyberworlds.dev"],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have `Admin` access to space"));
+    ).rejects.toThrow(
+        new PermissionDeniedError("Account doesn\u2019t have `Admin` access to space"),
+    );
 });
 
 test("cannot invite existing members", async () => {

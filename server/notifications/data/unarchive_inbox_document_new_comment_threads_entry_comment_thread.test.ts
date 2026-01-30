@@ -27,7 +27,7 @@ const context = createTestContext({
     notificationsInjection,
 });
 
-test("can’t unarchive comment thread in a fully archived new comment threads comment threads entry with one comment thread", async () => {
+test("can\u2019t unarchive comment thread in a fully archived new comment threads comment threads entry with one comment thread", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -71,7 +71,7 @@ test("can’t unarchive comment thread in a fully archived new comment threads c
     ]);
 });
 
-test("can’t unarchive comment thread in a deleted new comment threads comment threads entry with one comment thread", async () => {
+test("can\u2019t unarchive comment thread in a deleted new comment threads comment threads entry with one comment thread", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -262,7 +262,7 @@ test("can archive comment thread again after unarchiving", async () => {
     ]);
 });
 
-test("can’t unarchive comment thread in a fully archived new comment threads comment threads entry where individual comment thread hasn’t been archived", async () => {
+test("can\u2019t unarchive comment thread in a fully archived new comment threads comment threads entry where individual comment thread hasn\u2019t been archived", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -309,7 +309,7 @@ test("can’t unarchive comment thread in a fully archived new comment threads c
     ]);
 });
 
-test("can’t unarchive comment thread in a fully archived new comment threads comment threads entry where individual comment thread has been archived", async () => {
+test("can\u2019t unarchive comment thread in a fully archived new comment threads comment threads entry where individual comment thread has been archived", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -587,7 +587,7 @@ test("unarchiving single comment thread is idempotent", async () => {
     ]);
 });
 
-test("can’t unarchive individual comment thread without access to space", async () => {
+test("can\u2019t unarchive individual comment thread without access to space", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -616,10 +616,10 @@ test("can’t unarchive individual comment thread without access to space", asyn
             bucketGeneration: 0,
             commentThreadId: commentThread2.id,
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
-test("noops when unarchiving individual comment thread in entry that doesn’t exist", async () => {
+test("noops when unarchiving individual comment thread in entry that doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -635,7 +635,7 @@ test("noops when unarchiving individual comment thread in entry that doesn’t e
     expect(await testGetInboxEntries(session, {filter: "Archive"})).toEqual([]);
 });
 
-test("can’t unarchive individual comment thread which doesn’t exist in inbox entry", async () => {
+test("can\u2019t unarchive individual comment thread which doesn\u2019t exist in inbox entry", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 

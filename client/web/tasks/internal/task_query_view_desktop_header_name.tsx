@@ -184,10 +184,10 @@ function TaskQueryViewDesktopHeaderNameEditor({
                         setShouldShowConfirmSaveDialog(false);
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Couldn’t save name"
+                    primaryButtonPressErrorTitle="Couldn\u2019t save name"
                     onPrimaryButtonPress={() => onSave(name)}
                     cancelButtonLabel="Discard name"
-                    cancelButtonPressErrorTitle="Couldn’t discard name"
+                    cancelButtonPressErrorTitle="Couldn\u2019t discard name"
                     onCancelButtonPress={onCancel}
                 />
             )}

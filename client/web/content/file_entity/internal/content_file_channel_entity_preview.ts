@@ -485,8 +485,8 @@ export function addContentFileChannelEntityPreviewBehavior(
 
                         getReporter().displayError(
                             !isSubscribed
-                                ? "Couldn’t subscribe to channel"
-                                : "Couldn’t unsubscribe from channel",
+                                ? "Couldn\u2019t subscribe to channel"
+                                : "Couldn\u2019t unsubscribe from channel",
                             error,
                         );
                     } finally {

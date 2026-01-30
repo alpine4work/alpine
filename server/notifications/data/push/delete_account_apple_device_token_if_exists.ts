@@ -25,7 +25,7 @@ export async function deleteAccountAppleDeviceTokenIfExists(
         case "ImpersonatedAccount": {
             if (context.actor.getAccountId() !== accountId) {
                 throw new PermissionDeniedError(
-                    "Can’t delete device token for a different account",
+                    "Can\u2019t delete device token for a different account",
                 );
             }
             break;

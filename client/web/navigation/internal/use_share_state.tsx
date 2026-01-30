@@ -84,7 +84,9 @@ export function useShareState(
         // prevent invalid changes like this but it's nice to catch errors like this
         // early.
         if (isReadOnly || !props) {
-            throw new InternalError("Can’t update access policy when share button is read only");
+            throw new InternalError(
+                "Can\u2019t update access policy when share button is read only",
+            );
         }
 
         if (!currentAccount) return;
@@ -127,7 +129,7 @@ export function useShareState(
                 );
 
                 changeDescription = `remove ${
-                    currentAccount.id === action.accountId ? "your" : `${changedAccountName}’s`
+                    currentAccount.id === action.accountId ? "your" : `${changedAccountName}\u2019s`
                 } access to the ${entityNoun}`;
                 break;
             }
@@ -139,14 +141,14 @@ export function useShareState(
                 );
 
                 changeDescription = `change ${
-                    currentAccount.id === action.accountId ? "your" : `${changedAccountName}’s`
-                } access to the ${entityNoun} to “${accessLevelText[action.level]}”`;
+                    currentAccount.id === action.accountId ? "your" : `${changedAccountName}\u2019s`
+                } access to the ${entityNoun} to \u201C${accessLevelText[action.level]}\u201D`;
                 break;
             }
             case "AddDefaultGrant": {
                 changeDescription = `change everyone in ${
                     space.name
-                }’s access to the ${entityNoun} to “${accessLevelText[action.defaultGrant.level]}”`;
+                }\u2019s access to the ${entityNoun} to \u201C${accessLevelText[action.defaultGrant.level]}\u201D`;
                 break;
             }
             // `DeleteDefaultGrantAndUrlGrant` uses the same language as
@@ -154,29 +156,29 @@ export function useShareState(
             // warnings where changing the default grant matters.
             case "DeleteDefaultGrant":
             case "DeleteDefaultGrantAndUrlGrant": {
-                changeDescription = `remove everyone in ${space.name}’s access to the ${entityNoun}`;
+                changeDescription = `remove everyone in ${space.name}\u2019s access to the ${entityNoun}`;
                 break;
             }
             case "SetDefaultGrantLevel": {
                 changeDescription = `change everyone in ${
                     space.name
-                }’s access to the ${entityNoun} to “${accessLevelText[action.level]}”`;
+                }\u2019s access to the ${entityNoun} to \u201C${accessLevelText[action.level]}\u201D`;
                 break;
             }
             case "AddUrlGrant": {
-                changeDescription = `change anyone with the link’s access to the ${entityNoun} to “${
+                changeDescription = `change anyone with the link\u2019s access to the ${entityNoun} to \u201C${
                     accessLevelText[action.urlGrant.level]
-                }”`;
+                }\u201D`;
                 break;
             }
             case "DeleteUrlGrant": {
-                changeDescription = `remove anyone with the link’s access to the ${entityNoun}`;
+                changeDescription = `remove anyone with the link\u2019s access to the ${entityNoun}`;
                 break;
             }
             case "SetUrlGrantLevel": {
-                changeDescription = `change anyone with the link’s access to the ${entityNoun} to “${
+                changeDescription = `change anyone with the link\u2019s access to the ${entityNoun} to \u201C${
                     accessLevelText[action.level]
-                }”`;
+                }\u201D`;
                 break;
             }
             default:
@@ -194,39 +196,39 @@ export function useShareState(
 
             switch (validationResult.reason) {
                 // Noop if we get here and the actor doesn't have manage access.
-                case "Can’t update access policy unless actor has manage access": {
+                case "Can\u2019t update access policy unless actor has manage access": {
                     return;
                 }
 
                 // It shouldn't be possible for the share overlay component to create one of
                 // these changes. So throw an internal error if we see one of these reasons.
-                case "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation":
-                case "Can’t change account grant manage generation":
-                case "Can’t set new default grant manage generation to be less than or equal to our actor’s manage generation":
-                case "Can’t change default grant manage generation": {
+                case "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation":
+                case "Can\u2019t change account grant manage generation":
+                case "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation":
+                case "Can\u2019t change default grant manage generation": {
                     throw new InternalError(
                         `Share overlay made an invalid change: ${validationResult.reason}`,
                     );
                 }
 
-                case "Can’t revoke manage access from an account with a manage generation less than our actor": {
-                    title = `Can’t change ${
-                        changedAccountName ? `${changedAccountName}’s` : "their"
+                case "Can\u2019t revoke manage access from an account with a manage generation less than our actor": {
+                    title = `Can\u2019t change ${
+                        changedAccountName ? `${changedAccountName}\u2019s` : "their"
                     } permissions`;
 
                     // We use "they" to refer to the change description because we assume this error
                     // only happens when we either remove an account grant or change an account
                     // grant's level. In both cases we include the name of the account whose
                     // permissions we're changing in `changeDescription`.
-                    description = `You can’t change the permissions of someone who was involved in adding you to the ${entityNoun}. So you can’t ${changeDescription}. Try asking whoever added ${
+                    description = `You can\u2019t change the permissions of someone who was involved in adding you to the ${entityNoun}. So you can\u2019t ${changeDescription}. Try asking whoever added ${
                         changedAccountName ?? "them"
                     } to the ${entityNoun} to change their permissions.`;
                     break;
                 }
 
-                case "Can’t update access policy so that no one has manage access": {
-                    title = "Can’t remove everyone who can change permissions";
-                    description = `If you ${changeDescription} then there won’t be anyone who can change permissions of the ${entityNoun} anymore. Try adding more people with “${props.accessLevelText.Manage}” access.`;
+                case "Can\u2019t update access policy so that no one has manage access": {
+                    title = "Can\u2019t remove everyone who can change permissions";
+                    description = `If you ${changeDescription} then there won\u2019t be anyone who can change permissions of the ${entityNoun} anymore. Try adding more people with \u201C${props.accessLevelText.Manage}\u201D access.`;
                     break;
                 }
 
@@ -290,7 +292,7 @@ export function useShareState(
 
                 setWarningDialogState({
                     title: "Remove permissions from yourself?",
-                    description: `If you ${changeDescription} then you won’t be able to ${joinedPermissionDescriptions} the ${entityNoun} anymore. You can’t undo this change.`,
+                    description: `If you ${changeDescription} then you won\u2019t be able to ${joinedPermissionDescriptions} the ${entityNoun} anymore. You can\u2019t undo this change.`,
                     isAllowed: true,
                     currentAccountId: currentAccount.id,
                     action,
@@ -315,7 +317,7 @@ export function useShareState(
                     primaryButtonLabel="Cancel"
                     onPrimaryButtonPress={() => setWarningDialogState(null)}
                     cancelButtonLabel="I understand, make this change"
-                    cancelButtonPressErrorTitle="Couldn’t make this change"
+                    cancelButtonPressErrorTitle="Couldn\u2019t make this change"
                     onCancelButtonPress={() => {
                         if (!props) return;
 

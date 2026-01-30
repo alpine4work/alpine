@@ -11,7 +11,7 @@ export function MobileBackButton() {
             size="base"
             description="Go back"
             withoutTooltip={true}
-            pressErrorTitle="Couldn’t go back"
+            pressErrorTitle="Couldn\u2019t go back"
             onPress={() => navigate(-1)}
         >
             <ArrowLeft />

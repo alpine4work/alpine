@@ -185,7 +185,7 @@ async function uploadFileForTest(
     return getFileAsUploader(session.action(), session.space.id, fileId);
 }
 
-test("can’t resize an image with a session actor", async () => {
+test("can\u2019t resize an image with a session actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -226,7 +226,7 @@ test("can’t resize an image with a session actor", async () => {
     );
 });
 
-test("can’t resize an image with a token that’s not from edge service or resources service", async () => {
+test("can\u2019t resize an image with a token that\u2019s not from edge service or resources service", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -270,7 +270,7 @@ test("can’t resize an image with a token that’s not from edge service or res
     );
 });
 
-test("can’t resize an image that doesn’t exist", async () => {
+test("can\u2019t resize an image that doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
 
     const resizeResponse = await fetch(
@@ -1383,7 +1383,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
         });
     },
     "image/svg+xml": () => {
-        test("can’t resize an SVG image", async () => {
+        test("can\u2019t resize an SVG image", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -1437,7 +1437,7 @@ for (const tests of Object.values(testsByFileWebSafeImageContentType)) {
     tests();
 }
 
-test("can resize a HEIC image’s preview", async () => {
+test("can resize a HEIC image\u2019s preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1693,7 +1693,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
             ]);
 
             throw new InternalError(
-                "Actual resized image doesn’t look like expected resized image, diff image saved to `bazel-testlogs`",
+                "Actual resized image doesn\u2019t look like expected resized image, diff image saved to `bazel-testlogs`",
             );
         }
     }
@@ -1822,7 +1822,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             ]);
 
             throw new InternalError(
-                "Actual resized image doesn’t look like expected resized image, diff image saved to `bazel-testlogs`",
+                "Actual resized image doesn\u2019t look like expected resized image, diff image saved to `bazel-testlogs`",
             );
         }
     }

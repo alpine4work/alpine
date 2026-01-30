@@ -182,7 +182,7 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
         } else if (taskOwner.id === event.authorId) {
             subtitle += "their";
         } else {
-            subtitle += `${getAccountShortNameWithoutFullNameTooltip(taskOwner.initialData)}’s`;
+            subtitle += `${getAccountShortNameWithoutFullNameTooltip(taskOwner.initialData)}\u2019s`;
         }
 
         subtitle += ` task`;

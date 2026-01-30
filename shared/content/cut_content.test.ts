@@ -13,7 +13,7 @@ const table = (...rows: Array<Node>) => schema.nodes.table.create(null, rows);
 const tableRow = (...cells: Array<Node>) => schema.nodes.tableRow.create(null, cells);
 const tableCell = (...content: Array<Node>) => schema.nodes.tableCell.create(null, content);
 
-test("cutting before an `orderedListItem` node preserves the first item’s number", () => {
+test("cutting before an `orderedListItem` node preserves the first item\u2019s number", () => {
     const content = doc(
         p(text("Before")),
         ol({}, p(text("First"))),
@@ -81,7 +81,7 @@ test("cutting inside an `orderedListItem` node (but outside its paragraph) sets 
     );
 });
 
-test("cutting inside an `orderedListItem`’s paragraph at the start sets correct orderStart", () => {
+test("cutting inside an `orderedListItem`\u2019s paragraph at the start sets correct orderStart", () => {
     const content = doc(
         ol({}, p(text("First"))),
         ol({}, p(text("Second item"))),
@@ -95,7 +95,7 @@ test("cutting inside an `orderedListItem`’s paragraph at the start sets correc
     );
 });
 
-test("cutting arbitrarily inside an `orderedListItem`’s paragraph sets correct orderStart", () => {
+test("cutting arbitrarily inside an `orderedListItem`\u2019s paragraph sets correct orderStart", () => {
     const content = doc(
         ol({}, p(text("First"))),
         ol({}, p(text("Second item"))),

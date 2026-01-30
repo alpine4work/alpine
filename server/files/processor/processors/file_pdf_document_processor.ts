@@ -144,7 +144,7 @@ export function processPdfDocumentFile(
                 );
 
                 if (metadata.width === undefined || metadata.height === undefined) {
-                    throw new InternalError("Couldn’t find `width` or `height` of image file");
+                    throw new InternalError("Couldn\u2019t find `width` or `height` of image file");
                 }
 
                 // We produce a JPEG preview image that's 2x bigger than the source PDF. This

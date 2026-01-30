@@ -591,7 +591,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         setMessageReaction,
         deleteMessageReaction,
         backfillMessages,
-        spacePermissionDeniedErrorMessage = "Account doesn’t have access to space",
+        spacePermissionDeniedErrorMessage = "Account doesn\u2019t have access to space",
     }: TestMessagingImplementation<RoomKey>,
 ) {
     const space = createTestSpace(context);
@@ -794,7 +794,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             expect(room.messageCount).toEqual(0);
         });
 
-        test("can’t create room in a space you don’t have access to", async () => {
+        test("can\u2019t create room in a space you don\u2019t have access to", async () => {
             await expect(createRoom(context.action(session1), otherSpace.id)).rejects.toThrow(
                 PermissionDeniedError,
             );
@@ -808,7 +808,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             expect(room2?.messageCount).toEqual(0);
         });
 
-        test("can’t get room in a space you don’t have access to", async () => {
+        test("can\u2019t get room in a space you don\u2019t have access to", async () => {
             const room1 = await createRoom(context.action(session1), space.id);
 
             await expect(getRoom(context.action(otherSpaceSession), room1.key)).rejects.toThrow(
@@ -816,7 +816,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t get private room when you don’t have access", async () => {
+        test("can\u2019t get private room when you don\u2019t have access", async () => {
             const room1 = await createPrivateRoom(context.action(session1), space.id);
 
             expect((await getRoom(context.action(session1), room1.key))?.messageCount).toEqual(0);
@@ -1027,7 +1027,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t create message in a room that doesn’t exist", async () => {
+        test("can\u2019t create message in a room that doesn\u2019t exist", async () => {
             await expect(
                 createMessage(context.action(session1), {
                     roomKey: getMissingRoomKey(),
@@ -1038,7 +1038,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(/not found/);
         });
 
-        test("can’t create message in a different space", async () => {
+        test("can\u2019t create message in a different space", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -1051,7 +1051,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
-        test("can’t create message in private room from an account without access", async () => {
+        test("can\u2019t create message in private room from an account without access", async () => {
             const room = await createPrivateRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -1096,7 +1096,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             }
         });
 
-        test("can’t create message with invalid content", async () => {
+        test("can\u2019t create message with invalid content", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const content = assertMessageContent(
@@ -1215,7 +1215,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t create message with file if file isn’t attached", async () => {
+        test("can\u2019t create message with file if file isn\u2019t attached", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const {fileId} = await uploadTestFile(context.action(session1), space.id);
@@ -1227,7 +1227,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                     fileIds: [fileId],
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+            ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
             await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(session1),
@@ -1236,7 +1236,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t create message with file that doesn’t exist", async () => {
+        test("can\u2019t create message with file that doesn\u2019t exist", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -1255,7 +1255,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t create message with file attached to another room", async () => {
+        test("can\u2019t create message with file attached to another room", async () => {
             const room1 = await createRoom(context.action(session1), space.id);
             const room2 = await createRoom(context.action(session1), space.id);
 
@@ -1275,7 +1275,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                     fileIds: [fileId],
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+            ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
             await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(session1),
@@ -1284,7 +1284,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t create message with file from a different space", async () => {
+        test("can\u2019t create message with file from a different space", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const {fileId} = await uploadTestFile(context.action(otherSpaceSession), otherSpace.id);
@@ -1305,7 +1305,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t get a message which doesn’t exist", async () => {
+        test("can\u2019t get a message which doesn\u2019t exist", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -1322,7 +1322,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t get a message in a different space", async () => {
+        test("can\u2019t get a message in a different space", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -1342,7 +1342,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t get a message in a private room when account doesn’t have access", async () => {
+        test("can\u2019t get a message in a private room when account doesn\u2019t have access", async () => {
             const room = await createPrivateRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -1502,7 +1502,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t create message with a parent that doesn’t exist", async () => {
+        test("can\u2019t create message with a parent that doesn\u2019t exist", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -1655,7 +1655,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t update message with the wrong version", async () => {
+        test("can\u2019t update message with the wrong version", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -1761,7 +1761,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t update message on room that doesn’t exist", async () => {
+        test("can\u2019t update message on room that doesn\u2019t exist", async () => {
             await expect(
                 updateMessageContent(context.action(session2), {
                     roomKey: getMissingRoomKey(),
@@ -1772,7 +1772,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(/not found/);
         });
 
-        test("can’t update message that doesn’t exist", async () => {
+        test("can\u2019t update message that doesn\u2019t exist", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -1785,7 +1785,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(NotFoundError);
         });
 
-        test("can’t update message from different author", async () => {
+        test("can\u2019t update message from different author", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -1841,7 +1841,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t update message from different space", async () => {
+        test("can\u2019t update message from different space", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -1951,7 +1951,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t update message in private room from account which loses access", async () => {
+        test("can\u2019t update message in private room from account which loses access", async () => {
             const room = await createPrivateRoom(context.action(session1), space.id);
             if (room.revokeInsideSession === "Unimplemented") return;
 
@@ -2035,7 +2035,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t update message in private room from account without access", async () => {
+        test("can\u2019t update message in private room from account without access", async () => {
             const room = await createPrivateRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -2120,7 +2120,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             }
         });
 
-        test("can’t update message with invalid content", async () => {
+        test("can\u2019t update message with invalid content", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -2242,7 +2242,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t delete message on room that doesn’t exist", async () => {
+        test("can\u2019t delete message on room that doesn\u2019t exist", async () => {
             await expect(
                 deleteMessage(context.action(session2), {
                     roomKey: getMissingRoomKey(),
@@ -2251,7 +2251,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(/not found/);
         });
 
-        test("can’t delete message that doesn’t exist", async () => {
+        test("can\u2019t delete message that doesn\u2019t exist", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -2262,7 +2262,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(NotFoundError);
         });
 
-        test("can’t delete message from different author", async () => {
+        test("can\u2019t delete message from different author", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -2316,7 +2316,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t delete message from different space", async () => {
+        test("can\u2019t delete message from different space", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -2420,7 +2420,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t delete message in private room from account after revoking access", async () => {
+        test("can\u2019t delete message in private room from account after revoking access", async () => {
             const room = await createPrivateRoom(context.action(session1), space.id);
             if (room.revokeInsideSession === "Unimplemented") return;
 
@@ -2477,7 +2477,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        test("can’t delete message in private room from account without access", async () => {
+        test("can\u2019t delete message in private room from account without access", async () => {
             const room = await createPrivateRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -2558,7 +2558,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             }
         });
 
-        test("can’t delete a message twice", async () => {
+        test("can\u2019t delete a message twice", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -2615,7 +2615,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(FailedPreconditionError);
         });
 
-        test("can’t update a deleted message", async () => {
+        test("can\u2019t update a deleted message", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message = await createMessage(context.action(session1), {
@@ -2829,7 +2829,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can’t get messages from start when before cursor is greater than after cursor", async () => {
+        test("can\u2019t get messages from start when before cursor is greater than after cursor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -3060,7 +3060,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can’t get messages for room that doesn’t exist", async () => {
+        test("can\u2019t get messages for room that doesn\u2019t exist", async () => {
             await expect(
                 getMessagesFromStart(context.action(session1), {
                     roomKey: getMissingRoomKey(),
@@ -3071,7 +3071,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(/not found/);
         });
 
-        test("can’t get messages for room in a different space", async () => {
+        test("can\u2019t get messages for room in a different space", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -3084,7 +3084,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
-        test("can’t get messages for anonymous actor", async () => {
+        test("can\u2019t get messages for anonymous actor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -3097,7 +3097,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
         });
 
-        test("can’t get messages for private room from account who doesn’t have access", async () => {
+        test("can\u2019t get messages for private room from account who doesn\u2019t have access", async () => {
             const room = await createPrivateRoom(context.action(session1), space.id);
 
             expect(
@@ -4674,7 +4674,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can’t get messages from end when before cursor is greater than after cursor", async () => {
+        test("can\u2019t get messages from end when before cursor is greater than after cursor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -4905,7 +4905,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can’t get messages from end for room that doesn’t exist", async () => {
+        test("can\u2019t get messages from end for room that doesn\u2019t exist", async () => {
             await expect(
                 getMessagesFromEnd(context.action(session1), {
                     roomKey: getMissingRoomKey(),
@@ -4916,7 +4916,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(/not found/);
         });
 
-        test("can’t get messages from end for room in a different space", async () => {
+        test("can\u2019t get messages from end for room in a different space", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -4929,7 +4929,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
-        test("can’t get messages from end for anonymous actor", async () => {
+        test("can\u2019t get messages from end for anonymous actor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -4942,7 +4942,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
         });
 
-        test("can’t get messages from end for private room account doesn’t have access to", async () => {
+        test("can\u2019t get messages from end for private room account doesn\u2019t have access to", async () => {
             const room = await createPrivateRoom(context.action(session1), space.id);
 
             expect(
@@ -7960,7 +7960,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can’t backfill messages for room that doesn’t exist", async () => {
+        test("can\u2019t backfill messages for room that doesn\u2019t exist", async () => {
             const checkpoint = generateServerSynchronizationCheckpoint();
 
             const room = await createRoom(context.action(session1), space.id);
@@ -7996,7 +7996,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(/not found/);
         });
 
-        test("can’t backfill messages for a room in a different space", async () => {
+        test("can\u2019t backfill messages for a room in a different space", async () => {
             const checkpoint = generateServerSynchronizationCheckpoint();
 
             const room = await createRoom(context.action(session1), space.id);
@@ -8032,7 +8032,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
-        test("can’t backfill messages for a private room account doesn’t have access to", async () => {
+        test("can\u2019t backfill messages for a private room account doesn\u2019t have access to", async () => {
             const checkpoint = generateServerSynchronizationCheckpoint();
 
             const room = await createPrivateRoom(context.action(session1), space.id);
@@ -8775,7 +8775,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             expect(result.messages[1]!.payload.content).toEqual(content2);
         });
 
-        test("can’t get message payloads for room that doesn’t exist", async () => {
+        test("can\u2019t get message payloads for room that doesn\u2019t exist", async () => {
             await expect(
                 getMessagePayloadsFromStart(context.action(session1), {
                     roomKey: getMissingRoomKey(),
@@ -8786,7 +8786,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow();
         });
 
-        test("can’t get message payloads for room in a different space", async () => {
+        test("can\u2019t get message payloads for room in a different space", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -8799,7 +8799,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(spacePermissionDeniedErrorMessage);
         });
 
-        test("can’t get message payloads for anonymous actor", async () => {
+        test("can\u2019t get message payloads for anonymous actor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -8888,7 +8888,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             expect(result.messages[1]!.payload.content).toEqual(content3);
         });
 
-        test("can’t get message payloads from end for room that doesn’t exist", async () => {
+        test("can\u2019t get message payloads from end for room that doesn\u2019t exist", async () => {
             await expect(
                 getMessagePayloadsFromEnd(context.action(session1), {
                     roomKey: getMissingRoomKey(),
@@ -8899,7 +8899,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow();
         });
 
-        test("can’t get message payloads from end for room in a different space", async () => {
+        test("can\u2019t get message payloads from end for room in a different space", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -8912,7 +8912,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(spacePermissionDeniedErrorMessage);
         });
 
-        test("can’t get message payloads from end for anonymous actor", async () => {
+        test("can\u2019t get message payloads from end for anonymous actor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await expect(
@@ -9071,7 +9071,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             expect(result.messages[0]!.payload.content).toEqual(content1);
         });
 
-        test("can’t create message with invalid single message range", async () => {
+        test("can\u2019t create message with invalid single message range", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -9113,7 +9113,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow("Parent messages for range not found");
         });
 
-        test("can’t create message with invalid messages range", async () => {
+        test("can\u2019t create message with invalid messages range", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -9155,7 +9155,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow("Parent messages for range not found");
         });
 
-        test("can’t create message with message range that starts and ends in same deleted message", async () => {
+        test("can\u2019t create message with message range that starts and ends in same deleted message", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -9202,7 +9202,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow("Message range starts in deleted message");
         });
 
-        test("can’t create message with message range that starts and ends in deleted message", async () => {
+        test("can\u2019t create message with message range that starts and ends in deleted message", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -9254,7 +9254,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow("Message range starts in deleted message");
         });
 
-        test("can’t create message with message range that starts in deleted message", async () => {
+        test("can\u2019t create message with message range that starts in deleted message", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -9301,7 +9301,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow("Message range starts in deleted message");
         });
 
-        test("can’t create message with message range that ends in deleted message", async () => {
+        test("can\u2019t create message with message range that ends in deleted message", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -9348,7 +9348,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow("Message range ends in deleted message");
         });
 
-        test("can’t create message with message range with an invalid start version", async () => {
+        test("can\u2019t create message with message range with an invalid start version", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -9397,7 +9397,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow("Invalid message range start content version");
         });
 
-        test("can’t create message with message range that starts with an invalid start version", async () => {
+        test("can\u2019t create message with message range that starts with an invalid start version", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -9446,7 +9446,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow("Invalid message range start content version");
         });
 
-        test("can’t create message with message range that ends with an invalid start version", async () => {
+        test("can\u2019t create message with message range that ends with an invalid start version", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message2 = await createMessage(context.action(session1), {
@@ -9629,7 +9629,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("doesn’t currently check start or end position when creating message with message range parent", async () => {
+        test("doesn\u2019t currently check start or end position when creating message with message range parent", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message1 = await createMessage(context.action(session1), {
@@ -9672,7 +9672,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can’t create message with message range parent that contains two messages and the last one has a parent", async () => {
+        test("can\u2019t create message with message range parent that contains two messages and the last one has a parent", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message1 = await createMessage(context.action(session1), {
@@ -9711,10 +9711,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content4,
                     fileIds: [],
                 }),
-            ).rejects.toThrow("Message range can’t contain message with parent");
+            ).rejects.toThrow("Message range can\u2019t contain message with parent");
         });
 
-        test("can’t create message with message range parent that contains three messages and the middle one has a parent", async () => {
+        test("can\u2019t create message with message range parent that contains three messages and the middle one has a parent", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message1 = await createMessage(context.action(session1), {
@@ -9760,7 +9760,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                     fileIds: [],
                 }),
-            ).rejects.toThrow("Message range can’t contain message with parent");
+            ).rejects.toThrow("Message range can\u2019t contain message with parent");
         });
 
         test("can create message with message range parent that contains two messages and the first one has a parent", async () => {
@@ -9810,7 +9810,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can’t create message with message range parent that contains two messages and the last one has a different author", async () => {
+        test("can\u2019t create message with message range parent that contains two messages and the last one has a different author", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message1 = await createMessage(context.action(session1), {
@@ -9849,10 +9849,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content4,
                     fileIds: [],
                 }),
-            ).rejects.toThrow("Message range can’t contain messages from different authors");
+            ).rejects.toThrow("Message range can\u2019t contain messages from different authors");
         });
 
-        test("can’t create message with message range parent that contains three messages and the middle one has a different author", async () => {
+        test("can\u2019t create message with message range parent that contains three messages and the middle one has a different author", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             const message1 = await createMessage(context.action(session1), {
@@ -9898,7 +9898,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                     fileIds: [],
                 }),
-            ).rejects.toThrow("Message range can’t contain messages from different authors");
+            ).rejects.toThrow("Message range can\u2019t contain messages from different authors");
         });
 
         test("loading messages from end when a message includes message range parent includes all messages in the range", async () => {
@@ -10186,7 +10186,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t update stream message", async () => {
+            test("can\u2019t update stream message", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -10212,10 +10212,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         contentVersion: 0,
                         steps: [new ReplaceStep(5, 6, textSlice("2"))],
                     }),
-                ).rejects.toThrow(/^Can’t update clerical (message|comment) content$/);
+                ).rejects.toThrow(/^Can\u2019t update clerical (message|comment) content$/);
             });
 
-            test("can’t delete stream message", async () => {
+            test("can\u2019t delete stream message", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -10239,7 +10239,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
-                ).rejects.toThrow(/^Can’t delete clerical (messages|comments)$/);
+                ).rejects.toThrow(/^Can\u2019t delete clerical (messages|comments)$/);
             });
 
             test("message payload stream is null for non-stream message", async () => {
@@ -10268,7 +10268,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).toBeNull();
             });
 
-            test("can’t create stream message as a session actor", async () => {
+            test("can\u2019t create stream message as a session actor", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -10616,7 +10616,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t put stream message part if message isn’t a stream", async () => {
+            test("can\u2019t put stream message part if message isn\u2019t a stream", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -10644,10 +10644,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                             content: createSimpleMessageContent("Test part 1"),
                         },
                     }),
-                ).rejects.toThrow("Message isn’t a stream");
+                ).rejects.toThrow("Message isn\u2019t a stream");
             });
 
-            test("can’t put stream message part if bot is removed from the space", async () => {
+            test("can\u2019t put stream message part if bot is removed from the space", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -10679,7 +10679,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         },
                     }),
                 ).rejects.toThrow(
-                    /^(Bot actor doesn’t have access to chat|Account doesn’t have access to space)$/,
+                    /^(Bot actor doesn\u2019t have access to chat|Account doesn\u2019t have access to space)$/,
                 );
 
                 expect(
@@ -10695,7 +10695,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t put stream stream message part as a bot actor with the wrong scope", async () => {
+            test("can\u2019t put stream stream message part as a bot actor with the wrong scope", async () => {
                 const space = await TestSpace.create(context);
                 const session1 = await space.createSession({role: "Admin"});
                 const session2 = await space.createSession();
@@ -10738,7 +10738,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         },
                     }),
                 ).rejects.toThrow(
-                    /^(Bot actor doesn’t have access to chat|Actor doesn’t have `Comment` access level)$/,
+                    /^(Bot actor doesn\u2019t have access to chat|Actor doesn\u2019t have `Comment` access level)$/,
                 );
 
                 expect(
@@ -10754,7 +10754,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t put stream message part as the wrong bot", async () => {
+            test("can\u2019t put stream message part as the wrong bot", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -10785,7 +10785,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             content: createSimpleMessageContent("Test part 1"),
                         },
                     }),
-                ).rejects.toThrow("Can’t access account that’s not the actor’s");
+                ).rejects.toThrow("Can\u2019t access account that\u2019s not the actor\u2019s");
 
                 expect(
                     await getMessagePayload(session.action(), {
@@ -11065,7 +11065,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t put a same stream message part that’s not the last part", async () => {
+            test("can\u2019t put a same stream message part that\u2019s not the last part", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -11311,7 +11311,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t add more parts after completing stream message", async () => {
+            test("can\u2019t add more parts after completing stream message", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -11382,7 +11382,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t update part after completing stream message", async () => {
+            test("can\u2019t update part after completing stream message", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -11531,7 +11531,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t complete stream message part if message isn’t a stream", async () => {
+            test("can\u2019t complete stream message part if message isn\u2019t a stream", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -11554,10 +11554,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
-                ).rejects.toThrow("Message isn’t a stream");
+                ).rejects.toThrow("Message isn\u2019t a stream");
             });
 
-            test("can’t complete stream message part if bot is removed from the space", async () => {
+            test("can\u2019t complete stream message part if bot is removed from the space", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -11594,7 +11594,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     }),
                 ).rejects.toThrow(
-                    /^(Bot actor doesn’t have access to chat|Account doesn’t have access to space)$/,
+                    /^(Bot actor doesn\u2019t have access to chat|Account doesn\u2019t have access to space)$/,
                 );
 
                 expect(
@@ -11619,7 +11619,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t complete stream stream message part as a bot actor with the wrong scope", async () => {
+            test("can\u2019t complete stream stream message part as a bot actor with the wrong scope", async () => {
                 const space = await TestSpace.create(context);
                 const session1 = await space.createSession({role: "Admin"});
                 const session2 = await space.createSession();
@@ -11667,7 +11667,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message1.index,
                     }),
                 ).rejects.toThrow(
-                    /^(Bot actor doesn’t have access to chat|Actor doesn’t have `Comment` access level)$/,
+                    /^(Bot actor doesn\u2019t have access to chat|Actor doesn\u2019t have `Comment` access level)$/,
                 );
 
                 expect(
@@ -11692,7 +11692,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t complete stream message as the wrong bot", async () => {
+            test("can\u2019t complete stream message as the wrong bot", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -11728,7 +11728,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
-                ).rejects.toThrow("Can’t access account that’s not the actor’s");
+                ).rejects.toThrow("Can\u2019t access account that\u2019s not the actor\u2019s");
 
                 expect(
                     await getMessagePayload(session.action(), {
@@ -12451,7 +12451,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }
             });
 
-            test("putting a stream part update doesn’t change the parts original created time", async () => {
+            test("putting a stream part update doesn\u2019t change the parts original created time", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -12595,7 +12595,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ]);
             });
 
-            test("immediately putting a new stream part doesn’t send new index job", async () => {
+            test("immediately putting a new stream part doesn\u2019t send new index job", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -12644,7 +12644,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ]);
             });
 
-            test("immediately putting multiple stream parts doesn’t send new index job", async () => {
+            test("immediately putting multiple stream parts doesn\u2019t send new index job", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -12713,7 +12713,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ]);
             });
 
-            test("immediately putting a stream part update doesn’t send new index job", async () => {
+            test("immediately putting a stream part update doesn\u2019t send new index job", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -13379,7 +13379,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t complete stream message and put part update for timeout error", async () => {
+            test("can\u2019t complete stream message and put part update for timeout error", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -13445,7 +13445,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t complete stream message and put new part for timeout error if not system actor", async () => {
+            test("can\u2019t complete stream message and put new part for timeout error if not system actor", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -13509,7 +13509,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can complete stream message and put new part for timeout error twice (it’s idempotent)", async () => {
+            test("can complete stream message and put new part for timeout error twice (it\u2019s idempotent)", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -14622,7 +14622,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                 });
 
-                test("sends notification using current content when completing with timeout error on content part even when there’s a previous unfinished content part", async () => {
+                test("sends notification using current content when completing with timeout error on content part even when there\u2019s a previous unfinished content part", async () => {
                     const space = await TestSpace.create(context);
                     const session = await space.createSession({role: "Admin"});
                     const botAccount = await TestBot.createAndInstantiate(session);
@@ -14679,7 +14679,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                 });
 
-                test("doesn’t send notification when completing with timeout error if there was a previous finished content part", async () => {
+                test("doesn\u2019t send notification when completing with timeout error if there was a previous finished content part", async () => {
                     const space = await TestSpace.create(context);
                     const session = await space.createSession({role: "Admin"});
                     const botAccount = await TestBot.createAndInstantiate(session);
@@ -15375,7 +15375,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t add a reaction to room that doesn’t exist", async () => {
+            test("can\u2019t add a reaction to room that doesn\u2019t exist", async () => {
                 const space = await TestSpace.create(context);
                 const [, session2] = await space.createSessions(2);
 
@@ -15390,7 +15390,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).rejects.toThrow(/not found/);
             });
 
-            test("can’t add a reaction to message if session doesn’t have access to room", async () => {
+            test("can\u2019t add a reaction to message if session doesn\u2019t have access to room", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2, session3] = await space.createSessions(3);
 
@@ -15430,7 +15430,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         reaction: "GenericLike",
                     }),
                 ).rejects.toThrow(
-                    /^(Account doesn’t have access to chat|Actor doesn’t have `Comment` access level)$/,
+                    /^(Account doesn\u2019t have access to chat|Actor doesn\u2019t have `Comment` access level)$/,
                 );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
@@ -15438,7 +15438,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t add a reaction to deleted message", async () => {
+            test("can\u2019t add a reaction to deleted message", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -15473,10 +15473,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         pos: 26,
                         reaction: "GenericLike",
                     }),
-                ).rejects.toThrow("Can’t set reaction on messages with a non-content payload");
+                ).rejects.toThrow("Can\u2019t set reaction on messages with a non-content payload");
             });
 
-            test("can’t add a reaction beyond the end of the message", async () => {
+            test("can\u2019t add a reaction beyond the end of the message", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -15506,10 +15506,12 @@ export function testMessagingImplementation<RoomKey extends string>(
                         pos: 100,
                         reaction: "GenericLike",
                     }),
-                ).rejects.toThrow("Can’t set reaction with position outside the message’s bounds");
+                ).rejects.toThrow(
+                    "Can\u2019t set reaction with position outside the message\u2019s bounds",
+                );
             });
 
-            test("can’t add a reaction to position that’s at the end of a block node not after the block node", async () => {
+            test("can\u2019t add a reaction to position that\u2019s at the end of a block node not after the block node", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -15552,7 +15554,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t add a reaction to position that’s within a block node's content", async () => {
+            test("can\u2019t add a reaction to position that\u2019s within a block node's content", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -15595,7 +15597,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t add a reaction to position at the start of a block node's content", async () => {
+            test("can\u2019t add a reaction to position at the start of a block node's content", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -15638,7 +15640,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t add a reaction to position immediately after a nested block node", async () => {
+            test("can\u2019t add a reaction to position immediately after a nested block node", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -15724,7 +15726,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t add a reaction to position that’s at the start of the message", async () => {
+            test("can\u2019t add a reaction to position that\u2019s at the start of the message", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -15758,14 +15760,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                         pos: 0,
                         reaction: "GenericLike",
                     }),
-                ).rejects.toThrow("Can’t set reaction on the content’s start position");
+                ).rejects.toThrow("Can\u2019t set reaction on the content\u2019s start position");
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map(),
                 );
             });
 
-            test("can’t add a reaction to position that’s at the start of the first paragraph", async () => {
+            test("can\u2019t add a reaction to position that\u2019s at the start of the first paragraph", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -15978,7 +15980,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t add a reaction to future content version", async () => {
+            test("can\u2019t add a reaction to future content version", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -16012,14 +16014,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                         pos: 31,
                         reaction: "GenericLike",
                     }),
-                ).rejects.toThrow("Can’t set reaction with future content version");
+                ).rejects.toThrow("Can\u2019t set reaction with future content version");
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map(),
                 );
             });
 
-            test("can’t add a reaction with negative content version", async () => {
+            test("can\u2019t add a reaction with negative content version", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);
 
@@ -16053,7 +16055,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         pos: 31,
                         reaction: "GenericLike",
                     }),
-                ).rejects.toThrow("Can’t set reaction with negative content version");
+                ).rejects.toThrow("Can\u2019t set reaction with negative content version");
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map(),
@@ -16224,7 +16226,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can’t add a reaction to the last stream message part if stream isn’t complete", async () => {
+            test("can\u2019t add a reaction to the last stream message part if stream isn\u2019t complete", async () => {
                 const space = await TestSpace.create(context);
                 const session1 = await space.createSession({role: "Admin"});
                 const botAccount = await TestBot.createAndInstantiate(session1);
@@ -16296,7 +16298,9 @@ export function testMessagingImplementation<RoomKey extends string>(
                         pos: 39,
                         reaction: "GenericLike",
                     }),
-                ).rejects.toThrow("Can’t set reaction with position outside the message’s bounds");
+                ).rejects.toThrow(
+                    "Can\u2019t set reaction with position outside the message\u2019s bounds",
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map(),
@@ -17234,7 +17238,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("throws error when parent message doesn’t exist", async () => {
+            test("throws error when parent message doesn\u2019t exist", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession();
 
@@ -17250,7 +17254,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).rejects.toThrow(NotFoundError);
             });
 
-            test("throws error when user doesn’t have access to chat", async () => {
+            test("throws error when user doesn\u2019t have access to chat", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2, session3] = await space.createSessions(3);
 
@@ -17278,7 +17282,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).rejects.toThrow(PermissionDeniedError);
             });
 
-            test("returns ‘Deleted message’ content for deleted Message parent", async () => {
+            test("returns \u2018Deleted message\u2019 content for deleted Message parent", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession();
 

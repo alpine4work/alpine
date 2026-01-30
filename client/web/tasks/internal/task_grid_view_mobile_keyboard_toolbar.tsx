@@ -163,7 +163,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
         // covers! So you can still interact with the keyboard toolbar even if an
         // `<Overlay isBlocking={true}>` overlay is visible.
         useOverlayBlockingPortalElement(),
-        "Can’t server render `<TaskGridViewMobileKeyboardToolbarContainer>`",
+        "Can\u2019t server render `<TaskGridViewMobileKeyboardToolbarContainer>`",
     );
 
     const toolbarRef = useRef<HTMLDivElement>(null);
@@ -491,7 +491,7 @@ function TaskGridViewMobileKeyboardToolbarContent({
                 isActive={false}
                 flexGrow={1.1}
                 isDisabled={!onOpenPress}
-                pressErrorTitle="Couldn’t open task"
+                pressErrorTitle="Couldn\u2019t open task"
                 onPress={onOpenPress ?? noop}
             >
                 <Box
@@ -541,8 +541,8 @@ function TaskGridViewMobileKeyboardToolbarButton({
         onPress: event => {
             const defaultPressErrorTitle =
                 event.pointerType === "touch"
-                    ? "The button you tapped didn’t work"
-                    : "The button you clicked didn’t work";
+                    ? "The button you tapped didn\u2019t work"
+                    : "The button you clicked didn\u2019t work";
 
             let promise;
             try {

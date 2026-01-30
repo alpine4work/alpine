@@ -46,7 +46,7 @@ export async function authorizeSpaceAccess(
                 context.actor.getSpaceId() !== spaceId
             ) {
                 throw new PermissionDeniedError(
-                    "Impersonated account actor doesn’t have access to space",
+                    "Impersonated account actor doesn\u2019t have access to space",
                     {aggregateDedupeKey: spaceId},
                 );
             }
@@ -70,7 +70,7 @@ export async function authorizeSpaceAccess(
         }
         case "System": {
             if (context.actor.getSpaceId() !== spaceId) {
-                throw new PermissionDeniedError("System actor doesn’t have access to space", {
+                throw new PermissionDeniedError("System actor doesn\u2019t have access to space", {
                     aggregateDedupeKey: spaceId,
                 });
             }
@@ -122,7 +122,7 @@ export async function authorizeSpaceAccessIfPossible(
                         // When this function is called, frequently we only check `ok`. So lazily
                         // create an error only when needed.
                         error ??= new PermissionDeniedError(
-                            "Impersonated account actor doesn’t have access to space",
+                            "Impersonated account actor doesn\u2019t have access to space",
                             {aggregateDedupeKey: spaceId},
                         );
                         return error;
@@ -166,7 +166,7 @@ export async function authorizeSpaceAccessIfPossible(
                         // When this function is called, frequently we only check `ok`. So lazily
                         // create an error only when needed.
                         error ??= new PermissionDeniedError(
-                            "System actor doesn’t have access to space",
+                            "System actor doesn\u2019t have access to space",
                             {aggregateDedupeKey: spaceId},
                         );
                         return error;

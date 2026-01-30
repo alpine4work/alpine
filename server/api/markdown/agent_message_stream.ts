@@ -505,12 +505,12 @@ function removeOrderStartFromOrderedListItemsIfNeeded(
                 if (firstItemContentElement?.type === "paragraph") {
                     firstItemContentElement.children.unshift({
                         type: "html",
-                        value: `<span data-start=”${currentListStart}”/>`,
+                        value: `<span data-start=\u201D${currentListStart}\u201D/>`,
                     });
                 } else {
                     firstItem.children.unshift({
                         type: "html",
-                        value: `<span data-start=”${currentListStart}”/>`,
+                        value: `<span data-start=\u201D${currentListStart}\u201D/>`,
                     });
                 }
             }

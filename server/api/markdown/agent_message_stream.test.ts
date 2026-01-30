@@ -3846,7 +3846,7 @@ describe("headers", () => {
         ]);
     });
 
-    test("doesn’t add header if no space after #", async () => {
+    test("doesn\u2019t add header if no space after #", async () => {
         const {span} = testTracer.startSpan("Test `AgentMessageStream`");
 
         const message = new AgentMessageStream({
@@ -3911,7 +3911,7 @@ describe("headers", () => {
         ]);
     });
 
-    test("doesn’t add header to inline #", async () => {
+    test("doesn\u2019t add header to inline #", async () => {
         const {span} = testTracer.startSpan("Test `AgentMessageStream`");
 
         const message = new AgentMessageStream({

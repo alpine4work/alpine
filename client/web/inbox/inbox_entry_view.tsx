@@ -867,7 +867,7 @@ export function InboxEntryView({
                                 keyboardShortcutHint={
                                     isSelected ? (isAppleDevice ? "⌘+D" : "Ctrl+D") : undefined
                                 }
-                                pressErrorTitle="Couldn’t mark as done"
+                                pressErrorTitle="Couldn\u2019t mark as done"
                                 onPress={() => onArchive({withAnimation: false})}
                             >
                                 <Check />
@@ -878,7 +878,7 @@ export function InboxEntryView({
                                 actions={[
                                     {
                                         label: "Move to new",
-                                        pressErrorTitle: "Couldn’t move to new",
+                                        pressErrorTitle: "Couldn\u2019t move to new",
                                         onPress: onUnarchive,
                                     },
                                 ]}

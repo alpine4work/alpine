@@ -731,9 +731,9 @@ export const NativeMobileBridge: {
          * call and in subsequent calls you will never receive another device token.
          *
          * To learn more about this process from the native iOS code side read
-         * “[Registering your app with APNs][1].”
+         * "[Registering your app with APNs][1]."
          *
-         * We call these “Apple device tokens” instead of “iOS device tokens” because
+         * We call these "Apple device tokens" instead of "iOS device tokens" because
          * MacOS native apps use the same format.
          *
          * [1]: https://developer.apple.com/documentation/usernotifications/registering-your-app-with-apns

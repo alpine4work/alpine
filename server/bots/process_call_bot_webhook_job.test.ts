@@ -105,7 +105,7 @@ async function createTestServer(
     };
 }
 
-test("if webhook is successful it’s only called once", async () => {
+test("if webhook is successful it\u2019s only called once", async () => {
     let serverRequestCount = 0;
 
     const server = await createTestServer((req, res) => {
@@ -195,7 +195,7 @@ test("if webhook is successful it’s only called once", async () => {
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("if webhook is successful it’s only called once even if job is run multiple times in parallel", async () => {
+test("if webhook is successful it\u2019s only called once even if job is run multiple times in parallel", async () => {
     let serverRequestCount = 0;
 
     const server = await createTestServer((req, res) => {
@@ -328,7 +328,7 @@ test("if webhook is successful it’s only called once even if job is run multip
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("if job fails it’s scheduled to be run later up to three times", async () => {
+test("if job fails it\u2019s scheduled to be run later up to three times", async () => {
     const willFailServerRequest = true;
     let serverRequestCount = 0;
 
@@ -403,7 +403,7 @@ test("if job fails it’s scheduled to be run later up to three times", async ()
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("if job fails it’s scheduled to be run later up to three times (success after one try)", async () => {
+test("if job fails it\u2019s scheduled to be run later up to three times (success after one try)", async () => {
     let willFailServerRequest = true;
     let serverRequestCount = 0;
 
@@ -470,7 +470,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("if job fails it’s scheduled to be run later up to three times (success after two tries)", async () => {
+test("if job fails it\u2019s scheduled to be run later up to three times (success after two tries)", async () => {
     let willFailServerRequest = true;
     let serverRequestCount = 0;
 
@@ -637,7 +637,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("requests which don’t finish promptly are timed out and retried", async () => {
+test("requests which don\u2019t finish promptly are timed out and retried", async () => {
     const serverRequestPromiseResolvers: Array<PromiseResolver<void>> = [];
     let serverRequestCount = 0;
 
@@ -747,7 +747,7 @@ test("requests which don’t finish promptly are timed out and retried", async (
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("requests which don’t finish promptly are timed out and retried even if they finish shortly after", async () => {
+test("requests which don\u2019t finish promptly are timed out and retried even if they finish shortly after", async () => {
     let serverRequestPromiseResolvers: Array<PromiseResolver<void>> = [];
     let serverRequestCount = 0;
 
@@ -849,7 +849,7 @@ test("requests which don’t finish promptly are timed out and retried even if t
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("requests which don’t finish promptly and have a simulated process crash are retried next time the job is run", async () => {
+test("requests which don\u2019t finish promptly and have a simulated process crash are retried next time the job is run", async () => {
     let serverRequestPromiseResolvers: Array<PromiseResolver<void>> = [];
     let serverRequestCount = 0;
 

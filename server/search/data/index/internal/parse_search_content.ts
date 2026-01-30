@@ -362,7 +362,7 @@ export function parseSearchContent(
 
             case "math": {
                 throw new InternalError(
-                    "Unreachable, search Markdown parser doesn’t use math plugin",
+                    "Unreachable, search Markdown parser doesn\u2019t use math plugin",
                 );
             }
 
@@ -568,7 +568,7 @@ export function parseSearchContent(
 
             case "inlineMath": {
                 throw new InternalError(
-                    "Unreachable, search Markdown parser doesn’t use math plugin",
+                    "Unreachable, search Markdown parser doesn\u2019t use math plugin",
                 );
             }
 

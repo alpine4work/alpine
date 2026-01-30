@@ -729,7 +729,7 @@ test("can perform a multipart upload where parts are out of order", async () => 
     ).toBe(0);
 });
 
-test("can’t perform a multipart upload with an invalid content type", async () => {
+test("can\u2019t perform a multipart upload with an invalid content type", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -765,7 +765,7 @@ test("can’t perform a multipart upload with an invalid content type", async ()
     });
 });
 
-test("can’t perform a multipart upload with a content length of 0", async () => {
+test("can\u2019t perform a multipart upload with a content length of 0", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -795,11 +795,11 @@ test("can’t perform a multipart upload with a content length of 0", async () =
 
     expect(createMultipartUploadResponseBody).toEqual({
         ok: false,
-        error: new InvalidArgumentError("Can’t upload file with `Content-Length` of 0 B"),
+        error: new InvalidArgumentError("Can\u2019t upload file with `Content-Length` of 0 B"),
     });
 });
 
-test("can’t perform a multipart upload with a content length larger than our max length", async () => {
+test("can\u2019t perform a multipart upload with a content length larger than our max length", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -835,7 +835,7 @@ test("can’t perform a multipart upload with a content length larger than our m
     });
 });
 
-test("can’t perform a multipart upload with a space actor", async () => {
+test("can\u2019t perform a multipart upload with a space actor", async () => {
     const space = await TestSpace.create(context);
 
     const createMultipartUploadResponse = await fetch(
@@ -868,7 +868,7 @@ test("can’t perform a multipart upload with a space actor", async () => {
     });
 });
 
-test("can’t put a multipart upload part with POST method", async () => {
+test("can\u2019t put a multipart upload part with POST method", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -929,7 +929,7 @@ test("can’t put a multipart upload part with POST method", async () => {
     });
 });
 
-test("can’t put a multipart upload part without upload search param", async () => {
+test("can\u2019t put a multipart upload part without upload search param", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -990,7 +990,7 @@ test("can’t put a multipart upload part without upload search param", async ()
     });
 });
 
-test("can’t put a multipart upload part with non-integer part number", async () => {
+test("can\u2019t put a multipart upload part with non-integer part number", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1051,7 +1051,7 @@ test("can’t put a multipart upload part with non-integer part number", async (
     });
 });
 
-test("can’t put a multipart upload part with size larger than our max upload part size", async () => {
+test("can\u2019t put a multipart upload part with size larger than our max upload part size", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1114,7 +1114,7 @@ test("can’t put a multipart upload part with size larger than our max upload p
     });
 });
 
-test("can’t put a multipart upload part with space actor", async () => {
+test("can\u2019t put a multipart upload part with space actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1175,7 +1175,7 @@ test("can’t put a multipart upload part with space actor", async () => {
     });
 });
 
-test("can’t put a multipart upload part with greater part number than the file allows", async () => {
+test("can\u2019t put a multipart upload part with greater part number than the file allows", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1236,7 +1236,7 @@ test("can’t put a multipart upload part with greater part number than the file
     });
 });
 
-test("can’t complete a multipart upload without the upload search param", async () => {
+test("can\u2019t complete a multipart upload without the upload search param", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1361,7 +1361,7 @@ test("can’t complete a multipart upload without the upload search param", asyn
     });
 });
 
-test("can’t complete a multipart upload with system actor", async () => {
+test("can\u2019t complete a multipart upload with system actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1486,7 +1486,7 @@ test("can’t complete a multipart upload with system actor", async () => {
     });
 });
 
-test("can’t complete a multipart upload with missing parts", async () => {
+test("can\u2019t complete a multipart upload with missing parts", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1612,7 +1612,7 @@ test("can’t complete a multipart upload with missing parts", async () => {
     });
 });
 
-test("can’t complete a multipart upload when the object is larger than what was declared", async () => {
+test("can\u2019t complete a multipart upload when the object is larger than what was declared", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1739,7 +1739,7 @@ test("can’t complete a multipart upload when the object is larger than what wa
     });
 });
 
-test("can’t complete a multipart upload when the object is smaller than what was declared", async () => {
+test("can\u2019t complete a multipart upload when the object is smaller than what was declared", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 

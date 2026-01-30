@@ -119,7 +119,7 @@ export function testMessagingApiImplementation(
             ).toEqual("Hello, world!\n");
         });
 
-        test("can’t read message in room bot doesn’t have access to", async () => {
+        test("can\u2019t read message in room bot doesn\u2019t have access to", async () => {
             const space = await TestSpace.create(context);
             const session1 = await space.createSession({role: "Admin"});
             const session2 = await space.createSession();
@@ -140,13 +140,15 @@ export function testMessagingApiImplementation(
                 headers: expect.objectContaining({"content-type": "application/json"}),
                 body: {
                     error: expect.objectContaining({
-                        message: expect.stringMatching(/(don’t have access|You aren’t allowed)/),
+                        message: expect.stringMatching(
+                            /(don\u2019t have access|You aren\u2019t allowed)/,
+                        ),
                     }),
                 },
             });
         });
 
-        test("can’t read message from room that doesn’t exist", async () => {
+        test("can\u2019t read message from room that doesn\u2019t exist", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -162,13 +164,13 @@ export function testMessagingApiImplementation(
                 headers: expect.objectContaining({"content-type": "application/json"}),
                 body: {
                     error: expect.objectContaining({
-                        message: expect.stringContaining("doesn’t exist"),
+                        message: expect.stringContaining("doesn\u2019t exist"),
                     }),
                 },
             });
         });
 
-        test("can’t read message that doesn’t exist in room", async () => {
+        test("can\u2019t read message that doesn\u2019t exist in room", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -188,13 +190,13 @@ export function testMessagingApiImplementation(
                 headers: expect.objectContaining({"content-type": "application/json"}),
                 body: {
                     error: expect.objectContaining({
-                        message: expect.stringContaining("doesn’t exist"),
+                        message: expect.stringContaining("doesn\u2019t exist"),
                     }),
                 },
             });
         });
 
-        test("can read message with room’s scope", async () => {
+        test("can read message with room\u2019s scope", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -596,7 +598,7 @@ export function testMessagingApiImplementation(
             ).toEqual("Hello, world!\n");
         });
 
-        test("can’t send message to room that doesn’t exist", async () => {
+        test("can\u2019t send message to room that doesn\u2019t exist", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -622,13 +624,13 @@ export function testMessagingApiImplementation(
                 headers: expect.objectContaining({"content-type": "application/json"}),
                 body: {
                     error: expect.objectContaining({
-                        message: expect.stringContaining("doesn’t exist"),
+                        message: expect.stringContaining("doesn\u2019t exist"),
                     }),
                 },
             });
         });
 
-        test("can’t send message to room bot doesn’t have access to", async () => {
+        test("can\u2019t send message to room bot doesn\u2019t have access to", async () => {
             const space = await TestSpace.create(context);
             const session1 = await space.createSession({role: "Admin"});
             const session2 = await space.createSession();
@@ -657,13 +659,15 @@ export function testMessagingApiImplementation(
                 headers: expect.objectContaining({"content-type": "application/json"}),
                 body: {
                     error: expect.objectContaining({
-                        message: expect.stringMatching(/(don’t have access|You aren’t allowed)/),
+                        message: expect.stringMatching(
+                            /(don\u2019t have access|You aren\u2019t allowed)/,
+                        ),
                     }),
                 },
             });
         });
 
-        test("can create message with room’s scope", async () => {
+        test("can create message with room\u2019s scope", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -887,7 +891,7 @@ export function testMessagingApiImplementation(
             ).toEqual("Hello, world!\n");
         });
 
-        test("can’t read messages in room bot doesn’t have access to", async () => {
+        test("can\u2019t read messages in room bot doesn\u2019t have access to", async () => {
             const space = await TestSpace.create(context);
             const session1 = await space.createSession({role: "Admin"});
             const session2 = await space.createSession();
@@ -908,13 +912,15 @@ export function testMessagingApiImplementation(
                 headers: expect.objectContaining({"content-type": "application/json"}),
                 body: {
                     error: expect.objectContaining({
-                        message: expect.stringMatching(/(don’t have access|You aren’t allowed)/),
+                        message: expect.stringMatching(
+                            /(don\u2019t have access|You aren\u2019t allowed)/,
+                        ),
                     }),
                 },
             });
         });
 
-        test("can’t read messages from room that doesn’t exist", async () => {
+        test("can\u2019t read messages from room that doesn\u2019t exist", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -930,13 +936,13 @@ export function testMessagingApiImplementation(
                 headers: expect.objectContaining({"content-type": "application/json"}),
                 body: {
                     error: expect.objectContaining({
-                        message: expect.stringContaining("doesn’t exist"),
+                        message: expect.stringContaining("doesn\u2019t exist"),
                     }),
                 },
             });
         });
 
-        test("can read messages with room’s scope", async () => {
+        test("can read messages with room\u2019s scope", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1849,7 +1855,7 @@ export function testMessagingApiImplementation(
             ).toEqual("Hello, *world*!\n");
         });
 
-        test("can create message with highlight mark that’s dropped", async () => {
+        test("can create message with highlight mark that\u2019s dropped", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1900,7 +1906,7 @@ export function testMessagingApiImplementation(
             ).toEqual("Hello, world!\n");
         });
 
-        test("can create message with comment mark that’s dropped", async () => {
+        test("can create message with comment mark that\u2019s dropped", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -2283,7 +2289,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t put stream message part if message isn’t a stream", async () => {
+            test("can\u2019t put stream message part if message isn\u2019t a stream", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -2323,11 +2329,13 @@ export function testMessagingApiImplementation(
                 ).toEqual({
                     status: 400,
                     headers: expect.objectContaining({"content-type": "application/json"}),
-                    body: {error: expect.objectContaining({message: "Message isn’t a stream."})},
+                    body: {
+                        error: expect.objectContaining({message: "Message isn\u2019t a stream."}),
+                    },
                 });
             });
 
-            test("can’t put stream message part if bot is removed from the space", async () => {
+            test("can\u2019t put stream message part if bot is removed from the space", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -2377,7 +2385,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t put stream stream message part as a bot actor with the wrong scope", async () => {
+            test("can\u2019t put stream stream message part as a bot actor with the wrong scope", async () => {
                 const space = await TestSpace.create(context);
                 const session1 = await space.createSession({role: "Admin"});
                 const session2 = await space.createSession();
@@ -2427,7 +2435,7 @@ export function testMessagingApiImplementation(
                     body: {
                         error: expect.objectContaining({
                             message: expect.stringMatching(
-                                /^You don’t have access|^You aren’t allowed/,
+                                /^You don\u2019t have access|^You aren\u2019t allowed/,
                             ),
                         }),
                     },
@@ -2454,7 +2462,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t put stream message part as the wrong bot", async () => {
+            test("can\u2019t put stream message part as the wrong bot", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -2905,7 +2913,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t put a same stream message part that’s not the last part", async () => {
+            test("can\u2019t put a same stream message part that\u2019s not the last part", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -3220,7 +3228,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t add more parts after completing stream message", async () => {
+            test("can\u2019t add more parts after completing stream message", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -3321,7 +3329,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t update part after completing stream message", async () => {
+            test("can\u2019t update part after completing stream message", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -3511,7 +3519,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t complete stream message part if message isn’t a stream", async () => {
+            test("can\u2019t complete stream message part if message isn\u2019t a stream", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -3536,11 +3544,13 @@ export function testMessagingApiImplementation(
                 ).toEqual({
                     status: 400,
                     headers: expect.objectContaining({"content-type": "application/json"}),
-                    body: {error: expect.objectContaining({message: "Message isn’t a stream."})},
+                    body: {
+                        error: expect.objectContaining({message: "Message isn\u2019t a stream."}),
+                    },
                 });
             });
 
-            test("can’t complete stream message part if bot is removed from the space", async () => {
+            test("can\u2019t complete stream message part if bot is removed from the space", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -3597,7 +3607,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t complete stream stream message part as a bot actor with the wrong scope", async () => {
+            test("can\u2019t complete stream stream message part as a bot actor with the wrong scope", async () => {
                 const space = await TestSpace.create(context);
                 const session1 = await space.createSession({role: "Admin"});
                 const session2 = await space.createSession();
@@ -3654,7 +3664,7 @@ export function testMessagingApiImplementation(
                     body: {
                         error: expect.objectContaining({
                             message: expect.stringMatching(
-                                /^You don’t have access|^You aren’t allowed/,
+                                /^You don\u2019t have access|^You aren\u2019t allowed/,
                             ),
                         }),
                     },
@@ -3688,7 +3698,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t complete stream message as the wrong bot", async () => {
+            test("can\u2019t complete stream message as the wrong bot", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -3769,7 +3779,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t ping stream message without access", async () => {
+            test("can\u2019t ping stream message without access", async () => {
                 const space = await TestSpace.create(context);
                 const session1 = await space.createSession({role: "Admin"});
                 const session2 = await space.createSession({role: "Admin"});
@@ -3806,7 +3816,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t ping stream that is already completed", async () => {
+            test("can\u2019t ping stream that is already completed", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -3839,7 +3849,7 @@ export function testMessagingApiImplementation(
                     headers: expect.objectContaining({"content-type": "application/json"}),
                     body: expect.objectContaining({
                         error: expect.objectContaining({
-                            message: "Can’t ping a message stream that has been completed.",
+                            message: "Can\u2019t ping a message stream that has been completed.",
                             stack: expect.stringContaining(
                                 "FailedPreconditionError: The stream has been completed",
                             ),
@@ -3848,7 +3858,7 @@ export function testMessagingApiImplementation(
                 });
             });
 
-            test("can’t ping stale stream", async () => {
+            test("can\u2019t ping stale stream", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -3881,7 +3891,7 @@ export function testMessagingApiImplementation(
                         body: expect.objectContaining({
                             error: expect.objectContaining({
                                 message: expect.stringMatching(
-                                    "Can’t ping a message stream that has timed out",
+                                    "Can\u2019t ping a message stream that has timed out",
                                 ),
                                 stack: expect.stringContaining(
                                     "FailedPreconditionError: The stream has timed out",
@@ -3894,7 +3904,7 @@ export function testMessagingApiImplementation(
                 }
             });
 
-            test("can’t complete stale stream", async () => {
+            test("can\u2019t complete stale stream", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -3927,7 +3937,7 @@ export function testMessagingApiImplementation(
                         body: expect.objectContaining({
                             error: expect.objectContaining({
                                 message: expect.stringMatching(
-                                    "Can’t complete a message stream that has timed out",
+                                    "Can\u2019t complete a message stream that has timed out",
                                 ),
                                 stack: expect.stringContaining(
                                     "FailedPreconditionError: The stream has timed out",
@@ -3940,7 +3950,7 @@ export function testMessagingApiImplementation(
                 }
             });
 
-            test("can’t put stream part into stale stream", async () => {
+            test("can\u2019t put stream part into stale stream", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -3988,7 +3998,7 @@ export function testMessagingApiImplementation(
                         body: expect.objectContaining({
                             error: expect.objectContaining({
                                 message: expect.stringMatching(
-                                    "Can’t put message part for a message stream that has timed out",
+                                    "Can\u2019t put message part for a message stream that has timed out",
                                 ),
                                 stack: expect.stringContaining(
                                     "FailedPreconditionError: The stream has timed out",
@@ -4025,7 +4035,7 @@ export function testMessagingApiImplementation(
                 expect(pingResponse).toEqual(expect.objectContaining({status: 200}));
             });
 
-            test("can’t ping message that is not a stream", async () => {
+            test("can\u2019t ping message that is not a stream", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({name: "Alice Smith", role: "Admin"});
 
@@ -4051,16 +4061,16 @@ export function testMessagingApiImplementation(
                     headers: expect.objectContaining({"content-type": "application/json"}),
                     body: expect.objectContaining({
                         error: expect.objectContaining({
-                            message: "Message isn’t a stream.",
+                            message: "Message isn\u2019t a stream.",
                             stack: expect.stringContaining(
-                                "FailedPreconditionError: Message isn’t a stream",
+                                "FailedPreconditionError: Message isn\u2019t a stream",
                             ),
                         }),
                     }),
                 });
             });
 
-            test("can’t ping message stream created by another bot", async () => {
+            test("can\u2019t ping message stream created by another bot", async () => {
                 const space = await TestSpace.create(context);
                 const session1 = await space.createSession({role: "Admin"});
 

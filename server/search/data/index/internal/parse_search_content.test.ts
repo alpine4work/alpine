@@ -7,7 +7,7 @@ import {parseSearchContent} from "~/server/search/data/index/internal/parse_sear
 test("properly highlights content with `<em>` HTML tags", () => {
     expect(
         parseSearchContent(
-            `The <em>word</em> <em>hella</em> was a slang term used mostly in the San Francisco Bay Area and other parts of California to mean “very”. Having toured in the Bay Area, Stefani borrowed the term to describe her mood. Stefani wanted to use the <em>word</em> dance in a chorus, so she decided to end each line of “<em>Hella</em> Good”’s chorus with the phrase “keep on dancing”.`,
+            `The <em>word</em> <em>hella</em> was a slang term used mostly in the San Francisco Bay Area and other parts of California to mean \u201Cvery\u201D. Having toured in the Bay Area, Stefani borrowed the term to describe her mood. Stefani wanted to use the <em>word</em> dance in a chorus, so she decided to end each line of \u201C<em>Hella</em> Good\u201D\u2019s chorus with the phrase \u201Ckeep on dancing\u201D.`,
             {shouldParseEmphasisHtmlTagAsHighlight: true},
         ).toJSON(),
     ).toEqual({
@@ -30,7 +30,7 @@ test("properly highlights content with `<em>` HTML tags", () => {
                     },
                     {
                         type: "text",
-                        text: " was a slang term used mostly in the San Francisco Bay Area and other parts of California to mean “very”. Having toured in the Bay Area, Stefani borrowed the term to describe her mood. Stefani wanted to use the ",
+                        text: " was a slang term used mostly in the San Francisco Bay Area and other parts of California to mean \u201Cvery\u201D. Having toured in the Bay Area, Stefani borrowed the term to describe her mood. Stefani wanted to use the ",
                     },
                     {
                         type: "text",
@@ -39,14 +39,17 @@ test("properly highlights content with `<em>` HTML tags", () => {
                     },
                     {
                         type: "text",
-                        text: " dance in a chorus, so she decided to end each line of “",
+                        text: " dance in a chorus, so she decided to end each line of \u201C",
                     },
                     {
                         type: "text",
                         marks: [{type: "highlight", attrs: {color: "orange"}}],
                         text: "Hella",
                     },
-                    {type: "text", text: " Good”’s chorus with the phrase “keep on dancing”."},
+                    {
+                        type: "text",
+                        text: " Good\u201D\u2019s chorus with the phrase \u201Ckeep on dancing\u201D.",
+                    },
                 ],
             },
         ],
@@ -428,7 +431,7 @@ test("works when certain nodes have empty text", () => {
     });
 });
 
-test("doesn’t parse marks in a code block", () => {
+test("doesn\u2019t parse marks in a code block", () => {
     expect(parseSearchContent("This is a\n```\nfoo**bar**\n```\ncode block").toJSON()).toEqual({
         type: "doc",
         content: [
@@ -764,7 +767,7 @@ b3
     });
 });
 
-test("can parse a table that hasn’t been closed", () => {
+test("can parse a table that hasn\u2019t been closed", () => {
     expect(
         parseSearchContent(`\
 <table><tbody><tr><td>
@@ -1224,7 +1227,7 @@ test("preprocesses blockquotes with 4+ spaces before list markers", () => {
     // Test with highlights enabled (the original failing case)
     expect(
         parseSearchContent(
-            `>     - \`state.blockConcurrencyWhile\` can appear to “complete” from user <em>code’s</em> perspective`,
+            `>     - \`state.blockConcurrencyWhile\` can appear to \u201Ccomplete\u201D from user <em>code\u2019s</em> perspective`,
             {shouldParseEmphasisHtmlTagAsHighlight: true},
         ).toJSON(),
     ).toEqual({
@@ -1242,10 +1245,10 @@ test("preprocesses blockquotes with 4+ spaces before list markers", () => {
                                 text: "state.blockConcurrencyWhile",
                                 marks: [{type: "code"}],
                             },
-                            {type: "text", text: " can appear to “complete” from user "},
+                            {type: "text", text: " can appear to \u201Ccomplete\u201D from user "},
                             {
                                 type: "text",
-                                text: "code’s",
+                                text: "code\u2019s",
                                 marks: [{type: "highlight", attrs: {color: "orange"}}],
                             },
                             {type: "text", text: " perspective"},

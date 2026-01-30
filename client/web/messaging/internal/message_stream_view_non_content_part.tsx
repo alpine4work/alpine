@@ -108,7 +108,9 @@ function renderMessageStreamNonContentPart(
                 }
                 case "Search": {
                     const html = new HtmlElementGenerator("span");
-                    html.appendChild(new HtmlTextGenerator(`Searching “${part.call.query}”`));
+                    html.appendChild(
+                        new HtmlTextGenerator(`Searching \u201C${part.call.query}\u201D`),
+                    );
                     return html;
                 }
                 default:

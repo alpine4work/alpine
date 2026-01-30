@@ -303,7 +303,7 @@ export function ContentView<Content extends ContentWithReferences>({
 }: ContentViewProps<Content>) {
     assert(
         !content.doc.type.schema.nodes.file || fileAttachmentTarget,
-        "ProseMirror schema supports files but `fileAttachmentTarget` prop isn’t provided",
+        "ProseMirror schema supports files but `fileAttachmentTarget` prop isn\u2019t provided",
     );
 
     const rootNavigate = useRootNavigate();
@@ -928,7 +928,7 @@ export function ContentView<Content extends ContentWithReferences>({
                             fileAttachmentTarget ?? null,
                             content.doc.slice(pos, pos + node.nodeSize),
                         ).catch(error => {
-                            reporter.displayError("Couldn’t copy code", error);
+                            reporter.displayError("Couldn\u2019t copy code", error);
                         });
 
                         handleCodeBlockCopyButtonPress(element);

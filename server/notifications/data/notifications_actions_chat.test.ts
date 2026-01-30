@@ -656,7 +656,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("account can not see mention in chat they don’t have access to", async () => {
+        test("account can not see mention in chat they don\u2019t have access to", async () => {
             const scenario = await createNotificationsTestScenario(context);
 
             const chat1 = await TestChat.get(
@@ -1201,7 +1201,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("can not observe inbox in a space you don’t have access to", async () => {
+        test("can not observe inbox in a space you don\u2019t have access to", async () => {
             const scenario = await createNotificationsTestScenario(context);
 
             await expect(
@@ -1875,7 +1875,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("can’t archive inbox entries in space account lost access to", async () => {
+        test("can\u2019t archive inbox entries in space account lost access to", async () => {
             const scenario = await createNotificationsTestScenario(context);
 
             const chat1 = await TestChat.get(
@@ -1922,10 +1922,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         key: {type: "Chat", chatId: chat1.id},
                     },
                 ),
-            ).rejects.toThrow("Account doesn’t have access to space");
+            ).rejects.toThrow("Account doesn\u2019t have access to space");
         });
 
-        test("can’t archive inbox entries that don’t exist", async () => {
+        test("can\u2019t archive inbox entries that don\u2019t exist", async () => {
             const scenario = await createNotificationsTestScenario(context);
 
             const chat1 = await TestChat.get(
@@ -2701,7 +2701,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("clerical message with empty content doesn’t increment loud notification count", async () => {
+        test("clerical message with empty content doesn\u2019t increment loud notification count", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -2743,7 +2743,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("clerical message with content doesn’t increment loud notification count", async () => {
+        test("clerical message with content doesn\u2019t increment loud notification count", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -3025,7 +3025,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
         });
 
-        test("private entity in mention isn’t included in chat notification", async () => {
+        test("private entity in mention isn\u2019t included in chat notification", async () => {
             const space = await TestSpace.create(context);
 
             const [session1, session2, session3] = await space.createSessions(3);
@@ -3297,7 +3297,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ).toEqual(new Set([bot2EventId]));
         });
 
-        test("doesn’t call bot webhook if own bot sends the message", async () => {
+        test("doesn\u2019t call bot webhook if own bot sends the message", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot = await TestBot.createAndInstantiate(session);
@@ -3315,7 +3315,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(callBotWebhookJobs).toEqual([]);
         });
 
-        test("doesn’t call bot webhook if own bot sends the message but calls webhook for other bots", async () => {
+        test("doesn\u2019t call bot webhook if own bot sends the message but calls webhook for other bots", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot1 = await TestBot.createAndInstantiate(session);
@@ -3379,7 +3379,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("setting a reaction on a chat message that’s not the latest comment archives the chat message inbox entry", async () => {
+        test("setting a reaction on a chat message that\u2019s not the latest comment archives the chat message inbox entry", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 

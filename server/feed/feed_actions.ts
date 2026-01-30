@@ -163,7 +163,9 @@ export async function addFeedCandidateEntry(
     await authorizeSpaceAccess(context, spaceId);
 
     if (entry.type === "Welcome") {
-        throw new InvalidArgumentError("Can’t add welcome feed entry as a feed candidate entry");
+        throw new InvalidArgumentError(
+            "Can\u2019t add welcome feed entry as a feed candidate entry",
+        );
     }
 
     await context.dynamo.retryTransaction(async context => {
@@ -268,7 +270,7 @@ export async function addFeedAccountCandidateEntry(
 
     if (entry.type === "Welcome") {
         throw new InvalidArgumentError(
-            "Can’t add welcome feed entry as a feed account candidate entry",
+            "Can\u2019t add welcome feed entry as a feed account candidate entry",
         );
     }
 

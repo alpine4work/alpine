@@ -39,7 +39,7 @@ export function computeSetMessageReaction({
     if (clientPos === "Files") {
         if (message.payload.type !== "Content") {
             throw new FailedPreconditionError(
-                "Can’t set reaction on messages with a non-content payload",
+                "Can\u2019t set reaction on messages with a non-content payload",
             );
         }
 
@@ -99,7 +99,7 @@ export function findMessageReactionPosIfPossible({
         return {
             ok: false,
             error: new FailedPreconditionError(
-                "Can’t set reaction on messages with a non-content payload",
+                "Can\u2019t set reaction on messages with a non-content payload",
             ),
         };
     }
@@ -140,14 +140,18 @@ export function findMessageReactionPosIfPossible({
     if (clientContentVersion < 0) {
         return {
             ok: false,
-            error: new InvalidArgumentError("Can’t set reaction with negative content version"),
+            error: new InvalidArgumentError(
+                "Can\u2019t set reaction with negative content version",
+            ),
         };
     }
 
     if (clientContentVersion > contentVersion) {
         return {
             ok: false,
-            error: new FailedPreconditionError("Can’t set reaction with future content version"),
+            error: new FailedPreconditionError(
+                "Can\u2019t set reaction with future content version",
+            ),
         };
     }
 
@@ -161,7 +165,7 @@ export function findMessageReactionPosIfPossible({
     if (clientPos < 0) {
         return {
             ok: false,
-            error: new InvalidArgumentError("Can’t set reaction with negative position"),
+            error: new InvalidArgumentError("Can\u2019t set reaction with negative position"),
         };
     }
 
@@ -172,7 +176,7 @@ export function findMessageReactionPosIfPossible({
         return {
             ok: false,
             error: new FailedPreconditionError(
-                "Can’t set reaction with position outside the message’s bounds",
+                "Can\u2019t set reaction with position outside the message\u2019s bounds",
             ),
         };
     }
@@ -188,7 +192,7 @@ export function findMessageReactionPosIfPossible({
         return {
             ok: false,
             error: new FailedPreconditionError(
-                "Can’t set reaction on the content’s start position",
+                "Can\u2019t set reaction on the content\u2019s start position",
             ),
         };
     }

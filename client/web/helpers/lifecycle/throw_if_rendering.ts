@@ -20,5 +20,5 @@ export function throwIfRendering() {
         return;
     }
 
-    throw new InternalError("Can’t call this function while React is rendering");
+    throw new InternalError("Can\u2019t call this function while React is rendering");
 }

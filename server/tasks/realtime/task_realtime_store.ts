@@ -150,7 +150,7 @@ export class TaskRealtimeStore {
                 // error.
                 if (this._isDestroyed) {
                     throw new InternalError(
-                        "Can’t return result because task realtime query store was destroyed",
+                        "Can\u2019t return result because task realtime query store was destroyed",
                     );
                 }
 

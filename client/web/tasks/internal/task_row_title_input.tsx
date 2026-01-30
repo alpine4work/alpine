@@ -618,7 +618,7 @@ function TaskRowTitleInput(
     // dashes (`---`) in the text below.
     //
     // ```
-    // this is another subtask that's very long, i’m going to just keep typing
+    // this is another subtask that's very long, i'm going to just keep typing
     // in it until it wraps onto a new line ----------------------------------
     // ```
     //

@@ -491,7 +491,7 @@ function DocumentContentCoverModalMobileView({
                             <Button
                                 fontSize="100"
                                 isDisabled={saveDisabled}
-                                pressErrorTitle="Couldn’t save cover"
+                                pressErrorTitle="Couldn\u2019t save cover"
                                 onPress={() => {
                                     onSave();
                                 }}

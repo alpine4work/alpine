@@ -117,8 +117,8 @@ export function deserializeMessageIndexForLoader(
     ) {
         throw new NotFoundError(`Invalid ${messageNoun} index`, {
             displayMessage: {
-                message: errorDisplayMessage`This message doesn’t exist. Try searching “my messages” to see messages you’ve created.`,
-                comment: errorDisplayMessage`This comment doesn’t exist. Try searching “my comments” to see comments you’ve created.`,
+                message: errorDisplayMessage`This message doesn\u2019t exist. Try searching \u201Cmy messages\u201D to see messages you\u2019ve created.`,
+                comment: errorDisplayMessage`This comment doesn\u2019t exist. Try searching \u201Cmy comments\u201D to see comments you\u2019ve created.`,
             }[messageNoun],
         });
     }

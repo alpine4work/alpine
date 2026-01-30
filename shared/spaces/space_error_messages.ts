@@ -9,7 +9,7 @@ import {SpaceRole} from "~/shared/spaces/space_model.js";
  * Error message we show when the user is signed in but doesn't have access to
  * the space they're trying to view.
  */
-export const spaceAccessPermissionDeniedErrorDisplayMessage = errorDisplayMessage`You don’t have access to this space. Try ${errorDisplayMessage.switchSpaceLink(
+export const spaceAccessPermissionDeniedErrorDisplayMessage = errorDisplayMessage`You don\u2019t have access to this space. Try ${errorDisplayMessage.switchSpaceLink(
     "switching spaces",
 )} or ${errorDisplayMessage.signOutLink("signing out")}.`;
 
@@ -21,15 +21,15 @@ export const spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole: Recor
     ErrorDisplayMessage
 > = {
     Member: spaceAccessPermissionDeniedErrorDisplayMessage,
-    Admin: errorDisplayMessage`You aren’t an admin for this space. Ask an admin in this space to give you admin access too.`,
-    Owner: errorDisplayMessage`This action is restricted to the owner. You aren’t an owner for this space.`,
+    Admin: errorDisplayMessage`You aren\u2019t an admin for this space. Ask an admin in this space to give you admin access too.`,
+    Owner: errorDisplayMessage`This action is restricted to the owner. You aren\u2019t an owner for this space.`,
 };
 
 /**
  * When a space isn't found, we treat it as permission denied.
  */
 export function createSpaceNotFoundError(spaceId: string | undefined) {
-    return new PermissionDeniedError("Account doesn’t have access to space", {
+    return new PermissionDeniedError("Account doesn\u2019t have access to space", {
         aggregateDedupeKey: spaceId,
         displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
     });
@@ -45,8 +45,8 @@ export function createAuthorizeSpaceAccessPermissionDeniedError(
 
     return new PermissionDeniedError(
         expectedRole === "Member"
-            ? "Account doesn’t have access to space"
-            : quote`Account doesn’t have ${expectedRole} access to space`,
+            ? "Account doesn\u2019t have access to space"
+            : quote`Account doesn\u2019t have ${expectedRole} access to space`,
         {
             aggregateDedupeKey: `${spaceId}:${accountId}`,
             displayMessage,

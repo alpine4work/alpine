@@ -286,7 +286,7 @@ test("can only start uploading and processing a file if you have access to the s
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can’t start uploading and processing files that exceed byte limit", async () => {
+test("can\u2019t start uploading and processing files that exceed byte limit", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -479,7 +479,7 @@ test("can finish file processing preview size and preview placeholder in any ord
     );
 });
 
-test("can’t finish file preview processing with a different account", async () => {
+test("can\u2019t finish file preview processing with a different account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
     const otherSession = await space.createSession();
@@ -518,14 +518,14 @@ test("can’t finish file preview processing with a different account", async ()
             scale: 1,
             hasAlpha: false,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     await expect(
         fileUploader.finishProcessingImagePreviewPlaceholder(
             otherSession.action(),
             fileImagePreviewPlaceholder1,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     await expect(
         fileUploader.finishProcessingImagePreviewPlaceholder(
@@ -539,7 +539,7 @@ test("can’t finish file preview processing with a different account", async ()
             context.impersonatedAccountAction(space.id, otherSession.account.id),
             fileImagePreviewPlaceholder1,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     await expect(
         fileUploader.finishProcessingImagePreviewPlaceholder(
@@ -547,7 +547,7 @@ test("can’t finish file preview processing with a different account", async ()
             fileImagePreviewPlaceholder1,
         ),
     ).rejects.toThrow(
-        new PermissionDeniedError("Impersonated account actor is not for the file’s space"),
+        new PermissionDeniedError("Impersonated account actor is not for the file\u2019s space"),
     );
 
     await expect(
@@ -555,7 +555,7 @@ test("can’t finish file preview processing with a different account", async ()
             botAccount.action(),
             fileImagePreviewPlaceholder1,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -574,7 +574,7 @@ test("can’t finish file preview processing with a different account", async ()
     );
 });
 
-test("can’t finish file preview processing for files without a preview", async () => {
+test("can\u2019t finish file preview processing for files without a preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -602,14 +602,14 @@ test("can’t finish file preview processing for files without a preview", async
             scale: 1,
             hasAlpha: false,
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a preview"));
 
     await expect(
         fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
             fileImagePreviewPlaceholder1,
         ),
-    ).rejects.toThrow(new InternalError("File doesn’t have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -1239,7 +1239,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
     }
 });
 
-test("can’t finish file preview image processing with a different account", async () => {
+test("can\u2019t finish file preview image processing with a different account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -1273,7 +1273,7 @@ test("can’t finish file preview image processing with a different account", as
             contentLength: 110,
             isAlternative: false,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -1293,7 +1293,7 @@ test("can’t finish file preview image processing with a different account", as
     );
 });
 
-test("can’t finish file preview image processing for files without a preview", async () => {
+test("can\u2019t finish file preview image processing for files without a preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1320,7 +1320,7 @@ test("can’t finish file preview image processing for files without a preview",
             contentLength: 110,
             isAlternative: false,
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -1334,7 +1334,7 @@ test("can’t finish file preview image processing for files without a preview",
     );
 });
 
-test("can’t finish file preview image processing for files without a preview image", async () => {
+test("can\u2019t finish file preview image processing for files without a preview image", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1366,7 +1366,7 @@ test("can’t finish file preview image processing for files without a preview i
             contentLength: 110,
             isAlternative: false,
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have image preview content"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have image preview content"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -2021,7 +2021,7 @@ test("can finish file processing preview size (including video duration), previe
     }
 });
 
-test("can’t finish file preview video duration processing with a different account", async () => {
+test("can\u2019t finish file preview video duration processing with a different account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -2051,7 +2051,7 @@ test("can’t finish file preview video duration processing with a different acc
 
     await expect(
         fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(otherSession.action(), 5000),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -2071,7 +2071,7 @@ test("can’t finish file preview video duration processing with a different acc
     );
 });
 
-test("can’t finish file preview video duration processing for files without a preview", async () => {
+test("can\u2019t finish file preview video duration processing for files without a preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2094,7 +2094,7 @@ test("can’t finish file preview video duration processing for files without a 
 
     await expect(
         fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5000),
-    ).rejects.toThrow(new InternalError("File doesn’t have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -2108,7 +2108,7 @@ test("can’t finish file preview video duration processing for files without a 
     );
 });
 
-test("can’t finish file preview video duration processing for files without a preview video duration", async () => {
+test("can\u2019t finish file preview video duration processing for files without a preview video duration", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2137,7 +2137,7 @@ test("can’t finish file preview video duration processing for files without a 
 
     await expect(
         fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5000),
-    ).rejects.toThrow(new InternalError("File doesn’t have a image preview video duration"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a image preview video duration"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -2157,7 +2157,7 @@ test("can’t finish file preview video duration processing for files without a 
     );
 });
 
-test("can’t finish file preview video duration processing for files without a preview video duration (setting with preview size)", async () => {
+test("can\u2019t finish file preview video duration processing for files without a preview video duration (setting with preview size)", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2195,7 +2195,7 @@ test("can’t finish file preview video duration processing for files without a 
             },
             {alsoPreviewVideoDuration: 5000},
         ),
-    ).rejects.toThrow(new InternalError("File doesn’t have a image preview video duration"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a image preview video duration"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -2215,7 +2215,7 @@ test("can’t finish file preview video duration processing for files without a 
     );
 });
 
-test("can’t finish file preview video duration processing if file processing has already completely finished", async () => {
+test("can\u2019t finish file preview video duration processing if file processing has already completely finished", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2307,7 +2307,7 @@ test("can’t finish file preview video duration processing if file processing h
     );
 });
 
-test("can’t finish file preview video duration processing if file processing has already completely finished with different data", async () => {
+test("can\u2019t finish file preview video duration processing if file processing has already completely finished with different data", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2467,7 +2467,7 @@ test("can finish file preview video duration processing for the same data twice"
     );
 });
 
-test("can’t finish file preview video duration processing for the same data twice (setting second time with preview size)", async () => {
+test("can\u2019t finish file preview video duration processing for the same data twice (setting second time with preview size)", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3042,7 +3042,7 @@ test("can finish file processing preview with error twice", async () => {
     );
 });
 
-test("can’t finish file preview processing with error with a different account", async () => {
+test("can\u2019t finish file preview processing with error with a different account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -3074,7 +3074,7 @@ test("can’t finish file preview processing with error with a different account
         fileUploader.finishProcessingPreviewWithError(otherSession.action(), {
             type: "PasswordProtected",
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -3094,7 +3094,7 @@ test("can’t finish file preview processing with error with a different account
     );
 });
 
-test("can’t finish file preview processing with error for files without a preview", async () => {
+test("can\u2019t finish file preview processing with error for files without a preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3119,7 +3119,7 @@ test("can’t finish file preview processing with error for files without a prev
         fileUploader.finishProcessingPreviewWithError(session.action(), {
             type: "PasswordProtected",
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -3346,7 +3346,7 @@ test("can finish file uploading", async () => {
     );
 });
 
-test("can’t finish file uploading twice", async () => {
+test("can\u2019t finish file uploading twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3401,7 +3401,7 @@ test("can’t finish file uploading twice", async () => {
     ).rejects.toThrow(new FailedPreconditionError("File has already finished uploading"));
 });
 
-test("can’t finish file uploading as a different account", async () => {
+test("can\u2019t finish file uploading as a different account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -4659,7 +4659,7 @@ test("can finish processing preview image file alternative in any order", async 
     }
 });
 
-test("can’t finish processing file alternative as another account", async () => {
+test("can\u2019t finish processing file alternative as another account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -4796,7 +4796,7 @@ test("can finish processing file alternative twice", async () => {
     );
 });
 
-test("can’t finish processing file alternative for a file with no alternative", async () => {
+test("can\u2019t finish processing file alternative for a file with no alternative", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -4828,7 +4828,7 @@ test("can’t finish processing file alternative for a file with no alternative"
             contentType: "application/pdf",
             contentLength: 120,
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have an alternative"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have an alternative"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -4848,7 +4848,7 @@ test("can’t finish processing file alternative for a file with no alternative"
     );
 });
 
-test("can’t finish processing an alternative preview image for a file with no alternative", async () => {
+test("can\u2019t finish processing an alternative preview image for a file with no alternative", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -4881,7 +4881,7 @@ test("can’t finish processing an alternative preview image for a file with no 
             contentLength: 110,
             isAlternative: true,
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have an alternative"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have an alternative"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -5367,7 +5367,7 @@ test("can finish processing file alternative after finished processing alternati
     );
 });
 
-test("can’t finish processing file alternative with error as the wrong session", async () => {
+test("can\u2019t finish processing file alternative with error as the wrong session", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -5399,7 +5399,7 @@ test("can’t finish processing file alternative with error as the wrong session
         fileUploader.finishProcessingAlternativeWithError(session2.action(), {
             type: "PasswordProtected",
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -5472,7 +5472,7 @@ test("can finish processing file alternative with error as the right system acto
     );
 });
 
-test("can’t finish processing file alternative with error as the wrong system actor", async () => {
+test("can\u2019t finish processing file alternative with error as the wrong system actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSpace = await TestSpace.create(context);
@@ -5504,7 +5504,7 @@ test("can’t finish processing file alternative with error as the wrong system 
         fileUploader.finishProcessingAlternativeWithError(otherSpace.systemAction(), {
             type: "PasswordProtected",
         }),
-    ).rejects.toThrow(new PermissionDeniedError("System actor is not for the file’s space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor is not for the file\u2019s space"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -5524,7 +5524,7 @@ test("can’t finish processing file alternative with error as the wrong system 
     );
 });
 
-test("can’t finish processing file alternative with error as an anonymous actor", async () => {
+test("can\u2019t finish processing file alternative with error as an anonymous actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -5737,7 +5737,7 @@ test("can finish processing file audio preview", async () => {
     }
 });
 
-test("can’t finish processing file audio preview duration with the wrong session", async () => {
+test("can\u2019t finish processing file audio preview duration with the wrong session", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -5766,7 +5766,7 @@ test("can’t finish processing file audio preview duration with the wrong sessi
 
     await expect(
         fileUploader.finishProcessingAudioPreviewDuration(otherSession.action(), 2000),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -5943,7 +5943,7 @@ test("can finish processing file audio preview duration when preview is finished
     );
 });
 
-test("can’t finish processing file audio preview duration for file without preview", async () => {
+test("can\u2019t finish processing file audio preview duration for file without preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -5966,7 +5966,7 @@ test("can’t finish processing file audio preview duration for file without pre
 
     await expect(
         fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000),
-    ).rejects.toThrow(new InternalError("File doesn’t have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -5980,7 +5980,7 @@ test("can’t finish processing file audio preview duration for file without pre
     );
 });
 
-test("can’t finish processing file audio preview duration for file with an image preview", async () => {
+test("can\u2019t finish processing file audio preview duration for file with an image preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -6008,7 +6008,7 @@ test("can’t finish processing file audio preview duration for file with an ima
 
     await expect(
         fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000),
-    ).rejects.toThrow(new InternalError("File doesn’t have an audio preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have an audio preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6027,7 +6027,7 @@ test("can’t finish processing file audio preview duration for file with an ima
     );
 });
 
-test("can’t finish processing file audio preview metadata with the wrong session", async () => {
+test("can\u2019t finish processing file audio preview metadata with the wrong session", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -6060,7 +6060,7 @@ test("can’t finish processing file audio preview metadata with the wrong sessi
             artist: "B",
             album: "C",
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6257,7 +6257,7 @@ test("can finish processing file audio preview metadata when preview is finished
     );
 });
 
-test("can’t finish processing file audio preview metadata for file without preview", async () => {
+test("can\u2019t finish processing file audio preview metadata for file without preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -6284,7 +6284,7 @@ test("can’t finish processing file audio preview metadata for file without pre
             artist: "B",
             album: "C",
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6298,7 +6298,7 @@ test("can’t finish processing file audio preview metadata for file without pre
     );
 });
 
-test("can’t finish processing file audio preview metadata for file with an image preview", async () => {
+test("can\u2019t finish processing file audio preview metadata for file with an image preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -6330,7 +6330,7 @@ test("can’t finish processing file audio preview metadata for file with an ima
             artist: "B",
             album: "C",
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have an audio preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have an audio preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6349,7 +6349,7 @@ test("can’t finish processing file audio preview metadata for file with an ima
     );
 });
 
-test("can’t finish processing file image preview size for file with an audio preview", async () => {
+test("can\u2019t finish processing file image preview size for file with an audio preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -6382,7 +6382,7 @@ test("can’t finish processing file image preview size for file with an audio p
             scale: 1,
             hasAlpha: false,
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have an image preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have an image preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6401,7 +6401,7 @@ test("can’t finish processing file image preview size for file with an audio p
     );
 });
 
-test("can’t finish processing file image preview placeholder for file with an audio preview", async () => {
+test("can\u2019t finish processing file image preview placeholder for file with an audio preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -6432,7 +6432,7 @@ test("can’t finish processing file image preview placeholder for file with an 
             session.action(),
             fileImagePreviewPlaceholder1,
         ),
-    ).rejects.toThrow(new InternalError("File doesn’t have an image preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have an image preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6451,7 +6451,7 @@ test("can’t finish processing file image preview placeholder for file with an 
     );
 });
 
-test("can’t finish processing file image preview content for file with an audio preview", async () => {
+test("can\u2019t finish processing file image preview content for file with an audio preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -6483,7 +6483,7 @@ test("can’t finish processing file image preview content for file with an audi
             contentLength: 200,
             isAlternative: false,
         }),
-    ).rejects.toThrow(new InternalError("File doesn’t have an image preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have an image preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6502,7 +6502,7 @@ test("can’t finish processing file image preview content for file with an audi
     );
 });
 
-test("can’t finish processing file image preview video duration for file with an audio preview", async () => {
+test("can\u2019t finish processing file image preview video duration for file with an audio preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -6530,7 +6530,7 @@ test("can’t finish processing file image preview video duration for file with 
 
     await expect(
         fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 3000),
-    ).rejects.toThrow(new InternalError("File doesn’t have an image preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have an image preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6596,7 +6596,7 @@ test("can finish processing file code preview content", async () => {
     );
 });
 
-test("can’t finish processing file code preview content with the wrong session", async () => {
+test("can\u2019t finish processing file code preview content with the wrong session", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -6627,7 +6627,7 @@ test("can’t finish processing file code preview content with the wrong session
             otherSession.action(),
             fileCodePreviewContent1,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file\u2019s uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6713,7 +6713,7 @@ test("can finish processing code preview content duration twice", async () => {
     );
 });
 
-test("can’t finish processing file code preview content for file without preview", async () => {
+test("can\u2019t finish processing file code preview content for file without preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -6736,7 +6736,7 @@ test("can’t finish processing file code preview content for file without previ
 
     await expect(
         fileUploader.finishProcessingCodePreviewContent(session.action(), fileCodePreviewContent1),
-    ).rejects.toThrow(new InternalError("File doesn’t have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6750,7 +6750,7 @@ test("can’t finish processing file code preview content for file without previ
     );
 });
 
-test("can’t finish processing file code preview content for file with an image preview", async () => {
+test("can\u2019t finish processing file code preview content for file with an image preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -6778,7 +6778,7 @@ test("can’t finish processing file code preview content for file with an image
 
     await expect(
         fileUploader.finishProcessingCodePreviewContent(session.action(), fileCodePreviewContent1),
-    ).rejects.toThrow(new InternalError("File doesn’t have a code preview"));
+    ).rejects.toThrow(new InternalError("File doesn\u2019t have a code preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6797,7 +6797,7 @@ test("can’t finish processing file code preview content for file with an image
     );
 });
 
-test("system action from the wrong space can’t access file", async () => {
+test("system action from the wrong space can\u2019t access file", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -6826,7 +6826,7 @@ test("system action from the wrong space can’t access file", async () => {
 
     await expect(
         getFileAsUploader(otherSpace.systemAction(), space.id, fileUploader.fileId),
-    ).rejects.toThrow(new PermissionDeniedError("System actor doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn\u2019t have access to space"));
 });
 
 test("only the uploader account can access their file", async () => {
@@ -6863,7 +6863,7 @@ test("only the uploader account can access their file", async () => {
 
     await expect(
         getFileAsUploader(otherSession.action(), space.id, fileUploader.fileId),
-    ).rejects.toThrow(new PermissionDeniedError("Account didn’t upload file"));
+    ).rejects.toThrow(new PermissionDeniedError("Account didn\u2019t upload file"));
 
     await expect(
         getFileAsUploader(context.anonymousAction(), space.id, fileUploader.fileId),
@@ -6875,7 +6875,7 @@ test("only the uploader account can access their file", async () => {
             space.id,
             fileUploader.fileId,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account didn’t upload file"));
+    ).rejects.toThrow(new PermissionDeniedError("Account didn\u2019t upload file"));
 
     await expect(
         getFileAsUploader(
@@ -6884,15 +6884,15 @@ test("only the uploader account can access their file", async () => {
             fileUploader.fileId,
         ),
     ).rejects.toThrow(
-        new PermissionDeniedError("Impersonated account actor doesn’t have access to space"),
+        new PermissionDeniedError("Impersonated account actor doesn\u2019t have access to space"),
     );
 
     await expect(
         getFileAsUploader(botAccount.action(), space.id, fileUploader.fileId),
-    ).rejects.toThrow(new PermissionDeniedError("Account didn’t upload file"));
+    ).rejects.toThrow(new PermissionDeniedError("Account didn\u2019t upload file"));
 });
 
-test("can get file from attachment after it’s been attached", async () => {
+test("can get file from attachment after it\u2019s been attached", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -6914,7 +6914,7 @@ test("can get file from attachment after it’s been attached", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session1.action(),
@@ -6947,7 +6947,7 @@ test("can get file from attachment after it’s been attached", async () => {
     );
 });
 
-test("can get file from attachment if the file doesn’t exist", async () => {
+test("can get file from attachment if the file doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -6966,7 +6966,7 @@ test("can get file from attachment if the file doesn’t exist", async () => {
     ).rejects.toThrow(new NotFoundError("File not found"));
 });
 
-test("can’t get file from attachment if you don’t have access to the attachment target", async () => {
+test("can\u2019t get file from attachment if you don\u2019t have access to the attachment target", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
     const otherSpace = await TestSpace.create(context);
@@ -6990,7 +6990,7 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         getFileFromAttachment(
@@ -6999,7 +6999,7 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
 
     await expect(
         getFileFromAttachment(
@@ -7008,7 +7008,7 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
     await expect(
         getFileFromAttachment(
@@ -7017,7 +7017,7 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("System actor doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn\u2019t have access to space"));
 
     await attachFileAsUploader(
         session1.action(),
@@ -7056,7 +7056,7 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
 
     await expect(
         getFileFromAttachment(
@@ -7065,7 +7065,7 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
     await expect(
         getFileFromAttachment(
@@ -7074,10 +7074,10 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("System actor doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn\u2019t have access to space"));
 });
 
-test("can’t attach file as uploader if not the uploader", async () => {
+test("can\u2019t attach file as uploader if not the uploader", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
     const otherSpace = await TestSpace.create(context);
@@ -7101,7 +7101,7 @@ test("can’t attach file as uploader if not the uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         attachFileAsUploader(
@@ -7110,7 +7110,7 @@ test("can’t attach file as uploader if not the uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account didn’t upload file"));
+    ).rejects.toThrow(new PermissionDeniedError("Account didn\u2019t upload file"));
 
     await expect(
         attachFileAsUploader(
@@ -7120,7 +7120,7 @@ test("can’t attach file as uploader if not the uploader", async () => {
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(
-        new PermissionDeniedError("Account doesn’t have access to space (and 1 other error)"),
+        new PermissionDeniedError("Account doesn\u2019t have access to space (and 1 other error)"),
     );
 
     await expect(
@@ -7130,7 +7130,7 @@ test("can’t attach file as uploader if not the uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("System actor doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn\u2019t have access to space"));
 
     await expect(
         getFileFromAttachment(
@@ -7139,7 +7139,7 @@ test("can’t attach file as uploader if not the uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         getFileFromAttachment(
@@ -7151,7 +7151,7 @@ test("can’t attach file as uploader if not the uploader", async () => {
     ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
 });
 
-test("can’t attach file if you don’t have view access to the target", async () => {
+test("can\u2019t attach file if you don\u2019t have view access to the target", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
@@ -7173,7 +7173,7 @@ test("can’t attach file if you don’t have view access to the target", async 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         attachFileAsUploader(
@@ -7182,7 +7182,7 @@ test("can’t attach file if you don’t have view access to the target", async 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
 
     await expect(
         getFileFromAttachment(
@@ -7191,10 +7191,10 @@ test("can’t attach file if you don’t have view access to the target", async 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 });
 
-test("can’t attach file if you don’t have edit access to the target", async () => {
+test("can\u2019t attach file if you don\u2019t have edit access to the target", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -7215,7 +7215,7 @@ test("can’t attach file if you don’t have edit access to the target", async 
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         getFileFromAttachment(
@@ -7224,7 +7224,7 @@ test("can’t attach file if you don’t have edit access to the target", async 
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post2.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         attachFileAsUploader(
@@ -7233,7 +7233,7 @@ test("can’t attach file if you don’t have edit access to the target", async 
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have edit access to post"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have edit access to post"));
 
     await attachFileAsUploader(
         session2.action(),
@@ -7249,7 +7249,7 @@ test("can’t attach file if you don’t have edit access to the target", async 
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     expect(
         await getFileFromAttachment(
@@ -7300,14 +7300,14 @@ test("can attach file to new target", async () => {
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
             from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session2.action(),
@@ -7323,7 +7323,7 @@ test("can attach file to new target", async () => {
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
         from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
@@ -7379,14 +7379,14 @@ test("can attach file to new target as the uploader", async () => {
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         attachFileFromAttachment(session2.action(), space.id, fileUploader.fileId, {
             from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session2.action(),
@@ -7402,7 +7402,7 @@ test("can attach file to new target as the uploader", async () => {
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileFromAttachment(session2.action(), space.id, fileUploader.fileId, {
         from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
@@ -7433,7 +7433,7 @@ test("can attach file to new target as the uploader", async () => {
     );
 });
 
-test("can’t attach file to new target if you don’t have edit access", async () => {
+test("can\u2019t attach file to new target if you don\u2019t have edit access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -7458,7 +7458,7 @@ test("can’t attach file to new target if you don’t have edit access", async 
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
@@ -7466,7 +7466,7 @@ test("can’t attach file to new target if you don’t have edit access", async 
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError("File isn’t attached to target (and 1 other error)"),
+        new PermissionDeniedError("File isn\u2019t attached to target (and 1 other error)"),
     );
 
     await expect(
@@ -7474,7 +7474,7 @@ test("can’t attach file to new target if you don’t have edit access", async 
             from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session2.action(),
@@ -7490,14 +7490,14 @@ test("can’t attach file to new target if you don’t have edit access", async 
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
             from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have edit access to post"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have edit access to post"));
 
     await expect(
         getFileFromAttachment(
@@ -7506,10 +7506,10 @@ test("can’t attach file to new target if you don’t have edit access", async 
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 });
 
-test("can’t attach file to new target you don’t have access to", async () => {
+test("can\u2019t attach file to new target you don\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
@@ -7535,7 +7535,7 @@ test("can’t attach file to new target you don’t have access to", async () =>
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session2.action(),
@@ -7551,14 +7551,14 @@ test("can’t attach file to new target you don’t have access to", async () =>
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await expect(
         attachFileFromAttachment(session3.action(), space.id, fileUploader.fileId, {
             from: FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
             to: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
 
     await expect(
         getFileFromAttachment(
@@ -7567,7 +7567,7 @@ test("can’t attach file to new target you don’t have access to", async () =>
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileFromAttachment(session3.action(), space.id, fileUploader.fileId, {
         from: FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
@@ -7575,7 +7575,7 @@ test("can’t attach file to new target you don’t have access to", async () =>
     });
 });
 
-test("can get file from attachment after it’s been attached when starting upload", async () => {
+test("can get file from attachment after it\u2019s been attached when starting upload", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -7615,7 +7615,7 @@ test("can get file from attachment after it’s been attached when starting uplo
     );
 });
 
-test("can’t get file from attachment if you don’t have access to the attachment target after attach when starting upload", async () => {
+test("can\u2019t get file from attachment if you don\u2019t have access to the attachment target after attach when starting upload", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
     const otherSpace = await TestSpace.create(context);
@@ -7663,7 +7663,7 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
 
     await expect(
         getFileFromAttachment(
@@ -7672,7 +7672,7 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
     await expect(
         getFileFromAttachment(
@@ -7681,10 +7681,10 @@ test("can’t get file from attachment if you don’t have access to the attachm
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("System actor doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn\u2019t have access to space"));
 });
 
-test("can’t attach file when uploading if you don’t have view access to the target", async () => {
+test("can\u2019t attach file when uploading if you don\u2019t have view access to the target", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
@@ -7700,10 +7700,10 @@ test("can’t attach file when uploading if you don’t have view access to the 
             contentLength: 100,
             attachTargetAuthorizer: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
 });
 
-test("can’t attach file when uploading if you don’t have edit access to the target", async () => {
+test("can\u2019t attach file when uploading if you don\u2019t have edit access to the target", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -7717,7 +7717,7 @@ test("can’t attach file when uploading if you don’t have edit access to the 
             contentLength: 100,
             attachTargetAuthorizer: FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have edit access to post"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have edit access to post"));
 });
 
 test("can detach file as uploader", async () => {
@@ -7742,7 +7742,7 @@ test("can detach file as uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session2.action(),
@@ -7788,7 +7788,7 @@ test("can detach file as uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 });
 
 test("can detach file as non-uploader", async () => {
@@ -7813,7 +7813,7 @@ test("can detach file as non-uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session2.action(),
@@ -7859,10 +7859,10 @@ test("can detach file as non-uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 });
 
-test("can’t detach file without view access", async () => {
+test("can\u2019t detach file without view access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
@@ -7884,7 +7884,7 @@ test("can’t detach file without view access", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session2.action(),
@@ -7923,7 +7923,7 @@ test("can’t detach file without view access", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
 
     expect(
         await getFileFromAttachment(
@@ -7949,7 +7949,7 @@ test("can’t detach file without view access", async () => {
     );
 });
 
-test("can’t detach file without edit access", async () => {
+test("can\u2019t detach file without edit access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -7969,7 +7969,7 @@ test("can’t detach file without edit access", async () => {
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session2.action(),
@@ -8008,7 +8008,7 @@ test("can’t detach file without edit access", async () => {
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have edit access to post"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have edit access to post"));
 
     expect(
         await getFileFromAttachment(
@@ -8047,7 +8047,7 @@ test("can’t detach file without edit access", async () => {
             fileUploader.fileId,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 });
 
 test("can get all files attached to post draft", async () => {
@@ -8106,7 +8106,7 @@ test("can get all files attached to post draft", async () => {
             draftId,
             FilePostAuthorizer,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Can’t access drafts from other accounts"));
+    ).rejects.toThrow(new PermissionDeniedError("Can\u2019t access drafts from other accounts"));
 
     await attachFileAsUploader(
         session1.action(),

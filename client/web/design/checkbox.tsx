@@ -43,8 +43,8 @@ export function Checkbox({
 
             const defaultChangeErrorTitle =
                 event.pointerType === "touch"
-                    ? "The checkbox you tapped didn’t work"
-                    : "The checkbox you clicked didn’t work";
+                    ? "The checkbox you tapped didn\u2019t work"
+                    : "The checkbox you clicked didn\u2019t work";
 
             let promise;
             try {

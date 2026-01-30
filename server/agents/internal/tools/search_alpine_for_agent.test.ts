@@ -47,7 +47,7 @@ afterEach(async () => {
 });
 
 describe("searchAlpineForAgent", () => {
-    test("returns ‘No results found’ when results array is empty", async () => {
+    test("returns \u2018No results found\u2019 when results array is empty", async () => {
         apiClient.mockGet("/spaces/{id}/search", {data: {results: []}});
 
         const result = await storage.transaction(async transaction =>
@@ -314,7 +314,7 @@ The following search results matched the keyword search but did not match any sp
 `);
     });
 
-    test("returns ‘No results found’ when all results are in the current message room", async () => {
+    test("returns \u2018No results found\u2019 when all results are in the current message room", async () => {
         const currentChatId = generateId<ChatId>();
         const results: Array<ApiSearchResult> = [
             {
@@ -579,7 +579,7 @@ The following search results matched the keyword search but did not match any sp
 `);
     });
 
-    test("returns ‘No results found’ when all results are filtered out", async () => {
+    test("returns \u2018No results found\u2019 when all results are filtered out", async () => {
         const currentChatId = generateId<ChatId>();
 
         const results: Array<ApiSearchResult> = [

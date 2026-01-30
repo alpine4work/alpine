@@ -37,7 +37,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         );
 
         expect(result).toBe(
-            "Successfully invited 1 person. notanemail isn’t a valid email address.",
+            "Successfully invited 1 person. notanemail isn\u2019t a valid email address.",
         );
     });
 
@@ -51,7 +51,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
             errors,
         );
 
-        expect(result).toBe("invalid@ isn’t a valid email address.");
+        expect(result).toBe("invalid@ isn\u2019t a valid email address.");
     });
 
     test("shows message for single unexpected failure", () => {
@@ -91,7 +91,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
             errors,
         );
 
-        expect(result).toBe("notanemail isn’t a valid email address.");
+        expect(result).toBe("notanemail isn\u2019t a valid email address.");
     });
 
     test("uses plural grammar for multiple invalid emails", () => {
@@ -104,7 +104,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
             errors,
         );
 
-        expect(result).toBe("bad1 and bad2 aren’t valid email addresses.");
+        expect(result).toBe("bad1 and bad2 aren\u2019t valid email addresses.");
     });
 
     test("shows message for emails that rejected previous invite", () => {
@@ -156,7 +156,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
             errors,
         );
 
-        expect(result).toBe("a@x.com, b@x.com, and c@x.com aren’t valid email addresses.");
+        expect(result).toBe("a@x.com, b@x.com, and c@x.com aren\u2019t valid email addresses.");
     });
 
     test("truncates to 3 emails with singular other count", () => {
@@ -169,7 +169,9 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
             errors,
         );
 
-        expect(result).toBe("a@x.com, b@x.com, c@x.com, and 1 other aren’t valid email addresses.");
+        expect(result).toBe(
+            "a@x.com, b@x.com, c@x.com, and 1 other aren\u2019t valid email addresses.",
+        );
     });
 
     test("truncates to 3 emails with plural others count", () => {
@@ -183,7 +185,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         );
 
         expect(result).toBe(
-            "a@x.com, b@x.com, c@x.com, and 2 others aren’t valid email addresses.",
+            "a@x.com, b@x.com, c@x.com, and 2 others aren\u2019t valid email addresses.",
         );
     });
 
@@ -199,7 +201,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         );
 
         expect(result).toBe(
-            "Successfully invited 2 people. invalid@ isn’t a valid email address. member@example.com is already a member of the space.",
+            "Successfully invited 2 people. invalid@ isn\u2019t a valid email address. member@example.com is already a member of the space.",
         );
     });
 
@@ -218,7 +220,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
 
         expect(result).toBe(
             "Successfully invited 1 person. fail@example.com failed due to an unexpected error. " +
-                "invalid@ isn’t a valid email address. spam@example.com rejected a previous invite. " +
+                "invalid@ isn\u2019t a valid email address. spam@example.com rejected a previous invite. " +
                 "member@example.com is already a member of the space.",
         );
     });
@@ -256,7 +258,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         expect(result).toBe(
             "Successfully invited 3 people. fail1@example.com, fail2@example.com, fail3@example.com, " +
                 "and 2 others failed due to an unexpected error. inv1@, inv2@, inv3@, and 1 other " +
-                "aren’t valid email addresses. spam1@example.com, spam2@example.com, spam3@example.com, " +
+                "aren\u2019t valid email addresses. spam1@example.com, spam2@example.com, spam3@example.com, " +
                 "and 3 others rejected a previous invite. member1@example.com, member2@example.com, " +
                 "member3@example.com, and 2 others are already members of the space.",
         );

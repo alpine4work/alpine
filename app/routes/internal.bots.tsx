@@ -76,7 +76,9 @@ export default function BotsManagementPage() {
                 if (!responseBody.ok) throw responseBody.error;
 
                 if (responseBody.type !== "UploadBotAvatar") {
-                    throw new InternalError(quote`Unexpected response type “${responseBody.type}”`);
+                    throw new InternalError(
+                        quote`Unexpected response type \u201C${responseBody.type}\u201D`,
+                    );
                 }
 
                 return assertExists(responseBody.bot.avatar);
@@ -182,7 +184,7 @@ function BotRow({
                     <Box as="span" fontStyle="bold">
                         IMPORTANT:
                     </Box>{" "}
-                    Make sure to also update this bot’s avatar in{" "}
+                    Make sure to also update this bot&#x2019;s avatar in{" "}
                     <Box as="span" fontStyle="code">
                         settings_default_known_bot_account_model_data.ts
                     </Box>
@@ -217,7 +219,7 @@ function BotRow({
                                         height="8"
                                         paddingX="3"
                                         onPress={() => writeTextToClipboard(bot.webhookUrl!)}
-                                        pressErrorTitle="Couldn’t copy webhook URL"
+                                        pressErrorTitle="Couldn\u2019t copy webhook URL"
                                     >
                                         <Copy color={iconColor} />
                                     </Button>
@@ -296,7 +298,7 @@ function BotRow({
                                             height="6"
                                             paddingX="1.5"
                                             onPress={() => writeTextToClipboard(apiKey)}
-                                            pressErrorTitle="Couldn’t copy API key"
+                                            pressErrorTitle="Couldn\u2019t copy API key"
                                         >
                                             <Copy color={iconColor} />
                                         </Button>

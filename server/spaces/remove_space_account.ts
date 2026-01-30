@@ -29,7 +29,7 @@ export async function removeSpaceAccount(
         case "Session":
         case "ImpersonatedAccount": {
             if (context.actor.getAccountId() === accountId) {
-                throw new InvalidArgumentError("Can’t remove your own account from space");
+                throw new InvalidArgumentError("Can\u2019t remove your own account from space");
             }
             break;
         }
@@ -78,7 +78,7 @@ function removeSpaceAccountWithoutAuthorization(
         }
 
         if (hasSpaceRole(spaceAccountItem.role, "Owner")) {
-            throw new FailedPreconditionError("Can’t remove owner from space");
+            throw new FailedPreconditionError("Can\u2019t remove owner from space");
         }
 
         const accountSpaceIds: Set<SpaceId> = accountSpacesItem

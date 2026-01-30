@@ -63,7 +63,7 @@ function ModalDialog({
     // Can't server-render `<ModalDialog>` since in our native mobile app we'll
     // have a different implementation then on the server.
     const isInitialAppRender = useIsInitialAppRender();
-    if (isInitialAppRender) throw new InternalError("Can’t server render `<ModalDialog>`");
+    if (isInitialAppRender) throw new InternalError("Can\u2019t server render `<ModalDialog>`");
 
     const descriptionId = useId();
     const modalRef = useRef<ModalWithButtonsRef>(null);

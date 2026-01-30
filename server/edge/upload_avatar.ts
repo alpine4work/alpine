@@ -91,7 +91,7 @@ export async function uploadAvatar(
             avatarEntityPathObject.accountId !== sessionCookieToken.accountId
         ) {
             throw new PermissionDeniedError(
-                "Can’t upload account avatar for account that’s not the session’s account",
+                "Can\u2019t upload account avatar for account that\u2019s not the session\u2019s account",
             );
         }
 

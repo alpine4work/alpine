@@ -137,7 +137,7 @@ test("can create a private channel", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto(page1.url());
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeVisible();
     await expect(page2.getByTestId("NavigationBar").getByText("FooBar")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
@@ -190,7 +190,7 @@ test("can create a public channel", async ({
     await page2.goto(page1.url());
 
     await expect(page2.getByTestId("NavigationBar").getByText("FooBar")).toBeVisible();
-    await expect(page2.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await browserContext2.close();

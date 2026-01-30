@@ -164,7 +164,7 @@ export function PostCreator({
             variant="neutral"
             withoutMinWidth={platform === "mobile"}
             isDisabled={isContentEmpty(state.getDoc()) || !channel}
-            pressErrorTitle="Couldn’t create post"
+            pressErrorTitle="Couldn\u2019t create post"
             onPress={async () => {
                 if (!channel) return;
 

@@ -431,8 +431,8 @@ export function getFfprobeMetadata(
                     // eslint-disable-next-line no-console
                     console.warn(
                         "Retrying `ffprobe` call that returned invalid JSON, we know this `ffprobe` call\n" +
-                            "is flaky in CI but don’t know why it’s flaky. If you see this message, look at\n" +
-                            "the stderr included in the error message and determine if there’s a better fix\n" +
+                            "is flaky in CI but don\u2019t know why it\u2019s flaky. If you see this message, look at\n" +
+                            "the stderr included in the error message and determine if there\u2019s a better fix\n" +
                             "than retrying.\n\n" +
                             (error instanceof Error ? error.stack : String(error)),
                     );

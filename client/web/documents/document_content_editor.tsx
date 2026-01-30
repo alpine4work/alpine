@@ -915,8 +915,8 @@ export function DocumentContentEditor({
 
             if (!data) {
                 reporter.logErrorWithoutDisplaying(
-                    "Selected document comment thread couldn’t be opened",
-                    new InternalError("Couldn’t find document comment thread"),
+                    "Selected document comment thread couldn\u2019t be opened",
+                    new InternalError("Couldn\u2019t find document comment thread"),
                 );
 
                 // Comment thread not found so cancel the transition.
@@ -1545,7 +1545,7 @@ export function DocumentContentEditor({
                         label: "Copy link",
                         icon: <LinkIcon />,
                         iconPlacement: "end",
-                        pressErrorTitle: "Couldn’t copy link",
+                        pressErrorTitle: "Couldn\u2019t copy link",
                         onPress: onCopyLink,
                     },
                     ...(favoriteMenuAction ? [favoriteMenuAction] : []),
@@ -1575,7 +1575,7 @@ export function DocumentContentEditor({
                                   label: "Cover",
                                   icon: <PanoramaIcon />,
                                   iconPlacement: "end",
-                                  pressErrorTitle: "Couldn’t open cover settings",
+                                  pressErrorTitle: "Couldn\u2019t open cover settings",
                                   onPress: () => {
                                       setIsCoverModalOpen(true);
                                   },
@@ -1588,7 +1588,7 @@ export function DocumentContentEditor({
                                   label: "Present",
                                   icon: <LecturnIcon />,
                                   iconPlacement: "end",
-                                  pressErrorTitle: "Couldn’t open present settings",
+                                  pressErrorTitle: "Couldn\u2019t open present settings",
                                   onPress: async () => {
                                       await assertExists(
                                           presentationControllerRef.current,
@@ -1631,7 +1631,7 @@ export function DocumentContentEditor({
                 iconPlacement="end"
                 height="6"
                 paddingX="2"
-                pressErrorTitle="Couldn’t present document"
+                pressErrorTitle="Couldn\u2019t present document"
                 onPress={async () => {
                     await assertExists(
                         presentationControllerRef.current,
@@ -2395,8 +2395,8 @@ function DocumentContentEditorSidebar({
 
         if (!initialDataResult.isPending && !initialDataResult.value) {
             reporter.logErrorWithoutDisplaying(
-                "Selected document comment thread couldn’t be opened",
-                new InternalError("Couldn’t find document comment thread"),
+                "Selected document comment thread couldn\u2019t be opened",
+                new InternalError("Couldn\u2019t find document comment thread"),
             );
 
             onClose();
@@ -2502,7 +2502,7 @@ function DocumentContentEditorSidebar({
                         description="Previous thread"
                         keyboardShortcutHint={isAppleDevice ? "⌘+Shift+," : "Ctrl+Shift+,"}
                         isDisabled={!previousCommentThreadId}
-                        pressErrorTitle="Can’t go to previous thread"
+                        pressErrorTitle="Can\u2019t go to previous thread"
                         onPress={async () => {
                             if (!previousCommentThreadId) return;
                             await openCommentThread(previousCommentThreadId);
@@ -2531,7 +2531,7 @@ function DocumentContentEditorSidebar({
                         description="Next thread"
                         keyboardShortcutHint={isAppleDevice ? "⌘+Shift+." : "Ctrl+Shift+."}
                         isDisabled={!nextCommentThreadId}
-                        pressErrorTitle="Can’t go to next thread"
+                        pressErrorTitle="Can\u2019t go to next thread"
                         onPress={async () => {
                             if (!nextCommentThreadId) return;
                             await openCommentThread(nextCommentThreadId);

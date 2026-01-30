@@ -1014,7 +1014,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
     });
 });
 
-test("if nothing changes in the task entry after action it’s left as same reference", () => {
+test("if nothing changes in the task entry after action it\u2019s left as same reference", () => {
     const store = createAutoRetainStore();
 
     const task1a = createTask(store);
@@ -1082,7 +1082,7 @@ test("if nothing changes in the task entry after action it’s left as same refe
     expect(getTaskEntryIfExists(store, task1a.id)).toBe(taskEntry);
 });
 
-test("if nothing changes in the task entry after backfill it’s left as same reference", () => {
+test("if nothing changes in the task entry after backfill it\u2019s left as same reference", () => {
     const store = createAutoRetainStore();
 
     const task1a = createTask(store);
@@ -1212,7 +1212,7 @@ test("action can be applied then task can be marked unauthorized", () => {
     });
 });
 
-test("redundant unauthorized action doesn’t change task", () => {
+test("redundant unauthorized action doesn\u2019t change task", () => {
     const store = createAutoRetainStore();
 
     const task1a = createTask(store);

@@ -17,5 +17,5 @@ test("reformats the instructions properly", () => {
 
 - ChatGPT operates within Alpine, an integrated productivity suite that includes documents, tasks, chat, forums, and more, to offer a seamless user experience.
 
-- Alpine users belong to “spaces” (also known as “workspaces”). Typically, a company has one space containing all employees. Spaces are secure an`);
+- Alpine users belong to \u201Cspaces\u201D (also known as \u201Cworkspaces\u201D). Typically, a company has one space containing all employees. Spaces are secure an`);
 });

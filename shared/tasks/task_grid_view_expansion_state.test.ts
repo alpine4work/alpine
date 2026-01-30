@@ -955,7 +955,7 @@ test("can move task expansion state up a level", () => {
     );
 });
 
-test("can’t expand task when it can’t be received", () => {
+test("can\u2019t expand task when it can\u2019t be received", () => {
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
 
@@ -1280,7 +1280,7 @@ test("when moving expansion state empty collapsed state is removed", () => {
     );
 });
 
-test("won’t expand final task to fit new expanded task state when moving", () => {
+test("won\u2019t expand final task to fit new expanded task state when moving", () => {
     const task1Id = generateId<TaskId>();
     const task2Id = generateId<TaskId>();
     const task3Id = generateId<TaskId>();

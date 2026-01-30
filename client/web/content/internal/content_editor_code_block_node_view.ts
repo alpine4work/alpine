@@ -175,7 +175,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
                             }),
                         ])
                         .catch(error => {
-                            getReporter().displayError("Couldn’t copy code", error);
+                            getReporter().displayError("Couldn\u2019t copy code", error);
                         });
 
                     onCodeBlockCopyButtonPress(copyButtonElement);

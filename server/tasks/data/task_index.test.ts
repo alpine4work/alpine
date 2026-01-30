@@ -44,7 +44,7 @@ const context = createTestContext({
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-test("can’t update task from a different space", async () => {
+test("can\u2019t update task from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -125,7 +125,7 @@ test("can’t update task from a different space", async () => {
     );
 });
 
-test("can’t update collection from a different space", async () => {
+test("can\u2019t update collection from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
 
@@ -1306,7 +1306,7 @@ test("if account name updates during indexing it will still be correctly update 
     });
 });
 
-test("account name update will still work when there’s a version conflict", async () => {
+test("account name update will still work when there\u2019s a version conflict", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1655,7 +1655,7 @@ test("updates approximate action counts", async () => {
     );
 });
 
-test("updates search affinity points for task when it’s marked as active", async () => {
+test("updates search affinity points for task when it\u2019s marked as active", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -1749,7 +1749,7 @@ test("updates search affinity points for task when it’s marked as active", asy
     expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
 });
 
-test("adds search affinity points for task collection when it’s added to a task", async () => {
+test("adds search affinity points for task collection when it\u2019s added to a task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();

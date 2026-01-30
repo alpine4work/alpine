@@ -76,11 +76,11 @@ export async function getAccountIfExistsWithoutAuthorization(
 
     if (spaceAccountItem.state.type !== "Active") {
         // NOTE(ifitzsimmons, #account-override-avatar-consistency):
-        // “We know there’s a potential eventual consistency race condition here where
-        // Space#Account has a non-Active state but we don’t find a
-        // Space#AccountAvatarOverride item due to eventual consistency lag. We’re not
+        // "We know there's a potential eventual consistency race condition here where
+        // Space#Account has a non-Active state but we don't find a
+        // Space#AccountAvatarOverride item due to eventual consistency lag. We're not
         // fixing this since we expect it to be quite rare in practice and the impact to be
-        // a pretty minor glitch (removed account appears as if they didn’t have an avatar
+        // a pretty minor glitch (removed account appears as if they didn't have an avatar
         // set).
         const spaceAccountAvatarOverride = await SpaceAccountAvatarOverrideItemContextCache.get(
             context,
@@ -110,7 +110,7 @@ export async function getAccountIfExistsWithoutAuthorization(
         // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
         // our account table.
         if (!account) {
-            throw new DataLossError("Space account item exists but account item doesn’t");
+            throw new DataLossError("Space account item exists but account item doesn\u2019t");
         }
 
         return createAccountModelFromItem(
@@ -174,7 +174,7 @@ export async function getAccountWithoutAvatarIfExistsWithoutAuthorization(
         // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
         // our account table.
         if (!account) {
-            throw new DataLossError("Space account item exists but account item doesn’t");
+            throw new DataLossError("Space account item exists but account item doesn\u2019t");
         }
 
         return createAccountModelDataWithoutAvatarFromItem(spaceAccountItem, account);

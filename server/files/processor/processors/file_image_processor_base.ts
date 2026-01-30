@@ -239,7 +239,7 @@ export function processImageFile(
 
                         if (metadata.width === undefined || metadata.height === undefined) {
                             throw new InternalError(
-                                "Couldn’t find `width` or `height` of image file",
+                                "Couldn\u2019t find `width` or `height` of image file",
                             );
                         }
 

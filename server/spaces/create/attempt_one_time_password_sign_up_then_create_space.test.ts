@@ -216,7 +216,7 @@ test("sign up creates space with correct name based on account", async () => {
     const spaceId = Array.from(spaceIds)[0]!;
 
     expect(await getSpaceItem(context.withCache(), spaceId)).toMatchObject({
-        name: "Anthony’s Space",
+        name: "Anthony\u2019s Space",
     });
 });
 
@@ -254,7 +254,7 @@ test("incorrect password does not create space", async () => {
     expect((await getAccountSpaceIdsForTest(context, accountId)).size).toEqual(0);
 });
 
-test("can’t use password twice to create multiple spaces", async () => {
+test("can\u2019t use password twice to create multiple spaces", async () => {
     const {emailAddress, oneTimePassword} =
         await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
 
@@ -362,7 +362,7 @@ test("space name is truncated when account name is too long", async () => {
     const spaceId = Array.from(spaceIds)[0]!;
 
     expect(await getSpaceItem(context.withCache(), spaceId)).toMatchObject({
-        name: `${"a".repeat(42)}’s Space`,
+        name: `${"a".repeat(42)}\u2019s Space`,
     });
 });
 
@@ -541,7 +541,7 @@ test("second user also creates personal space", async () => {
     );
 
     expect(await getSpaceItem(context.withCache(), personalSpaceId)).toMatchObject({
-        name: "Anthony’s Space",
+        name: "Anthony\u2019s Space",
     });
 });
 
@@ -766,7 +766,7 @@ test("save account sign up profile after signing in and accepting invite but bef
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Can only finish account sign up when the account hasn’t joined any spaces (the account may have pending invites)",
+            "Can only finish account sign up when the account hasn\u2019t joined any spaces (the account may have pending invites)",
         ),
     );
 });
@@ -812,7 +812,7 @@ test("invite account to work space that would be auto-added to space", async () 
     expect(spaceIds.has(session1.space.id)).toEqual(true);
 });
 
-test("invited account to space that would be auto-added to space can’t accept invite after being auto added", async () => {
+test("invited account to space that would be auto-added to space can\u2019t accept invite after being auto added", async () => {
     const {session: session1, emailDomain} = await testWorkSignUp();
 
     const emailAddress2 = generateWorkTestEmailAddress(emailDomain);

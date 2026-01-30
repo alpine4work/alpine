@@ -71,15 +71,15 @@ export function AuthenticationSignInOrSignUpView({
         SignIn: {
             subheading: "Sign in. Welcome back",
             buttonLabel: "Sign in",
-            submitErrorTitle: "Couldn’t sign in",
-            alternativeQuestion: "Don’t have an account yet?",
+            submitErrorTitle: "Couldn\u2019t sign in",
+            alternativeQuestion: "Don\u2019t have an account yet?",
             alternativeLinkLabel: "Sign up",
             alternativeLinkUrl: "/auth/sign-up",
         },
         SignUp: {
             subheading: "Sign up with your work email",
             buttonLabel: "Sign up",
-            submitErrorTitle: "Couldn’t sign up",
+            submitErrorTitle: "Couldn\u2019t sign up",
             alternativeQuestion: "Already have an account?",
             alternativeLinkLabel: "Sign in",
             alternativeLinkUrl: "/auth/sign-in",
@@ -127,7 +127,7 @@ export function AuthenticationSignInOrSignUpView({
 
                         if (!isEmailAddressValid(validatedEmailAddress)) {
                             throw new InvalidArgumentError("Invalid email address", {
-                                displayMessage: errorDisplayMessage`“${emailAddress}” isn’t an email address. Try again with an email address like “name@company.com”.`,
+                                displayMessage: errorDisplayMessage`\u201C${emailAddress}\u201D isn\u2019t an email address. Try again with an email address like \u201Cname@company.com\u201D.`,
                             });
                         }
 

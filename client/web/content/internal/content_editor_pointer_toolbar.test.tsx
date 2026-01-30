@@ -126,7 +126,7 @@ test("shows the toolbar when a range of content is selected", () => {
     expect(screen.getByLabelText("Bold")).toBeInTheDocument();
 });
 
-test("shows the toolbar when there’s a pointer interaction modality", () => {
+test("shows the toolbar when there\u2019s a pointer interaction modality", () => {
     setInteractionModality("keyboard");
 
     render(
@@ -295,7 +295,7 @@ test("toggles headings off", () => {
     );
 });
 
-test("toggles headings on when there’s already a heading of that level", () => {
+test("toggles headings on when there\u2019s already a heading of that level", () => {
     setInteractionModality("pointer");
 
     render(
@@ -477,7 +477,7 @@ test("toggles list off", () => {
     );
 });
 
-test("toggles list on even when there’s already a list item of that type", () => {
+test("toggles list on even when there\u2019s already a list item of that type", () => {
     setInteractionModality("pointer");
 
     render(
@@ -524,7 +524,7 @@ test("toggles list on even when there’s already a list item of that type", () 
     );
 });
 
-test("toggles list on even when there’s already a list item of a different type", () => {
+test("toggles list on even when there\u2019s already a list item of a different type", () => {
     setInteractionModality("pointer");
 
     render(

@@ -193,7 +193,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
                     }}
                 />
             }
-            pressErrorTitle="Couldn’t open inbox"
+            pressErrorTitle="Couldn\u2019t open inbox"
             onPress={async () => {
                 const searchParams = new URLSearchParams();
 
@@ -433,7 +433,7 @@ function SpaceLayoutTopBarInboxOverlayEntry({
                     },
                     error => {
                         setIsPending(false);
-                        reporter.displayError("Couldn’t open notification", error);
+                        reporter.displayError("Couldn\u2019t open notification", error);
                     },
                 );
             }}

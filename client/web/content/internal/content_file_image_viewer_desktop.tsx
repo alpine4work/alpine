@@ -179,7 +179,7 @@ function ContentFileImageDesktopViewerInner({
             {
                 label: `Copy ${fileContentTypeNoun}`,
                 isDisabled: file.isUploading,
-                pressErrorTitle: `Couldn’t copy ${fileContentTypeNoun}`,
+                pressErrorTitle: `Couldn\u2019t copy ${fileContentTypeNoun}`,
                 onPress: async () => {
                     const element = assertExists(imageRef.current);
 
@@ -193,7 +193,7 @@ function ContentFileImageDesktopViewerInner({
             {
                 label: `Download ${fileContentTypeNoun}`,
                 isDisabled: file.isUploading,
-                pressErrorTitle: `Couldn’t download ${fileContentTypeNoun}`,
+                pressErrorTitle: `Couldn\u2019t download ${fileContentTypeNoun}`,
                 onPress: () => {
                     handleDownloadContentFile({spaceId: space.id, file});
                 },

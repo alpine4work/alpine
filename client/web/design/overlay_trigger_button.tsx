@@ -410,7 +410,7 @@ function OverlayTriggerButton(
 
                 switch (event.key) {
                     case "ArrowDown": {
-                        event.preventDefault(); // Don’t scroll
+                        event.preventDefault(); // Don't scroll
                         event.stopPropagation();
 
                         const result = onOpen();
@@ -423,7 +423,7 @@ function OverlayTriggerButton(
                         break;
                     }
                     case "ArrowUp": {
-                        event.preventDefault(); // Don’t scroll
+                        event.preventDefault(); // Don't scroll
                         event.stopPropagation();
 
                         const result = onOpen();
@@ -449,7 +449,7 @@ function OverlayTriggerButton(
                         break;
                     }
                     case " ": {
-                        event.preventDefault(); // Don’t scroll
+                        event.preventDefault(); // Don't scroll
                         event.stopPropagation();
 
                         const result = onOpen();
@@ -526,7 +526,7 @@ function OverlayTriggerButton(
             const cleanupOverlayTriggerAttributes = setElementAttributesWithCleanup(
                 overlayTriggerElement,
                 {
-                    // If the button already has an ID, we won’t override that.
+                    // If the button already has an ID, we won't override that.
                     id: overlayTriggerId,
                     // - The element that opens the overlay has role button.
                     // - The element with role `button` has `aria-haspopup` set to either
@@ -555,8 +555,8 @@ function OverlayTriggerButton(
                       //
                       // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                       //
-                      // We have to set this in our lifecycle ref because we don’t have
-                      // the button’s ID at render time.
+                      // We have to set this in our lifecycle ref because we don't have
+                      // the button's ID at render time.
                       "aria-labelledby": overlayTriggerId,
                   })
                 : null;
@@ -599,7 +599,7 @@ function OverlayTriggerButton(
         ],
     );
 
-    // Close the overlay if there’s a click somewhere else in the document outside
+    // Close the overlay if there's a click somewhere else in the document outside
     // the overlay or overlay button.
     const outsidePressRef = useOutsidePress(event => {
         if (isDisabled) return;

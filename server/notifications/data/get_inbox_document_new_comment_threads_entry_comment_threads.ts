@@ -139,7 +139,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
             throw new NotFoundError("Document new comment threads entry not found", {
                 displayMessage: deletedInboxEntry
                     ? errorDisplayMessage`All comment threads in this notification have been marked as done.`
-                    : errorDisplayMessage`This notification doesn’t exist.`,
+                    : errorDisplayMessage`This notification doesn\u2019t exist.`,
             });
         }
 

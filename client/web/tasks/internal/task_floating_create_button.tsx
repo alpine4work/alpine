@@ -44,7 +44,7 @@ export function TaskFloatingCreateButton({filters}: {filters?: ReadonlyArray<Tas
                 //
                 // This is purely based on vibes. I don't have logic for it.
                 cursor="pointer"
-                pressErrorTitle="Couldn’t create task"
+                pressErrorTitle="Couldn\u2019t create task"
                 onPress={async () => {
                     if (!filters) {
                         const taskId = generateId();

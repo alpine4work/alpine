@@ -3,7 +3,7 @@ import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 describe("getAgentUsageLocalResetTimeString", () => {
     describe("today scenarios", () => {
-        test("returns ‘today at’ when reset is later same day in", () => {
+        test("returns \u2018today at\u2019 when reset is later same day in", () => {
             const currentTime = new Date("2025-01-15T10:00:00.000Z");
             const resetTime = new Date("2025-01-15T18:00:00.000Z");
 
@@ -16,7 +16,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("today at 6:00pm");
         });
 
-        test("returns ‘today at’ when reset is later same day in America/New_York", () => {
+        test("returns \u2018today at\u2019 when reset is later same day in America/New_York", () => {
             const currentTime = new Date("2025-01-15T15:00:00.000Z"); // 10am EST
             const resetTime = new Date("2025-01-15T23:00:00.000Z"); // 6pm EST
 
@@ -29,7 +29,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("today at 6:00pm");
         });
 
-        test("returns ‘tomorrow at’ when reset is at midnight (start of next day)", () => {
+        test("returns \u2018tomorrow at\u2019 when reset is at midnight (start of next day)", () => {
             const currentTime = new Date("2025-01-15T04:00:00.000Z"); // 11pm EST Jan 14
             const resetTime = new Date("2025-01-15T05:00:00.000Z"); // 12am EST Jan 15
 
@@ -42,7 +42,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("tomorrow at 12:00am");
         });
 
-        test("returns ‘today at’ when reset is just before midnight same day", () => {
+        test("returns \u2018today at\u2019 when reset is just before midnight same day", () => {
             const currentTime = new Date("2025-01-15T10:00:00.000Z");
             const resetTime = new Date("2025-01-16T04:59:00.000Z"); // 11:59pm EST
 
@@ -55,7 +55,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("today at 11:59pm");
         });
 
-        test("returns ‘today at’ for same instant", () => {
+        test("returns \u2018today at\u2019 for same instant", () => {
             const time = new Date("2025-01-15T12:00:00.000Z");
 
             const result = getAgentUsageLocalResetTimeString(time, time, assertTimeZone("UTC"));
@@ -63,7 +63,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("today at 12:00pm");
         });
 
-        test("returns ‘today at’ in Asia/Tokyo timezone", () => {
+        test("returns \u2018today at\u2019 in Asia/Tokyo timezone", () => {
             const currentTime = new Date("2025-01-15T01:00:00.000Z"); // 10am JST
             const resetTime = new Date("2025-01-15T09:00:00.000Z"); // 6pm JST
 
@@ -78,7 +78,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
     });
 
     describe("tomorrow scenarios", () => {
-        test("returns ‘tomorrow at’ when reset is next calendar day in", () => {
+        test("returns \u2018tomorrow at\u2019 when reset is next calendar day in", () => {
             const currentTime = new Date("2025-01-15T10:00:00.000Z");
             const resetTime = new Date("2025-01-16T10:00:00.000Z");
 
@@ -91,7 +91,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("tomorrow at 10:00am");
         });
 
-        test("returns ‘tomorrow at’ when reset is next day in America/New_York", () => {
+        test("returns \u2018tomorrow at\u2019 when reset is next day in America/New_York", () => {
             const currentTime = new Date("2025-01-15T15:00:00.000Z"); // 10am EST
             const resetTime = new Date("2025-01-16T15:00:00.000Z"); // 10am EST next day
 
@@ -104,7 +104,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("tomorrow at 10:00am");
         });
 
-        test("returns ‘tomorrow at’ when reset is at midnight of next day", () => {
+        test("returns \u2018tomorrow at\u2019 when reset is at midnight of next day", () => {
             const currentTime = new Date("2025-01-15T15:00:00.000Z"); // 10am EST
             const resetTime = new Date("2025-01-16T05:00:00.000Z"); // 12am EST next day
 
@@ -117,7 +117,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("tomorrow at 12:00am");
         });
 
-        test("returns ‘tomorrow at’ when current time is late evening", () => {
+        test("returns \u2018tomorrow at\u2019 when current time is late evening", () => {
             const currentTime = new Date("2025-01-15T23:30:00.000Z"); // 6:30pm EST
             const resetTime = new Date("2025-01-16T15:00:00.000Z"); // 10am EST next day
 
@@ -130,7 +130,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("tomorrow at 10:00am");
         });
 
-        test("returns ‘tomorrow at’ in Asia/Tokyo timezone", () => {
+        test("returns \u2018tomorrow at\u2019 in Asia/Tokyo timezone", () => {
             const currentTime = new Date("2025-01-15T01:00:00.000Z"); // 10am JST
             const resetTime = new Date("2025-01-16T01:00:00.000Z"); // 10am JST next day
 
@@ -143,7 +143,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("tomorrow at 10:00am");
         });
 
-        test("returns ‘tomorrow at’ crossing month boundary", () => {
+        test("returns \u2018tomorrow at\u2019 crossing month boundary", () => {
             const currentTime = new Date("2025-01-31T15:00:00.000Z"); // Jan 31, 10am EST
             const resetTime = new Date("2025-02-01T15:00:00.000Z"); // Feb 1, 10am EST
 
@@ -156,7 +156,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
             expect(result).toBe("tomorrow at 10:00am");
         });
 
-        test("returns ‘tomorrow at’ crossing year boundary", () => {
+        test("returns \u2018tomorrow at\u2019 crossing year boundary", () => {
             const currentTime = new Date("2025-12-31T15:00:00.000Z"); // Dec 31, 10am EST
             const resetTime = new Date("2026-01-01T15:00:00.000Z"); // Jan 1, 10am EST
 

@@ -498,7 +498,7 @@ async function resolveDeployItemDispatchedDeploymentResult(
 
             if (!workflowRun) {
                 if (attemptCount >= 20) {
-                    throw new NotFoundError("Couldn’t find workflow run for dispatch");
+                    throw new NotFoundError("Couldn\u2019t find workflow run for dispatch");
                 } else {
                     await wait(500);
                     continue;
@@ -623,7 +623,7 @@ export async function prepareDeploy(
             workflowRunResult.data.conclusion !== "failure"
         ) {
             throw new FailedPreconditionError(
-                quote`Can’t deploy while there’s an ongoing deploy workflow run (id: ${deployItem.ongoingDeployment.workflowRunId}, status: ${workflowRunResult.status})`,
+                quote`Can\u2019t deploy while there\u2019s an ongoing deploy workflow run (id: ${deployItem.ongoingDeployment.workflowRunId}, status: ${workflowRunResult.status})`,
             );
         }
     }

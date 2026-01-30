@@ -235,7 +235,7 @@ export class HoneycombTracerClient {
         const body = await response.json();
 
         if (response.status !== 201) {
-            const message = `Couldn’t create Honeycomb marker${
+            const message = `Couldn\u2019t create Honeycomb marker${
                 isObject(body) && typeof body.error === "string" ? `: ${body.error}` : ""
             } (status code: ${response.status})`;
 

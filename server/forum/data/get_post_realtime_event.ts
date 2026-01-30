@@ -41,7 +41,7 @@ export async function getPostRealtimeEvent(
                     }
 
                     throw new PermissionDeniedError(
-                        "Can’t get realtime event for item that’s not associated with the designated post",
+                        "Can\u2019t get realtime event for item that\u2019s not associated with the designated post",
                     );
                 }),
             ),

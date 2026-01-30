@@ -140,7 +140,7 @@ export function ContentFileImageViewerMobile({
                         isDisabled={
                             file.alternative ? file.alternative.isProcessing : file.isUploading
                         }
-                        pressErrorTitle={`Couldn’t download ${getFileContentTypeNoun(
+                        pressErrorTitle={`Couldn\u2019t download ${getFileContentTypeNoun(
                             file.contentType,
                         )}`}
                         onPress={onShare}

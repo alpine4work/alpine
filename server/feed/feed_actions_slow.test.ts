@@ -28,7 +28,7 @@ const context = createTestContext({
 });
 
 test(
-    "limits the number of candidate entries we add to a new account’s feed",
+    "limits the number of candidate entries we add to a new account\u2019s feed",
     async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession();

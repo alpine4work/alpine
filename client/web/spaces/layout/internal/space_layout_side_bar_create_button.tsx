@@ -72,7 +72,7 @@ export function SpaceLayoutSideBarCreateButton() {
                     [
                         {
                             withCustomLayout: true,
-                            pressErrorTitle: "Couldn’t create document",
+                            pressErrorTitle: "Couldn\u2019t create document",
                             onPress: async () => {
                                 const documentId = generateId();
                                 await peekStackContext.push(
@@ -83,7 +83,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 <SpaceLayoutSideBarCreateButtonItem
                                     icon={<DocumentBrandBigIcon />}
                                     label="Document"
-                                    description="Write what’s on your mind"
+                                    description="Write what\u2019s on your mind"
                                     isPressed={isPressed}
                                     shouldShowPendingSpinner={shouldShowPendingSpinner}
                                 />
@@ -91,7 +91,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         },
                         {
                             withCustomLayout: true,
-                            pressErrorTitle: "Couldn’t open tasks",
+                            pressErrorTitle: "Couldn\u2019t open tasks",
                             onPress: async () => {
                                 const taskId = generateId();
                                 await peekStackContext.push(
@@ -110,7 +110,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         },
                         {
                             withCustomLayout: true,
-                            pressErrorTitle: "Couldn’t create post",
+                            pressErrorTitle: "Couldn\u2019t create post",
                             onPress: async () => {
                                 const draftId = generateChronologicalId();
 
@@ -130,7 +130,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         },
                         {
                             withCustomLayout: true,
-                            pressErrorTitle: "Couldn’t open new chat",
+                            pressErrorTitle: "Couldn\u2019t open new chat",
                             onPress: async () => {
                                 await peekStackContext.push(`/s/${space.id}/chat/new?focus=picker`);
                             },
@@ -154,7 +154,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 {
                                     label: "Task collection",
                                     icon: <TaskCollectionBrandIcon />,
-                                    pressErrorTitle: "Couldn’t create task collection",
+                                    pressErrorTitle: "Couldn\u2019t create task collection",
                                     onPress: async () => {
                                         const collectionId = generateId();
 
@@ -166,7 +166,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 {
                                     label: "Task view",
                                     icon: <TaskQueryBrandIcon />,
-                                    pressErrorTitle: "Couldn’t create task view",
+                                    pressErrorTitle: "Couldn\u2019t create task view",
                                     onPress: async () => {
                                         await peekStackContext.push(`/s/${space.id}/tasks/view`);
                                     },
@@ -174,7 +174,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 {
                                     label: "Channel",
                                     icon: <ChannelBrandIcon />,
-                                    pressErrorTitle: "Couldn’t create channel",
+                                    pressErrorTitle: "Couldn\u2019t create channel",
                                     onPress: async () => {
                                         await peekStackContext.push(
                                             `/s/${space.id}/channels/new?focus=name`,

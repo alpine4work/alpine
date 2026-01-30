@@ -19,7 +19,7 @@ export function getPostMoreActions({
                 label: "Copy link",
                 icon: <LinkIcon />,
                 iconPlacement: "end",
-                pressErrorTitle: "Couldn’t copy post link",
+                pressErrorTitle: "Couldn\u2019t copy post link",
                 onPress: async () => {
                     const url = new URL(
                         `/s/${post.spaceId}/posts/${post.id}`,

@@ -105,7 +105,7 @@ test("can read untitled document content", async () => {
     });
 });
 
-test("can’t read document content without access", async () => {
+test("can\u2019t read document content without access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -124,13 +124,13 @@ test("can’t read document content without access", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("You aren’t allowed"),
+                message: expect.stringMatching("You aren\u2019t allowed"),
             }),
         },
     });
 });
 
-test("can’t read document content for non-existent document", async () => {
+test("can\u2019t read document content for non-existent document", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -146,7 +146,7 @@ test("can’t read document content for non-existent document", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("doesn’t exist"),
+                message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
     });

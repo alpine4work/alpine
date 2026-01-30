@@ -325,11 +325,15 @@ export class DocumentCollaborationContentManager {
             // don't end up batching the update.
             if (hasSameClientIdAsNextPersistenceState) {
                 if ((update.resolveCommentThreadIds?.length ?? 0) > 0) {
-                    throw new InternalError("Can’t batch updates that resolve comment threads");
+                    throw new InternalError(
+                        "Can\u2019t batch updates that resolve comment threads",
+                    );
                 }
 
                 if ((update.unresolveCommentThreadIds?.length ?? 0) > 0) {
-                    throw new InternalError("Can’t batch updates that unresolve comment threads");
+                    throw new InternalError(
+                        "Can\u2019t batch updates that unresolve comment threads",
+                    );
                 }
             }
 
@@ -503,7 +507,7 @@ export class DocumentCollaborationContentManager {
                                 // We save steps anyway to preserve as much user data as we can.
                                 if (newVersion !== oldVersion + nextSteps.length) {
                                     throw new InternalError(
-                                        "Some process updated document content other than the document’s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
+                                        "Some process updated document content other than the document\u2019s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
                                     );
                                 }
 
@@ -656,7 +660,7 @@ export class DocumentCollaborationContentManager {
                     // There is a chance of race conditions if a user unresolves while we're
                     // waiting on the network for `AppService` to return its data to
                     // `DocumentCollaborationService`. Such a race condition is pretty rare and the
-                    // consequence is pretty minor (comment mark doesn’t reappear in document after
+                    // consequence is pretty minor (comment mark doesn't reappear in document after
                     // unresolved) so we tolerate the race condition.
                     if (
                         resolvedCommentThreadIds.has(commentThreadId) &&

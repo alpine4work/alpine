@@ -24,7 +24,7 @@ test("account can lose access to space", async ({page, context: browserContext})
     await page.goto(`/s/${space1.id}/documents/${document.id}`);
 
     await expect(page.getByText("foobar")).toBeVisible();
-    await expect(page.getByText("You don’t have access to this space")).toBeHidden();
+    await expect(page.getByText("You don\u2019t have access to this space")).toBeHidden();
     await expect(page.getByText("Switch space")).toBeHidden();
 
     await removeSpaceAccount(session1.action(), {
@@ -47,7 +47,7 @@ test("account can lose access to space", async ({page, context: browserContext})
 
     await page.reload();
 
-    await expect(page.getByText("You don’t have access to this space")).toBeVisible();
+    await expect(page.getByText("You don\u2019t have access to this space")).toBeVisible();
     await expect(page.getByText("foobar")).toBeHidden();
     await expect(page.getByText("Switch space")).toBeHidden();
 
@@ -55,7 +55,7 @@ test("account can lose access to space", async ({page, context: browserContext})
 
     await expect(page.getByText("Switch space")).toBeVisible();
     await expect(page.getByText("foobar")).toBeHidden();
-    await expect(page.getByText("You don’t have access to this space")).toBeHidden();
+    await expect(page.getByText("You don\u2019t have access to this space")).toBeHidden();
 
     await expect(page.getByText("Test Space 2")).toBeVisible();
     await expect(page.getByText("Test Space 1")).toBeHidden();

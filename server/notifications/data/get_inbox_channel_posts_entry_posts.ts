@@ -129,7 +129,7 @@ export async function getInboxChannelPostsEntryPosts(
         throw new NotFoundError("Channel posts entry not found", {
             displayMessage: deletedInboxEntry
                 ? errorDisplayMessage`All posts in this notification have been marked as done.`
-                : errorDisplayMessage`This notification doesn’t exist.`,
+                : errorDisplayMessage`This notification doesn\u2019t exist.`,
         });
     }
 

@@ -74,10 +74,10 @@ export function addSharedContentEditorInputRules(rules: Array<InputRule>) {
     // add our own custom behavior for smart quotes in code blocks and paragraphs.
     //
     // https://github.com/ProseMirror/prosemirror-inputrules/blob/8433778a3ce4e45c0188341b72fd71da3a440b5b/src/rules.ts#L7-L17
-    rules.push(createStandardInputRule(/(?:^|[\s{[(<'"\u2018\u201C])(")$/, "“"));
-    rules.push(createStandardInputRule(/"$/, "”"));
-    rules.push(createStandardInputRule(/(?:^|[\s{[(<'"\u2018\u201C])(')$/, "‘"));
-    rules.push(createStandardInputRule(/'$/, "’"));
+    rules.push(createStandardInputRule(/(?:^|[\s{[(<'"\u2018\u201C])(")$/, "\u201C"));
+    rules.push(createStandardInputRule(/"$/, "\u201D"));
+    rules.push(createStandardInputRule(/(?:^|[\s{[(<'"\u2018\u201C])(')$/, "\u2018"));
+    rules.push(createStandardInputRule(/'$/, "\u2019"));
 
     const emojiMap: Array<[string, string]> = [
         [":\\)", "\u{1F642}"], // 🙂 (https://graphemica.com/1F642)

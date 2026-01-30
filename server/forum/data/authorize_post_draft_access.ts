@@ -23,12 +23,12 @@ export async function authorizePostDraftAccess(
         case "System": {
             // We don't have a use case for system actions looking at drafts right now. So
             // block it.
-            throw new PermissionDeniedError("System actors can’t access post drafts");
+            throw new PermissionDeniedError("System actors can\u2019t access post drafts");
         }
         case "Session":
         case "ImpersonatedAccount": {
             if (accountId !== context.actor.getAccountId()) {
-                throw new PermissionDeniedError("Can’t access drafts from other accounts");
+                throw new PermissionDeniedError("Can\u2019t access drafts from other accounts");
             }
             break;
         }

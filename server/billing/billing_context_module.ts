@@ -58,7 +58,7 @@ export class BillingContextModule extends BillingContextModuleBase {
                     return {
                         ok: false,
                         reason: "AlreadyPurchased",
-                        message: "You’ve already purchased lifetime access.",
+                        message: "You\u2019ve already purchased lifetime access.",
                     };
                 }
 

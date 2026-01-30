@@ -254,7 +254,7 @@ function fromApiContentMentionInlineElement(
                 break;
             }
             default:
-                throw new InternalError("Couldn’t parse mention target path");
+                throw new InternalError("Couldn\u2019t parse mention target path");
         }
 
         mention = {

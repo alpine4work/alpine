@@ -118,7 +118,7 @@ test("can broadcast realtime events as system actor after initialization", async
     );
 });
 
-test("can’t broadcast realtime events from session actor from `AppClient`", async () => {
+test("can\u2019t broadcast realtime events from session actor from `AppClient`", async () => {
     await expect(
         fetchForTest(
             context.action(session1, {serviceName: "AppClient"}),
@@ -152,7 +152,7 @@ test("can’t broadcast realtime events from session actor from `AppClient`", as
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can’t broadcast realtime events from system actor from `TaskRealtimeService`", async () => {
+test("can\u2019t broadcast realtime events from system actor from `TaskRealtimeService`", async () => {
     await expect(
         fetchForTest(
             context.systemAction(space.id, {serviceName: "TaskRealtimeService"}),

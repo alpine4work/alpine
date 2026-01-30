@@ -41,11 +41,11 @@ export function showTaskDeleteConfirmationModalDialog({
         title: "Delete task?",
         description: `${
             childTaskCount === 0
-                ? "The task’s subtasks will also be deleted."
-                : `The task’s ${childTaskCountPrettyNumber} will also be deleted.`
+                ? "The task\u2019s subtasks will also be deleted."
+                : `The task\u2019s ${childTaskCountPrettyNumber} will also be deleted.`
         } To keep a record of finished work you can close tasks instead of deleting them.`,
         primaryButtonLabel: "Delete",
-        primaryButtonPressErrorTitle: "Couldn’t delete task",
+        primaryButtonPressErrorTitle: "Couldn\u2019t delete task",
         onPrimaryButtonPress: async () => {
             await onBeforeDelete?.();
 

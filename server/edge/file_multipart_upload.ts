@@ -88,7 +88,7 @@ export async function createFileMultipartUpload(
         // `EdgeService`.
         if (requestBody.contentLength <= 0) {
             throw new InvalidArgumentError(
-                `Can’t upload file with \`Content-Length\` of ${prettyBytes(
+                `Can\u2019t upload file with \`Content-Length\` of ${prettyBytes(
                     requestBody.contentLength,
                 )}`,
             );
@@ -240,7 +240,7 @@ export async function putFileMultipartUploadPart(
         // `EdgeService`.
         if (contentLength <= 0) {
             throw new InvalidArgumentError(
-                `Can’t upload file with \`Content-Length\` of ${prettyBytes(contentLength)}`,
+                `Can\u2019t upload file with \`Content-Length\` of ${prettyBytes(contentLength)}`,
             );
         }
 

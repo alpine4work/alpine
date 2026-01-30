@@ -113,7 +113,7 @@ test("requires authorization header to have proper API key", async () => {
     });
 });
 
-test("requires authorization header to have proper API key (an `Id` doesn’t work)", async () => {
+test("requires authorization header to have proper API key (an `Id` doesn\u2019t work)", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -337,7 +337,7 @@ test("rejects unknown API key", async () => {
     });
 });
 
-test("doesn’t allow an unscoped API key without an access token", async () => {
+test("doesn\u2019t allow an unscoped API key without an access token", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const [session2, session3] = await space.createSessions(2);
@@ -366,7 +366,7 @@ test("doesn’t allow an unscoped API key without an access token", async () => 
     });
 });
 
-test("doesn’t allow a scoped API key with an access token", async () => {
+test("doesn\u2019t allow a scoped API key with an access token", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const [session2, session3] = await space.createSessions(2);
@@ -395,7 +395,7 @@ test("doesn’t allow a scoped API key with an access token", async () => {
         body: {
             error: {
                 message:
-                    "Can’t have both an access token and a scoped API key in `Authorization` header.",
+                    "Can\u2019t have both an access token and a scoped API key in `Authorization` header.",
                 retry: {
                     able: false,
                 },
@@ -404,7 +404,7 @@ test("doesn’t allow a scoped API key with an access token", async () => {
     });
 });
 
-test("doesn’t allow non-bot account in access token", async () => {
+test("doesn\u2019t allow non-bot account in access token", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const [session2, session3] = await space.createSessions(2);
@@ -433,7 +433,7 @@ test("doesn’t allow non-bot account in access token", async () => {
         body: {
             error: {
                 message:
-                    "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+                    "Access token bot account isn\u2019t an instantiation of the API key bot in `Authorization` header.",
                 retry: {
                     able: false,
                 },
@@ -442,7 +442,7 @@ test("doesn’t allow non-bot account in access token", async () => {
     });
 });
 
-test("doesn’t allow mismatched bot between API key and access token", async () => {
+test("doesn\u2019t allow mismatched bot between API key and access token", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const [session2, session3] = await space.createSessions(2);
@@ -472,7 +472,7 @@ test("doesn’t allow mismatched bot between API key and access token", async ()
         body: {
             error: {
                 message:
-                    "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+                    "Access token bot account isn\u2019t an instantiation of the API key bot in `Authorization` header.",
                 retry: {
                     able: false,
                 },
@@ -582,7 +582,7 @@ test("can read message in chat", async () => {
     });
 });
 
-test("can’t use unsupported method", async () => {
+test("can\u2019t use unsupported method", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -602,7 +602,7 @@ test("can’t use unsupported method", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: {
-                message: "`POST` method isn’t supported, try `GET`.",
+                message: "`POST` method isn\u2019t supported, try `GET`.",
                 retry: {
                     able: false,
                 },
@@ -649,7 +649,7 @@ test("validates response with schema in tests", async () => {
     });
 });
 
-test("path param that doesn’t match pattern", async () => {
+test("path param that doesn\u2019t match pattern", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -678,7 +678,7 @@ test("path param that doesn’t match pattern", async () => {
     });
 });
 
-test("integer path param that’s not a number", async () => {
+test("integer path param that\u2019s not a number", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -785,7 +785,7 @@ test("responds with pretty HTML with error if authorization header is invalid", 
     });
 });
 
-test("doesn’t use authorization cookie if request isn’t an HTML request", async () => {
+test("doesn\u2019t use authorization cookie if request isn\u2019t an HTML request", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -887,7 +887,7 @@ test("can read messages", async () => {
     ).toEqual("Hello, world!\n");
 });
 
-test("can’t read message with invalid string query parameter", async () => {
+test("can\u2019t read message with invalid string query parameter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -916,7 +916,7 @@ test("can’t read message with invalid string query parameter", async () => {
     });
 });
 
-test("can’t read message with invalid integer query parameter", async () => {
+test("can\u2019t read message with invalid integer query parameter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 

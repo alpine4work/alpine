@@ -57,7 +57,9 @@ export function updatePostContent(
             throw new PermissionDeniedError("Can only update posts you authored");
 
         if (contentVersion !== (oldPostItem.contentUpdate?.mappings.length ?? 0))
-            throw new FailedPreconditionError("Can’t update post with mismatched content version");
+            throw new FailedPreconditionError(
+                "Can\u2019t update post with mismatched content version",
+            );
 
         let content = oldPostItem.content;
         const mapping = new Mapping();
@@ -71,7 +73,7 @@ export function updatePostContent(
             }
             if (!stepResult.doc) {
                 throw new FailedPreconditionError(
-                    `Couldn’t apply step to content: ${stepResult.failed!}`,
+                    `Couldn\u2019t apply step to content: ${stepResult.failed!}`,
                 );
             }
 

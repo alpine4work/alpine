@@ -140,7 +140,7 @@ function textSlice(text: string) {
     return new Slice(Fragment.from(PostContentProsemirrorSchema.text(text)), 0, 0);
 }
 
-test("can’t create a channel for a different space", async () => {
+test("can\u2019t create a channel for a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -153,7 +153,7 @@ test("can’t create a channel for a different space", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can’t create a channel if the actor doesn’t have manage access", async () => {
+test("can\u2019t create a channel if the actor doesn\u2019t have manage access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -182,7 +182,7 @@ test("can’t create a channel if the actor doesn’t have manage access", async
     });
 });
 
-test("can’t create a channel with URL grant", async () => {
+test("can\u2019t create a channel with URL grant", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -198,7 +198,7 @@ test("can’t create a channel with URL grant", async () => {
                 urlGrant: {level: "View"},
             },
         }),
-    ).rejects.toThrow("Channels don’t currently support `urlGrant`s");
+    ).rejects.toThrow("Channels don\u2019t currently support `urlGrant`s");
 
     await createChannel(session1.action(), {
         spaceId: space.id,
@@ -240,7 +240,7 @@ test("can create a channel with a description", async () => {
     );
 });
 
-test("can’t get a channel that does not exist", async () => {
+test("can\u2019t get a channel that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -281,7 +281,7 @@ test("can’t get a channel that does not exist", async () => {
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can’t get a channel for a different space", async () => {
+test("can\u2019t get a channel for a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
 
@@ -329,7 +329,7 @@ test("can’t get a channel for a different space", async () => {
     ).toBe(false);
 });
 
-test("can’t get a private channel", async () => {
+test("can\u2019t get a private channel", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2, session3] = await space.createSessions(3);
@@ -448,43 +448,43 @@ test("can’t get a private channel", async () => {
     );
 
     await expect(getChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
     await expect(getChannelIfPossible(session3.action(), channel.id)).resolves.toEqual(
         expect.objectContaining({
             ok: false,
             error: expect.objectContaining({
-                message: "Actor doesn’t have `View` access level",
+                message: "Actor doesn\u2019t have `View` access level",
             }),
         }),
     );
     await expect(
         getChannelNameAndDescriptionContent(session3.action(), channel.id),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
     await expect(
         getChannelNameAndDescriptionContentAndContributors(session3.action(), channel.id),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
     await expect(
         getChannelAndMetadata(session3.action(), {channelId: channel.id, postFilesLimit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
     await expect(
         getChannelAndMetadata(session3.action(), {
             channelId: channel.id,
             postFilesLimit: 100,
             afterItemKey: getChannelContributorsKey(channel.id),
         }),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
     await expect(
         getChannelContributors(session3.action(), channel.id, {limit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
     await expect(
         backfillChannelAndMetadata(session3.action(), {
             channelId: channel.id,
             checkpoint: generateServerSynchronizationCheckpoint(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
     await expect(authorizeChannelAccess(session3.action(), channel.id, "View")).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
     expect((await authorizeChannelAccessIfPossible(session3.action(), channel.id, "View")).ok).toBe(
         false,
@@ -538,7 +538,7 @@ test("can get a channel", async () => {
     );
 });
 
-test("can update a channel’s name", async () => {
+test("can update a channel\u2019s name", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -582,7 +582,7 @@ test("can update a channel’s name", async () => {
     ).toEqual("Test 2");
 });
 
-test("can’t update a channel’s name if the name is too long", async () => {
+test("can\u2019t update a channel\u2019s name if the name is too long", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -602,7 +602,7 @@ test("can’t update a channel’s name if the name is too long", async () => {
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 });
 
-test("can’t update a channel’s name from a different space", async () => {
+test("can\u2019t update a channel\u2019s name from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -624,7 +624,7 @@ test("can’t update a channel’s name from a different space", async () => {
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 });
 
-test("can’t update a channel’s name without manage access", async () => {
+test("can\u2019t update a channel\u2019s name without manage access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -641,7 +641,7 @@ test("can’t update a channel’s name without manage access", async () => {
             channelId: channel.id,
             name: "Test 2",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
 
@@ -652,7 +652,7 @@ test("can’t update a channel’s name without manage access", async () => {
             channelId: channel.id,
             name: "Test 3",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
 
@@ -663,7 +663,7 @@ test("can’t update a channel’s name without manage access", async () => {
             channelId: channel.id,
             name: "Test 4",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
 
@@ -674,7 +674,7 @@ test("can’t update a channel’s name without manage access", async () => {
             channelId: channel.id,
             name: "Test 5",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
 
@@ -688,7 +688,7 @@ test("can’t update a channel’s name without manage access", async () => {
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 6");
 });
 
-test("can’t update the name of a channel that does not exist", async () => {
+test("can\u2019t update the name of a channel that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -700,7 +700,7 @@ test("can’t update the name of a channel that does not exist", async () => {
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can update a channel’s description", async () => {
+test("can update a channel\u2019s description", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -729,7 +729,7 @@ test("can update a channel’s description", async () => {
     );
 });
 
-test("can’t update a channel’s description from a different space", async () => {
+test("can\u2019t update a channel\u2019s description from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -753,7 +753,7 @@ test("can’t update a channel’s description from a different space", async ()
     );
 });
 
-test("can’t update the description of a channel that does not exist", async () => {
+test("can\u2019t update the description of a channel that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -765,7 +765,7 @@ test("can’t update the description of a channel that does not exist", async ()
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can’t update a channel’s description with invalid content", async () => {
+test("can\u2019t update a channel\u2019s description with invalid content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -802,7 +802,7 @@ test("can’t update a channel’s description with invalid content", async () =
     );
 });
 
-test("can’t update a channel’s description without manage access", async () => {
+test("can\u2019t update a channel\u2019s description without manage access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -822,7 +822,7 @@ test("can’t update a channel’s description without manage access", async () 
             channelId: channel.id,
             description: createSimpleMessageContent("Test 2"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
@@ -836,7 +836,7 @@ test("can’t update a channel’s description without manage access", async () 
             channelId: channel.id,
             description: createSimpleMessageContent("Test 3"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
@@ -850,7 +850,7 @@ test("can’t update a channel’s description without manage access", async () 
             channelId: channel.id,
             description: createSimpleMessageContent("Test 4"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
@@ -864,7 +864,7 @@ test("can’t update a channel’s description without manage access", async () 
             channelId: channel.id,
             description: createSimpleMessageContent("Test 5"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
@@ -884,7 +884,7 @@ test("can’t update a channel’s description without manage access", async () 
     ).toEqual('doc(paragraph("Test 6"))');
 });
 
-test("can update a channel’s name and description", async () => {
+test("can update a channel\u2019s name and description", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -907,7 +907,7 @@ test("can update a channel’s name and description", async () => {
     );
 });
 
-test("can’t update a channel’s name and description from a different space", async () => {
+test("can\u2019t update a channel\u2019s name and description from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -928,7 +928,7 @@ test("can’t update a channel’s name and description from a different space",
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 });
 
-test("can’t update the name and description of a channel that does not exist", async () => {
+test("can\u2019t update the name and description of a channel that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -941,7 +941,7 @@ test("can’t update the name and description of a channel that does not exist",
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can’t update a channel’s name and description without manage access", async () => {
+test("can\u2019t update a channel\u2019s name and description without manage access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -964,7 +964,7 @@ test("can’t update a channel’s name and description without manage access", 
             name: "Test 2a",
             description: createSimpleMessageContent("Test 2b"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
@@ -980,7 +980,7 @@ test("can’t update a channel’s name and description without manage access", 
             name: "Test 3a",
             description: createSimpleMessageContent("Test 3b"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
@@ -996,7 +996,7 @@ test("can’t update a channel’s name and description without manage access", 
             name: "Test 4a",
             description: createSimpleMessageContent("Test 4b"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
@@ -1012,7 +1012,7 @@ test("can’t update a channel’s name and description without manage access", 
             name: "Test 5a",
             description: createSimpleMessageContent("Test 5b"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
@@ -1035,7 +1035,7 @@ test("can’t update a channel’s name and description without manage access", 
     ).toEqual('doc(paragraph("Test 6b"))');
 });
 
-test("can’t update channel access policy without manage access", async () => {
+test("can\u2019t update channel access policy without manage access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
     const channel = await TestChannel.create(session1);
@@ -1056,7 +1056,7 @@ test("can’t update channel access policy without manage access", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "View");
 
@@ -1074,7 +1074,7 @@ test("can’t update channel access policy without manage access", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Comment");
 
@@ -1092,7 +1092,7 @@ test("can’t update channel access policy without manage access", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Edit");
 
@@ -1110,7 +1110,7 @@ test("can’t update channel access policy without manage access", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Manage");
 
@@ -1145,7 +1145,7 @@ test("can’t update channel access policy without manage access", async () => {
     });
 });
 
-test("can’t update channel access policy (with add account grants function) without manage access", async () => {
+test("can\u2019t update channel access policy (with add account grants function) without manage access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
     const channel = await TestChannel.create(session1);
@@ -1161,7 +1161,7 @@ test("can’t update channel access policy (with add account grants function) wi
             ]),
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "View");
 
@@ -1174,7 +1174,7 @@ test("can’t update channel access policy (with add account grants function) wi
             ]),
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Comment");
 
@@ -1187,7 +1187,7 @@ test("can’t update channel access policy (with add account grants function) wi
             ]),
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Edit");
 
@@ -1200,7 +1200,7 @@ test("can’t update channel access policy (with add account grants function) wi
             ]),
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Manage");
 
@@ -1230,7 +1230,7 @@ test("can’t update channel access policy (with add account grants function) wi
     });
 });
 
-test("can’t update channel access policy with invalid update", async () => {
+test("can\u2019t update channel access policy with invalid update", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
     const channel = await TestChannel.create(session1);
@@ -1249,7 +1249,7 @@ test("can’t update channel access policy with invalid update", async () => {
             notification: null,
         }),
     ).rejects.toThrow(
-        "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     );
 
     await expect(
@@ -1265,7 +1265,7 @@ test("can’t update channel access policy with invalid update", async () => {
             notification: null,
         }),
     ).rejects.toThrow(
-        "Can’t revoke manage access from an account with a manage generation less than our actor",
+        "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     );
 
     await expect(
@@ -1281,10 +1281,10 @@ test("can’t update channel access policy with invalid update", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Can’t change default grant manage generation");
+    ).rejects.toThrow("Can\u2019t change default grant manage generation");
 });
 
-test("can’t create channel shared with bot account", async () => {
+test("can\u2019t create channel shared with bot account", async () => {
     const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
@@ -1304,10 +1304,10 @@ test("can’t create channel shared with bot account", async () => {
                 urlGrant: null,
             },
         }),
-    ).rejects.toThrow("Can’t grant access to a bot account");
+    ).rejects.toThrow("Can\u2019t grant access to a bot account");
 });
 
-test("can’t update channel access policy with bot account", async () => {
+test("can\u2019t update channel access policy with bot account", async () => {
     const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
@@ -1330,10 +1330,10 @@ test("can’t update channel access policy with bot account", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Can’t grant access to a bot account");
+    ).rejects.toThrow("Can\u2019t grant access to a bot account");
 });
 
-test("can’t update channel access policy with `urlGrant``", async () => {
+test("can\u2019t update channel access policy with `urlGrant``", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const channel = await TestChannel.create(session);
@@ -1348,7 +1348,7 @@ test("can’t update channel access policy with `urlGrant``", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Channels don’t currently support `urlGrant`s");
+    ).rejects.toThrow("Channels don\u2019t currently support `urlGrant`s");
 
     expect((await channel.access.get()).urlGrant).toEqual(null);
 });
@@ -1361,7 +1361,7 @@ test("can create a post", async () => {
     await channel.createPost(session);
 });
 
-test("can’t create a post for a different space", async () => {
+test("can\u2019t create a post for a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -1371,7 +1371,7 @@ test("can’t create a post for a different space", async () => {
     await expect(channel.createPost(otherSession)).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can’t create a post with invalid content", async () => {
+test("can\u2019t create a post with invalid content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const channel = await TestChannel.create(session);
@@ -1390,7 +1390,7 @@ test("can’t create a post with invalid content", async () => {
     ).rejects.toThrow(InvalidArgumentError);
 });
 
-test("can’t create a post without edit access", async () => {
+test("can\u2019t create a post without edit access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -1404,7 +1404,7 @@ test("can’t create a post without edit access", async () => {
             content: createSimplePostContent("Test post 1"),
             createdTimeZone: defaultTimeZone,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await channel.access.grantDefault(session1, "View");
 
@@ -1414,7 +1414,7 @@ test("can’t create a post without edit access", async () => {
             content: createSimplePostContent("Test post 2"),
             createdTimeZone: defaultTimeZone,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await channel.access.grantDefault(session1, "Comment");
 
@@ -1424,7 +1424,7 @@ test("can’t create a post without edit access", async () => {
             content: createSimplePostContent("Test post 3"),
             createdTimeZone: defaultTimeZone,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await channel.access.grantDefault(session1, "Edit");
 
@@ -1443,7 +1443,7 @@ test("can’t create a post without edit access", async () => {
     });
 });
 
-test("can’t get a post that does not exist", async () => {
+test("can\u2019t get a post that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1470,7 +1470,7 @@ test("can’t get a post that does not exist", async () => {
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can’t get a post for a different space", async () => {
+test("can\u2019t get a post for a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -1505,7 +1505,7 @@ test("can’t get a post for a different space", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can’t get a post from channel actor doesn’t have view access to", async () => {
+test("can\u2019t get a post from channel actor doesn\u2019t have view access to", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -1515,32 +1515,32 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     const post = await channel.createPost(session1);
 
     await expect(getPost(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
     expect((await getPostIfPossible(session2.action(), post.id)).error).toEqual(
-        new PermissionDeniedError("Actor doesn’t have `View` access level"),
+        new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
     );
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
     expect(
         (await getPostContentAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
-    ).toContain("Actor doesn’t have `View` access level");
+    ).toContain("Actor doesn\u2019t have `View` access level");
     expect(
         (await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
-    ).toContain("Actor doesn’t have `View` access level");
+    ).toContain("Actor doesn\u2019t have `View` access level");
     await expect(
         getPostContentWithCustomReferencesAndChannelPreview(
             session2.action(),
             post.id,
             async (context, spaceId, content) => content,
         ),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 
     await channel.access.grantDefault(session1, "View");
 
@@ -1633,32 +1633,32 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     await channel.access.revokeDefault(session1);
 
     await expect(getPost(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
     expect((await getPostIfPossible(session2.action(), post.id)).error).toEqual(
-        new PermissionDeniedError("Actor doesn’t have `View` access level"),
+        new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
     );
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
     expect(
         (await getPostContentAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
-    ).toContain("Actor doesn’t have `View` access level");
+    ).toContain("Actor doesn\u2019t have `View` access level");
     expect(
         (await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
-    ).toContain("Actor doesn’t have `View` access level");
+    ).toContain("Actor doesn\u2019t have `View` access level");
     await expect(
         getPostContentWithCustomReferencesAndChannelPreview(
             session2.action(),
             post.id,
             async (context, spaceId, content) => content,
         ),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 });
 
 test("can get a post", async () => {
@@ -1780,7 +1780,7 @@ test("can get the comment authors on a post", async () => {
     );
 });
 
-test("can’t get the comment authors in another space", async () => {
+test("can\u2019t get the comment authors in another space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -1801,7 +1801,7 @@ test("can’t get the comment authors in another space", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can’t get the comment authors for a post in a channel you don’t have access to", async () => {
+test("can\u2019t get the comment authors for a post in a channel you don\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
@@ -1812,13 +1812,13 @@ test("can’t get the comment authors for a post in a channel you don’t have a
 
     await expect(
         getPostCommentAuthors(session3.action(), {postId: post.id, limit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 
     await post.createComment(session2, testMessageContent1);
 
     await expect(
         getPostCommentAuthors(session3.action(), {postId: post.id, limit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 
     await channel.access.grant(session1, session3, "View");
 
@@ -3543,7 +3543,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 });
 
-test("won’t backfill realtime updates when comment count changes", async () => {
+test("won\u2019t backfill realtime updates when comment count changes", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3792,7 +3792,7 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     });
 });
 
-test("can update a post’s contents", async () => {
+test("can update a post\u2019s contents", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3882,7 +3882,7 @@ test("can update a post’s contents", async () => {
     );
 });
 
-test("can’t update a post’s contents with the wrong version", async () => {
+test("can\u2019t update a post\u2019s contents with the wrong version", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3918,7 +3918,7 @@ test("can’t update a post’s contents with the wrong version", async () => {
             contentVersion: 0,
             steps: [new ReplaceStep(5, 6, textSlice("3"))],
         }),
-    ).rejects.toThrow("Can’t update post with mismatched content version");
+    ).rejects.toThrow("Can\u2019t update post with mismatched content version");
 
     expect((await getPost(session.action(), post.id)).model).toEqual(
         expect.objectContaining({
@@ -3929,7 +3929,7 @@ test("can’t update a post’s contents with the wrong version", async () => {
     );
 });
 
-test("can’t update another account’s post", async () => {
+test("can\u2019t update another account\u2019s post", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -3993,7 +3993,7 @@ test("can’t update another account’s post", async () => {
     );
 });
 
-test("can’t update another space’s post", async () => {
+test("can\u2019t update another space\u2019s post", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -4058,7 +4058,7 @@ test("can’t update another space’s post", async () => {
     );
 });
 
-test("can’t update a post with invalid content", async () => {
+test("can\u2019t update a post with invalid content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -4137,7 +4137,7 @@ test("can’t update a post with invalid content", async () => {
     );
 });
 
-test("can’t update a post after losing channel access", async () => {
+test("can\u2019t update a post after losing channel access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -4206,7 +4206,7 @@ test("can’t update a post after losing channel access", async () => {
             contentVersion: 0,
             steps: [new ReplaceStep(5, 6, textSlice("3"))],
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect((await getPost(session1.action(), post.id)).model).toEqual(
         expect.objectContaining({
@@ -4239,7 +4239,7 @@ test("can’t update a post after losing channel access", async () => {
             contentVersion: 0,
             steps: [new ReplaceStep(5, 6, textSlice("3"))],
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect((await getPost(session1.action(), post.id)).model).toEqual(
         expect.objectContaining({
@@ -4296,7 +4296,7 @@ test("can’t update a post after losing channel access", async () => {
     );
 });
 
-test("if time hasn’t moved forward updating a post will set it to +1ms of the last update time", async () => {
+test("if time hasn\u2019t moved forward updating a post will set it to +1ms of the last update time", async () => {
     const originalDateNow = Date.now;
     const mockTime = 1675809808692;
     Date.now = () => mockTime;
@@ -6589,19 +6589,19 @@ test("can create, get, update, and authorize a post draft", async () => {
 
     await expect(
         authorizePostDraftAccess(session1.action(), space.id, session2.account.id, draftId),
-    ).rejects.toThrow("Can’t access drafts from other accounts");
+    ).rejects.toThrow("Can\u2019t access drafts from other accounts");
 
     await expect(
         authorizePostDraftAccess(space.systemAction(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("System actors can’t access post drafts");
+    ).rejects.toThrow("System actors can\u2019t access post drafts");
 
     await expect(
         authorizePostDraftAccess(otherSession.action(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         authorizePostDraftAccess(otherSpace.systemAction(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("System actor doesn’t have access to space");
+    ).rejects.toThrow("System actor doesn\u2019t have access to space");
 
     await expect(
         authorizePostDraftAccess(context.anonymousAction(), space.id, session1.account.id, draftId),
@@ -6621,7 +6621,7 @@ test("can create, get, update, and authorize a post draft", async () => {
             session1.account.id,
             draftId,
         ),
-    ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
+    ).rejects.toThrow("Impersonated account actor doesn\u2019t have access to space");
 
     await expect(
         authorizePostDraftAccess(botAccount.action(), space.id, botAccount.id, draftId),
@@ -6636,21 +6636,21 @@ test("can create, get, update, and authorize a post draft", async () => {
             channelId: null,
             content: createSimplePostContent("Test post content 2"),
         }),
-    ).rejects.toThrow("Can’t access drafts from other accounts");
+    ).rejects.toThrow("Can\u2019t access drafts from other accounts");
 
     await expect(
         createOrReplacePostDraft(space.systemAction(), space.id, session1.account.id, draftId, {
             channelId: null,
             content: createSimplePostContent("Test post content 2"),
         }),
-    ).rejects.toThrow("System actors can’t access post drafts");
+    ).rejects.toThrow("System actors can\u2019t access post drafts");
 
     await expect(
         createOrReplacePostDraft(otherSession.action(), space.id, session1.account.id, draftId, {
             channelId: null,
             content: createSimplePostContent("Test post content 2"),
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         createOrReplacePostDraft(
@@ -6663,7 +6663,7 @@ test("can create, get, update, and authorize a post draft", async () => {
                 content: createSimplePostContent("Test post content 2"),
             },
         ),
-    ).rejects.toThrow("System actor doesn’t have access to space");
+    ).rejects.toThrow("System actor doesn\u2019t have access to space");
 
     await expect(
         createOrReplacePostDraft(
@@ -6719,19 +6719,19 @@ test("can create, get, update, and authorize a post draft", async () => {
 
     await expect(
         getPostDraftIfExists(session2.action(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("Can’t access drafts from other accounts");
+    ).rejects.toThrow("Can\u2019t access drafts from other accounts");
 
     await expect(
         getPostDraftIfExists(space.systemAction(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("System actors can’t access post drafts");
+    ).rejects.toThrow("System actors can\u2019t access post drafts");
 
     await expect(
         getPostDraftIfExists(otherSession.action(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         getPostDraftIfExists(otherSpace.systemAction(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("System actor doesn’t have access to space");
+    ).rejects.toThrow("System actor doesn\u2019t have access to space");
 
     await expect(
         getPostDraftIfExists(context.anonymousAction(), space.id, session1.account.id, draftId),
@@ -6815,7 +6815,7 @@ test("will attach referenced files to post when creating from draft", async () =
             content: postContent,
             createdTimeZone: defaultTimeZone,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
+    ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
     await attachFileAsUploader(
         session.action(),
@@ -6871,7 +6871,7 @@ test("can check if actor is subscribed to channel", async () => {
 
     await expect(
         getChannelNotificationSubscribers(otherSpace.systemAction(), channel.id),
-    ).rejects.toThrow("System actor doesn’t have access to space");
+    ).rejects.toThrow("System actor doesn\u2019t have access to space");
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
         session1.account.id,
@@ -6883,7 +6883,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6895,7 +6895,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual(
@@ -6907,7 +6907,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual(
@@ -6919,7 +6919,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6931,7 +6931,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6939,16 +6939,16 @@ test("can check if actor is subscribed to channel", async () => {
     ]);
 
     await expect(subscribeToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
     await expect(unsubscribeFromChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6960,7 +6960,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([]);
@@ -6970,7 +6970,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6981,10 +6981,10 @@ test("can check if actor is subscribed to channel", async () => {
 
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session2.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6992,15 +6992,15 @@ test("can check if actor is subscribed to channel", async () => {
     ]);
 
     await expect(unsubscribeFromChannel(session2.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session2.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -7012,7 +7012,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level",
+        "Actor doesn\u2019t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -7051,11 +7051,11 @@ test("can only send share notification as a member of channel", async () => {
             content: emptyMessageContent,
             createdTimeZone: defaultTimeZone,
         }),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 });
 
 describe("Notification subscribers", () => {
-    test("throws when trying to access a post that doesn’t exist", async () => {
+    test("throws when trying to access a post that doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
 
         await expect(
@@ -7077,7 +7077,7 @@ describe("Notification subscribers", () => {
         ).toEqual(new Set([session.account.id]));
     });
 
-    test("can’t get notification subscribers for a post in a different space", async () => {
+    test("can\u2019t get notification subscribers for a post in a different space", async () => {
         const space = await TestSpace.create(context);
         const otherSpace = await TestSpace.create(context);
         const session = await space.createSession();
@@ -7092,7 +7092,7 @@ describe("Notification subscribers", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("an account mentioned in the post’s content is subscribed to notifications", async () => {
+    test("an account mentioned in the post\u2019s content is subscribed to notifications", async () => {
         const space = await TestSpace.create(context);
         const [session1, session2] = await runAllPromises([
             space.createSession(),
@@ -7126,7 +7126,7 @@ describe("Notification subscribers", () => {
         ).toEqual(new Set([session1.account.id, session2.account.id]));
     });
 
-    test("an unknown account in the post’s content is not subscribed to notifications", async () => {
+    test("an unknown account in the post\u2019s content is not subscribed to notifications", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -7159,7 +7159,7 @@ describe("Notification subscribers", () => {
         ).toEqual(new Set([session.account.id, missingAccountId]));
     });
 
-    test("a mentioned account from another space in the post’s content is not subscribed to notifications", async () => {
+    test("a mentioned account from another space in the post\u2019s content is not subscribed to notifications", async () => {
         const space = await TestSpace.create(context);
         const otherSpace = await TestSpace.create(context);
         const [session1, otherSession] = await runAllPromises([
@@ -7194,7 +7194,7 @@ describe("Notification subscribers", () => {
         ).toEqual(new Set([session1.account.id, otherSession.account.id]));
     });
 
-    test("an account mentioned in the post’s content is subscribed to notifications even if it is removed from the post’s content", async () => {
+    test("an account mentioned in the post\u2019s content is subscribed to notifications even if it is removed from the post\u2019s content", async () => {
         const space = await TestSpace.create(context);
         const [session1, session2] = await runAllPromises([
             space.createSession(),
@@ -7240,7 +7240,7 @@ describe("Notification subscribers", () => {
         ).toEqual(new Set([session1.account.id, session2.account.id]));
     });
 
-    test("an account mentioned in the post’s content after an update is subscribed to notifications", async () => {
+    test("an account mentioned in the post\u2019s content after an update is subscribed to notifications", async () => {
         const space = await TestSpace.create(context);
         const [session1, session2] = await runAllPromises([
             space.createSession(),
@@ -7832,7 +7832,7 @@ describe("Notification subscribers", () => {
     });
 });
 
-test("creating a post with files adds to the channel’s post files", async () => {
+test("creating a post with files adds to the channel\u2019s post files", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -8816,7 +8816,7 @@ test("can get post realtime event", async () => {
     ]);
 });
 
-test("can’t get post realtime event for incorrect post", async () => {
+test("can\u2019t get post realtime event for incorrect post", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -8839,11 +8839,11 @@ test("can’t get post realtime event for incorrect post", async () => {
             },
         ]),
     ).rejects.toThrow(
-        "Can’t get realtime event for item that’s not associated with the designated post",
+        "Can\u2019t get realtime event for item that\u2019s not associated with the designated post",
     );
 });
 
-test("can’t get post realtime event for correct post and incorrect post", async () => {
+test("can\u2019t get post realtime event for correct post and incorrect post", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -8877,11 +8877,11 @@ test("can’t get post realtime event for correct post and incorrect post", asyn
             },
         ]),
     ).rejects.toThrow(
-        "Can’t get realtime event for item that’s not associated with the designated post",
+        "Can\u2019t get realtime event for item that\u2019s not associated with the designated post",
     );
 });
 
-test("can’t get post realtime event for post actor doesn’t have access to", async () => {
+test("can\u2019t get post realtime event for post actor doesn\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -8902,10 +8902,10 @@ test("can’t get post realtime event for post actor doesn’t have access to", 
                 },
             },
         ]),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 });
 
-test("can’t get post realtime event for post in different space", async () => {
+test("can\u2019t get post realtime event for post in different space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -8929,10 +8929,10 @@ test("can’t get post realtime event for post in different space", async () => 
                 },
             },
         ]),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
-test("can’t get post realtime event for channel", async () => {
+test("can\u2019t get post realtime event for channel", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -8954,7 +8954,7 @@ test("can’t get post realtime event for channel", async () => {
             },
         ]),
     ).rejects.toThrow(
-        "Can’t get realtime event for item that’s not associated with the designated post",
+        "Can\u2019t get realtime event for item that\u2019s not associated with the designated post",
     );
 });
 
@@ -9133,7 +9133,7 @@ test("can get channel realtime event for post", async () => {
     ]);
 });
 
-test("can’t get channel realtime event for incorrect channel", async () => {
+test("can\u2019t get channel realtime event for incorrect channel", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -9157,11 +9157,11 @@ test("can’t get channel realtime event for incorrect channel", async () => {
             },
         ]),
     ).rejects.toThrow(
-        "Can’t get realtime event for item that’s not associated with the designated channel",
+        "Can\u2019t get realtime event for item that\u2019s not associated with the designated channel",
     );
 });
 
-test("can’t get channel contributors and channel files realtime event for incorrect channel", async () => {
+test("can\u2019t get channel contributors and channel files realtime event for incorrect channel", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -9200,11 +9200,11 @@ test("can’t get channel contributors and channel files realtime event for inco
             },
         ]),
     ).rejects.toThrow(
-        "Can’t get realtime event for item that’s not associated with the designated channel",
+        "Can\u2019t get realtime event for item that\u2019s not associated with the designated channel",
     );
 });
 
-test("can’t get channel realtime event for post in incorrect channel", async () => {
+test("can\u2019t get channel realtime event for post in incorrect channel", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -9228,11 +9228,11 @@ test("can’t get channel realtime event for post in incorrect channel", async (
             },
         ]),
     ).rejects.toThrow(
-        "Can’t get realtime event for item that’s not associated with the designated channel",
+        "Can\u2019t get realtime event for item that\u2019s not associated with the designated channel",
     );
 });
 
-test("can’t get channel realtime event when actor doesn’t have access", async () => {
+test("can\u2019t get channel realtime event when actor doesn\u2019t have access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -9253,10 +9253,10 @@ test("can’t get channel realtime event when actor doesn’t have access", asyn
                 },
             },
         ]),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 });
 
-test("can’t get channel contributors and channel files realtime event when actor doesn’t have access", async () => {
+test("can\u2019t get channel contributors and channel files realtime event when actor doesn\u2019t have access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -9293,10 +9293,10 @@ test("can’t get channel contributors and channel files realtime event when act
                 },
             },
         ]),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 });
 
-test("can’t get channel realtime event for post when actor doesn’t have access", async () => {
+test("can\u2019t get channel realtime event for post when actor doesn\u2019t have access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -9317,10 +9317,10 @@ test("can’t get channel realtime event for post when actor doesn’t have acce
                 },
             },
         ]),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 });
 
-test("can’t get channel realtime event when actor doesn’t have space access", async () => {
+test("can\u2019t get channel realtime event when actor doesn\u2019t have space access", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -9344,10 +9344,10 @@ test("can’t get channel realtime event when actor doesn’t have space access"
                 },
             },
         ]),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
-test("can’t get channel contributors and channel files realtime event when actor doesn’t have space access", async () => {
+test("can\u2019t get channel contributors and channel files realtime event when actor doesn\u2019t have space access", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -9387,10 +9387,10 @@ test("can’t get channel contributors and channel files realtime event when act
                 },
             },
         ]),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
-test("can’t get channel realtime event for post when actor is in the wrong space", async () => {
+test("can\u2019t get channel realtime event for post when actor is in the wrong space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -9414,7 +9414,7 @@ test("can’t get channel realtime event for post when actor is in the wrong spa
                 },
             },
         ]),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
 test("can create post comment with post range parent", async () => {
@@ -9458,7 +9458,7 @@ test("can create post comment with post range parent on later version", async ()
     });
 });
 
-test("can’t create post comment with post range parent with invalid version", async () => {
+test("can\u2019t create post comment with post range parent with invalid version", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -9594,7 +9594,7 @@ describe("`getPostAccessPolicyForBotScope()`", () => {
         );
     });
 
-    test("can’t get access policy for scoped post other than the one scoped", async () => {
+    test("can\u2019t get access policy for scoped post other than the one scoped", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -9611,7 +9611,7 @@ describe("`getPostAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped post");
     });
 
-    test("can’t get access policy with space scope", async () => {
+    test("can\u2019t get access policy with space scope", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -9624,7 +9624,7 @@ describe("`getPostAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped post");
     });
 
-    test("can’t get access policy with space scope even if post is shared with space", async () => {
+    test("can\u2019t get access policy with space scope even if post is shared with space", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -9637,7 +9637,7 @@ describe("`getPostAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped post");
     });
 
-    test("can’t get access policy with account scope even if account has access to post", async () => {
+    test("can\u2019t get access policy with account scope even if account has access to post", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -9653,7 +9653,7 @@ describe("`getPostAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped post");
     });
 
-    test("can’t get access policy for post in different space even if scope declares access", async () => {
+    test("can\u2019t get access policy for post in different space even if scope declares access", async () => {
         const space = await TestSpace.create(context);
         const otherSpace = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -9668,10 +9668,10 @@ describe("`getPostAccessPolicyForBotScope()`", () => {
                 otherBotAccount.action({type: "Post", postId: post.id}),
                 post.id,
             ),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     });
 
-    test("can’t get access policy for post which doesn’t exist", async () => {
+    test("can\u2019t get access policy for post which doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);

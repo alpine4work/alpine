@@ -172,7 +172,7 @@ test(
 );
 
 test(
-    "if a job takes a while to process it’s message visibility will be updated",
+    "if a job takes a while to process it\u2019s message visibility will be updated",
     async () => {
         const spaceId = generateId<SpaceId>();
 

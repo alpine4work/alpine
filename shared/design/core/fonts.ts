@@ -94,7 +94,7 @@ export function createFontStyles({
             fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
             fontSynthesis: "none",
             // Reduce letter spacing on monospace font. Commit Mono is wider than Inter
-            // because each letter (even “i” and “l”) have the same width. Reduced letter
+            // because each letter (even "i" and "l") have the same width. Reduced letter
             // spacing helps even things out.
             //
             // The custom `letter-spacing` does conflict with letter spacing from font
@@ -109,7 +109,7 @@ export function createFontStyles({
             fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
             fontSynthesis: "none",
             // Reduce letter spacing on monospace font. Commit Mono is wider than Inter
-            // because each letter (even “i” and “l”) have the same width. Reduced letter
+            // because each letter (even "i" and "l") have the same width. Reduced letter
             // spacing helps even things out.
             //
             // The custom `letter-spacing` does conflict with letter spacing from font

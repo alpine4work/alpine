@@ -127,7 +127,7 @@ describe("isInboxEligibleForDigestNotification", () => {
 
         expect(result).toBe(true);
     });
-    test("should return true when account is a member of the context’s space", async () => {
+    test("should return true when account is a member of the context\u2019s space", async () => {
         const result = isInboxEligibleForDigestNotification(context, {
             entryCount: 1,
             digestNotificationsOptedOutTime: null,

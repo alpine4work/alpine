@@ -122,7 +122,7 @@ export abstract class HtmlContainerGenerator implements HtmlGenerator {
 
     public insertBefore(newNode: HtmlGenerator, referenceNode: HtmlGenerator) {
         const index = this._children.indexOf(referenceNode);
-        assert(index !== -1, "Couldn’t find reference node");
+        assert(index !== -1, "Couldn\u2019t find reference node");
         this._children.splice(index, 0, newNode);
     }
 

@@ -146,18 +146,18 @@ export async function requestAlphaAccess(
         let displayMessage;
         if (!decision) {
             // TODO(calebmer): Maybe this should have a "warn" severity?
-            displayMessage = errorDisplayMessage`Already requested access for the email address “${emailAddress}”. You’ll get an email to this address if your request is approved. Reach out to someone on our team if you’d like to know the status of your request.`;
+            displayMessage = errorDisplayMessage`Already requested access for the email address \u201C${emailAddress}\u201D. You\u2019ll get an email to this address if your request is approved. Reach out to someone on our team if you\u2019d like to know the status of your request.`;
         } else {
             switch (decision.type) {
                 case "Approved": {
                     // TODO(calebmer): Maybe this should have a "success" severity?
-                    displayMessage = errorDisplayMessage`You’re already approved! Try ${errorDisplayMessage.signInLink(
+                    displayMessage = errorDisplayMessage`You\u2019re already approved! Try ${errorDisplayMessage.signInLink(
                         "signing in",
-                    )} with the email address “${emailAddress}”.`;
+                    )} with the email address \u201C${emailAddress}\u201D.`;
                     break;
                 }
                 case "Denied": {
-                    displayMessage = errorDisplayMessage`Your access request for email address “${emailAddress}” was denied by a member of our team. You may not submit another access request for this email address.`;
+                    displayMessage = errorDisplayMessage`Your access request for email address \u201C${emailAddress}\u201D was denied by a member of our team. You may not submit another access request for this email address.`;
                     break;
                 }
                 default:
@@ -249,7 +249,7 @@ export async function approveAlphaAccessRequest(
 
     const shortName = parseAccountNameAssumingWesternNameOrder(requestItem.name);
     await createAlphaSpaceAsAdmin(context, {
-        name: `${shortName.givenName}’s Space`,
+        name: `${shortName.givenName}\u2019s Space`,
         ownerAccountId: accountId,
     });
 }

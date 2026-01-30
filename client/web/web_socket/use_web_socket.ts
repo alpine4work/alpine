@@ -102,7 +102,7 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
             if (client) return client.procedures;
             return mapObjectValues(protocol.procedureSchemas, () => () => {
                 throw new InternalError(
-                    "Can’t execute procedures when passing null as the URL to `useWebSocket()`",
+                    "Can\u2019t execute procedures when passing null as the URL to `useWebSocket()`",
                 );
             }) as any;
         }, [client, protocol.procedureSchemas]),

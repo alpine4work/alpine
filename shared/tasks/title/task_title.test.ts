@@ -859,7 +859,7 @@ test("catches task title corruption and throws an error", () => {
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we’re trying to integrate has an ID matching an existing item but the item we’re trying to integrate’s content doesn’t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
         );
     }
 
@@ -870,7 +870,7 @@ test("catches task title corruption and throws an error", () => {
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we’re trying to integrate has an ID matching an existing item but the item we’re trying to integrate’s content doesn’t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
         );
     }
 
@@ -881,7 +881,7 @@ test("catches task title corruption and throws an error", () => {
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we’re trying to integrate has an ID matching an existing item but the item we’re trying to integrate’s content doesn’t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
         );
     }
 
@@ -892,7 +892,7 @@ test("catches task title corruption and throws an error", () => {
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we’re trying to integrate has an ID matching an existing item but the item we’re trying to integrate’s content doesn’t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
         );
     }
 
@@ -921,7 +921,7 @@ test("catches task title corruption and throws an error", () => {
         const title2 = title1.apply(updateA);
 
         expect(() => title2.apply(updateB)).toThrow(
-            `Conflicting item, the item we’re trying to integrate has an ID matching an existing item but the item we’re trying to integrate’s content doesn’t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 2)`,
+            `Conflicting item, the item we\u2019re trying to integrate has an ID matching an existing item but the item we\u2019re trying to integrate\u2019s content doesn\u2019t match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 2)`,
         );
     }
 
@@ -1124,7 +1124,7 @@ test("reproduce bugged merge error when update is not in optimized form", () => 
     expect(title.apply(update, {clientIdForTest: 1969136998}).getText()).toEqual("new task");
 });
 
-test("reproduce bugged merge error when update is not in optimized form and there’s some right origin", () => {
+test("reproduce bugged merge error when update is not in optimized form and there\u2019s some right origin", () => {
     const rawTitle = decodeBase64(
         "AAAGwqWY3RoBAQABAgUHAAQARBIOZG9jd29ybGRoZWxsbyADBQYDAQAAAQYAAQMAAA==",
     ) as TaskTitle;
@@ -1597,7 +1597,7 @@ test("applying task title update to task title produces optimized form", () => {
     });
 });
 
-test("reproduce bugged merge error when merging item with GCed content with item with deleted content that hasn’t been GCed", () => {
+test("reproduce bugged merge error when merging item with GCed content with item with deleted content that hasn\u2019t been GCed", () => {
     const rawTitle = decodeBase64(
         "AAAG5uy+8xkGAwAPAQMADwAPBwAEAEcABABHAAQARwAEHxtkb2N0YXNrIDJ0YXNrIDJ0YXNrIDJ0YXNrIDIDRgIDAQAAAkYCAAEIAAGmtt/5DAEAFA==",
     ) as TaskTitle;
@@ -2278,7 +2278,7 @@ test("deleted content is properly handled after GC", () => {
     expect(title.getText()).toEqual("New content added");
 });
 
-test("doesn’t retain references to old versions", () => {
+test("doesn\u2019t retain references to old versions", () => {
     let title = emptyTaskTitleModel.get();
     const versions = [];
 

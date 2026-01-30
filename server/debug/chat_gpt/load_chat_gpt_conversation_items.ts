@@ -42,7 +42,7 @@ export async function loadChatGptConversationItems(
     ]);
 
     if (!chatGptAccountId)
-        throw new FailedPreconditionError("ChatGPT bot wasn’t instantiated in this space");
+        throw new FailedPreconditionError("ChatGPT bot wasn\u2019t instantiated in this space");
 
     const accessToken =
         await context.loader.tokenAgent.privateSide.dangerouslySignShortLivedTokenForBotConversationState(
@@ -62,7 +62,7 @@ export async function loadChatGptConversationItems(
 
     const agentServiceUrl = assertExists(
         context.loader.agentServiceUrl,
-        "Can’t debug agents if `agentServiceUrl` isn’t set",
+        "Can\u2019t debug agents if `agentServiceUrl` isn\u2019t set",
     );
 
     const url = new URL(`${agentServiceUrl}/chat-gpt/conversation-state`);

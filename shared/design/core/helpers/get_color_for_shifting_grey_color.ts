@@ -147,7 +147,7 @@ function actuallyGetColorForShiftingGreyColor(
         }
     }
 
-    throw new InternalError("Couldn’t find color for shifting grey color");
+    throw new InternalError("Couldn\u2019t find color for shifting grey color");
 }
 
 /**

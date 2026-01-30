@@ -164,7 +164,7 @@ export class OpensearchIndex<
              * value that's not too large and a `numberOfRoutingShards` value with many
              * factors that will let you scale `numberOfShards` in the future.
              *
-             * Read AWS's “[choosing the number of shards][2]” article for recommendations
+             * Read AWS's "[choosing the number of shards][2]" article for recommendations
              * on picking a shard count.
              *
              * I (@calebmer) picked the following values to start for the task index:
@@ -177,7 +177,7 @@ export class OpensearchIndex<
              * - `numberOfShards`: 4. The factors of 4 are 1, 2, and 4. So that's the
              *   number of data nodes we could choose.
              *
-             *   Let's analyze considering AWS's “[choosing the number of shards][2]”
+             *   Let's analyze considering AWS's "[choosing the number of shards][2]"
              *   article:
              *
              *   > (Source data + room to grow) * (1 + indexing overhead) / desired shard
@@ -249,7 +249,7 @@ export class OpensearchIndex<
              * > Warning: Think before disabling the _source field
              * >
              * > Users often disable the `_source` field without thinking about the
-             * > consequences, and then live to regret it. If the `_source` field isn’t
+             * > consequences, and then live to regret it. If the `_source` field isn't
              * > available then a number of features are not supported:
              * >
              * > - The `update`, `update_by_query`, and `reindex` APIs.
@@ -296,7 +296,7 @@ export class OpensearchIndex<
 
                 assert(
                     existingAnalyzer === analyzer,
-                    "Can’t have two analyzers with the same name in one index",
+                    "Can\u2019t have two analyzers with the same name in one index",
                 );
             },
             addCustomFilter: filter => {
@@ -308,7 +308,7 @@ export class OpensearchIndex<
 
                 assert(
                     existingFilter === filter,
-                    "Can’t have two filters with the same name in one index",
+                    "Can\u2019t have two filters with the same name in one index",
                 );
             },
         };

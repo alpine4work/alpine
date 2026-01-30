@@ -406,7 +406,7 @@ function createInjectionContextModule<
                         injection?.[injectionKey] ??
                         (() => {
                             throw new UnimplementedError(
-                                quote`${injectionKey} hasn’t been injected for this test`,
+                                quote`${injectionKey} hasn\u2019t been injected for this test`,
                             );
                         }),
                 ) as any,

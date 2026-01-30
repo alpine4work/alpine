@@ -461,7 +461,7 @@ function PeekStackContextProvider(
                 dispatch({type: "Restore", stack});
             },
             error => {
-                reporter.logErrorWithoutDisplaying("Couldn’t restore peek stack", error);
+                reporter.logErrorWithoutDisplaying("Couldn\u2019t restore peek stack", error);
             },
         );
     }, [createPeekRouter, peekRoutes, location.key, navigationType, state, reporter]);
@@ -1324,9 +1324,9 @@ function PeekStackOverlay({
                                     //
                                     // To avoid conflicting with the animation, we also check that
                                     // `shouldHideContent` is true. If `shouldHideContent` is set to false then
-                                    // we’ll begin an opacity animation that eventually sets `isContentHidden` to
+                                    // we'll begin an opacity animation that eventually sets `isContentHidden` to
                                     // false. During that time `visibility: "hidden"` should not be set since the
-                                    // opacity animation controls whether we’re visible.
+                                    // opacity animation controls whether we're visible.
                                     visibility:
                                         isContentHidden && shouldHideContent ? "hidden" : undefined,
                                 }}
@@ -1625,7 +1625,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                             description="Expand"
                             keyboardShortcutHint={isAppleDevice ? "⌘+E" : "Ctrl+E"}
                             tooltipPlacement="top"
-                            pressErrorTitle="Couldn’t expand"
+                            pressErrorTitle="Couldn\u2019t expand"
                             onPress={async event => {
                                 const spacePath = convertPeekPathToSpacePath(
                                     entry.history.location,

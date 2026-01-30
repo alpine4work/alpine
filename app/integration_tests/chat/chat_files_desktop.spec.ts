@@ -552,7 +552,7 @@ test("can drop file into new chat then change account recipients", async ({
     ).toBeHidden();
 });
 
-test("can drag file we didn’t upload from document into new chat", async ({
+test("can drag file we didn\u2019t upload from document into new chat", async ({
     browser,
     context: browserContext,
     page: page1,

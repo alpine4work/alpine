@@ -33,7 +33,7 @@ export function unwrapLoadingIndicatorLoaderData<Value>(loaderData: Value): Valu
     switch (promiseState.status) {
         case "pending": {
             throw new InternalError(
-                "Can’t unwrap pending loader data, space routes should be wrapped in `<LoadingIndicatorSpaceOutletContainer>`",
+                "Can\u2019t unwrap pending loader data, space routes should be wrapped in `<LoadingIndicatorSpaceOutletContainer>`",
             );
         }
         case "rejected": {

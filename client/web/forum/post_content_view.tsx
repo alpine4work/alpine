@@ -425,7 +425,7 @@ export function PostContentView({
                                 height="6"
                                 paddingX="2"
                                 icon={<Check />}
-                                pressErrorTitle="Can’t mark as done"
+                                pressErrorTitle="Can\u2019t mark as done"
                                 onPress={async () => {
                                     if (isPostArchived(post.id)) {
                                         await onUnarchivePost?.(post.id);
@@ -610,7 +610,7 @@ function PostContentViewFooter({
                         );
 
                         promise.catch(error => {
-                            reporter.displayError("Couldn’t add reaction to post", error);
+                            reporter.displayError("Couldn\u2019t add reaction to post", error);
                         });
 
                         // On the server, `setPostReaction()` uses the same logic as
@@ -630,7 +630,7 @@ function PostContentViewFooter({
                         );
 
                         promise.catch(error => {
-                            reporter.displayError("Couldn’t remove reaction from post", error);
+                            reporter.displayError("Couldn\u2019t remove reaction from post", error);
                         });
 
                         onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
@@ -712,7 +712,7 @@ function PostContentViewFooter({
                             )
                         }
                         iconPlacement="start"
-                        pressErrorTitle="Couldn’t open comments"
+                        pressErrorTitle="Couldn\u2019t open comments"
                         onPress={async () => {
                             if (routeLayout === "narrow") {
                                 await navigate(`/s/${post.spaceId}/posts/${post.id}`);

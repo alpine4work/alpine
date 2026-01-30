@@ -951,7 +951,7 @@ export class MessageList<Message extends MessageModel> {
     public getMutableCheckpoint(): ServerSynchronizationCheckpoint {
         assert(
             this._mutableCheckpoint !== null,
-            "`checkpoint` hasn’t been initialized in `MessageList`",
+            "`checkpoint` hasn\u2019t been initialized in `MessageList`",
         );
 
         return this._mutableCheckpoint;
@@ -966,7 +966,7 @@ export class MessageList<Message extends MessageModel> {
     public setMutableCheckpoint(checkpoint: ServerSynchronizationCheckpoint): void {
         assert(
             this._mutableCheckpoint !== null,
-            "`checkpoint` hasn’t been initialized in `MessageList`",
+            "`checkpoint` hasn\u2019t been initialized in `MessageList`",
         );
 
         this._mutableCheckpoint =

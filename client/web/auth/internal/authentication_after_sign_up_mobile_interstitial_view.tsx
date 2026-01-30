@@ -43,7 +43,7 @@ export function AuthenticationAfterSignUpMobileInterstitialView({
             openSpaceId: state.openSpaceId,
         }).catch(error => {
             const message =
-                "Couldn’t schedule try on desktop email from after sign up mobile interstitial";
+                "Couldn\u2019t schedule try on desktop email from after sign up mobile interstitial";
 
             // If this RPC fails then the user won't get a reminder email to try Alpine on
             // a computer. No user would ever report this as broken so use a loud
@@ -78,10 +78,10 @@ export function AuthenticationAfterSignUpMobileInterstitialView({
                     userSelect="text"
                     style={{lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`}}
                 >
-                    You’ll get the best Alpine has to offer on a desktop computer. Everything in
-                    Alpine you can do on your computer you can also do on your phone, but our team
-                    is still working on the Alpine mobile experience since it doesn’t yet reach our
-                    high quality standards.
+                    You&#x2019;ll get the best Alpine has to offer on a desktop computer. Everything
+                    in Alpine you can do on your computer you can also do on your phone, but our
+                    team is still working on the Alpine mobile experience since it doesn&#x2019;t
+                    yet reach our high quality standards.
                 </Box>
                 <Spacer space={contentStyles.paragraphMargin} />
                 <Box
@@ -109,7 +109,7 @@ export function AuthenticationAfterSignUpMobileInterstitialView({
                 <Checkbox
                     color="grey-60"
                     isChecked={isOptedInToTryOnDesktopEmail}
-                    changeErrorTitle="Couldn’t change your reminder preference"
+                    changeErrorTitle="Couldn\u2019t change your reminder preference"
                     onChange={async () => {
                         if (isOptedInToTryOnDesktopEmail) {
                             await optOutOfTryOnDesktopEmail(context, {});
@@ -128,7 +128,7 @@ export function AuthenticationAfterSignUpMobileInterstitialView({
                     fullWidth={true}
                     fontSize="100"
                     height="9"
-                    pressErrorTitle="Couldn’t continue"
+                    pressErrorTitle="Couldn\u2019t continue"
                     onPress={async () => {
                         await navigateAfterSignInOrSignUp({
                             navigate,

@@ -173,7 +173,7 @@ function ChatViewTopBar({
                             size="base"
                             description="Go back"
                             withoutTooltip={true}
-                            pressErrorTitle="Couldn’t go back"
+                            pressErrorTitle="Couldn\u2019t go back"
                             onPress={handleBackButtonPress}
                         >
                             <ArrowLeft />
@@ -228,7 +228,7 @@ function ChatViewTopBar({
                                     label: "Copy link",
                                     icon: <LinkIcon />,
                                     iconPlacement: "end",
-                                    pressErrorTitle: "Couldn’t copy link",
+                                    pressErrorTitle: "Couldn\u2019t copy link",
                                     onPress: async () => {
                                         const url = new URL(
                                             `/s/${space.id}/chat/${chat.id}`,

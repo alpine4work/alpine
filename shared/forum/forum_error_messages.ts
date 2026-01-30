@@ -8,29 +8,29 @@ export const channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Re
     AccessLevel,
     ErrorDisplayMessage
 > = {
-    View: errorDisplayMessage`You aren’t allowed to access this channel. Ask someone with access to share it with you.`,
-    Comment: errorDisplayMessage`You aren’t allowed to comment in this channel. Ask someone who can share the channel to give you comment access.`,
-    Edit: errorDisplayMessage`You aren’t allowed to post in this channel. Ask someone who can share the channel to give you post access.`,
-    Manage: errorDisplayMessage`You aren’t allowed to share this channel. Ask someone who can share the channel to give you share access.`,
+    View: errorDisplayMessage`You aren\u2019t allowed to access this channel. Ask someone with access to share it with you.`,
+    Comment: errorDisplayMessage`You aren\u2019t allowed to comment in this channel. Ask someone who can share the channel to give you comment access.`,
+    Edit: errorDisplayMessage`You aren\u2019t allowed to post in this channel. Ask someone who can share the channel to give you post access.`,
+    Manage: errorDisplayMessage`You aren\u2019t allowed to share this channel. Ask someone who can share the channel to give you share access.`,
 };
 
 export function createChannelNotFoundError(channelId: string | undefined) {
     return new NotFoundError("Channel not found", {
         aggregateDedupeKey: channelId,
-        displayMessage: errorDisplayMessage`This channel doesn’t exist. Try searching “my channels” to see channels you’ve posted in.`,
+        displayMessage: errorDisplayMessage`This channel doesn\u2019t exist. Try searching \u201Cmy channels\u201D to see channels you\u2019ve posted in.`,
     });
 }
 
 export function createPostNotFoundError(postId: string | undefined) {
     return new NotFoundError("Post not found", {
         aggregateDedupeKey: postId,
-        displayMessage: errorDisplayMessage`This post doesn’t exist. Try searching “my posts” to see posts you’ve created.`,
+        displayMessage: errorDisplayMessage`This post doesn\u2019t exist. Try searching \u201Cmy posts\u201D to see posts you\u2019ve created.`,
     });
 }
 
 export function createPostCommentNotFoundError(postId: PostId, messageIndex: number) {
     return new NotFoundError("Post comment not found", {
         aggregateDedupeKey: `${postId}-${messageIndex}`,
-        displayMessage: errorDisplayMessage`This comment doesn’t exist. Try searching “my post comments” to see your recent post comments.`,
+        displayMessage: errorDisplayMessage`This comment doesn\u2019t exist. Try searching \u201Cmy post comments\u201D to see your recent post comments.`,
     });
 }

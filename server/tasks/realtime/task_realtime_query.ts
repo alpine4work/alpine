@@ -187,7 +187,7 @@ export class TaskRealtimeQuery {
 
             assert(
                 this.store.isTaskVisibleInQuery(this, taskId),
-                "Task visible in query but store doesn’t know",
+                "Task visible in query but store doesn\u2019t know",
             );
 
             const task = this.store.getTaskForQuery(this, taskId);
@@ -199,7 +199,7 @@ export class TaskRealtimeQuery {
 
             assert(
                 evaluateTaskQueryNormalizedFiltersForIndexDoc(this.filters, task),
-                "Task visible in query should pass the query’s filters",
+                "Task visible in query should pass the query\u2019s filters",
             );
         }
 
@@ -817,7 +817,7 @@ export class TaskRealtimeQuery {
             const previousTask = previousTaskById.get(taskId);
             assert(
                 previousTask,
-                "Query can’t update hidden task that hasn’t been added with `maybeAddVisibleTask()`",
+                "Query can\u2019t update hidden task that hasn\u2019t been added with `maybeAddVisibleTask()`",
             );
             assert(
                 previousTask === oldTask,
@@ -943,7 +943,7 @@ export class TaskRealtimeQuery {
         if (process.env.NODE_ENV !== "production") {
             assert(
                 !assertExists(previousTaskByIdByQueryForTest).get(this)?.get(task.id),
-                "Query can’t add task that’s already visible again with `maybeAddVisibleTask()`",
+                "Query can\u2019t add task that\u2019s already visible again with `maybeAddVisibleTask()`",
             );
         }
 

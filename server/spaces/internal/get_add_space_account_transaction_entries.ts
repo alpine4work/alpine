@@ -306,7 +306,7 @@ export async function getAddSpaceAccountTransactionEntries(
         // back to the space.
         if (accountInput.type === "Existing" && accountInput.account.botId) {
             throw new FailedPreconditionError(
-                "Can’t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
+                "Can\u2019t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
             );
         }
 
@@ -335,7 +335,7 @@ export async function getAddSpaceAccountTransactionEntries(
             } else {
                 if (!accountInput.invitedEmailAddress) {
                     throw new FailedPreconditionError(
-                        "Can only add account to a space it hasn’t been added to before through an email address invite",
+                        "Can only add account to a space it hasn\u2019t been added to before through an email address invite",
                     );
                 }
 

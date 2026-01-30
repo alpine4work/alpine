@@ -74,8 +74,8 @@ export function FeedWelcomeEntryView({entry}: {entry: FeedWelcomeEntryModel}) {
             </Box>
             <Box fontSize="100" paddingY={postContentViewInnerMarginY} userSelect="text">
                 <Box className={paragraphClassName}>
-                    Welcome to Alpine. This is your “For you” feed. Everything you (or others) do in
-                    this space will show up here.
+                    Welcome to Alpine. This is your &#x201C;For you&#x201D; feed. Everything you (or
+                    others) do in this space will show up here.
                 </Box>
                 {entry.emailDomainWithAutoAddAccountsEnabled && (
                     <Box className={paragraphClassName}>

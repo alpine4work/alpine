@@ -1968,7 +1968,7 @@ test("code mark is not allowed in code blocks", () => {
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
         }),
-    ).toThrow("`Code` mark isn’t supported in `Code` block element");
+    ).toThrow("`Code` mark isn\u2019t supported in `Code` block element");
 });
 
 test("converts code block with multiple marks on same text", () => {

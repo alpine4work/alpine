@@ -689,7 +689,7 @@ export function TaskDetailView({
                 label: "Copy link",
                 icon: <LinkIcon />,
                 iconPlacement: "end",
-                pressErrorTitle: "Couldn’t copy task link",
+                pressErrorTitle: "Couldn\u2019t copy task link",
                 onPress: async () => {
                     // If the user tries to copy the link of a ghost task, then make sure the task
                     // is created before we write the URL to the clipboard.
@@ -762,7 +762,7 @@ export function TaskDetailView({
             contextMenuActions.push([
                 {
                     label: "Duplicate",
-                    pressErrorTitle: "Couldn’t duplicate task",
+                    pressErrorTitle: "Couldn\u2019t duplicate task",
                     onPress: async () => {
                         const {taskId: newTaskId} = await store.duplicateTaskAndAllChildren(
                             context,
@@ -813,8 +813,8 @@ export function TaskDetailView({
                     // match the action.
                     label: showComments ? "Close comments" : "Open comments",
                     pressErrorTitle: showComments
-                        ? "Couldn’t close comments"
-                        : "Couldn’t open comments",
+                        ? "Couldn\u2019t close comments"
+                        : "Couldn\u2019t open comments",
                     onPress: async () => {
                         // If the user tries to open a task's comments, then make sure the task
                         // is created before we open comments.
@@ -1726,7 +1726,7 @@ function TaskDetailViewParentBreadcrumbs({
                     parentNodes.push(
                         <Tooltip
                             key={parentTaskEntry.task?.id ?? "Private"}
-                            content="You don’t have access to the task this is a subtask of"
+                            content="You don\u2019t have access to the task this is a subtask of"
                         >
                             <Box
                                 color="grey-60"
@@ -1754,7 +1754,7 @@ function TaskDetailViewParentBreadcrumbs({
                         height="5"
                         paddingX="1.5"
                         flexShrink="1"
-                        pressErrorTitle="Couldn’t open task"
+                        pressErrorTitle="Couldn\u2019t open task"
                         onPress={() =>
                             navigate(
                                 `/s/${parentTaskEntry.task.getSpaceId()}/tasks/${

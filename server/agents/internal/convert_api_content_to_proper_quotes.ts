@@ -4,7 +4,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Convert all straight quotes (`'` and `"`) into proper curly quotes
- * (`“`, `”`, `‘`, `’`).
+ * (`\u201C`, `\u201D`, `\u2018`, `\u2019`).
  */
 export function convertApiContentToProperQuotes(content: ApiContent): ApiContent {
     return visitAndProduceApiContent(content, {
@@ -57,16 +57,22 @@ export function convertApiContentToProperQuotes(content: ApiContent): ApiContent
 
                 // eslint-disable-next-line string-quotes
                 if (quoteChar === '"') {
-                    if (charBefore === null || /(\p{White_Space}|["“”])/u.test(charBefore)) {
-                        properQuote = "“";
+                    if (
+                        charBefore === null ||
+                        /(\p{White_Space}|["\u201C\u201D])/u.test(charBefore)
+                    ) {
+                        properQuote = "\u201C";
                     } else {
-                        properQuote = "”";
+                        properQuote = "\u201D";
                     }
                 } else {
-                    if (charBefore === null || /(\p{White_Space}|['‘’])/u.test(charBefore)) {
-                        properQuote = "‘";
+                    if (
+                        charBefore === null ||
+                        /(\p{White_Space}|['\u2018\u2019])/u.test(charBefore)
+                    ) {
+                        properQuote = "\u2018";
                     } else {
-                        properQuote = "’";
+                        properQuote = "\u2019";
                     }
                 }
 

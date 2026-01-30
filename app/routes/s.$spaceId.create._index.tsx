@@ -47,7 +47,7 @@ export default function CreateRoute() {
                     icon={<PostBrandBigIcon />}
                     label="Post"
                     description="Share your ideas in a channel"
-                    pressErrorTitle="Couldn’t create post"
+                    pressErrorTitle="Couldn\u2019t create post"
                     onPress={async () => {
                         const draftId = generateChronologicalId();
 
@@ -58,7 +58,7 @@ export default function CreateRoute() {
                     icon={<ChatBrandBigIcon />}
                     label="Message"
                     description="Start a chat with anyone"
-                    pressErrorTitle="Couldn’t open new chat"
+                    pressErrorTitle="Couldn\u2019t open new chat"
                     onPress={async () => {
                         await rootNavigate(`/s/${space.id}/chat/new?focus=picker`);
                     }}
@@ -66,8 +66,8 @@ export default function CreateRoute() {
                 <CreateRouteButton
                     icon={<DocumentBrandBigIcon />}
                     label="Document"
-                    description="Write what’s on your mind"
-                    pressErrorTitle="Couldn’t create document"
+                    description="Write what\u2019s on your mind"
+                    pressErrorTitle="Couldn\u2019t create document"
                     onPress={async () => {
                         const documentId = generateId();
                         await rootNavigate(`/s/${space.id}/documents/${documentId}?create&focus`);
@@ -77,7 +77,7 @@ export default function CreateRoute() {
                     icon={<TaskBrandBigIcon />}
                     label="Task"
                     description="Keep track of work to do later"
-                    pressErrorTitle="Couldn’t open tasks"
+                    pressErrorTitle="Couldn\u2019t open tasks"
                     onPress={async () => {
                         const taskId = generateId();
                         await rootNavigate(`/s/${space.id}/tasks/${taskId}?create&focus`);
@@ -88,7 +88,7 @@ export default function CreateRoute() {
                     icon={<ArrowRight />}
                     iconPlacement="trailing"
                     label="More"
-                    pressErrorTitle="Couldn’t open more create options"
+                    pressErrorTitle="Couldn\u2019t open more create options"
                     onPress={() => rootNavigate(`/s/${space.id}/create/more`)}
                 />
             </Box>

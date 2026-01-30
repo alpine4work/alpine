@@ -2703,7 +2703,7 @@ test("will use smart double quotes", async () => {
 
     await simulateTyping('"test"');
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("“test”"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("\u201Ctest\u201D"))');
 });
 
 test("will use smart single quotes", async () => {
@@ -2711,7 +2711,7 @@ test("will use smart single quotes", async () => {
 
     await simulateTyping("'test'");
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("‘test’"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("\u2018test\u2019"))');
 });
 
 test("will not use smart double quotes in code block", async () => {
@@ -3373,12 +3373,12 @@ test("codes text with ` at the beginning of a block", async () => {
     expect(getDoc().toString()).toEqual('doc(paragraph(code("test")))');
 });
 
-test("smart punctuation is not normalized when there’s no backtick", async () => {
+test("smart punctuation is not normalized when there\u2019s no backtick", async () => {
     render(<TestContentEditor />);
 
     await simulateTyping('--foo="bar..."');
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("—foo=”bar…”"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("—foo=\u201Dbar…\u201D"))');
 });
 
 test("smart punctuation is not normalized before backtick finishes", async () => {
@@ -3386,7 +3386,7 @@ test("smart punctuation is not normalized before backtick finishes", async () =>
 
     await simulateTyping('`--foo="bar..."');
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("`—foo=”bar…”"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("`—foo=\u201Dbar…\u201D"))');
 });
 
 test("normalizes smart punctuation when coding text with backtick", async () => {
@@ -4248,7 +4248,7 @@ test('auto balances `"` when typed', async () => {
 
     fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: '"'}));
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("\u201C\u201D"))');
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
@@ -4256,25 +4256,25 @@ test('auto balances `"` when typed', async () => {
 
     fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: '"'}));
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("\u201C\u201D"))');
 
     fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: '"'}));
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("\u201C\u201D"))');
 
     fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: '"'}));
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("“”“”"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("\u201C\u201D\u201C\u201D"))');
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("\u201C\u201D"))');
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     // Second quote isn't deleted since JSDOM doesn't support default keyboard
     // event handlers. Seeing no keymap handler run is interesting enough to test.
-    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("\u201C\u201D"))');
 });
 
 test("doesn't add extra punctuation after auto balancing `(`", async () => {

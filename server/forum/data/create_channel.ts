@@ -56,7 +56,7 @@ export async function createChannel(
     await authorizeSpaceAccess(context, spaceId);
 
     if (accessPolicy.urlGrant) {
-        throw new InvalidArgumentError("Channels don’t currently support `urlGrant`s");
+        throw new InvalidArgumentError("Channels don\u2019t currently support `urlGrant`s");
     }
 
     await validateAccessPolicyUpdateForServer(context, spaceId, null, accessPolicy);

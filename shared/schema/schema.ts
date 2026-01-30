@@ -533,7 +533,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      *
      * Any extra keys in the object will be discarded. This allows schemas to be
      * compatible with future objects that may add properties. Also for security
-     * an attacker can’t sneak in unexpected properties that may change the
+     * an attacker can't sneak in unexpected properties that may change the
      * system's behavior.
      *
      * Only considers the object's own keys. We ignore any properties on the
@@ -1541,7 +1541,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
         // We don't know whether validations will access the omitted properties so we
         // don't allow using `omit()` on a schema with validations.
         if (this._validations !== null && this._validations.length > 0) {
-            throw new InternalError("Can’t use `omit()` on object schema with validations");
+            throw new InternalError("Can\u2019t use `omit()` on object schema with validations");
         }
 
         const omitKeys = new Set(keys);
@@ -1566,7 +1566,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
         // are now optional so we don't allow using `partial()` on a schema with
         // validations.
         if (this._validations !== null && this._validations.length > 0) {
-            throw new InternalError("Can’t use `partial()` on object schema with validations");
+            throw new InternalError("Can\u2019t use `partial()` on object schema with validations");
         }
 
         return new ObjectSchema(
@@ -2418,7 +2418,7 @@ export class UnionSchema<Value> extends Schema<Value> {
                     const typePropertySchema = schema.propertySchemaByKey.get(deserializedTypeKey);
                     assert(
                         typePropertySchema?.valueSchema instanceof ValueSchema,
-                        quote`Expected value schema for union variant’s ${deserializedTypeKey} property`,
+                        quote`Expected value schema for union variant\u2019s ${deserializedTypeKey} property`,
                     );
 
                     const actualType = typePropertySchema.valueSchema.value;
@@ -2434,7 +2434,7 @@ export class UnionSchema<Value> extends Schema<Value> {
                     );
                     assert(
                         actualType === type,
-                        quote`Expected value schema for union variant’s ${deserializedTypeKey} property to be ${type}`,
+                        quote`Expected value schema for union variant\u2019s ${deserializedTypeKey} property to be ${type}`,
                     );
                 }
 
@@ -3761,7 +3761,7 @@ class InterfaceSchemaInstanceBase {
 
         if (schema !== this._schema) {
             throw new InternalError(
-                "Can’t deserialize `InterfaceSchemaInstance` with different schemas",
+                "Can\u2019t deserialize `InterfaceSchemaInstance` with different schemas",
             );
         }
 

@@ -177,7 +177,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
             assert(
                 !previousTaskById.has(newTask.id),
-                "Subscription can’t add task that’s already referenced with `_onReferencedTaskAdd()`",
+                "Subscription can\u2019t add task that\u2019s already referenced with `_onReferencedTaskAdd()`",
             );
 
             previousTaskById.set(newTask.id, newTask);
@@ -264,7 +264,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
             assert(
                 previousTaskById.get(oldTask.id) === oldTask,
-                "Subscription can’t remove task that is not referenced with `_onReferencedTaskRemove()`",
+                "Subscription can\u2019t remove task that is not referenced with `_onReferencedTaskRemove()`",
             );
 
             previousTaskById.delete(oldTask.id);
@@ -610,7 +610,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
             assert(
                 !previousCollectionById.has(newCollection.id),
-                "Subscription can’t add task that’s already referenced with `_onReferencedCollectionAdd()`",
+                "Subscription can\u2019t add task that\u2019s already referenced with `_onReferencedCollectionAdd()`",
             );
 
             previousCollectionById.set(newCollection.id, newCollection);
@@ -671,7 +671,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
             assert(
                 previousCollectionById.get(oldCollection.id) === oldCollection,
-                "Subscription can’t remove collection that is not referenced with `_onReferencedCollectionRemove()`",
+                "Subscription can\u2019t remove collection that is not referenced with `_onReferencedCollectionRemove()`",
             );
 
             previousCollectionById.delete(oldCollection.id);

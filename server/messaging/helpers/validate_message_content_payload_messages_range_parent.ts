@@ -87,14 +87,16 @@ export function validateMessageContentPayloadMessagesRangeParent(
         // There's a parent message in our selected message range which breaks apart
         // adjacent messages.
         if (messageItem.payload.parent !== null) {
-            throw new FailedPreconditionError("Message range can’t contain message with parent");
+            throw new FailedPreconditionError(
+                "Message range can\u2019t contain message with parent",
+            );
         }
 
         // The messages in the range are from different authors. Can't reply to
         // this range.
         if (messageItem.authorId !== previousMessageItem.authorId) {
             throw new FailedPreconditionError(
-                "Message range can’t contain messages from different authors",
+                "Message range can\u2019t contain messages from different authors",
             );
         }
 

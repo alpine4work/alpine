@@ -25,7 +25,7 @@ export const tooltipCoordinationContextForTest: TooltipCoordinationContext | nul
     ? (() => {
           const unimplemented = (): never => {
               throw new UnimplementedError(
-                  "`<Tooltip>` components don’t respond to events in tests without a parent `<TooltipCoordinationContextProvider>` component",
+                  "`<Tooltip>` components don\u2019t respond to events in tests without a parent `<TooltipCoordinationContextProvider>` component",
               );
           };
 

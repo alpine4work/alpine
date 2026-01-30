@@ -966,7 +966,7 @@ export class TaskTitleModel {
         return new TaskTitleUpdateModel(
             // @ts-expect-error: TypeScript thinks `update` is null even though we assign
             // to it in the `"updateV2"` event handler.
-            assertExists(update, "Can’t clear if already empty"),
+            assertExists(update, "Can\u2019t clear if already empty"),
             getUndoStackItem(transaction),
             this,
             new TaskTitleModel(doc),

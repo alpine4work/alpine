@@ -248,7 +248,9 @@ export class WebSocket extends EventTarget {
         // `TypeError`.
 
         if (this[kCoupled]) {
-            throw new TypeError("Can’t accept() WebSocket that was already used in a response.");
+            throw new TypeError(
+                "Can\u2019t accept() WebSocket that was already used in a response.",
+            );
         }
 
         if (this[kAccepted]) return; // Permit double `accept()`
@@ -274,7 +276,7 @@ export class WebSocket extends EventTarget {
         // Split from send() so we can queue messages before accept() is called when
         // forwarding message events from the client
         if (this[kClosedOutgoing]) {
-            throw new TypeError("Can’t call WebSocket send() after close().");
+            throw new TypeError("Can\u2019t call WebSocket send() after close().");
         }
 
         const event = new MessageEvent("message", {data: message});
@@ -364,10 +366,10 @@ export const WebSocketPair: {new (): WebSocketPair} = function (this: WebSocketP
 
 export async function coupleWebSocket(ws: StandardWebSocket, pair: WebSocket): Promise<void> {
     if (pair[kCoupled]) {
-        throw new TypeError("Can’t return WebSocket that was already used in a response.");
+        throw new TypeError("Can\u2019t return WebSocket that was already used in a response.");
     }
     if (pair[kAccepted]) {
-        throw new TypeError("Can’t return WebSocket in a Response after calling accept().");
+        throw new TypeError("Can\u2019t return WebSocket in a Response after calling accept().");
     }
 
     // Forward events from client to worker (register this before `open` to ensure

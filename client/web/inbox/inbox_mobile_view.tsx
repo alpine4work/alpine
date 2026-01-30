@@ -71,7 +71,7 @@ export function InboxMobileView({
                 {
                     label: "New notifications",
                     isSelected: filter === "New",
-                    pressErrorTitle: "Can’t open new notifications",
+                    pressErrorTitle: "Can\u2019t open new notifications",
                     onPress: async () => {
                         if (filter === "New") return;
                         await navigate(`/s/${space.id}/inbox`, {replace: true});
@@ -80,7 +80,7 @@ export function InboxMobileView({
                 {
                     label: "Old notifications",
                     isSelected: filter === "Archive",
-                    pressErrorTitle: "Can’t open old notifications",
+                    pressErrorTitle: "Can\u2019t open old notifications",
                     onPress: async () => {
                         if (filter === "Archive") return;
                         await navigate(`/s/${space.id}/inbox?tab=old`, {replace: true});

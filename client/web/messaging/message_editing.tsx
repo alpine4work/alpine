@@ -275,7 +275,7 @@ export function useMessageEditing<RoomKey extends string>({
                 if (state.savePromiseResolver) {
                     state.savePromiseResolver.reject(error);
                 } else {
-                    reporter.displayError(`Couldn’t update ${messageNoun}`, error);
+                    reporter.displayError(`Couldn\u2019t update ${messageNoun}`, error);
                 }
 
                 dispatch({type: "FinishedSavingContent", shouldCancelEditing: false});
@@ -304,7 +304,7 @@ export function useMessageEditing<RoomKey extends string>({
                             });
                         }}
                         primaryButtonLabel="Save"
-                        primaryButtonPressErrorTitle={`Couldn’t save ${messageNoun}`}
+                        primaryButtonPressErrorTitle={`Couldn\u2019t save ${messageNoun}`}
                         onPrimaryButtonPress={() => {
                             const savePromiseResolver = createPromiseResolver();
 

@@ -26,7 +26,7 @@ test("can get accounts in the same space as us", async () => {
     ).toEqual(session3.account.initialName);
 });
 
-test("can not get accounts that don’t exist", async () => {
+test("can not get accounts that don\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -52,7 +52,7 @@ test("can not get accounts in a different space than us", async () => {
     ).toEqual(null);
 });
 
-test("can not get accounts through a space we don’t have access to", async () => {
+test("can not get accounts through a space we don\u2019t have access to", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
     const space1Session1 = await space1.createSession();
@@ -75,7 +75,7 @@ test("can not get accounts through a space we don’t have access to", async () 
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can not get accounts through a space we don’t have access to even if we have access to the accounts through a different space", async () => {
+test("can not get accounts through a space we don\u2019t have access to even if we have access to the accounts through a different space", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
     const [space1Session1, space1Session2, space1Session3] = await space1.createSessions(3);

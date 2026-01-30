@@ -29,7 +29,7 @@ import {InternalError} from "~/shared/error/error.js";
  * }
  * ```
  *
- * Another example, you have some code that returns a nullable value you’re
+ * Another example, you have some code that returns a nullable value you're
  * assigning to a variable you want to assert is non-null (this happens a lot
  * with React refs):
  *

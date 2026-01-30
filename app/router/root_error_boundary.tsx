@@ -51,7 +51,7 @@ export function RootErrorBoundary() {
                 <ErrorBodyRenderer
                     title={
                         isRouteErrorResponse(routeError) && routeError.status === 404
-                            ? "Couldn’t find page"
+                            ? "Couldn\u2019t find page"
                             : defaultTitle
                     }
                     error={error}

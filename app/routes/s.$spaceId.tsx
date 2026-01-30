@@ -217,21 +217,21 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
         case "System": {
             // Allowing a system actor to load our app would be very dangerous! Since
             // system actors have read/write access to everything in the space.
-            throw new PermissionDeniedError("Can’t load the application with a system actor");
+            throw new PermissionDeniedError("Can\u2019t load the application with a system actor");
         }
 
         case "ImpersonatedAccount": {
             // Allowing a system actor to load our app would be dangerous! Since a system
             // actor can pretend to be any arbitrary account in the space.
             throw new PermissionDeniedError(
-                "Can’t load the application with an impersonated account actor",
+                "Can\u2019t load the application with an impersonated account actor",
             );
         }
 
         case "Bot": {
             // Bots aren't allowed to load the app. They must use `ApiService` to interact
             // with Alpine.
-            throw new PermissionDeniedError("Can’t load the application with a bot actor");
+            throw new PermissionDeniedError("Can\u2019t load the application with a bot actor");
         }
 
         case "Anonymous": {
@@ -625,13 +625,15 @@ export default function SpaceLayoutRoute() {
                             error => {
                                 context.tracer
                                     .getRoot()
-                                    .logException("Couldn’t save iOS device token", error);
+                                    .logException("Couldn\u2019t save iOS device token", error);
                             },
                         );
                     }
                 },
                 error => {
-                    context.tracer.getRoot().logException("Couldn’t take iOS device tokens", error);
+                    context.tracer
+                        .getRoot()
+                        .logException("Couldn\u2019t take iOS device tokens", error);
                 },
             );
         };
@@ -1350,8 +1352,8 @@ function handleHomeOrEndKeyDownForTextInputElement(event: KeyboardEvent) {
 // Proper keyboard support for our product requires a couple arcane tricks.
 //
 // Two excellent blog posts document the issues with the iOS Safari keyboard.
-// “[The Eccentric Ways of iOS Safari with the Keyboard][1]” and “[Fixing the
-// Safari Mobile Resizing Bug: A Developer’s Guide][2]”. It is easy reading
+// "[The Eccentric Ways of iOS Safari with the Keyboard][1]" and "[Fixing the
+// Safari Mobile Resizing Bug: A Developer's Guide][2]". It is easy reading
 // these posts then working with our code to feel hopeless, but don't feel
 // broken dear developer! You are a software engineer, you are a master of
 // your programming environment. Anything you dream can happen on a screen you

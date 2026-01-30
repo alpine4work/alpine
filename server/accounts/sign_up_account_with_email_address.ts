@@ -106,7 +106,7 @@ async function handleSignUpAccountWithEmailAddressConditionCheckError(
         if (toSearchParam) urlPath.searchParams.set("to", toSearchParam);
 
         throw new FailedPreconditionError("Email address has already signed up", {
-            displayMessage: errorDisplayMessage`The email “${emailAddress}” has already been used. Try ${errorDisplayMessage.link(
+            displayMessage: errorDisplayMessage`The email \u201C${emailAddress}\u201D has already been used. Try ${errorDisplayMessage.link(
                 "signing in",
                 urlPath.toString(),
             )}.`,

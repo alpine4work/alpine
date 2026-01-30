@@ -2,7 +2,7 @@ import {Id} from "~/shared/id/id.js";
 
 /**
  * The JSON payload of a notification. Type is derived from Apple's
- * “[Generating a remove notification][1]” documentation.
+ * "[Generating a remove notification][1]" documentation.
  *
  * [1]: https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
  */
@@ -46,8 +46,8 @@ export type ApnsAlertNotification = {
  * Other system options that aren't part of the notification body. All optional
  * and they typically have defaults.
  *
- * For more information on these options see “[Sending notification requests to
- * APNs][1].”
+ * For more information on these options see "[Sending notification requests to
+ * APNs][1]."
  *
  * [1]: https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns
  */
@@ -81,8 +81,8 @@ export type ApnsAlertNotificationOptions = {
      *
      * - Specify 10 to send the notification immediately.
      * - Specify 5 to send the notification based on power considerations on the
-     *   user’s device.
-     * - Specify 1 to prioritize the device’s power considerations over all other
+     *   user's device.
+     * - Specify 1 to prioritize the device's power considerations over all other
      *   factors for delivery, and prevent awakening the device.
      *
      * Corresponds to the `apns-priority` header when communicating with APNs
@@ -93,7 +93,7 @@ export type ApnsAlertNotificationOptions = {
     /**
      * An identifier you use to merge multiple notifications into a single
      * notification for the user. Typically, each notification request displays a
-     * new notification on the user’s device. When sending the same notification
+     * new notification on the user's device. When sending the same notification
      * more than once, use the same value in this header to merge the requests. The
      * value of this key must not exceed 64 bytes.
      *

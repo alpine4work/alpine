@@ -458,7 +458,7 @@ async function getPreambleForDocumentComments({
             });
         }
 
-        paragraphContent.push({type: "text", value: "the document “"});
+        paragraphContent.push({type: "text", value: "the document \u201C"});
 
         const documentLinkLabel = printAgentPlainTextLabel(documentLink);
 
@@ -469,9 +469,9 @@ async function getPreambleForDocumentComments({
         });
 
         if (doesStringEndWithPunctuation(documentLinkLabel)) {
-            paragraphContent.push({type: "text", value: "”"});
+            paragraphContent.push({type: "text", value: "\u201D"});
         } else {
-            paragraphContent.push({type: "text", value: ".”"});
+            paragraphContent.push({type: "text", value: ".\u201D"});
         }
 
         const commentThread = commentThreadData?.data?.commentThread;

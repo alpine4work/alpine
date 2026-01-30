@@ -75,7 +75,7 @@ export function getSearchEntityPath({
             return `/s/${spaceId}/tasks`;
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount": {
-            const nameSearchParam = encodeURIComponent("Tasks I’ve created");
+            const nameSearchParam = encodeURIComponent("Tasks I\u2019ve created");
 
             const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
                 {
@@ -148,7 +148,7 @@ export function getSearchEntityPath({
             return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         case "TaskQueryFilteredToAssignerIsCurrentAccount": {
-            const nameSearchParam = encodeURIComponent("Tasks I’ve assigned to others");
+            const nameSearchParam = encodeURIComponent("Tasks I\u2019ve assigned to others");
 
             const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
                 {

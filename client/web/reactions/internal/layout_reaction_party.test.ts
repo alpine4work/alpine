@@ -108,7 +108,7 @@ test("spaces out reactions of the same character", () => {
     });
 });
 
-test("doesn’t space out reactions of the same character of the same type but different variants", () => {
+test("doesn\u2019t space out reactions of the same character of the same type but different variants", () => {
     expect(
         layoutReactionParty(
             21,
@@ -177,7 +177,7 @@ test("spaces out reactions of the same character among many reactions", () => {
     });
 });
 
-test("if we can’t find enough space between characters then we add to the first position where there isn’t an adjacent character of the same type", () => {
+test("if we can\u2019t find enough space between characters then we add to the first position where there isn\u2019t an adjacent character of the same type", () => {
     expect(
         layoutReactionParty(
             21,
@@ -211,7 +211,7 @@ test("if we can’t find enough space between characters then we add to the firs
     });
 });
 
-test("if we can’t find enough space between characters then and there isn’t a position without adjacent characters then we add them to the end", () => {
+test("if we can\u2019t find enough space between characters then and there isn\u2019t a position without adjacent characters then we add them to the end", () => {
     expect(
         layoutReactionParty(
             21,

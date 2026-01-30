@@ -378,7 +378,7 @@ function FeedSearchAffinityView({
                     // Silently fail. This doesn't affect anything the user sees so we don't need
                     // to report the error to the user.
                     reporter.logErrorWithoutDisplaying(
-                        "Couldn’t mark search result select affinity interaction",
+                        "Couldn\u2019t mark search result select affinity interaction",
                         error,
                     );
                 });
@@ -406,7 +406,7 @@ function FeedSearchAffinityView({
             label: "Copy link",
             icon: <LinkIcon />,
             iconPlacement: "end",
-            pressErrorTitle: "Couldn’t copy link",
+            pressErrorTitle: "Couldn\u2019t copy link",
             onPress: async () => {
                 const path = getSearchEntityPath({
                     spaceId: space.id,
@@ -422,7 +422,7 @@ function FeedSearchAffinityView({
         },
         {
             label: "Open in peek",
-            pressErrorTitle: "Couldn’t open peek",
+            pressErrorTitle: "Couldn\u2019t open peek",
             onPress: async () => {
                 const path = getSearchEntityPath({
                     spaceId: space.id,
@@ -441,7 +441,7 @@ function FeedSearchAffinityView({
         contextMenuActions.push([
             {
                 label: "Remove from favorites",
-                pressErrorTitle: "Couldn’t remove from favorites",
+                pressErrorTitle: "Couldn\u2019t remove from favorites",
                 onPress: onRemoveFromFavorites,
             },
         ]);
@@ -451,7 +451,7 @@ function FeedSearchAffinityView({
         contextMenuActions.push([
             {
                 label: "Remove from suggested",
-                pressErrorTitle: "Couldn’t remove from suggested",
+                pressErrorTitle: "Couldn\u2019t remove from suggested",
                 onPress: onRemoveFromSuggested,
             },
         ]);

@@ -144,7 +144,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                                                 throw ErrorSchema.deserialize(body.error);
                                             } else {
                                                 throw new UnknownError(
-                                                    "Couldn’t apply task action transaction",
+                                                    "Couldn\u2019t apply task action transaction",
                                                 );
                                             }
                                         }

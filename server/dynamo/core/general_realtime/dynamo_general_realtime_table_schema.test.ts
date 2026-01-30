@@ -6679,7 +6679,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
     }
 });
 
-test("can update a property that’s in an index’s partition key and a put event will show up in the old query’s backfill", async () => {
+test("can update a property that\u2019s in an index\u2019s partition key and a put event will show up in the old query\u2019s backfill", async () => {
     import.meta.jest.useFakeTimers();
 
     try {
@@ -7103,7 +7103,7 @@ test("can update a property that’s in an index’s partition key and a put eve
     }
 });
 
-test("can delete an item with a property in an index’s partition key that can be updated and a delete event will show up in the old query’s backfill", async () => {
+test("can delete an item with a property in an index\u2019s partition key that can be updated and a delete event will show up in the old query\u2019s backfill", async () => {
     import.meta.jest.useFakeTimers();
 
     try {
@@ -7451,7 +7451,7 @@ test("can delete an item with a property in an index’s partition key that can 
     }
 });
 
-test("can update a property that’s in an index’s partition key and a put event will show up in the old query’s backfill (with transactions)", async () => {
+test("can update a property that\u2019s in an index\u2019s partition key and a put event will show up in the old query\u2019s backfill (with transactions)", async () => {
     import.meta.jest.useFakeTimers();
 
     try {
@@ -7882,7 +7882,7 @@ test("can update a property that’s in an index’s partition key and a put eve
     }
 });
 
-test("can delete an item with a property in an index’s partition key that can be updated and a delete event will show up in the old query’s backfill (with transactions)", async () => {
+test("can delete an item with a property in an index\u2019s partition key that can be updated and a delete event will show up in the old query\u2019s backfill (with transactions)", async () => {
     import.meta.jest.useFakeTimers();
 
     try {

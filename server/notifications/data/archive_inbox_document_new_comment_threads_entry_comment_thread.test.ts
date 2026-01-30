@@ -348,7 +348,7 @@ test("archiving single comment thread is idempotent when all but one comment thr
     ]);
 });
 
-test("can’t archive individual comment thread without access to space", async () => {
+test("can\u2019t archive individual comment thread without access to space", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -370,10 +370,10 @@ test("can’t archive individual comment thread without access to space", async 
             bucketGeneration: 0,
             commentThreadId: commentThread2.id,
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
-test("noops when archiving individual comment thread in entry that doesn’t exist", async () => {
+test("noops when archiving individual comment thread in entry that doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -389,7 +389,7 @@ test("noops when archiving individual comment thread in entry that doesn’t exi
     expect(await testGetInboxEntries(session, {filter: "Archive"})).toEqual([]);
 });
 
-test("can’t archive individual comment thread which doesn’t exist in inbox entry", async () => {
+test("can\u2019t archive individual comment thread which doesn\u2019t exist in inbox entry", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 

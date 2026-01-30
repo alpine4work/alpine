@@ -15,7 +15,7 @@ export function MessageDeleteConfirmationDialog({
             description={`Everyone will still be able to see that you sent a ${messageNoun} and the time you sent it, but they will not be able to see what was in the ${messageNoun}.`}
             onClose={onClose}
             primaryButtonLabel="Delete"
-            primaryButtonPressErrorTitle={`Couldn’t delete ${messageNoun}`}
+            primaryButtonPressErrorTitle={`Couldn\u2019t delete ${messageNoun}`}
             onPrimaryButtonPress={onDeleteMessage}
         />
     );

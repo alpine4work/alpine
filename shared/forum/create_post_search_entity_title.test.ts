@@ -10,7 +10,7 @@ import {assertId, generateId} from "~/shared/id/id.js";
 import {AccountId, DocumentId} from "~/shared/id/types/id_types.js";
 import {createTestAccountModelWithoutSpace} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
-test("creates title for document with file that doesn’t exist", () => {
+test("creates title for document with file that doesn\u2019t exist", () => {
     expect(
         createPostSearchEntityTitle(
             "Foundations",

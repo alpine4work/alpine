@@ -31,7 +31,7 @@ if (
 
 async function main() {
     const configPath = ts.findConfigFile(workspacePath, ts.sys.fileExists, "tsconfig.json");
-    if (!configPath) throw new Error("Couldn’t find `tsconfig.json` file");
+    if (!configPath) throw new Error("Couldn\u2019t find `tsconfig.json` file");
     const {config} = ts.readConfigFile(configPath, ts.sys.readFile);
 
     const {

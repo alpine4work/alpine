@@ -451,7 +451,7 @@ test("can clone into subclass and the type for other contexts will reflect that"
     }>();
 });
 
-test("can’t construct a context with a module that’s already been bound", () => {
+test("can\u2019t construct a context with a module that\u2019s already been bound", () => {
     const contextModule = new TestContextModule();
 
     const context1 = Context.new({
@@ -469,7 +469,7 @@ test("can’t construct a context with a module that’s already been bound", ()
     });
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context\u2019s action finishes but before parent context\u2019s action finishes", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();
@@ -513,7 +513,7 @@ test("race condition: context is destroyed correctly when `waitUntil()` adds a p
     expect(() => parentContext.process).toThrow("Context was destroyed");
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes (variant: `withSync()`)", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context\u2019s action finishes but before parent context\u2019s action finishes (variant: `withSync()`)", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();
@@ -557,7 +557,7 @@ test("race condition: context is destroyed correctly when `waitUntil()` adds a p
     expect(() => parentContext.process).toThrow("Context was destroyed");
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes (variant: `Context.with()`)", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context\u2019s action finishes but before parent context\u2019s action finishes (variant: `Context.with()`)", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();
@@ -598,7 +598,7 @@ test("race condition: context is destroyed correctly when `waitUntil()` adds a p
     expect(() => parentContext.process).toThrow("Context was destroyed");
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes (variant: intermediate non-action scoped context)", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context\u2019s action finishes but before parent context\u2019s action finishes (variant: intermediate non-action scoped context)", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();
@@ -647,7 +647,7 @@ test("race condition: context is destroyed correctly when `waitUntil()` adds a p
     expect(() => intermediateContext.process).toThrow("Context was destroyed");
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes (variant: fully resolve inside action)", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context\u2019s action finishes but before parent context\u2019s action finishes (variant: fully resolve inside action)", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();
@@ -718,18 +718,18 @@ describe("bound context modules", () => {
         expect((context3.test as any)._context).not.toBe(context1);
     });
 
-    test("when creating a context the bound context module has a prototype that’s exactly the original context module", () => {
+    test("when creating a context the bound context module has a prototype that\u2019s exactly the original context module", () => {
         expect(context1.test).not.toBe(testContextModule);
         expect(Object.getPrototypeOf(context1.test)).toBe(testContextModule);
     });
 
-    test("when cloning a context once the bound context module has a prototype that’s exactly the original context module", () => {
+    test("when cloning a context once the bound context module has a prototype that\u2019s exactly the original context module", () => {
         expect(context2.test).not.toBe(testContextModule);
         expect(context2.test).not.toBe(context1.test);
         expect(Object.getPrototypeOf(context2.test)).toBe(testContextModule);
     });
 
-    test("when cloning a context twice the bound context module has a prototype that’s exactly the original context module", () => {
+    test("when cloning a context twice the bound context module has a prototype that\u2019s exactly the original context module", () => {
         expect(context3.test).not.toBe(testContextModule);
         expect(context3.test).not.toBe(context1.test);
         expect(context3.test).not.toBe(context2.test);

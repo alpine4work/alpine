@@ -505,7 +505,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             ).toEqual("Carol: fghi. jklmn. opqr. stuv. w");
         });
 
-        test("can’t reply to range across five messages if they’re not from the same author", async ({
+        test("can\u2019t reply to range across five messages if they\u2019re not from the same author", async ({
             page,
             context: browserContext,
         }) => {

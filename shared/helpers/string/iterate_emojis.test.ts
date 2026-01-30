@@ -16,7 +16,7 @@ test("finds emojis at the start of string", () => {
     expect(massage(iterateEmojis("👩test"))).toEqual(["\u{1F469}"]);
 });
 
-test("finds emoji when it’s the only character", () => {
+test("finds emoji when it\u2019s the only character", () => {
     expect(massage(iterateEmojis("👩"))).toEqual(["\u{1F469}"]);
 });
 

@@ -150,10 +150,10 @@ export async function runDevAgentsD1StatusCommand({quiet = false}: {quiet?: bool
     });
 
     if (gitStatus.includes("nothing to commit")) {
-        if (!quiet) console.log("Committed migration which hasn’t been applied");
+        if (!quiet) console.log("Committed migration which hasn\u2019t been applied");
         return "CommittedMigrations";
     } else {
-        if (!quiet) console.log("Uncommitted migration which hasn’t been applied");
+        if (!quiet) console.log("Uncommitted migration which hasn\u2019t been applied");
         return "UncommittedMigrations";
     }
 }

@@ -50,7 +50,7 @@ function PurchasedLifetimeAccessModalContent({platform}: {platform: "mobile" | "
                 Thank you for purchasing lifetime access
             </Box>
             <Box width="full" textAlign="center" color="grey-70" fontSize="100">
-                Together, we’ll build the future of work
+                Together, we&#x2019;ll build the future of work
             </Box>
             <Spacer space="8" />
             <Box

@@ -178,12 +178,12 @@ export function SearchMobileView({
                                 >
                                     {queryText.trim().length === 0 ? (
                                         <>
-                                            As you explore, content you’ve recently visited will
-                                            show up here. For now, try searching.
+                                            As you explore, content you&#x2019;ve recently visited
+                                            will show up here. For now, try searching.
                                         </>
                                     ) : (
                                         <>
-                                            Couldn’t find anything matching “
+                                            Couldn&#x2019;t find anything matching &#x201C;
                                             <span
                                                 className={sprinkles({
                                                     color: "grey-70",
@@ -192,7 +192,7 @@ export function SearchMobileView({
                                             >
                                                 {queryText}
                                             </span>
-                                            .” Try a different search?
+                                            .&#x201D; Try a different search?
                                         </>
                                     )}
                                 </Box>

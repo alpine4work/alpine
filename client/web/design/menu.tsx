@@ -147,7 +147,7 @@ export type MenuStandardAction = {
      * this title. It is the "what happened" part of an error message according to [Adobe
      * Spectrum's][1] error content guidelines.
      *
-     * So for example it this is a delete comment action say "Couldn’t delete comment".
+     * So for example it this is a delete comment action say "Couldn't delete comment".
      *
      * Required when the `onPress` event returns a promise.
      *
@@ -201,7 +201,7 @@ export type MenuCustomAction = {
      * this title. It is the "what happened" part of an error message according to [Adobe
      * Spectrum's][1] error content guidelines.
      *
-     * So for example it this is a delete comment action say "Couldn’t delete comment".
+     * So for example it this is a delete comment action say "Couldn't delete comment".
      *
      * Required when the `onPress` event returns a promise.
      *
@@ -373,7 +373,7 @@ const Menu = forwardRef(function Menu(
         size?: MenuSize;
 
         /**
-         * All the actions available in a menu’s popup. When clicking on the button
+         * All the actions available in a menu's popup. When clicking on the button
          * element to open
          *
          * If you have nested arrays then each sub-array will form a section with a
@@ -661,7 +661,7 @@ const Menu = forwardRef(function Menu(
                     //
                     // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                     case "ArrowDown": {
-                        event.preventDefault(); // Don’t scroll
+                        event.preventDefault(); // Don't scroll
                         event.stopPropagation();
 
                         setInteractionModality("keyboard");
@@ -697,7 +697,7 @@ const Menu = forwardRef(function Menu(
                     //
                     // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                     case "ArrowUp": {
-                        event.preventDefault(); // Don’t scroll
+                        event.preventDefault(); // Don't scroll
                         event.stopPropagation();
 
                         setInteractionModality("keyboard");
@@ -866,8 +866,8 @@ const MenuExport = Object.assign(Menu, {sizeConstants: menuSizeConstants});
 
 export {MenuExport as Menu};
 
-const defaultMouseMenuItemPressErrorTitle = "The menu option you clicked didn’t work";
-const defaultTouchMenuItemPressErrorTitle = "The menu option you tapped didn’t work";
+const defaultMouseMenuItemPressErrorTitle = "The menu option you clicked didn\u2019t work";
+const defaultTouchMenuItemPressErrorTitle = "The menu option you tapped didn\u2019t work";
 
 export const MenuItem = forwardRef(function MenuItem(
     {
@@ -1626,10 +1626,10 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
     // where the user's mouse starts to the top and bottom of the submenu. If the
     // mouse moves within that area we can keep the submenu open.
     //
-    // The Smashing Magazine article “[User-Friendly Mega-Dropdowns: When Hover
-    // Menus Fail][1]” describes the issue visually and lists a couple solutions.
+    // The Smashing Magazine article "[User-Friendly Mega-Dropdowns: When Hover
+    // Menus Fail][1]" describes the issue visually and lists a couple solutions.
     // We implement the same triangle approach invented by Amazon detailed in
-    // “[Breaking down Amazon’s mega dropdown][2].”
+    // "[Breaking down Amazon's mega dropdown][2]."
     //
     // [1]: https://www.smashingmagazine.com/2021/05/frustrating-design-patterns-mega-dropdown-hover-menus/
     // [2]: https://bjk5.com/post/44698559168/breaking-down-amazons-mega-dropdown

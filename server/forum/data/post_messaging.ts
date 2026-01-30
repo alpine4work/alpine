@@ -557,8 +557,8 @@ export function putPostCommentStreamPart(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -877,8 +877,8 @@ export function completePostCommentStream(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -1030,8 +1030,8 @@ export function pingPostCommentStream(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -1184,7 +1184,7 @@ export async function getPostCommentAtVersion(
             }
 
             if (item.version < version) {
-                throw new FailedPreconditionError("Can’t get message at a future version");
+                throw new FailedPreconditionError("Can\u2019t get message at a future version");
             }
 
             return item;
@@ -1395,10 +1395,12 @@ export function deletePostComment(
             throw new PermissionDeniedError("Can only delete post comments you authored");
 
         if (commentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can’t delete comments with a non-content payload");
+            throw new FailedPreconditionError(
+                "Can\u2019t delete comments with a non-content payload",
+            );
 
         if (commentItem.payload.clerical)
-            throw new FailedPreconditionError("Can’t delete clerical comments");
+            throw new FailedPreconditionError("Can\u2019t delete clerical comments");
 
         const deletedTime = new Date();
 

@@ -8,20 +8,20 @@ export const taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLe
     AccessLevel,
     ErrorDisplayMessage
 > = {
-    View: errorDisplayMessage`You aren’t allowed to access this collection. Ask someone with access to share it with you.`,
-    Comment: errorDisplayMessage`You aren’t allowed to see comments on this task. Ask someone who can share a collection the task is in to give you comment access.`,
-    Edit: errorDisplayMessage`You aren’t allowed to edit this task. Ask someone who can share a collection the task is in to give you edit access.`,
-    Manage: errorDisplayMessage`You aren’t allowed to share this collection. Ask someone who can share the collection to give you share access.`,
+    View: errorDisplayMessage`You aren\u2019t allowed to access this collection. Ask someone with access to share it with you.`,
+    Comment: errorDisplayMessage`You aren\u2019t allowed to see comments on this task. Ask someone who can share a collection the task is in to give you comment access.`,
+    Edit: errorDisplayMessage`You aren\u2019t allowed to edit this task. Ask someone who can share a collection the task is in to give you edit access.`,
+    Manage: errorDisplayMessage`You aren\u2019t allowed to share this collection. Ask someone who can share the collection to give you share access.`,
 };
 
 export const taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
     AccessLevel,
     ErrorDisplayMessage
 > = {
-    View: errorDisplayMessage`You aren’t allowed to access this task. Ask someone with access to share it with you.`,
+    View: errorDisplayMessage`You aren\u2019t allowed to access this task. Ask someone with access to share it with you.`,
     Comment: taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Comment,
     Edit: taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Edit,
-    Manage: errorDisplayMessage`You aren’t allowed to share this task. Ask someone who can share the task to give you share access.`,
+    Manage: errorDisplayMessage`You aren\u2019t allowed to share this task. Ask someone who can share the task to give you share access.`,
 };
 
 // TODO(calebmer): Someday we should have a "trash" feature and this error
@@ -37,20 +37,20 @@ export const taskCollectionDeletedErrorDisplayMessage = errorDisplayMessage`Task
 export function createTaskCollectionNotFoundError(collectionId: TaskCollectionId) {
     return new NotFoundError("Task collection not found", {
         aggregateDedupeKey: collectionId,
-        displayMessage: errorDisplayMessage`This task collection doesn’t exist. Try searching “my task collections” to see collections you’ve created.`,
+        displayMessage: errorDisplayMessage`This task collection doesn\u2019t exist. Try searching \u201Cmy task collections\u201D to see collections you\u2019ve created.`,
     });
 }
 
 export function createTaskNotFoundError(taskId: string | undefined) {
     return new NotFoundError("Task not found", {
         aggregateDedupeKey: taskId,
-        displayMessage: errorDisplayMessage`This task doesn’t exist. Try searching “my tasks” to see tasks you’ve created.`,
+        displayMessage: errorDisplayMessage`This task doesn\u2019t exist. Try searching \u201Cmy tasks\u201D to see tasks you\u2019ve created.`,
     });
 }
 
 export function createTaskCommentNotFoundError(taskId: TaskId, messageIndex: number) {
     return new NotFoundError("Task comment not found", {
         aggregateDedupeKey: `${taskId}-${messageIndex}`,
-        displayMessage: errorDisplayMessage`This comment doesn’t exist. Try searching “my task comments” to see your recent task comments.`,
+        displayMessage: errorDisplayMessage`This comment doesn\u2019t exist. Try searching \u201Cmy task comments\u201D to see your recent task comments.`,
     });
 }

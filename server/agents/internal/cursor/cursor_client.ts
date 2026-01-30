@@ -114,12 +114,12 @@ export class CursorClient {
                         }
                         case 401: {
                             throw new UnauthenticatedError("Cursor authentication failed", {
-                                displayMessage: errorDisplayMessage`Cursor didn’t accept your API key. Make sure you have a valid Cloud Agents API key in ${errorDisplayMessage.link("settings", `${this._edgeServiceUrl}/s/${this._spaceId}/settings/bots/${this._botId}`)}.`,
+                                displayMessage: errorDisplayMessage`Cursor didn\u2019t accept your API key. Make sure you have a valid Cloud Agents API key in ${errorDisplayMessage.link("settings", `${this._edgeServiceUrl}/s/${this._spaceId}/settings/bots/${this._botId}`)}.`,
                             });
                         }
                         case 403: {
                             throw new PermissionDeniedError("Cursor paid access required", {
-                                displayMessage: errorDisplayMessage`Cursor Cloud Agents aren’t available on Cursor’s free plan. Please ${errorDisplayMessage.link("upgrade your Cursor plan", "https://cursor.com/pricing")} to use the Cursor bot in Alpine.`,
+                                displayMessage: errorDisplayMessage`Cursor Cloud Agents aren\u2019t available on Cursor\u2019s free plan. Please ${errorDisplayMessage.link("upgrade your Cursor plan", "https://cursor.com/pricing")} to use the Cursor bot in Alpine.`,
                             });
                         }
                         case 404: {

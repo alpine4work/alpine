@@ -34,7 +34,7 @@ export class ContentFileProcessorError
             case "Unknown": {
                 const noun = getFileContentTypeNoun(contentType);
 
-                title = `Couldn’t open ${noun}`;
+                title = `Couldn\u2019t open ${noun}`;
                 displayMessage = errorDisplayMessage`The ${noun} may be corrupted. Try downloading the ${noun} and opening it in another application.`;
                 break;
             }
@@ -49,7 +49,7 @@ export class ContentFileProcessorError
                 throw exhaustive(error);
         }
 
-        super("Couldn’t process file", {
+        super("Couldn\u2019t process file", {
             displayMessage,
             cause: error,
         });

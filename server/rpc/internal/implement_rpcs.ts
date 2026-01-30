@@ -175,7 +175,7 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
 
                         if (!isVisible) {
                             throw new PermissionDeniedError(
-                                quote`Can’t execute RPC ${definition.name} from ${context.actor.serviceName}`,
+                                quote`Can\u2019t execute RPC ${definition.name} from ${context.actor.serviceName}`,
                             );
                         }
 

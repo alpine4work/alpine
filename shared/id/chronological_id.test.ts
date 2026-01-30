@@ -11,7 +11,7 @@ import {
 import {Id, RandomId, decodeId, generateId} from "~/shared/id/id.js";
 import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 
-test("can’t use `generateId()` to generate a `ChronologicalId`", () => {
+test("can\u2019t use `generateId()` to generate a `ChronologicalId`", () => {
     // @ts-expect-error
     generateId<Id>();
 
@@ -26,7 +26,7 @@ test("can’t use `generateId()` to generate a `ChronologicalId`", () => {
     generateId<FileId>();
 });
 
-test("can’t use `generateChronologicalId()` to generate a `RandomId`", () => {
+test("can\u2019t use `generateChronologicalId()` to generate a `RandomId`", () => {
     // @ts-expect-error
     generateChronologicalId<Id>();
 
@@ -53,7 +53,7 @@ test("generates monotonically increasing ids", () => {
     }
 });
 
-test("providing a custom time doesn’t effect monotonically increasing ids", () => {
+test("providing a custom time doesn\u2019t effect monotonically increasing ids", () => {
     const futureTime = Date.now() + 1000 * 60 * 60;
     const futureId = generateChronologicalIdWithTime(futureTime);
 

@@ -48,7 +48,7 @@ export async function validateAccessPolicyUpdateForServer(
             // direct sharing. Instead when you mention a bot they get access to whatever
             // you mentioned the bot on for a short period of time.
             if (await isBotSpaceAccount(context, spaceId, accountId)) {
-                throw new PermissionDeniedError("Can’t grant access to a bot account");
+                throw new PermissionDeniedError("Can\u2019t grant access to a bot account");
             }
         }),
     );

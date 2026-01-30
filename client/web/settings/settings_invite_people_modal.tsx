@@ -140,7 +140,7 @@ export function SettingsInvitePeopleModal({
             onClose={onCloseAndCheckSuccess}
             primaryButtonLabel="Send"
             isPrimaryButtonDisabled={emailAddresses.length === 0}
-            primaryButtonPressErrorTitle="Couldn’t send invites"
+            primaryButtonPressErrorTitle="Couldn\u2019t send invites"
             onPrimaryButtonPress={handleSendInvites}
             onCancelButtonPress={onCloseAndCheckSuccess}
             withoutCloseButton={true}
@@ -162,7 +162,7 @@ export function SettingsInvitePeopleModal({
                         Invite people
                     </h2>
                     <Box fontSize="75" color="grey-60" userSelect="text" id={descriptionId}>
-                        Add email addresses and they’ll be sent a link to join your space.
+                        Add email addresses and they&#x2019;ll be sent a link to join your space.
                     </Box>
                 </Box>
                 <Spacer space="5" />

@@ -353,7 +353,7 @@ export function ChannelView({
                     label: "Copy link",
                     icon: <LinkIcon />,
                     iconPlacement: "end",
-                    pressErrorTitle: "Couldn’t copy channel link",
+                    pressErrorTitle: "Couldn\u2019t copy channel link",
                     onPress: handleCopyLink,
                 },
                 ...(favoriteMenuAction ? [favoriteMenuAction] : emptyArray),
@@ -393,7 +393,7 @@ export function ChannelView({
                       [
                           {
                               label: "See all files",
-                              pressErrorTitle: "Couldn’t open files",
+                              pressErrorTitle: "Couldn\u2019t open files",
                               onPress: () =>
                                   navigate(
                                       `/s/${space.id}/channels/${channelId}/files?from=channel`,

@@ -60,7 +60,7 @@ export function createGetTaskActionReferencedSortableAccount(
 
             if (!accountStore) {
                 throw new InternalError(
-                    "Couldn’t find `AccountId` referenced by `TaskAction` in `AccountRegistry`",
+                    "Couldn\u2019t find `AccountId` referenced by `TaskAction` in `AccountRegistry`",
                 );
             }
 
@@ -90,7 +90,7 @@ export function createGetTaskActionReferencedSortableAccount(
 
         const accountData = assertExists(
             actionReferencedAccountStoreById.get(accountId),
-            "Can’t get a `TaskSortableAccount` that wasn’t referenced by a `TaskAction`",
+            "Can\u2019t get a `TaskSortableAccount` that wasn\u2019t referenced by a `TaskAction`",
         ).getSnapshot();
 
         return {

@@ -271,7 +271,7 @@ test("can read task with high priority", async () => {
     });
 });
 
-test("can’t read task information without access", async () => {
+test("can\u2019t read task information without access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -292,13 +292,13 @@ test("can’t read task information without access", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("You aren’t allowed"),
+                message: expect.stringMatching("You aren\u2019t allowed"),
             }),
         },
     });
 });
 
-test("can’t read task information for non-existent task", async () => {
+test("can\u2019t read task information for non-existent task", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -316,7 +316,7 @@ test("can’t read task information for non-existent task", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("doesn’t exist"),
+                message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
     });
@@ -353,7 +353,7 @@ test("can read task collection information", async () => {
     });
 });
 
-test("can’t read task collection information without access", async () => {
+test("can\u2019t read task collection information without access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -376,13 +376,13 @@ test("can’t read task collection information without access", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("You aren’t allowed"),
+                message: expect.stringMatching("You aren\u2019t allowed"),
             }),
         },
     });
 });
 
-test("can’t read task collection information for non-existent collection", async () => {
+test("can\u2019t read task collection information for non-existent collection", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -400,7 +400,7 @@ test("can’t read task collection information for non-existent collection", asy
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("doesn’t exist"),
+                message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
     });
@@ -499,10 +499,10 @@ describe("/task-collections/{id}/tasks", () => {
             body: expect.objectContaining({
                 error: expect.objectContaining({
                     message: expect.stringMatching(
-                        "You aren’t allowed to access this collection. Ask someone with access to share it with you.",
+                        "You aren\u2019t allowed to access this collection. Ask someone with access to share it with you.",
                     ),
                     stack: expect.stringContaining(
-                        "PermissionDeniedError: Actor doesn’t have `View` access level",
+                        "PermissionDeniedError: Actor doesn\u2019t have `View` access level",
                     ),
                 }),
             }),

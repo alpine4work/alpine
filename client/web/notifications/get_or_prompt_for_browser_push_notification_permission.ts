@@ -13,8 +13,8 @@ export async function getOrPromptForBrowserPushNotificationPermission() {
 
     // Only select mobile, very old, or weird browsers don't support the Notification API.
     if (typeof Notification === "undefined") {
-        throw new FailedPreconditionError("Browser doesn’t support the notifications API", {
-            displayMessage: errorDisplayMessage`This browser doesn’t support push notifications`,
+        throw new FailedPreconditionError("Browser doesn\u2019t support the notifications API", {
+            displayMessage: errorDisplayMessage`This browser doesn\u2019t support push notifications`,
         });
     }
 

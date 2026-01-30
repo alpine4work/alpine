@@ -1279,7 +1279,7 @@ function TaskRowView(
                     label: "Copy link",
                     icon: <LinkIcon />,
                     iconPlacement: "end",
-                    pressErrorTitle: "Couldn’t copy task link",
+                    pressErrorTitle: "Couldn\u2019t copy task link",
                     onPress: async () => {
                         const url = new URL(
                             `/s/${task.getSpaceId()}/tasks/${task.id}`,
@@ -1335,7 +1335,7 @@ function TaskRowView(
                 contextMenuActions.push([
                     {
                         label: "Duplicate",
-                        pressErrorTitle: "Couldn’t duplicate task",
+                        pressErrorTitle: "Couldn\u2019t duplicate task",
                         onPress: () => duplicateTaskAndAllChildrenAndFocusNewTask(),
                     },
                     {
@@ -1661,7 +1661,7 @@ function TaskRowView(
                                 isTooltipVisibleWhenFocused={false}
                                 size="xs"
                                 description="Open"
-                                pressErrorTitle="Couldn’t open task"
+                                pressErrorTitle="Couldn\u2019t open task"
                                 onPress={async () => {
                                     await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
 

@@ -501,29 +501,32 @@ describe("`labelString`", () => {
             expect(schema.binary!.getByteCount(string)).toEqual(serializedBytes.length);
         });
 
-        // eslint-disable-next-line jest/valid-title
-        test(quote`deserializes ${string} from binary when there’s extra data before/after`, () => {
-            const schema = DynamoKeyAttributeSchema.labelString();
+        test(
+            // eslint-disable-next-line jest/valid-title
+            quote`deserializes ${string} from binary when there\u2019s extra data before/after`,
+            () => {
+                const schema = DynamoKeyAttributeSchema.labelString();
 
-            for (let i = 0; i < 100; i++) {
-                expect(
-                    schema.binary!.deserializeBytes(
-                        new Uint8Array([
-                            randomInteger(0, 256),
-                            randomInteger(0, 256),
-                            randomInteger(0, 256),
-                            randomInteger(0, 256),
-                            ...serializedBytes.map(byte => parseInt(byte, 16)),
-                            randomInteger(0, 256),
-                            randomInteger(0, 256),
-                            randomInteger(0, 256),
-                            randomInteger(0, 256),
-                        ]),
-                        4,
-                    ),
-                ).toEqual(string);
-            }
-        });
+                for (let i = 0; i < 100; i++) {
+                    expect(
+                        schema.binary!.deserializeBytes(
+                            new Uint8Array([
+                                randomInteger(0, 256),
+                                randomInteger(0, 256),
+                                randomInteger(0, 256),
+                                randomInteger(0, 256),
+                                ...serializedBytes.map(byte => parseInt(byte, 16)),
+                                randomInteger(0, 256),
+                                randomInteger(0, 256),
+                                randomInteger(0, 256),
+                                randomInteger(0, 256),
+                            ]),
+                            4,
+                        ),
+                    ).toEqual(string);
+                }
+            },
+        );
 
         // eslint-disable-next-line jest/valid-title
         test(quote`gets ${string} byte count`, () => {

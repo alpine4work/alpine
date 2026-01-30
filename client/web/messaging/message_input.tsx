@@ -426,7 +426,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     // message. We do this so that messages are delivered to the user in order
                     // instead of confirming a message and discovering some unloaded messages.
                 } catch (error) {
-                    reporter.displayError(`Couldn’t create ${messageNoun}`, error);
+                    reporter.displayError(`Couldn\u2019t create ${messageNoun}`, error);
 
                     onUpdateMessages(messages =>
                         messages.updateOptimisticMessage(

@@ -78,7 +78,7 @@ function Button(
          * this title. It is the "what happened" part of an error message according to [Adobe
          * Spectrum's][1] error content guidelines.
          *
-         * So for example it this is a delete comment action say "Couldn’t delete comment".
+         * So for example it this is a delete comment action say "Couldn't delete comment".
          *
          * Optional if the `onPress` event does not return a promise.
          *
@@ -312,8 +312,8 @@ function Button(
 
         const defaultPressErrorTitle =
             event.pointerType === "touch"
-                ? "The button you tapped didn’t work"
-                : "The button you clicked didn’t work";
+                ? "The button you tapped didn\u2019t work"
+                : "The button you clicked didn\u2019t work";
 
         let promise;
         try {

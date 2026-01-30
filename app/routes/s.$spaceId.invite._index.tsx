@@ -34,7 +34,7 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
     );
 
     if (!currentAccount) {
-        throw new PermissionDeniedError("Account isn’t invited to the space");
+        throw new PermissionDeniedError("Account isn\u2019t invited to the space");
     }
 
     if (currentAccount.initialData.space.state.type !== "InvitePending") {
@@ -115,7 +115,7 @@ export default function HomeRoute() {
                     alignItems="center"
                 >
                     <SpaceAvatar space={context.space} size="16" />
-                    <Box textAlign="center">You’ve been invited to join</Box>
+                    <Box textAlign="center">You&#x2019;ve been invited to join</Box>
                     <Box fontStyle="semi-bold" textAlign="center" fontSize="300">
                         {context.space.name}
                     </Box>
@@ -128,7 +128,7 @@ export default function HomeRoute() {
                             height="8"
                             paddingX="3"
                             fullWidth
-                            pressErrorTitle="Couldn’t accept invite"
+                            pressErrorTitle="Couldn\u2019t accept invite"
                             onPress={onAcceptInvite}
                         >
                             Join {context.space.name}
@@ -139,7 +139,7 @@ export default function HomeRoute() {
                     variant="quieter"
                     height="6"
                     paddingX="2"
-                    pressErrorTitle="Couldn’t reject invite"
+                    pressErrorTitle="Couldn\u2019t reject invite"
                     onPress={onRejectInviteAndMarkAsSpam}
                     fontSize="50"
                 >

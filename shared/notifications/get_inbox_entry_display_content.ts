@@ -34,7 +34,7 @@ import {
  * guide.
  *
  * Following this style guide also makes sure inbox entry displays are
- * consistent across different entity types. So even in a full inbox there’s
+ * consistent across different entity types. So even in a full inbox there's
  * order and harmony.
  *
  * ### The summary is ordered "what" or "how" then optionally "who"
@@ -124,17 +124,17 @@ import {
  * If our account is mentioned then ignore our previous what/how/who ordering
  * and instead order the inbox entry summary who, how, then what. For example
  * if Alice mentions Bob in a comment then the summary for Bob should be:
- * “Alice mentioned you in your post”. If Carol is also subscribed to Bob's
- * post then Carol would get the standard what/how/who summary: “Bob's post has
- * a new comment from Alice” or “Bob’s post has new comments”.
+ * "Alice mentioned you in your post". If Carol is also subscribed to Bob's
+ * post then Carol would get the standard what/how/who summary: "Bob's post has
+ * a new comment from Alice" or "Bob's post has new comments".
  *
- * Always try to use the exact language “`${accountName}` mentioned you” at the
+ * Always try to use the exact language "`${accountName}` mentioned you" at the
  * start of the summary for consistency.
  *
- * **Why?** If someone mentions you they’re explicitly trying to get your
+ * **Why?** If someone mentions you they're explicitly trying to get your
  * attention. We're already grabbing the recipients attention with a loud
- * notification badge, we should immediately explain why there’s a loud
- * notification badge by describing that there’s a mention.
+ * notification badge, we should immediately explain why there's a loud
+ * notification badge by describing that there's a mention.
  *
  * Your social connection to the person mentioning you is often the most
  * important piece for interpreting the mention. Especially since often you'll
@@ -254,8 +254,8 @@ function getInboxChatEntryDisplay({
         // display style guide since the summary is ordered who/what instead of
         // what/how.
         //
-        // “Alice (who) sent you a message (how)” (who/how) vs “Your chat with Alice
-        // (what) has new messages (how)” (what/how).
+        // "Alice (who) sent you a message (how)" (who/how) vs "Your chat with Alice
+        // (what) has new messages (how)" (what/how).
         //
         // Chat messages are an exception since the who/how ordering just sounds so
         // much more natural. Also since chats are identified by its members the who
@@ -364,7 +364,7 @@ function getInboxPostCommentsEntryDisplay({
             summary.push("their");
         } else {
             summary.push(entry.postAuthor);
-            summary.push("’s");
+            summary.push("\u2019s");
         }
 
         summary.push(
@@ -377,7 +377,7 @@ function getInboxPostCommentsEntryDisplay({
             summary.push("Your");
         } else {
             summary.push(entry.postAuthor);
-            summary.push("’s");
+            summary.push("\u2019s");
         }
 
         summary.push(
@@ -471,7 +471,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
 
     const documentTitle = entry.document.isPrivate
         ? "a private document"
-        : `“${truncateDocumentTitleForNotification(entry.document.document.getTitle())}”`;
+        : `\u201C${truncateDocumentTitleForNotification(entry.document.document.getTitle())}\u201D`;
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
@@ -500,7 +500,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
             summary.push("their");
         } else {
             summary.push(entry.firstCommentAuthor);
-            summary.push("’s");
+            summary.push("\u2019s");
         }
 
         summary.push(` comment thread on ${documentTitle}`);
@@ -509,7 +509,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
             summary.push("Your");
         } else {
             summary.push(entry.firstCommentAuthor);
-            summary.push("’s");
+            summary.push("\u2019s");
         }
 
         summary.push(` thread on ${documentTitle} has new comments`);
@@ -549,7 +549,7 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
 
     const documentTitle = entry.document.isPrivate
         ? "a private document"
-        : `“${truncateDocumentTitleForNotification(entry.document.document.getTitle())}”`;
+        : `\u201C${truncateDocumentTitleForNotification(entry.document.document.getTitle())}\u201D`;
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
@@ -612,7 +612,7 @@ function getInboxTaskEntryDisplay({
                 summary.push("their");
             } else {
                 summary.push(entry.task.taskOwner);
-                summary.push("’s");
+                summary.push("\u2019s");
             }
 
             summary.push(" task");
@@ -625,7 +625,7 @@ function getInboxTaskEntryDisplay({
                 summary.push("Your");
             } else {
                 summary.push(entry.task.taskOwner);
-                summary.push("’s");
+                summary.push("\u2019s");
             }
 
             summary.push(" task");

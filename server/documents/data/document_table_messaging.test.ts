@@ -469,5 +469,5 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             messageUpdatesResult: commentUpdatesResult,
         };
     },
-    spacePermissionDeniedErrorMessage: "Account doesn’t have access to space",
+    spacePermissionDeniedErrorMessage: "Account doesn\u2019t have access to space",
 });

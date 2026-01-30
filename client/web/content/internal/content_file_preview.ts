@@ -1643,7 +1643,7 @@ export function addContentFilePreviewBehavior(
                 {
                     label: `Copy ${fileContentTypeNoun}`,
                     isDisabled: file?.isUploading ?? true,
-                    pressErrorTitle: `Couldn’t copy ${fileContentTypeNoun}`,
+                    pressErrorTitle: `Couldn\u2019t copy ${fileContentTypeNoun}`,
                     onPress: async () => {
                         await handleCopyContentFile(element, {
                             spaceId,
@@ -1655,7 +1655,7 @@ export function addContentFilePreviewBehavior(
                 {
                     label: `Download ${fileContentTypeNoun}`,
                     isDisabled: file?.isUploading ?? true,
-                    pressErrorTitle: `Couldn’t download ${fileContentTypeNoun}`,
+                    pressErrorTitle: `Couldn\u2019t download ${fileContentTypeNoun}`,
                     onPress: () => {
                         if (!file) return;
                         handleDownloadContentFile({spaceId, file});
@@ -1886,7 +1886,7 @@ export async function handleCopyContentFile(
 
             // Silently error if converting to a blob fails.
             if (!imagePreviewContentBlob) {
-                scheduleUncaughtError(new InternalError("Couldn’t convert canvas to blob"));
+                scheduleUncaughtError(new InternalError("Couldn\u2019t convert canvas to blob"));
             }
         } finally {
             document.body.removeChild(canvasElement);
@@ -1937,8 +1937,8 @@ export function handleDownloadContentFile({
     file: FileModelRegistryData;
 }) {
     if (file.isUploading) {
-        throw new FailedPreconditionError("File hasn’t finished uploading", {
-            displayMessage: errorDisplayMessage`The file hasn’t finished uploading. Wait a few seconds then try again.`,
+        throw new FailedPreconditionError("File hasn\u2019t finished uploading", {
+            displayMessage: errorDisplayMessage`The file hasn\u2019t finished uploading. Wait a few seconds then try again.`,
         });
     }
 

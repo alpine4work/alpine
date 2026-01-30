@@ -87,7 +87,7 @@ test("does not allow updating the lastOpenedSpaceId to a space the session is re
     );
 });
 
-test("should create a new account settings item and set the lastOpenedSpaceId if it doesn’t exist", async () => {
+test("should create a new account settings item and set the lastOpenedSpaceId if it doesn\u2019t exist", async () => {
     const space1 = await TestSpace.create(context);
 
     const accountId = generateId<AccountId>();

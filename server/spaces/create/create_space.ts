@@ -75,7 +75,7 @@ async function actuallyCreateSpace(
     const name = originalName.trim().replace(/\s+/g, " ");
     if (name.length > 50) {
         throw new InvalidArgumentError("Space name cannot be more than 50 characters", {
-            displayMessage: errorDisplayMessage`Name is too long. Try a name that’s less than 50 characters.`,
+            displayMessage: errorDisplayMessage`Name is too long. Try a name that\u2019s less than 50 characters.`,
         });
     }
 

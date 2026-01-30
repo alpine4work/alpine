@@ -104,11 +104,11 @@ export function defineWebSocketProtocol<
                 );
                 assert(
                     !("type" in procedureConfig.input),
-                    "Input object can’t contain `type` property",
+                    "Input object can\u2019t contain `type` property",
                 );
                 assert(
                     !("type" in procedureConfig.output),
-                    "Input object can’t contain `type` property",
+                    "Input object can\u2019t contain `type` property",
                 );
 
                 return {

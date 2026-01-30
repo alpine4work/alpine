@@ -294,7 +294,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t create task in space you don’t have access to", async () => {
+    test("can\u2019t create task in space you don\u2019t have access to", async () => {
         await expect(
             commitTaskActionTransaction(context.action(session1), otherSpace.id, [
                 {
@@ -311,7 +311,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t create a task twice", async () => {
+    test("can\u2019t create a task twice", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -343,7 +343,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t create a task with the wrong account as the creator", async () => {
+    test("can\u2019t create a task with the wrong account as the creator", async () => {
         await expect(
             commitTaskActionTransaction(context.action(session1), space.id, [
                 {
@@ -388,7 +388,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t delete a task that doesn’t exist", async () => {
+    test("can\u2019t delete a task that doesn\u2019t exist", async () => {
         const taskId = generateId<TaskId>();
 
         await expect(
@@ -405,7 +405,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can’t delete a task twice", async () => {
+    test("can\u2019t delete a task twice", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -446,7 +446,7 @@ describe("old style", () => {
         ).rejects.toThrow("Task was deleted");
     });
 
-    test("can’t delete a task with the same time as task creation", async () => {
+    test("can\u2019t delete a task with the same time as task creation", async () => {
         const taskId = generateId<TaskId>();
 
         const createdTime = clock.now();
@@ -478,7 +478,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t delete a task with a time earlier than task creation", async () => {
+    test("can\u2019t delete a task with a time earlier than task creation", async () => {
         const taskId = generateId<TaskId>();
 
         const deletedTime = clock.now();
@@ -510,7 +510,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t delete a task with an unreasonable time", async () => {
+    test("can\u2019t delete a task with an unreasonable time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -540,7 +540,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t delete a task that’s not yours", async () => {
+    test("can\u2019t delete a task that\u2019s not yours", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -570,7 +570,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can delete a task that’s in a collection you specifically can edit", async () => {
+    test("can delete a task that\u2019s in a collection you specifically can edit", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -627,7 +627,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t delete a task that’s only in a collection you specifically can view", async () => {
+    test("can\u2019t delete a task that\u2019s only in a collection you specifically can view", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -686,7 +686,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can delete a task that’s in a collection you can edit by default", async () => {
+    test("can delete a task that\u2019s in a collection you can edit by default", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session2), space.id, [
@@ -701,7 +701,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t delete a task that’s only in a collection you can view by default", async () => {
+    test("can\u2019t delete a task that\u2019s only in a collection you can view by default", async () => {
         const {taskId} = await createPublicTask(session1, space.id, "View");
 
         await expect(
@@ -718,7 +718,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t delete a task that’s only in a collection space accounts can edit by default if you’re from a different space", async () => {
+    test("can\u2019t delete a task that\u2019s only in a collection space accounts can edit by default if you\u2019re from a different space", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await expect(
@@ -774,7 +774,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can undelete a task twice if there’s another delete", async () => {
+    test("can undelete a task twice if there\u2019s another delete", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -835,7 +835,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can undelete a task twice if there’s another delete in one transaction", async () => {
+    test("can undelete a task twice if there\u2019s another delete in one transaction", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -884,7 +884,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t undelete a task twice", async () => {
+    test("can\u2019t undelete a task twice", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -936,7 +936,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t a task that doesn’t exist", async () => {
+    test("can\u2019t a task that doesn\u2019t exist", async () => {
         const taskId = generateId<TaskId>();
 
         await expect(
@@ -953,7 +953,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can’t undelete a task with the same time as the deletion time", async () => {
+    test("can\u2019t undelete a task with the same time as the deletion time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -996,7 +996,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t undelete a task with a time before the deletion time", async () => {
+    test("can\u2019t undelete a task with a time before the deletion time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1039,7 +1039,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t undelete a task with an unreasonable time", async () => {
+    test("can\u2019t undelete a task with an unreasonable time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1080,7 +1080,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t undelete a task that isn’t yours", async () => {
+    test("can\u2019t undelete a task that isn\u2019t yours", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1121,7 +1121,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t undelete a task in a collection you don’t have edit access to", async () => {
+    test("can\u2019t undelete a task in a collection you don\u2019t have edit access to", async () => {
         const {taskId} = await createPublicTask(session1, space.id, "View");
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1175,7 +1175,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a task’s title", async () => {
+    test("can update a task\u2019s title", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1228,7 +1228,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a task’s title in any order", async () => {
+    test("can update a task\u2019s title in any order", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1281,7 +1281,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update a task title for a task that doesn’t exist", async () => {
+    test("can\u2019t update a task title for a task that doesn\u2019t exist", async () => {
         const taskId = generateId<TaskId>();
 
         await expect(
@@ -1299,7 +1299,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can’t update a deleted task’s title", async () => {
+    test("can\u2019t update a deleted task\u2019s title", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1341,7 +1341,7 @@ describe("old style", () => {
         ).rejects.toThrow("Task was deleted");
     });
 
-    test("can’t update a task title that’s not yours", async () => {
+    test("can\u2019t update a task title that\u2019s not yours", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1372,7 +1372,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can update a task’s title that’s in a collection you can edit", async () => {
+    test("can update a task\u2019s title that\u2019s in a collection you can edit", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1430,7 +1430,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update a task’s title that’s only in a collection you specifically can view", async () => {
+    test("can\u2019t update a task\u2019s title that\u2019s only in a collection you specifically can view", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1538,7 +1538,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t add a task you don’t have access to to a collection", async () => {
+    test("can\u2019t add a task you don\u2019t have access to to a collection", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1591,7 +1591,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t add a task to a collection you don’t have access to", async () => {
+    test("can\u2019t add a task to a collection you don\u2019t have access to", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1644,7 +1644,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can add a task that’s not yours to a collection", async () => {
+    test("can add a task that\u2019s not yours to a collection", async () => {
         const taskId = generateId<TaskId>();
         const collectionId1 = generateId<TaskCollectionId>();
         const collectionId2 = generateId<TaskCollectionId>();
@@ -1724,7 +1724,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t add a task to a collection you don’t have edit access to", async () => {
+    test("can\u2019t add a task to a collection you don\u2019t have edit access to", async () => {
         const taskId = generateId<TaskId>();
         const collectionId1 = generateId<TaskCollectionId>();
         const collectionId2 = generateId<TaskCollectionId>();
@@ -1817,7 +1817,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t add a task to a collection with an unreasonable update time", async () => {
+    test("can\u2019t add a task to a collection with an unreasonable update time", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1924,7 +1924,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t delete a task from a collection with an unreasonable time", async () => {
+    test("can\u2019t delete a task from a collection with an unreasonable time", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1983,7 +1983,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t delete a task from a collection you don’t have access to", async () => {
+    test("can\u2019t delete a task from a collection you don\u2019t have access to", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -2042,7 +2042,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t delete a task from a collection you don’t have edit access to", async () => {
+    test("can\u2019t delete a task from a collection you don\u2019t have edit access to", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -2184,7 +2184,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t create a collection with no creator", async () => {
+    test("can\u2019t create a collection with no creator", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2210,7 +2210,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t create a collection with the wrong creator", async () => {
+    test("can\u2019t create a collection with the wrong creator", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2236,7 +2236,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t create a collection twice", async () => {
+    test("can\u2019t create a collection twice", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2282,7 +2282,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t create a collection with the wrong account in access policy", async () => {
+    test("can\u2019t create a collection with the wrong account in access policy", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2312,7 +2312,7 @@ describe("old style", () => {
         );
     });
 
-    test("can’t create a collection with an unreasonable created time", async () => {
+    test("can\u2019t create a collection with an unreasonable created time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2338,7 +2338,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t create a collection without our account as a manager", async () => {
+    test("can\u2019t create a collection without our account as a manager", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2397,7 +2397,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t delete a collection that doesn’t exist", async () => {
+    test("can\u2019t delete a collection that doesn\u2019t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2414,7 +2414,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can’t delete a collection twice", async () => {
+    test("can\u2019t delete a collection twice", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2462,7 +2462,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t delete a collection with the created time", async () => {
+    test("can\u2019t delete a collection with the created time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         const createdTime = clock.now();
@@ -2501,7 +2501,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t delete a collection with a time before the created time", async () => {
+    test("can\u2019t delete a collection with a time before the created time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         const deletedTime = clock.now();
@@ -2540,7 +2540,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t delete a collection with an unreasonable deleted time", async () => {
+    test("can\u2019t delete a collection with an unreasonable deleted time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2577,7 +2577,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t delete a collection you don’t have access to", async () => {
+    test("can\u2019t delete a collection you don\u2019t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2614,7 +2614,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t delete a collection you only have access to as an editor", async () => {
+    test("can\u2019t delete a collection you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2734,7 +2734,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t undelete a collection that doesn’t exist", async () => {
+    test("can\u2019t undelete a collection that doesn\u2019t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2751,7 +2751,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can undelete a collection twice if there’s another delete", async () => {
+    test("can undelete a collection twice if there\u2019s another delete", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2819,7 +2819,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can undelete a collection twice if there’s another delete in one transaction", async () => {
+    test("can undelete a collection twice if there\u2019s another delete in one transaction", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2875,7 +2875,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t undelete a collection twice", async () => {
+    test("can\u2019t undelete a collection twice", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2934,7 +2934,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t undelete a collection with the deleted time", async () => {
+    test("can\u2019t undelete a collection with the deleted time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2984,7 +2984,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t undelete a collection a time before the deleted time", async () => {
+    test("can\u2019t undelete a collection a time before the deleted time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3034,7 +3034,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t undelete a collection with an unreasonable time", async () => {
+    test("can\u2019t undelete a collection with an unreasonable time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3082,7 +3082,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t undelete a collection you don’t have access to", async () => {
+    test("can\u2019t undelete a collection you don\u2019t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3127,7 +3127,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t undelete a collection you only have access to as an editor", async () => {
+    test("can\u2019t undelete a collection you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3217,7 +3217,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a collection’s name", async () => {
+    test("can update a collection\u2019s name", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3253,7 +3253,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update a collection name for a collection that doesn’t exist", async () => {
+    test("can\u2019t update a collection name for a collection that doesn\u2019t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -3271,7 +3271,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can’t update a deleted collection’s name", async () => {
+    test("can\u2019t update a deleted collection\u2019s name", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3320,7 +3320,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t update a collection name that’s not yours", async () => {
+    test("can\u2019t update a collection name that\u2019s not yours", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3358,7 +3358,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update a collection name with an unreasonable time", async () => {
+    test("can\u2019t update a collection name with an unreasonable time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3396,7 +3396,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t update a collection name you don’t have access to", async () => {
+    test("can\u2019t update a collection name you don\u2019t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3434,7 +3434,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update a collection name you only have access to as an editor", async () => {
+    test("can\u2019t update a collection name you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3510,7 +3510,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a collection’s color", async () => {
+    test("can update a collection\u2019s color", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3546,7 +3546,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update a collection color for a collection that doesn’t exist", async () => {
+    test("can\u2019t update a collection color for a collection that doesn\u2019t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -3564,7 +3564,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can’t update a deleted collection’s color", async () => {
+    test("can\u2019t update a deleted collection\u2019s color", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3613,7 +3613,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t update a collection color that’s not yours", async () => {
+    test("can\u2019t update a collection color that\u2019s not yours", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3651,7 +3651,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update a collection color with an unreasonable time", async () => {
+    test("can\u2019t update a collection color with an unreasonable time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3689,7 +3689,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t update a collection color you don’t have access to", async () => {
+    test("can\u2019t update a collection color you don\u2019t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3727,7 +3727,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update a collection color you only have access to as an editor", async () => {
+    test("can\u2019t update a collection color you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3803,7 +3803,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a collection’s access policy", async () => {
+    test("can update a collection\u2019s access policy", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3846,7 +3846,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update a collection access policy for a collection that doesn’t exist", async () => {
+    test("can\u2019t update a collection access policy for a collection that doesn\u2019t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -3871,7 +3871,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can’t update a deleted collection’s access policy", async () => {
+    test("can\u2019t update a deleted collection\u2019s access policy", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3927,7 +3927,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t update a collection access policy that’s not yours", async () => {
+    test("can\u2019t update a collection access policy that\u2019s not yours", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3972,7 +3972,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update a collection access policy with an unreasonable time", async () => {
+    test("can\u2019t update a collection access policy with an unreasonable time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4017,7 +4017,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t update a collection access policy you don’t have access to", async () => {
+    test("can\u2019t update a collection access policy you don\u2019t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4062,7 +4062,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update a collection access policy you only have access to as an editor", async () => {
+    test("can\u2019t update a collection access policy you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4152,7 +4152,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update a collection access policy with no manage grants", async () => {
+    test("can\u2019t update a collection access policy with no manage grants", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4195,7 +4195,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow("Can’t update access policy so that no one has manage access");
+        ).rejects.toThrow("Can\u2019t update access policy so that no one has manage access");
 
         await expect(
             commitTaskActionTransaction(context.action(session2), space.id, [
@@ -4213,7 +4213,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow("Can’t update access policy so that no one has manage access");
+        ).rejects.toThrow("Can\u2019t update access policy so that no one has manage access");
 
         await commitTaskActionTransaction(context.action(session2), space.id, [
             {
@@ -4296,7 +4296,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t create task twice race condition", async () => {
+    test("can\u2019t create task twice race condition", async () => {
         const taskId = generateId<TaskId>();
 
         const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
@@ -4336,7 +4336,7 @@ describe("old style", () => {
         await expect(commit1Promise).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t create collection twice race condition", async () => {
+    test("can\u2019t create collection twice race condition", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
@@ -4614,7 +4614,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task due date with unreasonable updated time", async () => {
+    test("can\u2019t update task due date with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4674,7 +4674,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update priority with unreasonable updated time", async () => {
+    test("can\u2019t update priority with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4748,7 +4748,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task parent with unreasonable update time", async () => {
+    test("can\u2019t update task parent with unreasonable update time", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -4954,7 +4954,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task parent and parent position with unreasonable time at the same time", async () => {
+    test("can\u2019t update task parent and parent position with unreasonable time at the same time", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5003,7 +5003,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
     });
 
-    test("can’t update task parent on a task that doesn’t exist", async () => {
+    test("can\u2019t update task parent on a task that doesn\u2019t exist", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5035,7 +5035,7 @@ describe("old style", () => {
         ).rejects.toThrow(new NotFoundError("Task not found"));
     });
 
-    test("can’t update task parent with a task that doesn’t exist", async () => {
+    test("can\u2019t update task parent with a task that doesn\u2019t exist", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5067,7 +5067,7 @@ describe("old style", () => {
         ).rejects.toThrow(new NotFoundError("Parent task not found"));
     });
 
-    test("can’t update task parent to deleted task", async () => {
+    test("can\u2019t update task parent to deleted task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5123,7 +5123,7 @@ describe("old style", () => {
         ).rejects.toThrow(new FailedPreconditionError("Parent task is deleted"));
     });
 
-    test("can’t update task parent where grandparent is a deleted task", async () => {
+    test("can\u2019t update task parent where grandparent is a deleted task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -5191,7 +5191,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task parent on a task you don’t have edit access to", async () => {
+    test("can\u2019t update task parent on a task you don\u2019t have edit access to", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5236,7 +5236,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update task parent to a task you don’t have edit access to", async () => {
+    test("can\u2019t update task parent to a task you don\u2019t have edit access to", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5281,7 +5281,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update task parent to a task you have view but not edit access to", async () => {
+    test("can\u2019t update task parent to a task you have view but not edit access to", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -5811,7 +5811,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("child tasks don’t inherit the permissions of their deleted parent task", async () => {
+    test("child tasks don\u2019t inherit the permissions of their deleted parent task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -5934,7 +5934,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("child tasks don’t inherit the permissions of their deleted parent task multiple levels up", async () => {
+    test("child tasks don\u2019t inherit the permissions of their deleted parent task multiple levels up", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -6432,7 +6432,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("child tasks can’t create a circular dependency", async () => {
+    test("child tasks can\u2019t create a circular dependency", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -6566,12 +6566,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can’t create a circular dependency even in race conditions (2 tasks)", async () => {
+    test("child tasks can\u2019t create a circular dependency even in race conditions (2 tasks)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -6676,12 +6676,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can’t create a circular dependency even in race conditions (3 tasks)", async () => {
+    test("child tasks can\u2019t create a circular dependency even in race conditions (3 tasks)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -6822,12 +6822,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 1)", async () => {
+    test("child tasks can\u2019t create a circular dependency even in race conditions (5 tasks, scenario 1)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7040,12 +7040,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 2)", async () => {
+    test("child tasks can\u2019t create a circular dependency even in race conditions (5 tasks, scenario 2)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7258,12 +7258,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 3)", async () => {
+    test("child tasks can\u2019t create a circular dependency even in race conditions (5 tasks, scenario 3)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7476,12 +7476,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 4)", async () => {
+    test("child tasks can\u2019t create a circular dependency even in race conditions (5 tasks, scenario 4)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7694,12 +7694,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 5)", async () => {
+    test("child tasks can\u2019t create a circular dependency even in race conditions (5 tasks, scenario 5)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7912,12 +7912,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can’t create a circular dependency even in race conditions (9 tasks)", async () => {
+    test("child tasks can\u2019t create a circular dependency even in race conditions (9 tasks)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -8286,7 +8286,7 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
@@ -8399,7 +8399,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
 
@@ -8550,7 +8550,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
 
@@ -8630,7 +8630,7 @@ describe("old style", () => {
         );
     });
 
-    test("can’t create a circular dependency with undelete even in race conditions", async () => {
+    test("can\u2019t create a circular dependency with undelete even in race conditions", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -8865,7 +8865,7 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task’s `parentTaskId` would create a circular dependency",
+                "Updating task\u2019s `parentTaskId` would create a circular dependency",
             ),
         );
     });
@@ -9085,7 +9085,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can remove the parent of a child task when you don’t have access to the parent task", async () => {
+    test("can remove the parent of a child task when you don\u2019t have access to the parent task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId1 = generateId<TaskCollectionId>();
@@ -9210,7 +9210,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can change the parent of a child task when you don’t have access to the parent task", async () => {
+    test("can change the parent of a child task when you don\u2019t have access to the parent task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -9356,7 +9356,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can delete a child task when you don’t have access to the parent task", async () => {
+    test("can delete a child task when you don\u2019t have access to the parent task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId1 = generateId<TaskCollectionId>();
@@ -9480,7 +9480,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task parent order key when there is no parent", async () => {
+    test("can\u2019t update task parent order key when there is no parent", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9508,7 +9508,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new FailedPreconditionError("Task doesn’t have a parent"));
+        ).rejects.toThrow(new FailedPreconditionError("Task doesn\u2019t have a parent"));
     });
 
     test("can update task parent order key", async () => {
@@ -9560,7 +9560,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task parent order key with unreasonable updated time", async () => {
+    test("can\u2019t update task parent order key with unreasonable updated time", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -9611,7 +9611,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can’t update task parent order key when parent is deleted", async () => {
+    test("can\u2019t update task parent order key when parent is deleted", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -9673,7 +9673,7 @@ describe("old style", () => {
         ).rejects.toThrow(new FailedPreconditionError("Parent task is deleted"));
     });
 
-    test("can’t update task parent order key when you don’t have edit access to parent", async () => {
+    test("can\u2019t update task parent order key when you don\u2019t have edit access to parent", async () => {
         const taskId1 = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9730,7 +9730,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task parent order key if order time is unreasonable", async () => {
+    test("can\u2019t update task parent order key if order time is unreasonable", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -9829,7 +9829,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task status with unreasonable updated time", async () => {
+    test("can\u2019t update task status with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9864,7 +9864,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can’t update task status with unreasonable closed time", async () => {
+    test("can\u2019t update task status with unreasonable closed time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9899,7 +9899,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action `closedTime` is too far in the future"));
     });
 
-    test("can’t update task status with a closer other than your account", async () => {
+    test("can\u2019t update task status with a closer other than your account", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9986,7 +9986,7 @@ describe("old style", () => {
         );
     });
 
-    test("can’t update task status and assignee status if assignee status has an unreasonable time", async () => {
+    test("can\u2019t update task status and assignee status if assignee status has an unreasonable time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10093,7 +10093,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task assignee with unreasonable updated time", async () => {
+    test("can\u2019t update task assignee with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10128,7 +10128,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can’t update task assignee with unreasonable assigned time", async () => {
+    test("can\u2019t update task assignee with unreasonable assigned time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10165,7 +10165,7 @@ describe("old style", () => {
         );
     });
 
-    test("can’t update task assignee with an assigner other than your account", async () => {
+    test("can\u2019t update task assignee with an assigner other than your account", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10202,7 +10202,7 @@ describe("old style", () => {
         );
     });
 
-    test("can’t update task assignee with an assignee outside the current space", async () => {
+    test("can\u2019t update task assignee with an assignee outside the current space", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10236,7 +10236,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new FailedPreconditionError(
-                "Can’t assign a task to an account outside of the current space",
+                "Can\u2019t assign a task to an account outside of the current space",
             ),
         );
     });
@@ -10315,7 +10315,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task assignee status with unreasonable updated time", async () => {
+    test("can\u2019t update task assignee status with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10365,7 +10365,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can’t update task assignee status with unreasonable activated time", async () => {
+    test("can\u2019t update task assignee status with unreasonable activated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10478,7 +10478,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task assignee position when another account is assigned", async () => {
+    test("can\u2019t update task assignee position when another account is assigned", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10527,12 +10527,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Can only update the task’s assignee position if you are the task’s assignee",
+                "Can only update the task\u2019s assignee position if you are the task\u2019s assignee",
             ),
         );
     });
 
-    test("can’t update task assignee position when no account is assigned", async () => {
+    test("can\u2019t update task assignee position when no account is assigned", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10565,12 +10565,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Can only update the task’s assignee position if you are the task’s assignee",
+                "Can only update the task\u2019s assignee position if you are the task\u2019s assignee",
             ),
         );
     });
 
-    test("can’t update task assignee position with an account id other than your own", async () => {
+    test("can\u2019t update task assignee position with an account id other than your own", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10619,12 +10619,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Must use the actor `AccountId` when updating the task’s assignee position",
+                "Must use the actor `AccountId` when updating the task\u2019s assignee position",
             ),
         );
     });
 
-    test("can’t update task assignee position with unreasonable order time", async () => {
+    test("can\u2019t update task assignee position with unreasonable order time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10712,7 +10712,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task assignee and assignee status with unreasonable time at the same time", async () => {
+    test("can\u2019t update task assignee and assignee status with unreasonable time at the same time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10811,7 +10811,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update task position with an unreasonable update time", async () => {
+    test("can\u2019t update task position with an unreasonable update time", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -10871,7 +10871,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can’t update task position with an unreasonable order time", async () => {
+    test("can\u2019t update task position with an unreasonable order time", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -10934,7 +10934,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
     });
 
-    test("can’t update task position with a task that doesn’t exist", async () => {
+    test("can\u2019t update task position with a task that doesn\u2019t exist", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -10994,7 +10994,7 @@ describe("old style", () => {
         ).rejects.toThrow(new NotFoundError("Task not found"));
     });
 
-    test("can’t update task position with a task that’s not in the collection", async () => {
+    test("can\u2019t update task position with a task that\u2019s not in the collection", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -11065,7 +11065,7 @@ describe("old style", () => {
         ).rejects.toThrow(new FailedPreconditionError("Task is not in collection"));
     });
 
-    test("can’t update task position with a task that was removed from the collection", async () => {
+    test("can\u2019t update task position with a task that was removed from the collection", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -11137,7 +11137,7 @@ describe("old style", () => {
         ).rejects.toThrow(new FailedPreconditionError("Task is not in collection"));
     });
 
-    test("can’t update task position when you don’t have access to the collection", async () => {
+    test("can\u2019t update task position when you don\u2019t have access to the collection", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -11209,7 +11209,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update task position when you only have view access to the collection", async () => {
+    test("can\u2019t update task position when you only have view access to the collection", async () => {
         const {taskId, collectionId} = await createPublicTask(session1, space.id, "View");
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -11240,7 +11240,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t update a task’s title with an account in a different space", async () => {
+    test("can\u2019t update a task\u2019s title with an account in a different space", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await expect(
@@ -11255,10 +11255,10 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
     });
 
-    test("can’t update a task’s title in the context of the wrong space", async () => {
+    test("can\u2019t update a task\u2019s title in the context of the wrong space", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await expect(
@@ -11288,7 +11288,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can’t update a collection’s name with an account in a different space", async () => {
+    test("can\u2019t update a collection\u2019s name with an account in a different space", async () => {
         const {collectionId} = await createPublicTask(session1, space.id, "Manage");
 
         await expect(
@@ -11303,10 +11303,10 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
     });
 
-    test("can’t update a collection’s name in the context of the wrong space", async () => {
+    test("can\u2019t update a collection\u2019s name in the context of the wrong space", async () => {
         const {collectionId} = await createPublicTask(session1, space.id, "Manage");
 
         await expect(
@@ -12543,7 +12543,7 @@ describe("old style", () => {
     });
 });
 
-test("can’t update task in a deleted public collection", async () => {
+test("can\u2019t update task in a deleted public collection", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2] = await runAllPromises([
@@ -12570,7 +12570,7 @@ test("can’t update task in a deleted public collection", async () => {
     await task.updatePriority(session2, "Medium");
 });
 
-test("can’t add task to a deleted public collection", async () => {
+test("can\u2019t add task to a deleted public collection", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const collection = await TestTaskCollection.create(session);
@@ -12592,7 +12592,7 @@ test("can’t add task to a deleted public collection", async () => {
     await task3.addCollection(session, collection);
 });
 
-test("can’t remove task from a deleted public collection", async () => {
+test("can\u2019t remove task from a deleted public collection", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const collection = await TestTaskCollection.create(session);
@@ -12610,7 +12610,7 @@ test("can’t remove task from a deleted public collection", async () => {
     await task.removeCollection(session, collection);
 });
 
-test("can’t update collection name in a deleted public collection", async () => {
+test("can\u2019t update collection name in a deleted public collection", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2] = await runAllPromises([
@@ -12655,7 +12655,7 @@ test("task assignee can update the task", async () => {
     await expect(task.updatePriority(session2, "Medium")).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can’t authorize query with no filters", async () => {
+test("can\u2019t authorize query with no filters", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -12693,7 +12693,7 @@ test("authorizes a query with creator filter", async () => {
     });
 });
 
-test("can’t authorize a query with creator filter if account access was removed", async () => {
+test("can\u2019t authorize a query with creator filter if account access was removed", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
     const session = await space.createSession();
@@ -12730,7 +12730,7 @@ test("can’t authorize a query with creator filter if account access was remove
                 {type: "Creator", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
@@ -12745,10 +12745,10 @@ test("can’t authorize a query with creator filter if account access was remove
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
-test("doesn’t authorize a query that only excludes creator in filter", async () => {
+test("doesn\u2019t authorize a query that only excludes creator in filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -12788,7 +12788,7 @@ test("doesn’t authorize a query that only excludes creator in filter", async (
     );
 });
 
-test("can’t authorize a query with other accounts in creator filter", async () => {
+test("can\u2019t authorize a query with other accounts in creator filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -12838,7 +12838,7 @@ test("can’t authorize a query with other accounts in creator filter", async ()
     );
 });
 
-test("can’t authorize a query with missing creator filter", async () => {
+test("can\u2019t authorize a query with missing creator filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -12928,7 +12928,7 @@ test("authorizes a query with assignee filter", async () => {
     });
 });
 
-test("can’t authorize a query with assignee filter if account access was removed", async () => {
+test("can\u2019t authorize a query with assignee filter if account access was removed", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
     const session = await space.createSession();
@@ -12968,7 +12968,7 @@ test("can’t authorize a query with assignee filter if account access was remov
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
@@ -12983,10 +12983,10 @@ test("can’t authorize a query with assignee filter if account access was remov
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
-test("doesn’t authorize a query that only excludes assignee in filter", async () => {
+test("doesn\u2019t authorize a query that only excludes assignee in filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -13026,7 +13026,7 @@ test("doesn’t authorize a query that only excludes assignee in filter", async 
     );
 });
 
-test("can’t authorize a query with other accounts in assignee filter", async () => {
+test("can\u2019t authorize a query with other accounts in assignee filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -13076,7 +13076,7 @@ test("can’t authorize a query with other accounts in assignee filter", async (
     );
 });
 
-test("can’t authorize a query with missing assignee filter", async () => {
+test("can\u2019t authorize a query with missing assignee filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -13162,7 +13162,7 @@ test("can authorize a query with a collection you have access to", async () => {
     });
 });
 
-test("can’t authorize a query with a collection in a different space", async () => {
+test("can\u2019t authorize a query with a collection in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -13183,7 +13183,7 @@ test("can’t authorize a query with a collection in a different space", async (
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await space.addAccount(session2);
 
@@ -13216,7 +13216,7 @@ test("can’t authorize a query with a collection in a different space", async (
     });
 });
 
-test("can’t authorize a query with a collection you don’t have access to", async () => {
+test("can\u2019t authorize a query with a collection you don\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13235,10 +13235,10 @@ test("can’t authorize a query with a collection you don’t have access to", a
                 },
             ],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
-test("can’t authorize an excludes all of query with a collection you have access to", async () => {
+test("can\u2019t authorize an excludes all of query with a collection you have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13265,7 +13265,7 @@ test("can’t authorize an excludes all of query with a collection you have acce
     );
 });
 
-test("can’t authorize an is empty collection query", async () => {
+test("can\u2019t authorize an is empty collection query", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -13313,7 +13313,7 @@ test("can authorize a query with one of three collections you have access to", a
     });
 });
 
-test("can’t authorize a query with one of two collections you have access to and one you don’t", async () => {
+test("can\u2019t authorize a query with one of two collections you have access to and one you don\u2019t", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13336,7 +13336,7 @@ test("can’t authorize a query with one of two collections you have access to a
                 },
             ],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
 test("can authorize a query with all of three collections you have access to", async () => {
@@ -13364,7 +13364,7 @@ test("can authorize a query with all of three collections you have access to", a
     });
 });
 
-test("can’t authorize a query with all of two collections you have access to and one you don’t", async () => {
+test("can\u2019t authorize a query with all of two collections you have access to and one you don\u2019t", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13387,10 +13387,10 @@ test("can’t authorize a query with all of two collections you have access to a
                 },
             ],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
-test("can’t authorize a query with excludes all of three collections you have access to", async () => {
+test("can\u2019t authorize a query with excludes all of three collections you have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13421,7 +13421,7 @@ test("can’t authorize a query with excludes all of three collections you have 
     );
 });
 
-test("can’t authorize a query with excludes all of two collections you have access to and one you don’t", async () => {
+test("can\u2019t authorize a query with excludes all of two collections you have access to and one you don\u2019t", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13444,10 +13444,10 @@ test("can’t authorize a query with excludes all of two collections you have ac
                 },
             ],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
-test("can authorize a query when filtering by a collection you don’t have access to that’s ignored by boolean logic", async () => {
+test("can authorize a query when filtering by a collection you don\u2019t have access to that\u2019s ignored by boolean logic", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13517,10 +13517,10 @@ test("can authorize a query when filtering by a collection you don’t have acce
                 },
             ],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
-test("can’t authorize is empty collection filter with an accessible collection filter", async () => {
+test("can\u2019t authorize is empty collection filter with an accessible collection filter", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13668,7 +13668,7 @@ test("can authorize a query with a parent filter for a task you have access to",
     });
 });
 
-test("can’t authorize a query with a parent filter in a different space", async () => {
+test("can\u2019t authorize a query with a parent filter in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -13689,7 +13689,7 @@ test("can’t authorize a query with a parent filter in a different space", asyn
                 },
             },
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await space.addAccount(session2);
 
@@ -13716,7 +13716,7 @@ test("can’t authorize a query with a parent filter in a different space", asyn
     });
 });
 
-test("can’t authorize a query with a parent filter for a task you don’t have access to", async () => {
+test("can\u2019t authorize a query with a parent filter for a task you don\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13735,7 +13735,7 @@ test("can’t authorize a query with a parent filter for a task you don’t have
                 },
             },
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
 test("can authorize a query with a parent filter for a task you have access to transitively", async () => {
@@ -13761,7 +13761,7 @@ test("can authorize a query with a parent filter for a task you have access to t
     });
 });
 
-test("can’t authorize a query with a parent filter for a task you don’t have access to transitively", async () => {
+test("can\u2019t authorize a query with a parent filter for a task you don\u2019t have access to transitively", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13782,10 +13782,10 @@ test("can’t authorize a query with a parent filter for a task you don’t have
                 },
             },
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
-test("can’t authorize a query with a parent filter for a deleted task", async () => {
+test("can\u2019t authorize a query with a parent filter for a deleted task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13920,7 +13920,7 @@ test("must be allowed to access collection to sort by collection position", asyn
                 },
             ],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
 test("collection must be in the right space to sort by collection position", async () => {
@@ -13949,7 +13949,7 @@ test("collection must be in the right space to sort by collection position", asy
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await space.addAccount(session2);
 
@@ -14042,7 +14042,7 @@ test("must be allowed to access collection to sort by collection position with c
                 },
             ],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
 test("must filter by assignee to sort by assignee position", async () => {
@@ -14159,7 +14159,7 @@ test("must filter by assignee to sort by assignee position", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
 test("must have space access to filter by creator", async () => {
@@ -14317,7 +14317,7 @@ test("must have space access to filter by creator", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(otherSession.action(), {
@@ -14339,7 +14339,7 @@ test("must have space access to filter by creator", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(context.anonymousAction(), {
@@ -14411,7 +14411,7 @@ test("must have space access to filter by creator", async () => {
                 ],
             },
         ),
-    ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
+    ).rejects.toThrow("Impersonated account actor doesn\u2019t have access to space");
 });
 
 test("must have space access to filter by assigner", async () => {
@@ -14587,7 +14587,7 @@ test("must have space access to filter by assigner", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(otherSession.action(), {
@@ -14609,7 +14609,7 @@ test("must have space access to filter by assigner", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(context.anonymousAction(), {
@@ -14681,7 +14681,7 @@ test("must have space access to filter by assigner", async () => {
                 ],
             },
         ),
-    ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
+    ).rejects.toThrow("Impersonated account actor doesn\u2019t have access to space");
 });
 
 test("must have space access to sort by creator", async () => {
@@ -14791,7 +14791,7 @@ test("must have space access to sort by creator", async () => {
             ],
             sorts: [{type: "Creator"}],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(otherSession.action(), {
@@ -14807,7 +14807,7 @@ test("must have space access to sort by creator", async () => {
             ],
             sorts: [{type: "Creator"}],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(context.anonymousAction(), {
@@ -14933,7 +14933,7 @@ test("must have space access to sort by assigner", async () => {
             ],
             sorts: [{type: "Assigner", direction: "Ascending", missing: "Last"}],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(otherSession.action(), {
@@ -14949,7 +14949,7 @@ test("must have space access to sort by assigner", async () => {
             ],
             sorts: [{type: "Assigner", direction: "Ascending", missing: "Last"}],
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(context.anonymousAction(), {
@@ -14968,7 +14968,7 @@ test("must have space access to sort by assigner", async () => {
     ).rejects.toThrow("Unauthenticated session");
 });
 
-test("can’t set task as own parent", async () => {
+test("can\u2019t set task as own parent", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -14976,7 +14976,7 @@ test("can’t set task as own parent", async () => {
 
     await expect(task.updateParentTask(session, task)).rejects.toThrow(
         new FailedPreconditionError(
-            "Updating task’s `parentTaskId` would create a circular dependency",
+            "Updating task\u2019s `parentTaskId` would create a circular dependency",
         ),
     );
 });
@@ -15006,7 +15006,7 @@ test("can delete a task and all its children when it has no children", async () 
     expect((await task.getItem()).deletedTime).toEqual(actionTime);
 });
 
-test("can’t delete a task and all its children when the task doesn’t exist", async () => {
+test("can\u2019t delete a task and all its children when the task doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -15017,7 +15017,7 @@ test("can’t delete a task and all its children when the task doesn’t exist",
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can’t delete a task and all its children when you don’t have access to the task", async () => {
+test("can\u2019t delete a task and all its children when you don\u2019t have access to the task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -15255,7 +15255,7 @@ test("can delete a task and all its children", async () => {
     expect((await task10.getItem()).deletedTime).toEqual(null);
 });
 
-test("can handle race conditions when deleting a task and all of it’s children", async () => {
+test("can handle race conditions when deleting a task and all of it\u2019s children", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -15366,7 +15366,7 @@ test("can handle race conditions when deleting a task and all of it’s children
     expect((await task5.getItem()).deletedTime).toEqual(null);
 });
 
-test("can handle race conditions when deleting a task with parent and all of it’s children", async () => {
+test("can handle race conditions when deleting a task with parent and all of it\u2019s children", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -15915,7 +15915,7 @@ test("gets notes for task without notes", async () => {
     );
 });
 
-test("can’t get notes for task that doesn’t exist", async () => {
+test("can\u2019t get notes for task that doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -15928,7 +15928,7 @@ test("can’t get notes for task that doesn’t exist", async () => {
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can’t get notes for task in the wrong space", async () => {
+test("can\u2019t get notes for task in the wrong space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -15976,7 +15976,7 @@ test("can get notes for task in public collection", async () => {
     );
 });
 
-test("can’t get notes for task in private collection", async () => {
+test("can\u2019t get notes for task in private collection", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -16018,7 +16018,7 @@ test("gets notes as system action", async () => {
     );
 });
 
-test("can’t get notes as the wrong system action", async () => {
+test("can\u2019t get notes as the wrong system action", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -16034,7 +16034,7 @@ test("can’t get notes as the wrong system action", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can’t get notes as an anonymous actor", async () => {
+test("can\u2019t get notes as an anonymous actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16105,7 +16105,7 @@ test("can update task notes", async () => {
     );
 });
 
-test("can’t update task notes that don’t exist", async () => {
+test("can\u2019t update task notes that don\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16119,7 +16119,7 @@ test("can’t update task notes that don’t exist", async () => {
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can’t update task notes in a different space", async () => {
+test("can\u2019t update task notes in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -16194,7 +16194,7 @@ test("can update task notes in a public collection", async () => {
     });
 });
 
-test("can’t update task notes in a private collection", async () => {
+test("can\u2019t update task notes in a private collection", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -16231,7 +16231,7 @@ test("can’t update task notes in a private collection", async () => {
     });
 });
 
-test("can’t update task notes with the wrong version", async () => {
+test("can\u2019t update task notes with the wrong version", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16281,7 +16281,7 @@ test("can’t update task notes with the wrong version", async () => {
     });
 });
 
-test("can’t update task notes with the wrong version when notes are not initialized", async () => {
+test("can\u2019t update task notes with the wrong version when notes are not initialized", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16315,7 +16315,7 @@ test("can’t update task notes with the wrong version when notes are not initia
     });
 });
 
-test("commits an update name action when the account’s name updates", async () => {
+test("commits an update name action when the account\u2019s name updates", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16391,7 +16391,7 @@ test("commits an update name action when the account’s name updates", async ()
     ]);
 });
 
-test("doesn’t an update name action when the account is in no spaces", async () => {
+test("doesn\u2019t an update name action when the account is in no spaces", async () => {
     const space = await TestSpace.create(context);
     const session = await TestSession.create(await TestAccount.create(context));
 
@@ -16426,7 +16426,7 @@ test("doesn’t an update name action when the account is in no spaces", async (
     ).toEqual([]);
 });
 
-test("commits an update name action when the account’s name updates to every space the account is in during race condition 1", async () => {
+test("commits an update name action when the account\u2019s name updates to every space the account is in during race condition 1", async () => {
     const space = await TestSpace.create(context);
     const session = await TestSession.create(await TestAccount.create(context));
 
@@ -16480,7 +16480,7 @@ test("commits an update name action when the account’s name updates to every s
     ]);
 });
 
-test("commits an update name action when the account’s name updates to every space the account is in during race condition 2", async () => {
+test("commits an update name action when the account\u2019s name updates to every space the account is in during race condition 2", async () => {
     const [space1, space2] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),
@@ -17751,7 +17751,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
             task1.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
+    ).rejects.toThrow("Impersonated account actor doesn\u2019t have access to task\u2019s space");
     expect(
         (
             await authorizeTaskAccessIfPossible(
@@ -17823,7 +17823,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
             task1.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
+    ).rejects.toThrow("Impersonated account actor doesn\u2019t have access to task\u2019s space");
     expect(
         (
             await authorizeTaskAccessIfPossible(
@@ -17898,7 +17898,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
             task1.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
+    ).rejects.toThrow("Impersonated account actor doesn\u2019t have access to task\u2019s space");
     expect(
         (
             await authorizeTaskAccessIfPossible(
@@ -18017,7 +18017,7 @@ test("account can remove access from itself then grant it back with lease", asyn
     );
 });
 
-test("account can remove access from itself but can’t grant it back with an invalid lease", async () => {
+test("account can remove access from itself but can\u2019t grant it back with an invalid lease", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18118,7 +18118,7 @@ test("account can remove access from itself but can’t grant it back with an in
             ],
             {leaseId: generateId<TaskActionTransactionLeaseId>()},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18128,7 +18128,7 @@ test("account can remove access from itself but can’t grant it back with an in
     );
 });
 
-test("account can remove access from itself but can’t use another account’s lease", async () => {
+test("account can remove access from itself but can\u2019t use another account\u2019s lease", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18230,7 +18230,7 @@ test("account can remove access from itself but can’t use another account’s 
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18240,7 +18240,7 @@ test("account can remove access from itself but can’t use another account’s 
     );
 });
 
-test("account can remove access from itself but can’t grant itself access back with an incompatible action", async () => {
+test("account can remove access from itself but can\u2019t grant itself access back with an incompatible action", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18379,7 +18379,7 @@ test("account can remove access from itself but can’t grant itself access back
     );
 });
 
-test("account can remove access from itself but can’t grant itself access back with an expired lease", async () => {
+test("account can remove access from itself but can\u2019t grant itself access back with an expired lease", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18483,7 +18483,7 @@ test("account can remove access from itself but can’t grant itself access back
                 ],
                 {leaseId},
             ),
-        ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+        ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 
         await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
             PermissionDeniedError,
@@ -18496,7 +18496,7 @@ test("account can remove access from itself but can’t grant itself access back
     }
 });
 
-test("won’t create lease if committed action doesn’t remove access", async () => {
+test("won\u2019t create lease if committed action doesn\u2019t remove access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18614,7 +18614,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18624,7 +18624,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
     );
 });
 
-test("can’t create lease with actions you aren’t allowed to commit", async () => {
+test("can\u2019t create lease with actions you aren\u2019t allowed to commit", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18696,8 +18696,8 @@ test("can’t create lease with actions you aren’t allowed to commit", async (
         ),
     ).rejects.toThrow(
         new PermissionDeniedError(
-            "Couldn’t apply lease actions: Actor doesn’t have `Edit` access level",
-            {cause: new PermissionDeniedError("Actor doesn’t have `Edit` access level")},
+            "Couldn\u2019t apply lease actions: Actor doesn\u2019t have `Edit` access level",
+            {cause: new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level")},
         ),
     );
 
@@ -18707,7 +18707,7 @@ test("can’t create lease with actions you aren’t allowed to commit", async (
     );
 });
 
-test("account can’t remove access from itself then grant it back with lease that has actions in different order", async () => {
+test("account can\u2019t remove access from itself then grant it back with lease that has actions in different order", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18975,7 +18975,7 @@ test("account can’t remove access from itself then grant it back with lease th
     );
 });
 
-test("account can remove access from itself but can’t grant it back if another user has updated the task", async () => {
+test("account can remove access from itself but can\u2019t grant it back if another user has updated the task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -19078,7 +19078,7 @@ test("account can remove access from itself but can’t grant it back if another
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -19088,7 +19088,7 @@ test("account can remove access from itself but can’t grant it back if another
     );
 });
 
-test("account can remove access from itself but can’t grant it back if another user has deleted the task", async () => {
+test("account can remove access from itself but can\u2019t grant it back if another user has deleted the task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -19191,7 +19191,7 @@ test("account can remove access from itself but can’t grant it back if another
             ],
             {leaseId},
         ),
-    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -19201,7 +19201,7 @@ test("account can remove access from itself but can’t grant it back if another
     );
 });
 
-test("account can remove access from itself but can’t grant it back if another user has updated notes", async () => {
+test("account can remove access from itself but can\u2019t grant it back if another user has updated notes", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -19309,7 +19309,7 @@ test("account can remove access from itself but can’t grant it back if another
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -19365,7 +19365,7 @@ test("counts notes step count contributions for each account", async () => {
         ]),
     );
 
-    await task.typeNotes(session2, " I’m going to need to get more creative with test data.");
+    await task.typeNotes(session2, " I\u2019m going to need to get more creative with test data.");
 
     expect(
         await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
@@ -21098,7 +21098,7 @@ test("authorizing task access after getting task as system actor is cached", asy
     }
 });
 
-test("account has access to tasks they create and tasks they’re assigned until they’re removed from the space", async () => {
+test("account has access to tasks they create and tasks they\u2019re assigned until they\u2019re removed from the space", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
     const [session1, session2] = await space.createSessions(2);
@@ -21154,27 +21154,27 @@ test("account has access to tasks they create and tasks they’re assigned until
     });
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "View")).rejects.toThrow(
-        "Account doesn’t have access to space",
+        "Account doesn\u2019t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "View")).rejects.toThrow(
-        "Account doesn’t have access to space",
+        "Account doesn\u2019t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Comment")).rejects.toThrow(
-        "Account doesn’t have access to space",
+        "Account doesn\u2019t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "Comment")).rejects.toThrow(
-        "Account doesn’t have access to space",
+        "Account doesn\u2019t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
-        "Account doesn’t have access to space",
+        "Account doesn\u2019t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).rejects.toThrow(
-        "Account doesn’t have access to space",
+        "Account doesn\u2019t have access to space",
     );
 
     expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "View"))?.ok).toEqual(
@@ -21202,7 +21202,7 @@ test("account has access to tasks they create and tasks they’re assigned until
     );
 });
 
-test("can’t revoke access from a collection manager that invited you", async () => {
+test("can\u2019t revoke access from a collection manager that invited you", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3a, session3b] = await space.createSessions(4);
 
@@ -21213,11 +21213,11 @@ test("can’t revoke access from a collection manager that invited you", async (
     await collection.access.grant(session2, session3b);
 
     await expect(collection.access.revoke(session3a, session2)).rejects.toThrow(
-        "Can’t revoke manage access from an account with a manage generation less than our actor",
+        "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     );
 
     await expect(collection.access.revoke(session3a, session1)).rejects.toThrow(
-        "Can’t revoke manage access from an account with a manage generation less than our actor",
+        "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     );
 
     await collection.access.revoke(session3a, session3b);
@@ -21270,7 +21270,7 @@ test("can only send share notifications when committing an update access policy 
             },
         ),
     ).rejects.toThrow(
-        "Can only provide `updateAccessPolicyShareNotification` if there’s an `UpdateAccessPolicy` action in the transaction",
+        "Can only provide `updateAccessPolicyShareNotification` if there\u2019s an `UpdateAccessPolicy` action in the transaction",
     );
 
     expect((await collection.getItem()).name.value).toEqual("Test Collection 1");
@@ -21304,7 +21304,7 @@ test("can only send share notifications when committing an update access policy 
             },
         ),
     ).rejects.toThrow(
-        "Can only provide `updateAccessPolicyShareNotification` if there’s an `UpdateAccessPolicy` action in the transaction",
+        "Can only provide `updateAccessPolicyShareNotification` if there\u2019s an `UpdateAccessPolicy` action in the transaction",
     );
 
     expect((await collection.getItem()).name.value).toEqual("Test Collection 1");
@@ -21365,7 +21365,7 @@ test("can only send share notifications when committing an update access policy 
     ]);
 });
 
-test("can’t create task collection with bot account", async () => {
+test("can\u2019t create task collection with bot account", async () => {
     const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
@@ -21384,11 +21384,11 @@ test("can’t create task collection with bot account", async () => {
     };
 
     await expect(TestTaskCollection.create(session, {access: accessPolicy})).rejects.toThrow(
-        "Can’t grant access to a bot account",
+        "Can\u2019t grant access to a bot account",
     );
 });
 
-test("can’t share task collection with bot account", async () => {
+test("can\u2019t share task collection with bot account", async () => {
     const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
@@ -21415,7 +21415,7 @@ test("can’t share task collection with bot account", async () => {
     };
 
     await expect(collection.access.set(session, invalidAccessPolicy2)).rejects.toThrow(
-        "Can’t grant access to a bot account",
+        "Can\u2019t grant access to a bot account",
     );
 });
 
@@ -21443,7 +21443,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
         );
     });
 
-    test("can’t get access policy for scoped task other than the one scoped", async () => {
+    test("can\u2019t get access policy for scoped task other than the one scoped", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -21462,7 +21462,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped task");
     });
 
-    test("can’t get access policy with space scope", async () => {
+    test("can\u2019t get access policy with space scope", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -21476,7 +21476,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped task");
     });
 
-    test("can’t get access policy with space scope even if task is shared with space", async () => {
+    test("can\u2019t get access policy with space scope even if task is shared with space", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -21490,7 +21490,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped task");
     });
 
-    test("can’t get access policy with account scope even if account has access to task", async () => {
+    test("can\u2019t get access policy with account scope even if account has access to task", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -21507,7 +21507,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped task");
     });
 
-    test("can’t get access policy for task in different space even if scope declares access", async () => {
+    test("can\u2019t get access policy for task in different space even if scope declares access", async () => {
         const space = await TestSpace.create(context);
         const otherSpace = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -21523,10 +21523,10 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
                 otherBotAccount.action({type: "Task", taskId: task.id}),
                 task.id,
             ),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     });
 
-    test("can’t get access policy for task which doesn’t exist", async () => {
+    test("can\u2019t get access policy for task which doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -22403,7 +22403,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
         });
     });
 
-    test("access policy doesn’t include grants from deleted parent task", async () => {
+    test("access policy doesn\u2019t include grants from deleted parent task", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const [session2, session3, session4, session5] = await space.createSessions(4);

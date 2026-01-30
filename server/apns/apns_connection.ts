@@ -42,8 +42,8 @@ const requestTimeoutMs = 10_000;
 
 /**
  * An HTTP/2 connection to Apple Push Notification service (APNs). The APNs API
- * is documented in “[Sending notification requests to APNs][1]” and “[Handling
- * notification responses from APNs][2].”
+ * is documented in "[Sending notification requests to APNs][1]" and "[Handling
+ * notification responses from APNs][2]."
  *
  * There are services like [AWS SNS][3] that provide a simple HTTP/1 interface
  * to send push notifications but it's not complicated (and saves us money and
@@ -313,7 +313,7 @@ export class ApnsConnection {
      * Send a push notification to the provided Apple device token.
      *
      * For more information on supported properties on a notification object
-     * see “[Generating a remove notification][1]”.
+     * see "[Generating a remove notification][1]".
      *
      * If this function returns `wasDeviceTokenUnregistered` then you should delete
      * the provided device token from the database to avoid sending notifications
@@ -452,7 +452,7 @@ function getApnsErrorMessageFromStatusCode(statusCode: number) {
         case 400:
             return "Bad request";
         case 403:
-            return "There was an error with the certificate or with the provider’s authentication token";
+            return "There was an error with the certificate or with the provider\u2019s authentication token";
         case 404:
             return "The request contained an invalid `:path` value";
         case 405:

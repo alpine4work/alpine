@@ -239,7 +239,7 @@ function AsyncTooltip({
                 const content = await getContent();
                 setContentState({isLoaded: true, loadTime, content});
             } catch (error) {
-                reporter.displayError("Couldn’t get content", error);
+                reporter.displayError("Couldn\u2019t get content", error);
             } finally {
                 isLoadingRef.current = false;
             }

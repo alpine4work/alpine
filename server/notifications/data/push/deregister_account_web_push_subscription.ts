@@ -25,7 +25,7 @@ export async function deregisterAccountWebPushSubscription(
         case "ImpersonatedAccount": {
             if (context.actor.getAccountId() !== accountId) {
                 throw new PermissionDeniedError(
-                    "Can’t deregister web push subscription for a different account",
+                    "Can\u2019t deregister web push subscription for a different account",
                 );
             }
             break;

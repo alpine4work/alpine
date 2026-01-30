@@ -47,8 +47,8 @@ export function getErrorDisplayMessageForPartialInvitePeopleFailure(
     if (errors.invalidEmailAddresses.length > 0) {
         const description =
             errors.invalidEmailAddresses.length === 1
-                ? "isn’t a valid email address"
-                : "aren’t valid email addresses";
+                ? "isn\u2019t a valid email address"
+                : "aren\u2019t valid email addresses";
 
         errorMessages.push(
             `${intoErrorDisplayMessage(locale, errors.invalidEmailAddresses)} ${description}`,

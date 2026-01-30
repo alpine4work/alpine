@@ -180,7 +180,7 @@ export function attemptOneTimePasswordSignInWithAction<Value>(
                 (accountEmailAddressItem.oneTimePasswordSignInState.failedAttemptCount + 1);
 
             throw new PermissionDeniedError("Incorrect one time password", {
-                displayMessage: errorDisplayMessage`The sign in code does not match the one we sent to your email. ${remainingAttemptCount} attempt(s) remaining before this account is locked. If you can’t find the email, check your spam folder or try ${errorDisplayMessage.signInLink(
+                displayMessage: errorDisplayMessage`The sign in code does not match the one we sent to your email. ${remainingAttemptCount} attempt(s) remaining before this account is locked. If you can\u2019t find the email, check your spam folder or try ${errorDisplayMessage.signInLink(
                     "signing in",
                 )} again.`,
             });

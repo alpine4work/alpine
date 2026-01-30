@@ -28,7 +28,7 @@ export async function getAccountByIdAsAdmin(
     // Calling `getAccount(unknownAccountId)` should always fail with a not
     // found error.
     if (accountId === unknownAccountId)
-        throw new NotFoundError("Unknown account is treated as if it doesn’t exist");
+        throw new NotFoundError("Unknown account is treated as if it doesn\u2019t exist");
     const accountItem = await getAccountItem(context, accountId);
 
     return createAccountModelWithoutSpaceFromItem(accountItem);

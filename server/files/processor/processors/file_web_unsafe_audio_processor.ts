@@ -189,7 +189,7 @@ export function processFileWebUnsafeAudio(
             const match = stderr.trimEnd().match(/time=(\d\d:\d\d:\d\d(?:\.\d+)?).*$/);
             if (!match) {
                 throw new InternalError(
-                    `Couldn’t parse video duration from FFmpeg stderr\n\nstderr:\n${stderr.trim()}`,
+                    `Couldn\u2019t parse video duration from FFmpeg stderr\n\nstderr:\n${stderr.trim()}`,
                 );
             }
 

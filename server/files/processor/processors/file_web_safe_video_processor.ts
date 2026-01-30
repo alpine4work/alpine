@@ -226,7 +226,7 @@ export async function processFileWebSafeVideo(
 
         if (!previewSizePromiseResolver.isSettled()) {
             throw new InternalError(
-                `Couldn’t find video duration and width/height from FFmpeg stderr\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
+                `Couldn\u2019t find video duration and width/height from FFmpeg stderr\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
             );
         }
 
@@ -275,12 +275,12 @@ export async function processFileWebSafeVideo(
             // yet reject with an error as a safety mechanism.
             if (!previewSizePromiseResolver.isSettled()) {
                 previewSizePromiseResolver.reject(
-                    new InternalError("Promise resolver wasn’t resolved"),
+                    new InternalError("Promise resolver wasn\u2019t resolved"),
                 );
             }
             if (!previewPlaceholderPromiseResolver.isSettled()) {
                 previewPlaceholderPromiseResolver.reject(
-                    new InternalError("Promise resolver wasn’t resolved"),
+                    new InternalError("Promise resolver wasn\u2019t resolved"),
                 );
             }
             return previewContent;
@@ -382,7 +382,7 @@ export async function processFileWebSafeVideo(
                 const match = stderr.trimEnd().match(/time=(\d\d:\d\d:\d\d(?:\.\d+)?).*$/);
                 if (!match) {
                     throw new InternalError(
-                        `Couldn’t parse video duration from FFmpeg stderr\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
+                        `Couldn\u2019t parse video duration from FFmpeg stderr\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
                     );
                 }
 

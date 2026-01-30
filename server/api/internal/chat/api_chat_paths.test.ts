@@ -53,7 +53,7 @@ test("can read chat information", async () => {
     });
 });
 
-test("can’t read chat information without access", async () => {
+test("can\u2019t read chat information without access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -73,7 +73,7 @@ test("can’t read chat information without access", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("You don’t have access"),
+                message: expect.stringMatching("You don\u2019t have access"),
                 retry: {
                     able: false,
                 },
@@ -82,7 +82,7 @@ test("can’t read chat information without access", async () => {
     });
 });
 
-test("can’t read chat information for non-existent chat", async () => {
+test("can\u2019t read chat information for non-existent chat", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -98,7 +98,7 @@ test("can’t read chat information for non-existent chat", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("doesn’t exist"),
+                message: expect.stringMatching("doesn\u2019t exist"),
                 retry: {
                     able: false,
                 },
@@ -107,7 +107,7 @@ test("can’t read chat information for non-existent chat", async () => {
     });
 });
 
-test("can’t send message to chat bot isn’t a member of (but does have read access to)", async () => {
+test("can\u2019t send message to chat bot isn\u2019t a member of (but does have read access to)", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();

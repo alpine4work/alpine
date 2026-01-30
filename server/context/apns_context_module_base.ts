@@ -12,7 +12,7 @@ export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActi
      * Send a push notification to the provided Apple device token.
      *
      * For more information on supported properties on a notification object
-     * see “[Generating a remove notification][1]”.
+     * see "[Generating a remove notification][1]".
      *
      * If this function returns `wasDeviceTokenUnregistered` then you should delete
      * the provided device token from the database to avoid sending notifications

@@ -69,7 +69,7 @@ type CrdtRegisterInterface<Value> = CrdtRegister<Value>;
  *
  * We could use a Lamport timestamp which is a tuple of `(counter, clientId)`
  * instead of `HybridLogicalTime` (similar to what's described in
- * “[A Conflict-Free Replicated JSON Datatype][2]”). We chose
+ * "[A Conflict-Free Replicated JSON Datatype][2]"). We chose
  * `HybridLogicalTime` because:
  *
  * 1. It carries some potentially useful semantic meaning (the time the

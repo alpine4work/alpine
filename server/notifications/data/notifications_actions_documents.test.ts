@@ -557,7 +557,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("if an account is removed from a space their inbox won’t update anymore", async () => {
+        test("if an account is removed from a space their inbox won\u2019t update anymore", async () => {
             const space = await TestSpace.create(context);
 
             const session1 = await space.createSession({role: "Admin"});
@@ -925,7 +925,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("won’t send new notification if account loses access to document", async () => {
+        test("won\u2019t send new notification if account loses access to document", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -984,7 +984,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("won’t send notification when mentioned if account doesn’t have access to document", async () => {
+        test("won\u2019t send notification when mentioned if account doesn\u2019t have access to document", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -1039,7 +1039,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("won’t send notification when comment thread is created if account doesn’t have access to own document", async () => {
+        test("won\u2019t send notification when comment thread is created if account doesn\u2019t have access to own document", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -1070,7 +1070,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(await testGetInboxEntries(session1)).toEqual([]);
         });
 
-        test("won’t send notification when comment thread is created if account doesn’t have access to own document (but will send notification if mentioned when access is granted back)", async () => {
+        test("won\u2019t send notification when comment thread is created if account doesn\u2019t have access to own document (but will send notification if mentioned when access is granted back)", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -1668,7 +1668,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
         });
 
-        test("comment notification event is processed before create comment thread notification event when there’s an existing new comment threads entry", async () => {
+        test("comment notification event is processed before create comment thread notification event when there\u2019s an existing new comment threads entry", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3] = await space.createSessions(3);
 
@@ -2147,7 +2147,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("setting a reaction on a document comment that’s not the latest comment archives the document comment inbox entry", async () => {
+        test("setting a reaction on a document comment that\u2019s not the latest comment archives the document comment inbox entry", async () => {
             const schema = MessageContentProsemirrorSchema;
 
             const space = await TestSpace.create(context);

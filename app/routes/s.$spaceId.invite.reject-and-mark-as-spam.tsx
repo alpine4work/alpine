@@ -31,7 +31,7 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
     );
 
     if (!currentAccount) {
-        throw new PermissionDeniedError("Account isn’t invited to the space");
+        throw new PermissionDeniedError("Account isn\u2019t invited to the space");
     }
 
     if (currentAccount.initialData.space.state.type !== "InvitePending") {
@@ -66,7 +66,7 @@ export default function InviteRejectAndMarkAsSpamRoute() {
 
                 setRejectedComplete(true);
             } catch (error) {
-                reporter.displayError("Couldn’t reject invite", error);
+                reporter.displayError("Couldn\u2019t reject invite", error);
             }
         })();
     }, [appContext, context.space.id, navigate, reporter]);

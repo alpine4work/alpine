@@ -97,8 +97,8 @@ export function useSearchFavoriteEntityMenuAction(
             ),
             iconPlacement: "end",
             pressErrorTitle: isFavorite
-                ? "Couldn’t remove from favorites"
-                : "Couldn’t add to favorites",
+                ? "Couldn\u2019t remove from favorites"
+                : "Couldn\u2019t add to favorites",
             onPress: async () => {
                 mutexRef.current ??= new Mutex();
 

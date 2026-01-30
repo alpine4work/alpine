@@ -21,7 +21,7 @@ test("should return the correct spaceId for a space we have access to", async ()
     expect(result).toBe(space1.id);
 });
 
-test("defaults when the lastOpenedSpaceId is set to an account we’re invited to", async () => {
+test("defaults when the lastOpenedSpaceId is set to an account we\u2019re invited to", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
     const space2OwnerSession = await space2.createSession({role: "Owner"});
@@ -44,7 +44,7 @@ test("defaults when the lastOpenedSpaceId is set to an account we’re invited t
     expect(result).toBe(space1.id);
 });
 
-test("defaults when the lastOpenedSpaceId is set to an account we’re removed from", async () => {
+test("defaults when the lastOpenedSpaceId is set to an account we\u2019re removed from", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
     const space2OwnerSession = await space2.createSession({role: "Owner"});

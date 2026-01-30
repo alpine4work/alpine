@@ -296,7 +296,7 @@ test("compiles to serialized schema keys", () => {
     });
 });
 
-test("compiles two “and”ed expressions", () => {
+test("compiles two \u201Cand\u201Ded expressions", () => {
     expect(
         compile({a: DynamoConditionExpression.lte(5).and(DynamoConditionExpression.gte(10))}),
     ).toEqual({
@@ -305,7 +305,7 @@ test("compiles two “and”ed expressions", () => {
     });
 });
 
-test("compiles two “or”ed expressions", () => {
+test("compiles two \u201Cor\u201Ded expressions", () => {
     expect(
         compile({a: DynamoConditionExpression.lte(5).or(DynamoConditionExpression.gte(10))}),
     ).toEqual({
@@ -314,7 +314,7 @@ test("compiles two “or”ed expressions", () => {
     });
 });
 
-test("compiles two “or”ed expressions and another expression", () => {
+test("compiles two \u201Cor\u201Ded expressions and another expression", () => {
     expect(
         compile({a: DynamoConditionExpression.lte(5).or(DynamoConditionExpression.gte(10)), b: 42}),
     ).toEqual({

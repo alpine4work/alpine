@@ -20,7 +20,7 @@ test("gets an existing entry", () => {
     ]);
 });
 
-test("sets a new entry once if the key doesn’t exist", () => {
+test("sets a new entry once if the key doesn\u2019t exist", () => {
     const map = new Map([
         ["a", 1],
         ["b", 2],

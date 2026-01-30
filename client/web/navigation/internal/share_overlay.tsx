@@ -339,7 +339,7 @@ function ShareOverlay(
                                             height="8"
                                             fullWidth={true}
                                             icon={<LinkIcon size={spacing["4"]} />}
-                                            pressErrorTitle="Couldn’t copy link"
+                                            pressErrorTitle="Couldn\u2019t copy link"
                                             onPress={async () => {
                                                 await onCopyLink();
 
@@ -356,7 +356,7 @@ function ShareOverlay(
                                             height="8"
                                             fullWidth={true}
                                             iconGap="1.5"
-                                            pressErrorTitle="Couldn’t copy link"
+                                            pressErrorTitle="Couldn\u2019t copy link"
                                             onPress={async () => {
                                                 const draftId =
                                                     generateChronologicalId<PostDraftId>();
@@ -623,7 +623,7 @@ function ShareOverlayAccountGrant({
                             {
                                 isSelected: accountGrant.level === "Manage",
                                 label: accessLevelText.Manage,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     return onAccessPolicyChange({
                                         type: "SetAccountGrantLevel",
@@ -637,7 +637,7 @@ function ShareOverlayAccountGrant({
                                       cast<MenuAction>({
                                           isSelected: accountGrant.level === "Edit",
                                           label: accessLevelText.Edit,
-                                          pressErrorTitle: "Couldn’t change access",
+                                          pressErrorTitle: "Couldn\u2019t change access",
                                           onPress: () => {
                                               return onAccessPolicyChange({
                                                   type: "SetAccountGrantLevel",
@@ -651,7 +651,7 @@ function ShareOverlayAccountGrant({
                             {
                                 isSelected: accountGrant.level === "Comment",
                                 label: accessLevelText.Comment,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     return onAccessPolicyChange({
                                         type: "SetAccountGrantLevel",
@@ -663,7 +663,7 @@ function ShareOverlayAccountGrant({
                             {
                                 isSelected: accountGrant.level === "View",
                                 label: accessLevelText.View,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     return onAccessPolicyChange({
                                         type: "SetAccountGrantLevel",
@@ -676,7 +676,7 @@ function ShareOverlayAccountGrant({
                         [
                             {
                                 label: removeAccessLevelText,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     return onAccessPolicyChange({
                                         type: "DeleteAccountGrant",
@@ -736,7 +736,7 @@ export function ShareOverlayDefaultGrant({
                             {
                                 isSelected: defaultGrant?.level === "Manage",
                                 label: accessLevelText.Manage,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     if (defaultGrant) {
                                         return onAccessPolicyChange({
@@ -756,7 +756,7 @@ export function ShareOverlayDefaultGrant({
                                       cast<MenuAction>({
                                           isSelected: defaultGrant?.level === "Edit",
                                           label: accessLevelText.Edit,
-                                          pressErrorTitle: "Couldn’t change access",
+                                          pressErrorTitle: "Couldn\u2019t change access",
                                           onPress: () => {
                                               if (defaultGrant) {
                                                   return onAccessPolicyChange({
@@ -776,7 +776,7 @@ export function ShareOverlayDefaultGrant({
                             {
                                 isSelected: defaultGrant?.level === "Comment",
                                 label: accessLevelText.Comment,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     if (defaultGrant) {
                                         return onAccessPolicyChange({
@@ -794,7 +794,7 @@ export function ShareOverlayDefaultGrant({
                             {
                                 isSelected: defaultGrant?.level === "View",
                                 label: accessLevelText.View,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     if (defaultGrant) {
                                         return onAccessPolicyChange({
@@ -814,7 +814,7 @@ export function ShareOverlayDefaultGrant({
                             {
                                 isSelected: defaultGrant === null,
                                 label: noAccessLevelText,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     return onAccessPolicyChange({
                                         type: "DeleteDefaultGrant",
@@ -879,7 +879,7 @@ export function ShareOverlayUrlGrant({
                             {
                                 isSelected: urlGrant?.level === "View",
                                 label: accessLevelText.View,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     if (urlGrant) {
                                         return onAccessPolicyChange({
@@ -899,7 +899,7 @@ export function ShareOverlayUrlGrant({
                             {
                                 isSelected: urlGrant === null,
                                 label: noAccessLevelText,
-                                pressErrorTitle: "Couldn’t change access",
+                                pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
                                     return onAccessPolicyChange({
                                         type: "DeleteUrlGrant",

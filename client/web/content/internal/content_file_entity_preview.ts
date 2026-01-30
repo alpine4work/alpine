@@ -135,7 +135,7 @@ export function renderContentFileEntityPreview(
             fileEntityResult?.error ??
             getOrSetDefaultMapValue((fallbackErrorByNode ??= new WeakMap()), node, () =>
                 !fileEntityRenderers
-                    ? new InternalError("File entity renderers weren’t provided")
+                    ? new InternalError("File entity renderers weren\u2019t provided")
                     : new NotFoundError("File entity not found in content references"),
             );
 
@@ -160,10 +160,10 @@ export function renderContentFileEntityPreview(
                 layout,
                 icon: isNotFoundError ? "Trash" : isPermissionDeniedError ? "Lock" : "Warning",
                 title: isNotFoundError
-                    ? `Couldn’t find ${entityNoun}`
+                    ? `Couldn\u2019t find ${entityNoun}`
                     : isPermissionDeniedError
                       ? `Private ${entityNoun}`
-                      : `Couldn’t preview ${entityNoun}`,
+                      : `Couldn\u2019t preview ${entityNoun}`,
                 displayMessage:
                     error instanceof ErrorBase
                         ? (error.displayMessage ?? defaultErrorDisplayMessage)
@@ -255,7 +255,7 @@ export function addContentFileEntityPreviewBehavior(
                     () => spaceId,
                     () => emptyContentReferences,
                     () => {
-                        throw new UnimplementedError("Shouldn’t need file attachment target");
+                        throw new UnimplementedError("Shouldn\u2019t need file attachment target");
                     },
                 );
 
@@ -309,7 +309,7 @@ export function addContentFileEntityPreviewBehavior(
                     // Not including the icon is also consistent with the regular file right click
                     // actions.
                     label: `Copy ${entityNoun} link`,
-                    pressErrorTitle: `Couldn’t copy ${entityNoun} link`,
+                    pressErrorTitle: `Couldn\u2019t copy ${entityNoun} link`,
                     onPress: async () => {
                         const url = new URL(
                             printFileEntityIdIntoPath(spaceId, fileEntityId),

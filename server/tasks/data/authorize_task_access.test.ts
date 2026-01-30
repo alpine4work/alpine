@@ -174,13 +174,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
                 session2: null,
                 session3: null,
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -189,8 +189,10 @@ const testCases: Record<
                     session3: null,
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -213,8 +215,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -224,13 +226,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
                 session2: null,
                 session3: null,
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -239,8 +241,10 @@ const testCases: Record<
                     session3: null,
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -263,8 +267,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -274,13 +278,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
                 session2: null,
                 session3: null,
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -289,8 +293,10 @@ const testCases: Record<
                     session3: null,
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -313,8 +319,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -326,13 +332,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
                 session2: "Task was deleted",
                 session3: "Task was deleted",
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -341,8 +347,10 @@ const testCases: Record<
                     session3: "Task was deleted",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -365,8 +373,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -376,13 +384,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
                 session2: "Task was deleted",
                 session3: "Task was deleted",
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -391,8 +399,10 @@ const testCases: Record<
                     session3: "Task was deleted",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -415,8 +425,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -426,13 +436,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
                 session2: "Task was deleted",
                 session3: "Task was deleted",
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -441,8 +451,10 @@ const testCases: Record<
                     session3: "Task was deleted",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -465,8 +477,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -478,23 +490,25 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
                 session2: null,
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
                     session2: null,
-                    session3: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -502,11 +516,11 @@ const testCases: Record<
                     session: {
                         session1: null,
                         session2: null,
-                        session3: "Actor doesn’t have `View` access level",
+                        session3: "Actor doesn\u2019t have `View` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `View` access level",
-                        publicDeletedTask: "Actor doesn’t have `View` access level",
+                        publicTask: "Actor doesn\u2019t have `View` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: null,
                         privateDeletedTask: null,
                         urlPublicTask: null,
@@ -517,8 +531,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -528,23 +542,25 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
                 session2: null,
-                session3: "Actor doesn’t have `Comment` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `Comment` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
                     session2: null,
-                    session3: "Actor doesn’t have `Comment` access level",
+                    session3: "Actor doesn\u2019t have `Comment` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -552,11 +568,11 @@ const testCases: Record<
                     session: {
                         session1: null,
                         session2: null,
-                        session3: "Actor doesn’t have `Comment` access level",
+                        session3: "Actor doesn\u2019t have `Comment` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `Comment` access level",
-                        publicDeletedTask: "Actor doesn’t have `Comment` access level",
+                        publicTask: "Actor doesn\u2019t have `Comment` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `Comment` access level",
                         privateTask: null,
                         privateDeletedTask: null,
                         urlPublicTask: null,
@@ -567,8 +583,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -578,37 +594,39 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
-                session2: "Actor doesn’t have `Edit` access level",
-                session3: "Actor doesn’t have `Edit` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `Edit` access level",
+                session3: "Actor doesn\u2019t have `Edit` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
-                    session2: "Actor doesn’t have `Edit` access level",
-                    session3: "Actor doesn’t have `Edit` access level",
+                    session2: "Actor doesn\u2019t have `Edit` access level",
+                    session3: "Actor doesn\u2019t have `Edit` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
                 bot: {
                     session: {
                         session1: null,
-                        session2: "Actor doesn’t have `Edit` access level",
-                        session3: "Actor doesn’t have `Edit` access level",
+                        session2: "Actor doesn\u2019t have `Edit` access level",
+                        session3: "Actor doesn\u2019t have `Edit` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `Edit` access level",
-                        publicDeletedTask: "Actor doesn’t have `Edit` access level",
-                        privateTask: "Actor doesn’t have `Edit` access level",
-                        privateDeletedTask: "Actor doesn’t have `Edit` access level",
+                        publicTask: "Actor doesn\u2019t have `Edit` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `Edit` access level",
+                        privateTask: "Actor doesn\u2019t have `Edit` access level",
+                        privateDeletedTask: "Actor doesn\u2019t have `Edit` access level",
                         urlPublicTask: null,
                         urlPublicDeletedTask: null,
                         personalTask: null,
@@ -617,8 +635,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -630,23 +648,25 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
                 session2: "Task was deleted",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: "Task was deleted",
                     session2: "Task was deleted",
-                    session3: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -654,11 +674,11 @@ const testCases: Record<
                     session: {
                         session1: "Task was deleted",
                         session2: "Task was deleted",
-                        session3: "Actor doesn’t have `View` access level",
+                        session3: "Actor doesn\u2019t have `View` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `View` access level",
-                        publicDeletedTask: "Actor doesn’t have `View` access level",
+                        publicTask: "Actor doesn\u2019t have `View` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Task was deleted",
                         privateDeletedTask: "Task was deleted",
                         urlPublicTask: "Task was deleted",
@@ -669,8 +689,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -680,23 +700,25 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
                 session2: "Task was deleted",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: "Task was deleted",
                     session2: "Task was deleted",
-                    session3: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -704,11 +726,11 @@ const testCases: Record<
                     session: {
                         session1: "Task was deleted",
                         session2: "Task was deleted",
-                        session3: "Actor doesn’t have `View` access level",
+                        session3: "Actor doesn\u2019t have `View` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `View` access level",
-                        publicDeletedTask: "Actor doesn’t have `View` access level",
+                        publicTask: "Actor doesn\u2019t have `View` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Task was deleted",
                         privateDeletedTask: "Task was deleted",
                         urlPublicTask: "Task was deleted",
@@ -719,8 +741,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -730,23 +752,25 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
                 session2: "Task was deleted",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: "Task was deleted",
                     session2: "Task was deleted",
-                    session3: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -754,11 +778,11 @@ const testCases: Record<
                     session: {
                         session1: "Task was deleted",
                         session2: "Task was deleted",
-                        session3: "Actor doesn’t have `View` access level",
+                        session3: "Actor doesn\u2019t have `View` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `View` access level",
-                        publicDeletedTask: "Actor doesn’t have `View` access level",
+                        publicTask: "Actor doesn\u2019t have `View` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Task was deleted",
                         privateDeletedTask: "Task was deleted",
                         urlPublicTask: "Task was deleted",
@@ -769,8 +793,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -782,7 +806,7 @@ const testCases: Record<
             anonymous: null,
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
@@ -797,8 +821,10 @@ const testCases: Record<
                     session3: null,
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -832,37 +858,39 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
-                session2: "Actor doesn’t have `Comment` access level",
-                session3: "Actor doesn’t have `Comment` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `Comment` access level",
+                session3: "Actor doesn\u2019t have `Comment` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
-                    session2: "Actor doesn’t have `Comment` access level",
-                    session3: "Actor doesn’t have `Comment` access level",
+                    session2: "Actor doesn\u2019t have `Comment` access level",
+                    session3: "Actor doesn\u2019t have `Comment` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
                 bot: {
                     session: {
                         session1: null,
-                        session2: "Actor doesn’t have `Comment` access level",
-                        session3: "Actor doesn’t have `Comment` access level",
+                        session2: "Actor doesn\u2019t have `Comment` access level",
+                        session3: "Actor doesn\u2019t have `Comment` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `Comment` access level",
-                        publicDeletedTask: "Actor doesn’t have `Comment` access level",
-                        privateTask: "Actor doesn’t have `Comment` access level",
-                        privateDeletedTask: "Actor doesn’t have `Comment` access level",
+                        publicTask: "Actor doesn\u2019t have `Comment` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `Comment` access level",
+                        privateTask: "Actor doesn\u2019t have `Comment` access level",
+                        privateDeletedTask: "Actor doesn\u2019t have `Comment` access level",
                         urlPublicTask: null,
                         urlPublicDeletedTask: null,
                         personalTask: null,
@@ -871,8 +899,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -882,37 +910,39 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
-                session2: "Actor doesn’t have `Edit` access level",
-                session3: "Actor doesn’t have `Edit` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `Edit` access level",
+                session3: "Actor doesn\u2019t have `Edit` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
-                    session2: "Actor doesn’t have `Edit` access level",
-                    session3: "Actor doesn’t have `Edit` access level",
+                    session2: "Actor doesn\u2019t have `Edit` access level",
+                    session3: "Actor doesn\u2019t have `Edit` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
                 bot: {
                     session: {
                         session1: null,
-                        session2: "Actor doesn’t have `Edit` access level",
-                        session3: "Actor doesn’t have `Edit` access level",
+                        session2: "Actor doesn\u2019t have `Edit` access level",
+                        session3: "Actor doesn\u2019t have `Edit` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `Edit` access level",
-                        publicDeletedTask: "Actor doesn’t have `Edit` access level",
-                        privateTask: "Actor doesn’t have `Edit` access level",
-                        privateDeletedTask: "Actor doesn’t have `Edit` access level",
+                        publicTask: "Actor doesn\u2019t have `Edit` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `Edit` access level",
+                        privateTask: "Actor doesn\u2019t have `Edit` access level",
+                        privateDeletedTask: "Actor doesn\u2019t have `Edit` access level",
                         urlPublicTask: null,
                         urlPublicDeletedTask: null,
                         personalTask: null,
@@ -921,8 +951,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -934,7 +964,7 @@ const testCases: Record<
             anonymous: "Task was deleted",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
@@ -949,8 +979,10 @@ const testCases: Record<
                     session3: "Task was deleted",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -984,7 +1016,7 @@ const testCases: Record<
             anonymous: "Task was deleted",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
@@ -999,8 +1031,10 @@ const testCases: Record<
                     session3: "Task was deleted",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -1034,7 +1068,7 @@ const testCases: Record<
             anonymous: "Task was deleted",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
@@ -1049,8 +1083,10 @@ const testCases: Record<
                     session3: "Task was deleted",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
@@ -1086,37 +1122,39 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
-                session2: "Actor doesn’t have `View` access level",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `View` access level",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
-                    session2: "Actor doesn’t have `View` access level",
-                    session3: "Actor doesn’t have `View` access level",
+                    session2: "Actor doesn\u2019t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
                 bot: {
                     session: {
                         session1: null,
-                        session2: "Actor doesn’t have `View` access level",
-                        session3: "Actor doesn’t have `View` access level",
+                        session2: "Actor doesn\u2019t have `View` access level",
+                        session3: "Actor doesn\u2019t have `View` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `View` access level",
-                        publicDeletedTask: "Actor doesn’t have `View` access level",
-                        privateTask: "Actor doesn’t have `View` access level",
-                        privateDeletedTask: "Actor doesn’t have `View` access level",
+                        publicTask: "Actor doesn\u2019t have `View` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `View` access level",
+                        privateTask: "Actor doesn\u2019t have `View` access level",
+                        privateDeletedTask: "Actor doesn\u2019t have `View` access level",
                         urlPublicTask: null,
                         urlPublicDeletedTask: null,
                         personalTask: null,
@@ -1125,8 +1163,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -1136,37 +1174,39 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
-                session2: "Actor doesn’t have `Comment` access level",
-                session3: "Actor doesn’t have `Comment` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `Comment` access level",
+                session3: "Actor doesn\u2019t have `Comment` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
-                    session2: "Actor doesn’t have `Comment` access level",
-                    session3: "Actor doesn’t have `Comment` access level",
+                    session2: "Actor doesn\u2019t have `Comment` access level",
+                    session3: "Actor doesn\u2019t have `Comment` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
                 bot: {
                     session: {
                         session1: null,
-                        session2: "Actor doesn’t have `Comment` access level",
-                        session3: "Actor doesn’t have `Comment` access level",
+                        session2: "Actor doesn\u2019t have `Comment` access level",
+                        session3: "Actor doesn\u2019t have `Comment` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `Comment` access level",
-                        publicDeletedTask: "Actor doesn’t have `Comment` access level",
-                        privateTask: "Actor doesn’t have `Comment` access level",
-                        privateDeletedTask: "Actor doesn’t have `Comment` access level",
+                        publicTask: "Actor doesn\u2019t have `Comment` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `Comment` access level",
+                        privateTask: "Actor doesn\u2019t have `Comment` access level",
+                        privateDeletedTask: "Actor doesn\u2019t have `Comment` access level",
                         urlPublicTask: null,
                         urlPublicDeletedTask: null,
                         personalTask: null,
@@ -1175,8 +1215,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -1186,37 +1226,39 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: null,
-                session2: "Actor doesn’t have `Edit` access level",
-                session3: "Actor doesn’t have `Edit` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `Edit` access level",
+                session3: "Actor doesn\u2019t have `Edit` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
-                    session2: "Actor doesn’t have `Edit` access level",
-                    session3: "Actor doesn’t have `Edit` access level",
+                    session2: "Actor doesn\u2019t have `Edit` access level",
+                    session3: "Actor doesn\u2019t have `Edit` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
                 bot: {
                     session: {
                         session1: null,
-                        session2: "Actor doesn’t have `Edit` access level",
-                        session3: "Actor doesn’t have `Edit` access level",
+                        session2: "Actor doesn\u2019t have `Edit` access level",
+                        session3: "Actor doesn\u2019t have `Edit` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `Edit` access level",
-                        publicDeletedTask: "Actor doesn’t have `Edit` access level",
-                        privateTask: "Actor doesn’t have `Edit` access level",
-                        privateDeletedTask: "Actor doesn’t have `Edit` access level",
+                        publicTask: "Actor doesn\u2019t have `Edit` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `Edit` access level",
+                        privateTask: "Actor doesn\u2019t have `Edit` access level",
+                        privateDeletedTask: "Actor doesn\u2019t have `Edit` access level",
                         urlPublicTask: null,
                         urlPublicDeletedTask: null,
                         personalTask: null,
@@ -1225,8 +1267,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -1238,37 +1280,39 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
-                session2: "Actor doesn’t have `View` access level",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `View` access level",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: "Task was deleted",
-                    session2: "Actor doesn’t have `View` access level",
-                    session3: "Actor doesn’t have `View` access level",
+                    session2: "Actor doesn\u2019t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
                 bot: {
                     session: {
                         session1: "Task was deleted",
-                        session2: "Actor doesn’t have `View` access level",
-                        session3: "Actor doesn’t have `View` access level",
+                        session2: "Actor doesn\u2019t have `View` access level",
+                        session3: "Actor doesn\u2019t have `View` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `View` access level",
-                        publicDeletedTask: "Actor doesn’t have `View` access level",
-                        privateTask: "Actor doesn’t have `View` access level",
-                        privateDeletedTask: "Actor doesn’t have `View` access level",
+                        publicTask: "Actor doesn\u2019t have `View` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `View` access level",
+                        privateTask: "Actor doesn\u2019t have `View` access level",
+                        privateDeletedTask: "Actor doesn\u2019t have `View` access level",
                         urlPublicTask: "Task was deleted",
                         urlPublicDeletedTask: "Task was deleted",
                         personalTask: "Task was deleted",
@@ -1277,8 +1321,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -1288,37 +1332,39 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
-                session2: "Actor doesn’t have `View` access level",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `View` access level",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: "Task was deleted",
-                    session2: "Actor doesn’t have `View` access level",
-                    session3: "Actor doesn’t have `View` access level",
+                    session2: "Actor doesn\u2019t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
                 bot: {
                     session: {
                         session1: "Task was deleted",
-                        session2: "Actor doesn’t have `View` access level",
-                        session3: "Actor doesn’t have `View` access level",
+                        session2: "Actor doesn\u2019t have `View` access level",
+                        session3: "Actor doesn\u2019t have `View` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `View` access level",
-                        publicDeletedTask: "Actor doesn’t have `View` access level",
-                        privateTask: "Actor doesn’t have `View` access level",
-                        privateDeletedTask: "Actor doesn’t have `View` access level",
+                        publicTask: "Actor doesn\u2019t have `View` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `View` access level",
+                        privateTask: "Actor doesn\u2019t have `View` access level",
+                        privateDeletedTask: "Actor doesn\u2019t have `View` access level",
                         urlPublicTask: "Task was deleted",
                         urlPublicDeletedTask: "Task was deleted",
                         personalTask: "Task was deleted",
@@ -1327,8 +1373,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },
@@ -1338,37 +1384,39 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task was deleted",
-                otherSpace: "System actor doesn’t have access to task’s space",
+                otherSpace: "System actor doesn\u2019t have access to task\u2019s space",
             },
             session: {
                 session1: "Task was deleted",
-                session2: "Actor doesn’t have `View` access level",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `View` access level",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: "Task was deleted",
-                    session2: "Actor doesn’t have `View` access level",
-                    session3: "Actor doesn’t have `View` access level",
+                    session2: "Actor doesn\u2019t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to task’s space",
-                    otherSession: "Impersonated account actor doesn’t have access to task’s space",
+                    session1:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+                    otherSession:
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                 },
             },
             bot: {
                 bot: {
                     session: {
                         session1: "Task was deleted",
-                        session2: "Actor doesn’t have `View` access level",
-                        session3: "Actor doesn’t have `View` access level",
+                        session2: "Actor doesn\u2019t have `View` access level",
+                        session3: "Actor doesn\u2019t have `View` access level",
                     },
                     task: {
-                        publicTask: "Actor doesn’t have `View` access level",
-                        publicDeletedTask: "Actor doesn’t have `View` access level",
-                        privateTask: "Actor doesn’t have `View` access level",
-                        privateDeletedTask: "Actor doesn’t have `View` access level",
+                        publicTask: "Actor doesn\u2019t have `View` access level",
+                        publicDeletedTask: "Actor doesn\u2019t have `View` access level",
+                        privateTask: "Actor doesn\u2019t have `View` access level",
+                        privateDeletedTask: "Actor doesn\u2019t have `View` access level",
                         urlPublicTask: "Task was deleted",
                         urlPublicDeletedTask: "Task was deleted",
                         personalTask: "Task was deleted",
@@ -1377,8 +1425,8 @@ const testCases: Record<
                 },
                 otherBot: {
                     session: {
-                        session1: "Account doesn’t have access to space",
-                        otherSession: "Account doesn’t have access to space",
+                        session1: "Account doesn\u2019t have access to space",
+                        otherSession: "Account doesn\u2019t have access to space",
                     },
                     task: {},
                 },

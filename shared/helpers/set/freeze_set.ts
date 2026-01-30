@@ -1,7 +1,7 @@
 import {InternalError} from "~/shared/error/error.js";
 
 function cantUpdateFrozenSet(): never {
-    throw new InternalError("Can’t update frozen set");
+    throw new InternalError("Can\u2019t update frozen set");
 }
 
 /**

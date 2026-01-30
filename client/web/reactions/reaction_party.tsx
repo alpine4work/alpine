@@ -206,7 +206,7 @@ export function ReactionParty({
                         {
                             key: reactionButtonContextMenuActionKey,
                             label: "See reactions",
-                            pressErrorTitle: "Couldn’t open reactions",
+                            pressErrorTitle: "Couldn\u2019t open reactions",
                             onPress,
                         },
                     ],

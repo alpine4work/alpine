@@ -652,7 +652,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
 
     const {newInvertedSteps} = await document.type(
         session,
-        " Add enough content that we’ll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
+        " Add enough content that we\u2019ll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
     );
 
     await runAllTimersAndWaitForTestTasks();
@@ -783,7 +783,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
 
     const {newInvertedSteps} = await document.type(
         session,
-        " Add enough content that we’ll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
+        " Add enough content that we\u2019ll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
     );
 
     // Race 5 job processors...
@@ -1055,15 +1055,15 @@ test("returns the right chunk when searching for embeddings", async () => {
             score: expect.closeTo(0.3615967),
             fields: {
                 text: [
-                    `This is from the “YouTube” document:
+                    `This is from the \u201CYouTube\u201D document:
 
 ## History
 
 YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim. The trio were early employees of PayPal, which left them enriched after the company was bought by eBay. Hurley had studied design at the Indiana University of Pennsylvania, and Chen and Karim studied computer science together at the University of Illinois Urbana-Champaign.
 
-According to a story that has often been repeated in the media, Hurley and Chen developed the idea for YouTube during the early months of 2005, after they had experienced difficulty sharing videos that had been shot at a dinner party at Chen’s apartment in San Francisco. Karim did not attend the party and denied that it had occurred, but Chen remarked that the idea that YouTube was founded after a dinner party “was probably very strengthened by marketing ideas around creating a story that was very digestible”.
+According to a story that has often been repeated in the media, Hurley and Chen developed the idea for YouTube during the early months of 2005, after they had experienced difficulty sharing videos that had been shot at a dinner party at Chen\u2019s apartment in San Francisco. Karim did not attend the party and denied that it had occurred, but Chen remarked that the idea that YouTube was founded after a dinner party \u201Cwas probably very strengthened by marketing ideas around creating a story that was very digestible\u201D.
 
-YouTube began as a venture capital–funded technology startup. Between November 2005 and April 2006, the company raised money from various investors, with Sequoia Capital and Artis Capital Management being the largest two. YouTube’s early headquarters were situated above a pizzeria and a Japanese restaurant in San Mateo, California. In February 2005, the company activated www.youtube.com. The first video was uploaded on April 23, 2005. Titled “Me at the zoo”, it shows co-founder Jawed Karim at the San Diego Zoo and can still be viewed on the site. In May, the company launched a public beta and by November, a Nike ad featuring Ronaldinho became the first video to reach one million total views. The site launched officially on December 15, 2005, by which time the site was receiving 8 million views a day. Clips at the time were limited to 100 megabytes, as little as 30 seconds of footage.`,
+YouTube began as a venture capital–funded technology startup. Between November 2005 and April 2006, the company raised money from various investors, with Sequoia Capital and Artis Capital Management being the largest two. YouTube\u2019s early headquarters were situated above a pizzeria and a Japanese restaurant in San Mateo, California. In February 2005, the company activated www.youtube.com. The first video was uploaded on April 23, 2005. Titled \u201CMe at the zoo\u201D, it shows co-founder Jawed Karim at the San Diego Zoo and can still be viewed on the site. In May, the company launched a public beta and by November, a Nike ad featuring Ronaldinho became the first video to reach one million total views. The site launched officially on December 15, 2005, by which time the site was receiving 8 million views a day. Clips at the time were limited to 100 megabytes, as little as 30 seconds of footage.`,
                 ],
             },
         },
@@ -1233,7 +1233,7 @@ test("will reindex if a dependency changes", async () => {
                 fields: {
                     "entity.id": [`Post:${post1.id}`],
                     text: [
-                        `This is a post in the “Test” channel:
+                        `This is a post in the \u201CTest\u201D channel:
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras et lorem a lorem laoreet condimentum. Duis feugiat nec risus hendrerit convallis. Aenean luctus ipsum sagittis elit accumsan suscipit.`,
                     ],
@@ -1245,7 +1245,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque er
                 fields: {
                     "entity.id": [`Post:${post2.id}`],
                     text: [
-                        `This is a post in the “Test” channel:
+                        `This is a post in the \u201CTest\u201D channel:
 
 Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.`,
                     ],
@@ -1305,7 +1305,7 @@ This is a channel.`,
                 fields: {
                     "entity.id": [`Post:${post1.id}`],
                     text: [
-                        `This is a post in the “Lorem Ipsum” channel:
+                        `This is a post in the \u201CLorem Ipsum\u201D channel:
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras et lorem a lorem laoreet condimentum. Duis feugiat nec risus hendrerit convallis. Aenean luctus ipsum sagittis elit accumsan suscipit.`,
                     ],
@@ -1317,7 +1317,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque er
                 fields: {
                     "entity.id": [`Post:${post2.id}`],
                     text: [
-                        `This is a post in the “Lorem Ipsum” channel:
+                        `This is a post in the \u201CLorem Ipsum\u201D channel:
 
 Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.`,
                     ],
@@ -1499,7 +1499,7 @@ test("contractions stay when analyzing text", async () => {
             .analyze(
                 SearchEntityKeywordIndex,
                 opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
-                "Grossman commented on his non-conservative play style in a 2017 interview stating, ”Coach Spurrier instilled in me, don’t check down if the big play’s there. So that’s kind of how I was born. I always wanted to shoot a three-pointer in basketball, hit a home run in baseball. I don’t know why, that’s just, like, who I am.” During Week 12 of the 2006 season, Grossman threw a game-ending interception while attempting a deep pass to Rashied Davis.",
+                "Grossman commented on his non-conservative play style in a 2017 interview stating, \u201DCoach Spurrier instilled in me, don\u2019t check down if the big play\u2019s there. So that\u2019s kind of how I was born. I always wanted to shoot a three-pointer in basketball, hit a home run in baseball. I don\u2019t know why, that\u2019s just, like, who I am.\u201D During Week 12 of the 2006 season, Grossman threw a game-ending interception while attempting a deep pass to Rashied Davis.",
             )
             .then(tokens => tokens.map(({token}) => token)),
     ).toEqual([
@@ -2026,7 +2026,7 @@ test("search by semantics will highlight matching words", async () => {
 
     const document = await TestDocument.create(session, {
         title: "This is a test",
-        body: `The body also contains the word “test.” Nice. ${createArrayWithLength(
+        body: `The body also contains the word \u201Ctest.\u201D Nice. ${createArrayWithLength(
             100,
             () => "test",
         ).join(" ")}`,
@@ -2058,9 +2058,9 @@ test("search by semantics will highlight matching words", async () => {
                 media: null,
             }),
             bodyTextSnippet: [
-                {text: "The body also contains the word “", isHighlighted: false},
+                {text: "The body also contains the word \u201C", isHighlighted: false},
                 {text: "test", isHighlighted: true},
-                {text: ".” Nice. ", isHighlighted: false},
+                {text: ".\u201D Nice. ", isHighlighted: false},
                 ...createArrayWithLength(100, i =>
                     i === 0
                         ? [{text: "test", isHighlighted: true}]
@@ -2472,7 +2472,7 @@ test("searches with natural language parsing works", async () => {
     expect(
         await searchByKeywords(session1.action(), {
             spaceId: space.id,
-            queryText: "sara’s documents about trains",
+            queryText: "sara\u2019s documents about trains",
             limit: 100,
             timeZone: defaultTimeZone,
             currentTime: new Date(),
@@ -2535,7 +2535,7 @@ test("searches with natural language parsing works", async () => {
     expect(
         await searchByKeywords(session1.action(), {
             spaceId: space.id,
-            queryText: "sara’s documents",
+            queryText: "sara\u2019s documents",
             limit: 100,
             timeZone: defaultTimeZone,
             currentTime: new Date(),
@@ -2609,7 +2609,7 @@ test("searches with natural language parsing works", async () => {
     expect(
         await searchByKeywords(session1.action(), {
             spaceId: space.id,
-            queryText: "johns’s documents",
+            queryText: "johns\u2019s documents",
             limit: 100,
             timeZone: defaultTimeZone,
             currentTime: new Date(),
@@ -2927,7 +2927,7 @@ test("search by affinity can include the task personal view in favorites", async
     });
 });
 
-test("search by affinity can include the task personal view in favorites even if it doesn’t have affinity points", async () => {
+test("search by affinity can include the task personal view in favorites even if it doesn\u2019t have affinity points", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -4422,7 +4422,7 @@ test(
     "prefix matches and typo matches on search entity titles are allowed",
     async () => {
         const names = [
-            "Old Man’s War",
+            "Old Man\u2019s War",
             "The Lock Artist",
             "HTML5",
             "Thank You Jeeves",
@@ -4583,16 +4583,16 @@ test(
                 "Test Mxyz",
                 "Test Mabc",
                 "Monster 1959",
-                "Old Man’s War",
+                "Old Man\u2019s War",
             ]);
             expect(await testSearch("test ma")).toEqual([
                 "Test Mabc",
-                "Old Man’s War",
+                "Old Man\u2019s War",
                 "Test Mxyz",
             ]);
             expect(await testSearch("test mab")).toEqual([
                 "Test Mabc",
-                "Old Man’s War",
+                "Old Man\u2019s War",
                 "Test Mxyz",
             ]);
             expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
@@ -4601,7 +4601,7 @@ test(
                 "Test Mxyz",
                 "Test Mabc",
                 "Monster 1959",
-                "Old Man’s War",
+                "Old Man\u2019s War",
             ]);
 
             // Testing typos
@@ -4721,7 +4721,7 @@ test(
     30 * 1000,
 );
 
-test("make sure cross space reads don’t work", async () => {
+test("make sure cross space reads don\u2019t work", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
 
@@ -4884,7 +4884,7 @@ test("searching mentions requires space access", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("searching mentions excludes entities user doesn’t have access to", async () => {
+test("searching mentions excludes entities user doesn\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -5344,7 +5344,7 @@ test("searching mentions excludes accounts and chats even if keywords match", as
 
 test("searching mentions has effective name fuzzy searching", async () => {
     const bookNames = [
-        "Old Man’s War",
+        "Old Man\u2019s War",
         "The Lock Artist",
         "HTML5",
         "Thank You Jeeves",
@@ -5507,17 +5507,17 @@ test("searching mentions has effective name fuzzy searching", async () => {
         "Test Mxyz",
         "Test Mabc",
         "Monster 1959",
-        "Old Man’s War",
+        "Old Man\u2019s War",
     ]);
-    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Old Man’s War", "Test Mxyz"]);
-    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Old Man’s War", "Test Mxyz"]);
+    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Old Man\u2019s War", "Test Mxyz"]);
+    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Old Man\u2019s War", "Test Mxyz"]);
     expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
     expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
     expect(await testSearch("tes m")).toEqual([
         "Test Mxyz",
         "Test Mabc",
         "Monster 1959",
-        "Old Man’s War",
+        "Old Man\u2019s War",
     ]);
 
     // Testing typos
@@ -5613,7 +5613,7 @@ test("searching mentions has effective name fuzzy searching", async () => {
     ]);
 });
 
-test("you can still search for removed accounts but you can’t see name updates", async () => {
+test("you can still search for removed accounts but you can\u2019t see name updates", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
 
@@ -5799,7 +5799,7 @@ test("you can still search for removed accounts but you can’t see name updates
     });
 });
 
-test("you can search for invited accounts by email, then by name once they’ve accepted their invite", async () => {
+test("you can search for invited accounts by email, then by name once they\u2019ve accepted their invite", async () => {
     const space = await TestSpace.create(context);
 
     const ownerSession = await space.createSession({role: "Owner"});
@@ -5966,7 +5966,7 @@ a2: Mauris egestas nulla eget turpis pulvinar dictum. Sed eget ornare libero. Se
                 fields: {
                     "entity.id": [`Document:${document.id}`],
                     text: [
-                        `This is from the “Large Table” document:
+                        `This is from the \u201CLarge Table\u201D document:
 
 <tr><td>
 
@@ -5986,7 +5986,7 @@ b2: Quisque vestibulum felis quam, in congue lacus porta sed. Fusce non mattis n
                 fields: {
                     "entity.id": [`Document:${document.id}`],
                     text: [
-                        `This is from the “Large Table” document:
+                        `This is from the \u201CLarge Table\u201D document:
 
 <tr><td>
 

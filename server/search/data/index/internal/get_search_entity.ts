@@ -215,7 +215,7 @@ const searchDeletedMessageEntity: Omit<SearchEntity, "id"> = {
 
 /**
  * For reference "The quick brown fox jumps over the lazy dog" is 9 tokens.
- * "How we’re designing our personal task management product" is 10 tokens.
+ * "How we're designing our personal task management product" is 10 tokens.
  * 32 tokens (16 tokens for title, 16 tokens for section heading) is ~6% of
  * our 512 token window for Cohere's embedding models.
  *
@@ -1410,9 +1410,9 @@ export function chunkDocumentSearchContent(
             if (isInitialChunk) return {text: `# ${title}`, lineMarginBottom: 2};
 
             return {
-                text: `This is from the “${truncatedTitle.get()}” document${
+                text: `This is from the \u201C${truncatedTitle.get()}\u201D document${
                     context.sectionHeading !== null
-                        ? ` in the “${truncatedSectionHeading.get(context.sectionHeading)}” section`
+                        ? ` in the \u201C${truncatedSectionHeading.get(context.sectionHeading)}\u201D section`
                         : ""
                 }:`,
                 lineMarginBottom: 2,
@@ -1550,9 +1550,9 @@ async function getChannelSearchEntity(
             }
 
             return {
-                text: `This is from the “${truncatedName.get()}” channel description${
+                text: `This is from the \u201C${truncatedName.get()}\u201D channel description${
                     context.sectionHeading !== null
-                        ? ` in the “${truncatedSectionHeading.get(context.sectionHeading)}” section`
+                        ? ` in the \u201C${truncatedSectionHeading.get(context.sectionHeading)}\u201D section`
                         : ""
                 }:`,
                 lineMarginBottom: 2,
@@ -1635,11 +1635,11 @@ async function getPostSearchEntity(
             return {
                 text: `This is${isInitialChunk ? " a " : " from a "}post${
                     context.sectionHeading !== null
-                        ? ` in the “${truncatedSectionHeading.get(
+                        ? ` in the \u201C${truncatedSectionHeading.get(
                               context.sectionHeading,
-                          )}” section `
+                          )}\u201D section `
                         : " "
-                }in the “${truncatedChannelName.get()}” channel:`,
+                }in the \u201C${truncatedChannelName.get()}\u201D channel:`,
                 lineMarginBottom: 2,
             };
         },
@@ -2157,9 +2157,9 @@ async function getTaskSearchEntity(
             if (isInitialChunk) return {text: `# ${title}`, lineMarginBottom: 2};
 
             return {
-                text: `This is from the “${truncatedTitle.get()}” task${
+                text: `This is from the \u201C${truncatedTitle.get()}\u201D task${
                     context.sectionHeading !== null
-                        ? ` in the “${truncatedSectionHeading.get(context.sectionHeading)}” section`
+                        ? ` in the \u201C${truncatedSectionHeading.get(context.sectionHeading)}\u201D section`
                         : ""
                 }:`,
                 lineMarginBottom: 2,
@@ -2338,7 +2338,7 @@ async function getTaskCollectionSearchEntity(
     );
 
     // While task collections have no descriptions, we still want to generate
-    // embedding chunks. So if you search for "bug task collection" it’ll match
+    // embedding chunks. So if you search for "bug task collection" it'll match
     // keyword, NLP, and semantic search to put the bugs task collection at
     // the top.
     const {getEmbeddingChunks} = chunkSearchContent(collectionDescription, {
@@ -2360,9 +2360,9 @@ async function getTaskCollectionSearchEntity(
             }
 
             return {
-                text: `This is from the “${truncatedName.get()}” task collection description${
+                text: `This is from the \u201C${truncatedName.get()}\u201D task collection description${
                     context.sectionHeading !== null
-                        ? ` in the “${truncatedSectionHeading.get(context.sectionHeading)}” section`
+                        ? ` in the \u201C${truncatedSectionHeading.get(context.sectionHeading)}\u201D section`
                         : ""
                 }:`,
                 lineMarginBottom: 2,

@@ -250,7 +250,7 @@ export function usePostEditing({
                 if (savePromiseResolver) {
                     savePromiseResolver.reject(error);
                 } else {
-                    reporter.displayError("Couldn’t update post", error);
+                    reporter.displayError("Couldn\u2019t update post", error);
                 }
 
                 dispatch({type: "FinishedSavingContent", shouldCancelEditing: false});
@@ -279,7 +279,7 @@ export function usePostEditing({
                             });
                         }}
                         primaryButtonLabel="Save"
-                        primaryButtonPressErrorTitle="Couldn’t save post"
+                        primaryButtonPressErrorTitle="Couldn\u2019t save post"
                         onPrimaryButtonPress={() => {
                             const savePromiseResolver = createPromiseResolver();
 

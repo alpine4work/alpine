@@ -789,7 +789,7 @@ async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(mattRHorn, {
-                title: "Dashboard cards v1 with “view in ledger” link",
+                title: "Dashboard cards v1 with \u201Cview in ledger\u201D link",
                 collections: [
                     sprintCollection,
                     profitByAcreDashboardCollection,
@@ -829,7 +829,7 @@ async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(masonClay, {
-                title: "“Approve & post” expenses UX + undo",
+                title: "\u201CApprove & post\u201D expenses UX + undo",
                 collections: [sprintCollection, receiptMobileScannerCollection],
                 priority: "Medium",
                 assignee: masonClay,
@@ -839,7 +839,7 @@ async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(cassCade, {
-                title: "Program match score + “why this matched” explainer copy",
+                title: "Program match score + \u201Cwhy this matched\u201D explainer copy",
                 collections: [sprintCollection, grantsNavigatorCollection, aiCollection],
                 priority: "Medium",
                 assignee: cassCade,
@@ -858,7 +858,7 @@ async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(cassCade, {
-                title: "“Explain this number” inline notes for primary metrics",
+                title: "\u201CExplain this number\u201D inline notes for primary metrics",
                 collections: [sprintCollection, profitByAcreDashboardCollection],
                 priority: "Medium",
                 assignee: cassCade,
@@ -902,7 +902,7 @@ async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(masonClay, {
-                title: "Voice natural language processing (e.g. “allocate 73 gal to harvest”)",
+                title: "Voice natural language processing (e.g. \u201Callocate 73 gal to harvest\u201D)",
                 collections: [sprintCollection, receiptMobileScannerCollection, aiCollection],
                 priority: "Low",
                 assignee: masonClay,
@@ -1049,7 +1049,7 @@ async function actuallyCreateLaunchVideoFeed(
         markdown`
 ### Incident Retrospective: Upload Backlog
 
-- **What happened:** Between 02:10-03:05 UTC on May 20, 2026, image uploads queued but didn’t
+- **What happened:** Between 02:10-03:05 UTC on May 20, 2026, image uploads queued but didn\u2019t
   process due to a misconfigured worker autoscaler.
 
 - **Impact:** 7.2% of uploads were delayed up to 55 minutes; no data loss.
@@ -1081,16 +1081,16 @@ Thanks to Mason and Cass for rapid triage.
     await marketingChannel.createPost(
         cliffWeathers,
         markdown`
-Some common questions and answers I’m seeing come up in customer calls about our the new receipt
-scanner mobile app feature:
+Some common questions and answers I\u2019m seeing come up in customer calls about our the new
+receipt scanner mobile app feature:
 
 **Q: Can I save receipts without signal?**\\\n A: Yes. The mobile app stores images locally and
 syncs later.
 
 **Q: How do I know it synced?**\\\n A: Look for the small cloud icon. Grey = pending; blue = synced.
 
-**Q: My receipt is upside down, how do I fix it?**\\\n A: If a receipt looks crooked, tap “Retake”
-to auto-straighten.
+**Q: My receipt is upside down, how do I fix it?**\\\n A: If a receipt looks crooked, tap
+\u201CRetake\u201D to auto-straighten.
         `,
         {
             overrideCreatedTime: baseTime
@@ -1120,37 +1120,37 @@ Our customers run their entire businesses on receipts. We want to antiquate the 
 drive to their accountant each year and instead allow them to ingest receipts immediately in the
 field when they receive them. Comment on ideas you like!
 
-| Idea<span hidden data-column-widths="3,1,1"/>                                      | Impact                                       | Effort                                   |
-| ---------------------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------- |
-| Quick snap with automatic crop and straighten                                      | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
-| Real-time text recognition highlights total and date while framing                 | <mark class="highlight-red">High</mark>      | <mark class="highlight-purple">XL</mark> |
-| Offline-first capture queue with clear status and auto-retry                       | <mark class="highlight-red">High</mark>      | <mark class="highlight-purple">XL</mark> |
-| Background sync continues when the app is in your pocket                           | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
-| Photo coach warns for blur, glare, or low light                                    | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
-| Low-light “night mode” pre-processing for barn/garage lighting                     | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
-| Batch mode: capture several receipts in one session                                | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-purple">XL</mark> |
-| Detect possible duplicates and suggest merge                                       | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
-| Suggest vendor from text and location; learn aliases over time                     | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
-| Smart tag suggestions (enterprise, field, project) from history and GPS            | <mark class="highlight-red">High</mark>      | <mark class="highlight-purple">XL</mark> |
-| Auto-categorize line items to tags; improve from user edits                        | <mark class="highlight-red">High</mark>      | <mark class="highlight-purple">XL</mark> |
-| Flag suspicious totals (missing currency symbol, extra zeros) and suggest a retake | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
-| Share extension: “Add to Headwater” from camera roll                               | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
-| Email ingest: forward receipts to a workspace address                              | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
-| Text a photo to a workspace number; auto-attach to the right account               | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-purple">XL</mark> |
-| Voice note attachment with transcription for context (“fuel for hay harvest”)      | <mark class="highlight-blue">Low</mark>      | <mark class="highlight-green">LG</mark>  |
-| Review queue for low-confidence extractions so support can fix quickly             | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
-| Sync status panel with errors and tap-to-retry                                     | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-blue">SM</mark>   |
-| Accessibility: larger capture button and high-contrast UI                          | <mark class="highlight-blue">Low</mark>      | <mark class="highlight-blue">SM</mark>   |
-| Privacy blur for card numbers and home addresses                                   | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
-| Audit trail: who captured, when, and where                                         | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
-| Reprocess older images when text-recognition models improve                        | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
-| Monthly export: zipped images plus CSV for your accountant                         | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
-| “First-run” guided capture that teaches framing in three screens                   | <mark class="highlight-blue">Low</mark>      | <mark class="highlight-blue">SM</mark>   |
+| Idea<span hidden data-column-widths="3,1,1"/>                                           | Impact                                       | Effort                                   |
+| --------------------------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------- |
+| Quick snap with automatic crop and straighten                                           | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
+| Real-time text recognition highlights total and date while framing                      | <mark class="highlight-red">High</mark>      | <mark class="highlight-purple">XL</mark> |
+| Offline-first capture queue with clear status and auto-retry                            | <mark class="highlight-red">High</mark>      | <mark class="highlight-purple">XL</mark> |
+| Background sync continues when the app is in your pocket                                | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
+| Photo coach warns for blur, glare, or low light                                         | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
+| Low-light \u201Cnight mode\u201D pre-processing for barn/garage lighting                | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
+| Batch mode: capture several receipts in one session                                     | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-purple">XL</mark> |
+| Detect possible duplicates and suggest merge                                            | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
+| Suggest vendor from text and location; learn aliases over time                          | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
+| Smart tag suggestions (enterprise, field, project) from history and GPS                 | <mark class="highlight-red">High</mark>      | <mark class="highlight-purple">XL</mark> |
+| Auto-categorize line items to tags; improve from user edits                             | <mark class="highlight-red">High</mark>      | <mark class="highlight-purple">XL</mark> |
+| Flag suspicious totals (missing currency symbol, extra zeros) and suggest a retake      | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
+| Share extension: \u201CAdd to Headwater\u201D from camera roll                          | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
+| Email ingest: forward receipts to a workspace address                                   | <mark class="highlight-red">High</mark>      | <mark class="highlight-green">LG</mark>  |
+| Text a photo to a workspace number; auto-attach to the right account                    | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-purple">XL</mark> |
+| Voice note attachment with transcription for context (\u201Cfuel for hay harvest\u201D) | <mark class="highlight-blue">Low</mark>      | <mark class="highlight-green">LG</mark>  |
+| Review queue for low-confidence extractions so support can fix quickly                  | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
+| Sync status panel with errors and tap-to-retry                                          | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-blue">SM</mark>   |
+| Accessibility: larger capture button and high-contrast UI                               | <mark class="highlight-blue">Low</mark>      | <mark class="highlight-blue">SM</mark>   |
+| Privacy blur for card numbers and home addresses                                        | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
+| Audit trail: who captured, when, and where                                              | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
+| Reprocess older images when text-recognition models improve                             | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
+| Monthly export: zipped images plus CSV for your accountant                              | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
+| \u201CFirst-run\u201D guided capture that teaches framing in three screens              | <mark class="highlight-blue">Low</mark>      | <mark class="highlight-blue">SM</mark>   |
         `,
     });
 
     {
-        // Narration: “Yesterday’s brainstorm needs to become a plan. Now”
+        // Narration: "Yesterday's brainstorm needs to become a plan. Now"
         const brainstormPost = await designChannel.createPost(
             mattRHorn,
             assertPostContent(
@@ -1160,12 +1160,12 @@ field when they receive them. Comment on ideas you like!
                     return schema.node("doc", {}, [
                         schema.node("paragraph", {}, [
                             schema.text(
-                                "Great brainstorm yesterday guys! Here’s the doc again. We’ve got so many great comments (50+!) y’all have a lot of feedback.",
+                                "Great brainstorm yesterday guys! Here\u2019s the doc again. We\u2019ve got so many great comments (50+!) y\u2019all have a lot of feedback.",
                             ),
                         ]),
                         schema.node("paragraph", {}, [
                             schema.text(
-                                "Given we’re pivoting to work on this in Q2 how should we divide up the work ",
+                                "Given we\u2019re pivoting to work on this in Q2 how should we divide up the work ",
                             ),
                             schema.node("mention", {
                                 mention: cast<ContentMention>({
@@ -1425,8 +1425,8 @@ May 31. Our audience is row-crop producers. Specifically operations with 500-5k 
 
 Key messages:
 
-- “Know your margins per acre and per head”
-- “Drill from dashboard to ledger in one click”
+- \u201CKnow your margins per acre and per head\u201D
+- \u201CDrill from dashboard to ledger in one click\u201D
 
 Deliverables:
 
@@ -1455,15 +1455,15 @@ CTA:
     await promiseWaiter.wait();
 
     {
-        // Narration: “The app’s down. Your team is stuck”
+        // Narration: "The app's down. Your team is stuck"
         const downtimePost = await engineeringChannel.createPost(
             masonClay,
             markdown`
 # 🚨 Downtime
 
-We’re seeing 500s for ~70% of all requests to \`AppService\`! A rollback didn’t work. I’m searching
-through commits to try and find what changed that could cause this but I’m going to need some help
-investigating.
+We\u2019re seeing 500s for ~70% of all requests to \`AppService\`! A rollback didn\u2019t work.
+I\u2019m searching through commits to try and find what changed that could cause this but I\u2019m
+going to need some help investigating.
 
 The stack trace:
 
@@ -1495,7 +1495,7 @@ InternalError: Assertion failure
 wow what a terrible error message. we should add a recommendation to the style guide to add messages
 for assertions
 
-i’ll try to reproduce locally…
+i\u2019ll try to reproduce locally…
             `,
             {
                 overrideCreatedTime: baseTime
@@ -1514,7 +1514,7 @@ i’ll try to reproduce locally…
     await engineeringChannel.createPost(
         cassCade,
         markdown`
-Below are the first five pilot programs we’re mapping, plus owners and key dates.
+Below are the first five pilot programs we\u2019re mapping, plus owners and key dates.
 
 | Program                               | Launch Tier | Owner                                                                                      | Key Deadline |
 | ------------------------------------- | ----------- | ------------------------------------------------------------------------------------------ | ------------ |
@@ -1526,7 +1526,7 @@ Below are the first five pilot programs we’re mapping, plus owners and key dat
 
 Feedback needed
 
--   Should we default the checklist to “producer view” or “advisor view” first?
+-   Should we default the checklist to \u201Cproducer view\u201D or \u201Cadvisor view\u201D first?
 -   Any missing fields for operation type or acreage bands?
         `,
         {
@@ -1547,10 +1547,10 @@ KPI snapshot: May 12-19
 - Grant applications started: 61; submitted: 19
 - Dashboard drill-through rate: 34% (+5pp)
 
-What’s next
+What\u2019s next
 
 - Trim first-run tooltips by 30% to reduce bounce.
-- Enable “unknown vendor” queue review for CS team.
+- Enable \u201Cunknown vendor\u201D queue review for CS team.
 
 Small win: a producer in Nebraska cut weekly sorting time from 90 to 25 minutes after adopting tags.
 Nice work, team!
@@ -1563,14 +1563,14 @@ Nice work, team!
     // Wait for post feed candidate entry to be added.
     await promiseWaiter.wait();
 
-    // Narration: “Investor pitch in five minutes. You’re not ready”
+    // Narration: "Investor pitch in five minutes. You're not ready"
     //
     // Stage directions: Protagonist should react with the "oh no" tree when
     // reading this.
     await fundraisingChannel.createPost(
         cassCade,
         markdown`
-Remember we’re meeting with Audacious Ventures in _five minutes_. Make sure you’re ready
+Remember we\u2019re meeting with Audacious Ventures in _five minutes_. Make sure you\u2019re ready
 [Rose](https://alpine.inc/s/${space.id}/accounts/${roseCompas.account.id}?mention=short). This is the
 big one! You got this!
         `,
@@ -1618,8 +1618,8 @@ async function createLaunchVideoDocuments({
 
                 title: "Pitch Deck (Series A)",
                 body: markdown`
-Agriculture is a $2T market in the US alone. We’ve demonstrated our accounting software works for
-small family business farms. We’re raising a series A to accelerate our move up market.
+Agriculture is a $2T market in the US alone. We\u2019ve demonstrated our accounting software works for
+small family business farms. We\u2019re raising a series A to accelerate our move up market.
 
 ---
 

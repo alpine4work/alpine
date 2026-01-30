@@ -44,7 +44,7 @@ export async function createAccessPolicyPermissionDeniedError(
     if (context.actor.type === "Anonymous") {
         return unauthenticatedSessionError();
     } else if (context.actor.type === "System" && context.actor.getSpaceId() !== spaceId) {
-        return new PermissionDeniedError("System actor doesn’t have access to space", {
+        return new PermissionDeniedError("System actor doesn\u2019t have access to space", {
             aggregateDedupeKey,
         });
     } else if (
@@ -52,7 +52,7 @@ export async function createAccessPolicyPermissionDeniedError(
         context.actor.getSpaceId() !== spaceId
     ) {
         return new PermissionDeniedError(
-            "Impersonated account actor doesn’t have access to space",
+            "Impersonated account actor doesn\u2019t have access to space",
             {aggregateDedupeKey},
         );
     } else if (
@@ -69,7 +69,7 @@ export async function createAccessPolicyPermissionDeniedError(
         );
     } else {
         return new PermissionDeniedError(
-            quote`Actor doesn’t have ${expectedAccessLevel} access level`,
+            quote`Actor doesn\u2019t have ${expectedAccessLevel} access level`,
             {
                 aggregateDedupeKey,
                 displayMessage: displayMessages[expectedAccessLevel],

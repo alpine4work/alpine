@@ -351,7 +351,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             });
 
             promise.catch(error => {
-                reporter.displayError("Couldn’t upload file", error);
+                reporter.displayError("Couldn\u2019t upload file", error);
             });
 
             return promise;

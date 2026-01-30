@@ -798,7 +798,7 @@ test("can update collections", async ({page, context: browserContext}) => {
     await page.keyboard.type("test2");
 
     // Wait for loading to finish...
-    await expect(page.getByText("Create collection “test2”")).toBeVisible();
+    await expect(page.getByText("Create collection \u201Ctest2\u201D")).toBeVisible();
 
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");

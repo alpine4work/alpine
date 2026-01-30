@@ -4,7 +4,7 @@ const reactionIdsArray = Object.values(reactionIds).flatMap(ids =>
     Object.values(ids).flatMap(ids => Object.values(ids)),
 );
 
-test("`reactionIds` doesn’t include zero", () => {
+test("`reactionIds` doesn\u2019t include zero", () => {
     expect(reactionIdsArray.includes(0)).toEqual(false);
 });
 

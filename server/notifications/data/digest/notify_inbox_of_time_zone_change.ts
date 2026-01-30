@@ -42,7 +42,7 @@ export async function notifyInboxOfTimeZoneChange(
                         accountId: inboxItem.accountId,
                     },
                     item => {
-                        assert(item, "Can’t update time zone for inbox that no longer exists");
+                        assert(item, "Can\u2019t update time zone for inbox that no longer exists");
 
                         return item.update({
                             digestNotificationsNextScheduledDateTime: newScheduledDigest,

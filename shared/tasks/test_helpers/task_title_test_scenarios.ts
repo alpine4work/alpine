@@ -47,7 +47,7 @@ export const wordTaskTitleTestScenario = {
  * [1]: https://unicode.org/reports/tr29/#Default_Word_Boundaries
  */
 export const sentenceTaskTitleTestScenario = {
-    // "The quick (“brown”) fox can’t jump 32.3 feet, right?"
+    // "The quick ("brown") fox can't jump 32.3 feet, right?"
     title: decodeBase64(
         "AAAG6cGihw8AAQAAAwcABEA9ZG9jVGhlIHF1aWNrICjigJxicm93buKAnSkgZm94IGNhbuKAmXQganVtcCAzMi4zIGZlZXQsIHJpZ2h0PwM0AwEAAAEGAAECAAA=",
     ) as TaskTitle,

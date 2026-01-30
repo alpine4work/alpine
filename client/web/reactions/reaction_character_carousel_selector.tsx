@@ -92,7 +92,7 @@ export function ReactionCharacterCarouselSelector() {
                 <IconButton
                     size="md"
                     description="Previous character"
-                    pressErrorTitle="Couldn’t update your character"
+                    pressErrorTitle="Couldn\u2019t update your character"
                     onPress={async () => {
                         const nextCharacter =
                             characterIndex > 0
@@ -145,7 +145,7 @@ export function ReactionCharacterCarouselSelector() {
                 <IconButton
                     size="md"
                     description="Next character"
-                    pressErrorTitle="Couldn’t update your character"
+                    pressErrorTitle="Couldn\u2019t update your character"
                     onPress={async () => {
                         const nextCharacter =
                             characterIndex < characters.length - 1
@@ -263,7 +263,7 @@ export function ReactionCharacterCarouselSelector() {
                                                 setPendingCharacterFromCarousel(null);
 
                                                 reporter.displayError(
-                                                    "Couldn’t update your character",
+                                                    "Couldn\u2019t update your character",
                                                     error,
                                                 );
                                             },

@@ -66,7 +66,7 @@ export async function* processCommentsQuery(
             currentItem.payload.clerical?.type !== "Stream"
         ) {
             if (currentStreamItem !== null || currentStreamPartItems !== null) {
-                throw new DataLossError("Stream items found for comment that isn’t a stream");
+                throw new DataLossError("Stream items found for comment that isn\u2019t a stream");
             }
         } else {
             if (currentStreamItem === null) {

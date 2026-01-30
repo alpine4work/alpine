@@ -312,7 +312,7 @@ describe("intoApiMessageContentPayloadParent", () => {
             });
         });
 
-        test("doesn’t include bold marks in content snippet", async () => {
+        test("doesn\u2019t include bold marks in content snippet", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot = await TestBot.createAndInstantiate(session);
@@ -352,7 +352,7 @@ describe("intoApiMessageContentPayloadParent", () => {
             });
         });
 
-        test("doesn’t include italic marks in content snippet", async () => {
+        test("doesn\u2019t include italic marks in content snippet", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot = await TestBot.createAndInstantiate(session);

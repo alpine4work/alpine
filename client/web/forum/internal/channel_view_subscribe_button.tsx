@@ -28,8 +28,8 @@ export function ChannelViewSubscribeButton({
                 paddingX="2.5"
                 pressErrorTitle={
                     !isSubscribed
-                        ? "Couldn’t subscribe to channel"
-                        : "Couldn’t unsubscribe from channel"
+                        ? "Couldn\u2019t subscribe to channel"
+                        : "Couldn\u2019t unsubscribe from channel"
                 }
                 onPress={async () => {
                     if (isSubscribed) {

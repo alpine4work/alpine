@@ -122,13 +122,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: null,
                 session2: null,
                 session3: null,
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -137,8 +137,8 @@ const testCases: Record<
                     session3: null,
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -146,13 +146,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: null,
                 session2: null,
                 session3: null,
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -161,8 +161,8 @@ const testCases: Record<
                     session3: null,
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -170,13 +170,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: null,
                 session2: null,
                 session3: null,
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -185,8 +185,8 @@ const testCases: Record<
                     session3: null,
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -196,13 +196,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task collection was deleted",
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: "Task collection was deleted",
                 session2: "Task collection was deleted",
                 session3: "Task collection was deleted",
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -211,8 +211,8 @@ const testCases: Record<
                     session3: "Task collection was deleted",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -220,13 +220,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task collection was deleted",
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: "Task collection was deleted",
                 session2: "Task collection was deleted",
                 session3: "Task collection was deleted",
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -235,8 +235,8 @@ const testCases: Record<
                     session3: "Task collection was deleted",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -244,13 +244,13 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task collection was deleted",
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: "Task collection was deleted",
                 session2: "Task collection was deleted",
                 session3: "Task collection was deleted",
-                otherSession: "Account doesn’t have access to space",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
@@ -259,8 +259,8 @@ const testCases: Record<
                     session3: "Task collection was deleted",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -270,23 +270,23 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: null,
                 session2: null,
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
                     session2: null,
-                    session3: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -294,23 +294,23 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: null,
                 session2: null,
-                session3: "Actor doesn’t have `Comment` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `Comment` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
                     session2: null,
-                    session3: "Actor doesn’t have `Comment` access level",
+                    session3: "Actor doesn\u2019t have `Comment` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -318,23 +318,23 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: null,
-                session2: "Actor doesn’t have `Edit` access level",
-                session3: "Actor doesn’t have `Edit` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `Edit` access level",
+                session3: "Actor doesn\u2019t have `Edit` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
-                    session2: "Actor doesn’t have `Edit` access level",
-                    session3: "Actor doesn’t have `Edit` access level",
+                    session2: "Actor doesn\u2019t have `Edit` access level",
+                    session3: "Actor doesn\u2019t have `Edit` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -344,23 +344,23 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task collection was deleted",
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: "Task collection was deleted",
                 session2: "Task collection was deleted",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: "Task collection was deleted",
                     session2: "Task collection was deleted",
-                    session3: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -368,23 +368,23 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task collection was deleted",
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: "Task collection was deleted",
                 session2: "Task collection was deleted",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: "Task collection was deleted",
                     session2: "Task collection was deleted",
-                    session3: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -392,23 +392,23 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: "Task collection was deleted",
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: "Task collection was deleted",
                 session2: "Task collection was deleted",
-                session3: "Actor doesn’t have `View` access level",
-                otherSession: "Account doesn’t have access to space",
+                session3: "Actor doesn\u2019t have `View` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: "Task collection was deleted",
                     session2: "Task collection was deleted",
-                    session3: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn\u2019t have `View` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -442,23 +442,23 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: null,
-                session2: "Actor doesn’t have `Comment` access level",
-                session3: "Actor doesn’t have `Comment` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `Comment` access level",
+                session3: "Actor doesn\u2019t have `Comment` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
-                    session2: "Actor doesn’t have `Comment` access level",
-                    session3: "Actor doesn’t have `Comment` access level",
+                    session2: "Actor doesn\u2019t have `Comment` access level",
+                    session3: "Actor doesn\u2019t have `Comment` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },
@@ -466,23 +466,23 @@ const testCases: Record<
             anonymous: "Unauthenticated session",
             system: {
                 space: null,
-                otherSpace: "System actor doesn’t have access to space",
+                otherSpace: "System actor doesn\u2019t have access to space",
             },
             session: {
                 session1: null,
-                session2: "Actor doesn’t have `Edit` access level",
-                session3: "Actor doesn’t have `Edit` access level",
-                otherSession: "Account doesn’t have access to space",
+                session2: "Actor doesn\u2019t have `Edit` access level",
+                session3: "Actor doesn\u2019t have `Edit` access level",
+                otherSession: "Account doesn\u2019t have access to space",
             },
             impersonatedAccount: {
                 space: {
                     session1: null,
-                    session2: "Actor doesn’t have `Edit` access level",
-                    session3: "Actor doesn’t have `Edit` access level",
+                    session2: "Actor doesn\u2019t have `Edit` access level",
+                    session3: "Actor doesn\u2019t have `Edit` access level",
                 },
                 otherSpace: {
-                    session1: "Impersonated account actor doesn’t have access to space",
-                    otherSession: "Impersonated account actor doesn’t have access to space",
+                    session1: "Impersonated account actor doesn\u2019t have access to space",
+                    otherSession: "Impersonated account actor doesn\u2019t have access to space",
                 },
             },
         },

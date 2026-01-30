@@ -79,12 +79,12 @@ export default function SpaceBotListSettingsRoute() {
 
     const chatGptBot = {
         accountData: useBotSettingsAccount(chatGptBotAccount),
-        tagline: "AI assistant powered by OpenAI’s models",
+        tagline: "AI assistant powered by OpenAI\u2019s models",
     };
 
     const cursorBot = {
         accountData: useBotSettingsAccount(cursorBotAccount),
-        tagline: "Coding agent that’ll make changes for you",
+        tagline: "Coding agent that\u2019ll make changes for you",
     };
 
     const installedBots: Array<{
@@ -111,7 +111,7 @@ export default function SpaceBotListSettingsRoute() {
 
     const botFeedbackPrompt = (
         <Box fontSize="75" color="grey-60" userSelect="text">
-            Want a bot you don’t see here? Let us know:{" "}
+            Want a bot you don&#x2019;t see here? Let us know:{" "}
             <Link color="inherit" url="mailto:feedback@alpine.inc">
                 feedback@alpine.inc
             </Link>

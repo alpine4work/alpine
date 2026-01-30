@@ -75,7 +75,7 @@ export function setMessageReactionWithOptimisticUpdate<
     }).then<true>(() => true);
 
     promise.catch(error => {
-        reporter.displayError(`Couldn’t add reaction to ${messageNoun}`, error);
+        reporter.displayError(`Couldn\u2019t add reaction to ${messageNoun}`, error);
     });
 
     // Adding a reaction archives the inbox entry for the messaging room.
@@ -202,7 +202,7 @@ export function deleteMessageReactionWithOptimisticUpdate<
     }).then<true>(() => true);
 
     promise.catch(error => {
-        reporter.displayError(`Couldn’t remove reaction from ${messageNoun}`, error);
+        reporter.displayError(`Couldn\u2019t remove reaction from ${messageNoun}`, error);
     });
 
     onUpdateMessagesOptimistically(roomKey, promise, (messages, promiseValue) => {

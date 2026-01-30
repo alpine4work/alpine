@@ -59,6 +59,6 @@ export async function getSpaceItemIfExists(
 function createSpaceNotFoundError(spaceId: SpaceId) {
     return new NotFoundError("Space not found", {
         aggregateDedupeKey: spaceId,
-        displayMessage: errorDisplayMessage`This space doesn’t exist.`,
+        displayMessage: errorDisplayMessage`This space doesn\u2019t exist.`,
     });
 }

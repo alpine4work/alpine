@@ -37,7 +37,7 @@ export async function authorizeOwnSpaceAccountAccess(
             // System actors can access any account in their space.
             if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
                 throw new PermissionDeniedError(
-                    "Can’t access account that’s not in the system actor’s space",
+                    "Can\u2019t access account that\u2019s not in the system actor\u2019s space",
                     options,
                 );
             }
@@ -48,7 +48,7 @@ export async function authorizeOwnSpaceAccountAccess(
         case "Bot": {
             if (context.actor.getPossiblyBotAccountId() !== accountId) {
                 throw new PermissionDeniedError(
-                    "Can’t access account that’s not the actor’s",
+                    "Can\u2019t access account that\u2019s not the actor\u2019s",
                     options,
                 );
             }

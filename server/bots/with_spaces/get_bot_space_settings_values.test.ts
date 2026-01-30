@@ -231,7 +231,7 @@ test("bot can see its own secret settings", async () => {
     expect(settings.values.get("secretKey")).toEqual("my-secret-value");
 });
 
-test("bot cannot see other bot’s secret settings", async () => {
+test("bot cannot see other bot\u2019s secret settings", async () => {
     const botA = await TestBot.create(context, {name: "Bot A"});
     const botB = await TestBot.create(context, {name: "Bot B"});
 
@@ -394,7 +394,7 @@ test("members can see which secret properties have values (excluding empty strin
     // Get settings as member
     const settings = await getBotSpaceSettingsValues(memberSession.action(), space.id, bot.id);
 
-    // secretPropertyKeysWithValues doesn’t include the key
+    // secretPropertyKeysWithValues doesn't include the key
     expect(settings.secretPropertyKeysWithValues.has("secretKey")).toEqual(false);
 
     // But values does NOT include the secret

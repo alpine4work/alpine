@@ -109,7 +109,9 @@ export default function SpaceProfileSettingsRoute() {
                 if (!responseBody.ok) throw responseBody.error;
 
                 if (responseBody.type !== "UploadAccountAvatar") {
-                    throw new InternalError(quote`Unexpected response type “${responseBody.type}”`);
+                    throw new InternalError(
+                        quote`Unexpected response type \u201C${responseBody.type}\u201D`,
+                    );
                 }
                 return responseBody;
             },
@@ -158,7 +160,7 @@ export default function SpaceProfileSettingsRoute() {
                         {name !== null && (
                             <InlineEditorToolbar
                                 ref={nameInlineEditorToolbarRef}
-                                saveErrorTitle="Couldn’t save user name"
+                                saveErrorTitle="Couldn\u2019t save user name"
                                 onSave={handleSaveName}
                                 onCancel={handleCancelNameEditing}
                             />
@@ -266,9 +268,9 @@ export default function SpaceProfileSettingsRoute() {
                         </Box>
                         <Box display="flex" flexDirection="row" gap="4">
                             <Box fontSize="75" color="grey-60" userSelect="text">
-                                Support Alpine’s four person team by buying lifetime access for $250
-                                (limited availability, eventually we’ll switch to subscription
-                                pricing)
+                                Support Alpine&#x2019;s four person team by buying lifetime access
+                                for $250 (limited availability, eventually we&#x2019;ll switch to
+                                subscription pricing)
                             </Box>
                         </Box>
                     </Box>
@@ -280,7 +282,7 @@ export default function SpaceProfileSettingsRoute() {
                         <Button
                             variant="accent"
                             isDisabled={hasLifetimeAccess}
-                            pressErrorTitle="Couldn’t purchase lifetime access"
+                            pressErrorTitle="Couldn\u2019t purchase lifetime access"
                             onPress={async () => {
                                 const {result} = await createLifetimeAccessCheckoutSessionUrl(
                                     context,
@@ -318,10 +320,10 @@ export default function SpaceProfileSettingsRoute() {
                         inputRef.current?.focus();
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Couldn’t save user name"
+                    primaryButtonPressErrorTitle="Couldn\u2019t save user name"
                     onPrimaryButtonPress={handleSaveName}
                     cancelButtonLabel="Discard changes"
-                    cancelButtonPressErrorTitle="Couldn’t discard changes"
+                    cancelButtonPressErrorTitle="Couldn\u2019t discard changes"
                     onCancelButtonPress={handleCancelNameEditing}
                 />
             )}

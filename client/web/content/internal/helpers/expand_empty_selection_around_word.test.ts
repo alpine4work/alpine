@@ -208,7 +208,7 @@ test("expands selection around word when words are delimited by dashes", () => {
     });
 });
 
-test("doesn’t expand selection around single letter word", () => {
+test("doesn\u2019t expand selection around single letter word", () => {
     const doc = schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("foo b qux")])]);
 
     expect(

@@ -59,7 +59,7 @@ describe("shouldAgentRespondToRequest", () => {
         expect(result).toBe(true);
     });
 
-    test("returns true when user is responding to agent’s message", async () => {
+    test("returns true when user is responding to agent\u2019s message", async () => {
         const agentAccountId = generateId<AccountId>();
         const chatId = generateId<ChatId>();
 

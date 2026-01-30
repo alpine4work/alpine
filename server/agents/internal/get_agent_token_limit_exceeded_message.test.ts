@@ -3,7 +3,7 @@ import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 describe("getAgentTokenLimitExceededMessage", () => {
     describe("with upsell", () => {
-        test("returns message with ‘today at’ when reset is same day", () => {
+        test("returns message with \u2018today at\u2019 when reset is same day", () => {
             const currentTime = new Date("2025-01-15T15:00:00.000Z"); // 10am EST
             const resetTime = new Date("2025-01-15T23:00:00.000Z"); // 6pm EST
 
@@ -15,11 +15,11 @@ describe("getAgentTokenLimitExceededMessage", () => {
             );
 
             expect(result).toBe(
-                "You’ve reached your agent usage limit. Your limit will reset today at 6:00pm. You can get higher usage limits by purchasing [Alpine lifetime access](https://www.alpine.inc#pricing).",
+                "You\u2019ve reached your agent usage limit. Your limit will reset today at 6:00pm. You can get higher usage limits by purchasing [Alpine lifetime access](https://www.alpine.inc#pricing).",
             );
         });
 
-        test("returns message with ‘tomorrow at’ when reset is next day", () => {
+        test("returns message with \u2018tomorrow at\u2019 when reset is next day", () => {
             const currentTime = new Date("2025-01-15T15:00:00.000Z"); // 10am EST
             const resetTime = new Date("2025-01-16T15:00:00.000Z"); // 10am EST next day
 
@@ -31,7 +31,7 @@ describe("getAgentTokenLimitExceededMessage", () => {
             );
 
             expect(result).toBe(
-                "You’ve reached your agent usage limit. Your limit will reset tomorrow at 10:00am. You can get higher usage limits by purchasing [Alpine lifetime access](https://www.alpine.inc#pricing).",
+                "You\u2019ve reached your agent usage limit. Your limit will reset tomorrow at 10:00am. You can get higher usage limits by purchasing [Alpine lifetime access](https://www.alpine.inc#pricing).",
             );
         });
 
@@ -47,13 +47,13 @@ describe("getAgentTokenLimitExceededMessage", () => {
             );
 
             expect(result).toBe(
-                "You’ve reached your agent usage limit. Your limit will reset on Jan 22nd at 10:00am. You can get higher usage limits by purchasing [Alpine lifetime access](https://www.alpine.inc#pricing).",
+                "You\u2019ve reached your agent usage limit. Your limit will reset on Jan 22nd at 10:00am. You can get higher usage limits by purchasing [Alpine lifetime access](https://www.alpine.inc#pricing).",
             );
         });
     });
 
     describe("without upsell", () => {
-        test("returns message with ‘today at’ when reset is same day", () => {
+        test("returns message with \u2018today at\u2019 when reset is same day", () => {
             const currentTime = new Date("2025-01-15T15:00:00.000Z"); // 10am EST
             const resetTime = new Date("2025-01-15T23:00:00.000Z"); // 6pm EST
 
@@ -65,11 +65,11 @@ describe("getAgentTokenLimitExceededMessage", () => {
             );
 
             expect(result).toBe(
-                "You’ve reached your agent usage limit. Your limit will reset today at 6:00pm.",
+                "You\u2019ve reached your agent usage limit. Your limit will reset today at 6:00pm.",
             );
         });
 
-        test("returns message with ‘tomorrow at’ when reset is next day", () => {
+        test("returns message with \u2018tomorrow at\u2019 when reset is next day", () => {
             const currentTime = new Date("2025-01-15T15:00:00.000Z"); // 10am EST
             const resetTime = new Date("2025-01-16T15:00:00.000Z"); // 10am EST next day
 
@@ -81,7 +81,7 @@ describe("getAgentTokenLimitExceededMessage", () => {
             );
 
             expect(result).toBe(
-                "You’ve reached your agent usage limit. Your limit will reset tomorrow at 10:00am.",
+                "You\u2019ve reached your agent usage limit. Your limit will reset tomorrow at 10:00am.",
             );
         });
 
@@ -97,7 +97,7 @@ describe("getAgentTokenLimitExceededMessage", () => {
             );
 
             expect(result).toBe(
-                "You’ve reached your agent usage limit. Your limit will reset on Jan 22nd at 10:00am.",
+                "You\u2019ve reached your agent usage limit. Your limit will reset on Jan 22nd at 10:00am.",
             );
         });
     });

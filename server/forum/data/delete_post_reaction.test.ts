@@ -32,7 +32,7 @@ test("can remove a reaction from a post", async () => {
     expect((await post.get()).reactions.get()).toEqual(new Map());
 });
 
-test("can’t remove a reaction from a post actor has lost access to", async () => {
+test("can\u2019t remove a reaction from a post actor has lost access to", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -53,7 +53,7 @@ test("can’t remove a reaction from a post actor has lost access to", async () 
     await channel.access.revokeDefault(session1);
 
     await expect(deletePostReaction(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `Comment` access level",
+        "Actor doesn\u2019t have `Comment` access level",
     );
 
     expect((await post.get()).reactions.get()).toEqual(
@@ -88,7 +88,7 @@ test("can remove a reaction from a post where actor only has comment access", as
     expect((await post.get()).reactions.get()).toEqual(new Map());
 });
 
-test("can’t remove a reaction from a post where actor has been downgraded to view access", async () => {
+test("can\u2019t remove a reaction from a post where actor has been downgraded to view access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -111,7 +111,7 @@ test("can’t remove a reaction from a post where actor has been downgraded to v
     await channel.access.grant(session1, session2, "View");
 
     await expect(deletePostReaction(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `Comment` access level",
+        "Actor doesn\u2019t have `Comment` access level",
     );
 
     expect((await post.get()).reactions.get()).toEqual(

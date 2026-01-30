@@ -1248,7 +1248,7 @@ const taskTaskActionTestCases: Array<{
         },
     },
     {
-        name: "updating status resets assignee status even if status doesn’t change",
+        name: "updating status resets assignee status even if status doesn\u2019t change",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1375,7 +1375,7 @@ const taskTaskActionTestCases: Array<{
         },
     },
     {
-        name: "updating assignee resets assignee status even if assignee doesn’t change",
+        name: "updating assignee resets assignee status even if assignee doesn\u2019t change",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1576,7 +1576,7 @@ const taskTaskActionTestCases: Array<{
         },
     },
     {
-        name: "updating status doesn’t reset assignee position",
+        name: "updating status doesn\u2019t reset assignee position",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1732,7 +1732,7 @@ const taskTaskActionTestCases: Array<{
         },
     },
     {
-        name: "updating assignee status doesn’t resets assignee position",
+        name: "updating assignee status doesn\u2019t resets assignee position",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();

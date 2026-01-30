@@ -94,11 +94,11 @@ function getReactionEmotionAltText(emotion: ReactionEmotion): string {
         case "Celebrate":
             return "celebrating";
         case "DeadInside":
-            return "who’s dead inside";
+            return "who\u2019s dead inside";
         case "Hardship":
-            return "who’s sad";
+            return "who\u2019s sad";
         case "Happy":
-            return "who’s happy";
+            return "who\u2019s happy";
         case "Laugh":
             return "laughing";
         case "Lolsob":
@@ -108,11 +108,11 @@ function getReactionEmotionAltText(emotion: ReactionEmotion): string {
         case "Heart":
             return "holding a heart";
         case "Yes":
-            return "holding a sign saying “yes”";
+            return "holding a sign saying \u201Cyes\u201D";
         case "No":
-            return "holding a sign saying “no”";
+            return "holding a sign saying \u201Cno\u201D";
         case "ThankYou":
-            return "holding a sign saying “thank you”";
+            return "holding a sign saying \u201Cthank you\u201D";
         default:
             throw exhaustive(emotion);
     }

@@ -437,7 +437,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
 
         const accountShortName = getAccountShortNameWithoutFullNameTooltip(account.initialData);
 
-        const spaceNameSuffix = "’s Space";
+        const spaceNameSuffix = "\u2019s Space";
 
         // Make sure `spaceName` is under the max label string length by slicing
         // `accountShortName` to a value that will fit with `spaceNameSuffix` added to

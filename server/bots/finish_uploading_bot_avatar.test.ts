@@ -122,7 +122,7 @@ test("returns existing bot when avatar ID is equal (idempotency)", async () => {
     expect(botAfterSecondAvatarUpload).toEqual(botAfterFirstAvatarUpload);
 });
 
-test("throws PermissionDeniedError when user doesn’t have internal access", async () => {
+test("throws PermissionDeniedError when user doesn\u2019t have internal access", async () => {
     const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: "https://example.com/webhook",

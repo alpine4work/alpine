@@ -116,7 +116,7 @@ export type OpensearchRangeQueryClause<FlattenedKeys extends string> = {
 /**
  * Use the `match` query for full-text search of a specific document field. The
  * `match` query analyzes the provided search string and returns documents that
- * match any of the string’s terms.
+ * match any of the string's terms.
  *
  * https://opensearch.org/docs/latest/query-dsl/full-text/index/#match
  */
@@ -135,7 +135,7 @@ export type OpensearchMatchQueryClause<FlattenedKeys extends string> = {
 
 /**
  * Analyzes the provided search string and creates a boolean query from the
- * string’s terms. It uses every term except the last term as a whole word for
+ * string's terms. It uses every term except the last term as a whole word for
  * matching. The last term is used as a prefix.
  *
  * https://docs.opensearch.org/docs/latest/query-dsl/full-text/match-bool-prefix/
@@ -264,7 +264,7 @@ export type OpensearchMustNotBooleanQueryClause<FlattenedKeys extends string> = 
 
 /**
  * Logical `or` operator. The results must match at least one of the queries.
- * Matching more `should` clauses increases the document’s relevance score.
+ * Matching more `should` clauses increases the document's relevance score.
  * You can set the minimum number of queries that must match using the
  * `minimum_should_match` parameter. If a query contains a `must` or `filter`
  * clause, the default `minimum_should_match` value is 0. Otherwise, the

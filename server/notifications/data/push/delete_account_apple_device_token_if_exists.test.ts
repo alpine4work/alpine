@@ -14,7 +14,7 @@ const context = createTestContext({
     spacesInjection,
 });
 
-test("can delete an account’s registered apple devices", async () => {
+test("can delete an account\u2019s registered apple devices", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2] = await runAllPromises([

@@ -193,7 +193,7 @@ export function ContentEditorCommentInputFloater({
         });
 
         promise.catch(error => {
-            reporter.displayError("Couldn’t upload file", error);
+            reporter.displayError("Couldn\u2019t upload file", error);
         });
 
         return promise;
@@ -702,7 +702,7 @@ function ContentEditorCommentInput({
                             size={messageInputEditorIconButtonSize}
                             variant="accent"
                             description="Save comment"
-                            pressErrorTitle="Can’t save comment"
+                            pressErrorTitle="Can\u2019t save comment"
                             onPress={sendComment}
                             isDisabled={isSendButtonDisabled}
                             // The send icon button is not focusable. That's because we don't want to
@@ -837,7 +837,7 @@ function ContentEditorCommentInput({
                         setShouldShowConfirmCloseDialog(false);
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Can’t save comment"
+                    primaryButtonPressErrorTitle="Can\u2019t save comment"
                     onPrimaryButtonPress={sendComment}
                     cancelButtonLabel="Discard comment"
                     onCancelButtonPress={onCloseWithoutAnimation}

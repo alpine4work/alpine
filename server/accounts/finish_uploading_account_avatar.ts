@@ -19,7 +19,9 @@ export async function finishUploadingAccountAvatar(
     },
 ): Promise<AccountModelWithoutSpace> {
     if (context.actor.getAccountId() !== accountId) {
-        throw new PermissionDeniedError("Can’t access account that’s not the actor’s");
+        throw new PermissionDeniedError(
+            "Can\u2019t access account that\u2019s not the actor\u2019s",
+        );
     }
 
     return context.dynamo.retryTransaction(async context => {

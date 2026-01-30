@@ -376,7 +376,7 @@ async function main() {
 
         // eslint-disable-next-line no-console
         console.log(
-            `Matching duplicate versions weren’t found for package \`${packageName}\` that allows duplicate versions`,
+            `Matching duplicate versions weren\u2019t found for package \`${packageName}\` that allows duplicate versions`,
         );
     }
 
@@ -400,7 +400,7 @@ async function main() {
         );
         // eslint-disable-next-line no-console
         console.log(
-            "a newer version can be used. If you can’t easily remove duplicates then you may",
+            "a newer version can be used. If you can\u2019t easily remove duplicates then you may",
         );
         // eslint-disable-next-line no-console
         console.log(
@@ -416,7 +416,7 @@ async function main() {
             "Hint: Update or remove any packages from `allowedDuplicatePackageVersionsByName`",
         );
         // eslint-disable-next-line no-console
-        console.log("that have different duplicate versions than what’s in that map.");
+        console.log("that have different duplicate versions than what\u2019s in that map.");
     }
 
     return {exitCode};

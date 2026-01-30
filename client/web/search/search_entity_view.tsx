@@ -97,7 +97,7 @@ export function SearchEntityView({
                 label: "Copy link",
                 icon: <LinkIcon />,
                 iconPlacement: "end",
-                pressErrorTitle: "Couldn’t copy link",
+                pressErrorTitle: "Couldn\u2019t copy link",
                 onPress: async () => {
                     const path = getCopyPath();
                     const url = new URL(path, window.location.href);
@@ -109,7 +109,7 @@ export function SearchEntityView({
         if (onOpenInPeekStack) {
             firstRightClickContextMenuGroup.push({
                 label: "Open in peek",
-                pressErrorTitle: "Couldn’t open peek",
+                pressErrorTitle: "Couldn\u2019t open peek",
                 onPress: onOpenInPeekStack,
             });
         }
@@ -123,7 +123,7 @@ export function SearchEntityView({
         contextMenuActions.push([
             {
                 label: "Remove from favorites",
-                pressErrorTitle: "Couldn’t remove from favorites",
+                pressErrorTitle: "Couldn\u2019t remove from favorites",
                 onPress: onRemoveFromFavorites,
             },
         ]);
@@ -133,7 +133,7 @@ export function SearchEntityView({
         contextMenuActions.push([
             {
                 label: "Remove from suggested",
-                pressErrorTitle: "Couldn’t remove from suggested",
+                pressErrorTitle: "Couldn\u2019t remove from suggested",
                 onPress: onRemoveFromSuggested,
             },
         ]);

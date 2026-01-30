@@ -1372,7 +1372,7 @@ export function commitTaskActionTransaction(
         // In our local environment, before committing make sure task indexes exist.
         // That way:
         //
-        // 1. If there’s an error creating task indexes it prevents actions from being
+        // 1. If there's an error creating task indexes it prevents actions from being
         //    committed
         // 2. There are no timeout warnings when processing task actions after they're
         //    committed (since ensuring task indexes may take a while)
@@ -1389,7 +1389,7 @@ export function commitTaskActionTransaction(
             )
         ) {
             throw new FailedPreconditionError(
-                "Can only provide `updateAccessPolicyShareNotification` if there’s an `UpdateAccessPolicy` action in the transaction",
+                "Can only provide `updateAccessPolicyShareNotification` if there\u2019s an `UpdateAccessPolicy` action in the transaction",
             );
         }
 
@@ -1738,7 +1738,7 @@ class TaskActionTransactionCommitState {
 
                     assert(
                         forkedState._afterCommitActions.length === 0,
-                        "Can’t register after commit callbacks for lease actions since we don’t commit lease actions when creating the lease",
+                        "Can\u2019t register after commit callbacks for lease actions since we don\u2019t commit lease actions when creating the lease",
                     );
                 } catch (error) {
                     if (error instanceof PermissionDeniedError) {
@@ -1760,11 +1760,14 @@ class TaskActionTransactionCommitState {
 
                         assert(
                             testState._afterCommitActions.length === 0,
-                            "Can’t register after commit callbacks for lease actions since we don’t commit lease actions when creating the lease",
+                            "Can\u2019t register after commit callbacks for lease actions since we don\u2019t commit lease actions when creating the lease",
                         );
                     } catch (error) {
                         if (error instanceof PermissionDeniedError) {
-                            throw PermissionDeniedError.from(error, "Couldn’t apply lease actions");
+                            throw PermissionDeniedError.from(
+                                error,
+                                "Couldn\u2019t apply lease actions",
+                            );
                         } else {
                             throw error;
                         }
@@ -2070,7 +2073,9 @@ class TaskActionTransactionCommitState {
                 break;
             case "DirectlyUpdateItem":
             case "DirectlyUpdateItemLockVersion":
-                throw new FailedPreconditionError("Can’t update a task before it’s created");
+                throw new FailedPreconditionError(
+                    "Can\u2019t update a task before it\u2019s created",
+                );
             default:
                 throw exhaustive(transactionEntry.action);
         }
@@ -2244,7 +2249,9 @@ class TaskActionTransactionCommitState {
                 break;
             case "DirectlyUpdateItem":
             case "AtomicallyUpdateItemAttributes":
-                throw new FailedPreconditionError("Can’t update a collection before it’s created");
+                throw new FailedPreconditionError(
+                    "Can\u2019t update a collection before it\u2019s created",
+                );
             default:
                 throw exhaustive(transactionEntry);
         }
@@ -2436,7 +2443,7 @@ class TaskActionTransactionCommitState {
     }
 }
 
-const circularTaskDependencyErrorDisplayMessage = errorDisplayMessage`Can’t move a task to the subtasks of one of its own subtasks. Check your task’s subtasks and try removing the one you want to move your task into.`;
+const circularTaskDependencyErrorDisplayMessage = errorDisplayMessage`Can\u2019t move a task to the subtasks of one of its own subtasks. Check your task\u2019s subtasks and try removing the one you want to move your task into.`;
 
 async function actuallyCommitTaskActionTransaction(
     // We intentionally don't pass in `context` since we want all DynamoDB access
@@ -2672,7 +2679,7 @@ async function actuallyCommitTaskActionTransaction(
 
                                         if (taskId === taskAction.parentTaskId) {
                                             throw new FailedPreconditionError(
-                                                "Updating task’s `parentTaskId` would create a circular dependency",
+                                                "Updating task\u2019s `parentTaskId` would create a circular dependency",
                                                 {
                                                     displayMessage:
                                                         circularTaskDependencyErrorDisplayMessage,
@@ -2715,7 +2722,7 @@ async function actuallyCommitTaskActionTransaction(
                                                 )
                                             ) {
                                                 throw new FailedPreconditionError(
-                                                    "Updating task’s `parentTaskId` would create a circular dependency",
+                                                    "Updating task\u2019s `parentTaskId` would create a circular dependency",
                                                     {
                                                         displayMessage:
                                                             circularTaskDependencyErrorDisplayMessage,
@@ -2874,7 +2881,9 @@ async function actuallyCommitTaskActionTransaction(
                                 }
 
                                 if (taskItem.parentTaskId.value === null) {
-                                    throw new FailedPreconditionError("Task doesn’t have a parent");
+                                    throw new FailedPreconditionError(
+                                        "Task doesn\u2019t have a parent",
+                                    );
                                 }
 
                                 const parentTaskItem = await state.getTaskItem(
@@ -3108,7 +3117,7 @@ async function actuallyCommitTaskActionTransaction(
                                     ))
                                 ) {
                                     throw new FailedPreconditionError(
-                                        "Can’t assign a task to an account outside of the current space",
+                                        "Can\u2019t assign a task to an account outside of the current space",
                                     );
                                 }
 
@@ -3154,13 +3163,13 @@ async function actuallyCommitTaskActionTransaction(
 
                                 if (taskItem.assigneeId.value !== state.getActorAccountId()) {
                                     throw new PermissionDeniedError(
-                                        "Can only update the task’s assignee position if you are the task’s assignee",
+                                        "Can only update the task\u2019s assignee position if you are the task\u2019s assignee",
                                     );
                                 }
 
                                 if (taskAction.accountId !== state.getActorAccountId()) {
                                     throw new PermissionDeniedError(
-                                        "Must use the actor `AccountId` when updating the task’s assignee position",
+                                        "Must use the actor `AccountId` when updating the task\u2019s assignee position",
                                     );
                                 }
                                 break;
@@ -3183,7 +3192,7 @@ async function actuallyCommitTaskActionTransaction(
                             case "UpdateNotepadPagePosition":
                             case "UpdateAssigneeActivePosition": {
                                 throw new InvalidArgumentError(
-                                    quote`Can’t commit deprecated task action type ${action.taskAction.type}`,
+                                    quote`Can\u2019t commit deprecated task action type ${action.taskAction.type}`,
                                 );
                             }
                             default:
@@ -3471,7 +3480,7 @@ async function actuallyCommitTaskActionTransaction(
             }
             case "UpdateNotepadPage": {
                 throw new InvalidArgumentError(
-                    quote`Can’t commit deprecated action type ${action.type}`,
+                    quote`Can\u2019t commit deprecated action type ${action.type}`,
                 );
             }
             default:
@@ -3893,7 +3902,7 @@ export function duplicateTaskAndAllChildren(
                     if (childTask.type !== "Authorized") return;
                     if (childTask.task.getParent()?.taskId !== currentTaskId) return;
 
-                    // There’s an edge case / race condition where we could produce a cycle. If so,
+                    // There's an edge case / race condition where we could produce a cycle. If so,
                     // just ignore the child task and break the cycle.
                     // There is an incredibly small chance where  we would try to fetch the same
                     // task multiple times AFTER this check. We don't handle that here.
@@ -4643,7 +4652,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "System actor doesn’t have access to task’s space",
+                        "System actor doesn\u2019t have access to task\u2019s space",
                     ),
                 };
             }
@@ -4661,7 +4670,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "Impersonated account actor doesn’t have access to task’s space",
+                        "Impersonated account actor doesn\u2019t have access to task\u2019s space",
                     ),
                 };
             }
@@ -5203,7 +5212,7 @@ export async function getTaskCommentAtVersion(
             }
 
             if (item.version < version) {
-                throw new FailedPreconditionError("Can’t get message at a future version");
+                throw new FailedPreconditionError("Can\u2019t get message at a future version");
             }
 
             return item;
@@ -5446,10 +5455,12 @@ export function deleteTaskComment(
             throw new PermissionDeniedError("Can only delete task comments you authored");
 
         if (taskCommentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can’t delete comments with a non-content payload");
+            throw new FailedPreconditionError(
+                "Can\u2019t delete comments with a non-content payload",
+            );
 
         if (taskCommentItem.payload.clerical)
-            throw new FailedPreconditionError("Can’t delete clerical comments");
+            throw new FailedPreconditionError("Can\u2019t delete clerical comments");
 
         const deletedTime = new Date();
 
@@ -5980,8 +5991,8 @@ export function putTaskCommentStreamPart(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -6300,8 +6311,8 @@ export function completeTaskCommentStream(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -6444,8 +6455,8 @@ export function pingTaskCommentStream(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -7663,7 +7674,7 @@ export async function getTaskNotesContent(
  * It's important that task note updating should be solely managed by the
  * `TaskNotesCollaborationService` Durable Object. If you get an incorrect
  * version error, we don't know what steps you're missing since we don't keep
- * track of old steps (unlike document content). There’s no way to recover!
+ * track of old steps (unlike document content). There's no way to recover!
  */
 export function updateTaskNotesContent(
     context: ServerSessionActionContext,
@@ -7742,7 +7753,7 @@ export function updateTaskNotesContent(
                     const stepResult = step.apply(content);
                     if (!stepResult.doc) {
                         throw new FailedPreconditionError(
-                            `Couldn’t apply step to content: ${stepResult.failed!}`,
+                            `Couldn\u2019t apply step to content: ${stepResult.failed!}`,
                         );
                     }
 
@@ -7769,7 +7780,7 @@ export function updateTaskNotesContent(
                     const stepResult = step.apply(content);
                     if (!stepResult.doc) {
                         throw new FailedPreconditionError(
-                            `Couldn’t apply step to content: ${stepResult.failed!}`,
+                            `Couldn\u2019t apply step to content: ${stepResult.failed!}`,
                         );
                     }
 
@@ -7785,7 +7796,7 @@ export function updateTaskNotesContent(
                 };
             }
 
-            // If a task's notes changed and there’s a lease, invalidate the lease so the
+            // If a task's notes changed and there's a lease, invalidate the lease so the
             // account who owns the lease can't see changes to a task they shouldn't have
             // access to.
             if (taskItem.validLeaseId === null) {

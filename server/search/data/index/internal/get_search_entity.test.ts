@@ -324,7 +324,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     embeddingChunks: [
                         {
                             preambleEndIndex: 47,
-                            text: "This is a post in the “Test Channel” channel:\n\nTest post content.",
+                            text: "This is a post in the \u201CTest Channel\u201D channel:\n\nTest post content.",
                             tokenCountWithoutPreamble: 4,
                         },
                     ],
@@ -396,7 +396,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
         });
     },
     Chat: () => {
-        test("can’t get 1:1 chat search entity", async () => {
+        test("can\u2019t get 1:1 chat search entity", async () => {
             const space = await TestSpace.create(context);
             const session1 = await space.createSession({name: "Caleb Meredith"});
             const session2 = await space.createSession({name: "Josh Meredith"});

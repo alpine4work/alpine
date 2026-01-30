@@ -51,7 +51,7 @@ export default function CreateSpaceRoute() {
                     height="8"
                     isDisabled={name.trim().length === 0}
                     variant="accent"
-                    pressErrorTitle="Couldn’t create a space"
+                    pressErrorTitle="Couldn\u2019t create a space"
                     onPress={async () => {
                         const {space} = await createSpace(appContext, {
                             name,

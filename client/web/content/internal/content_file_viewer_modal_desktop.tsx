@@ -251,7 +251,7 @@ export function ContentFileViewerModalDesktop({
                                     icon={<DownloadSimple />}
                                     iconGap="1.5"
                                     isDisabled={file.isUploading}
-                                    pressErrorTitle={`Couldn’t download ${getFileContentTypeNoun(
+                                    pressErrorTitle={`Couldn\u2019t download ${getFileContentTypeNoun(
                                         file.contentType,
                                     )}`}
                                     onPress={() => {
@@ -293,7 +293,7 @@ export function ContentFileViewerModalDesktop({
                                             title={
                                                 error instanceof ContentFileProcessorError
                                                     ? error.title
-                                                    : `Couldn’t open ${getFileContentTypeNoun(
+                                                    : `Couldn\u2019t open ${getFileContentTypeNoun(
                                                           file.contentType,
                                                       )}`
                                             }

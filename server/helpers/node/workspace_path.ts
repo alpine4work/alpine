@@ -4,7 +4,7 @@ let workspacePath: string | null = null;
 
 /**
  * The absolute file system path to the source directory our Cyberworlds
- * repository lives in no matter what environment we’re executing in.
+ * repository lives in no matter what environment we're executing in.
  *
  * This is not Bazel's execution root directory or a runfiles directory. This
  * is the source git repository checked out by the developer they edit files
@@ -21,7 +21,7 @@ let workspacePath: string | null = null;
 export function getWorkspacePath() {
     workspacePath ??= assertExists(
         process.env.BUILD_WORKSPACE_DIRECTORY,
-        "Can’t get the workspace path when running in a Bazel sandbox",
+        "Can\u2019t get the workspace path when running in a Bazel sandbox",
     );
     return workspacePath;
 }

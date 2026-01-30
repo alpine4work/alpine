@@ -121,7 +121,7 @@ function AlphaAccessRequest({
                 </Box>
                 <Button
                     variant="quiet"
-                    pressErrorTitle="Couldn’t deny access request"
+                    pressErrorTitle="Couldn\u2019t deny access request"
                     onPress={async () => {
                         await denyAlphaAccessRequest(context, {
                             emailAddress: request.emailAddress,
@@ -133,7 +133,7 @@ function AlphaAccessRequest({
                 </Button>
                 <Button
                     variant="accent"
-                    pressErrorTitle="Couldn’t approve access request"
+                    pressErrorTitle="Couldn\u2019t approve access request"
                     onPress={async () => {
                         await approveAlphaAccessRequest(context, {
                             emailAddress: request.emailAddress,

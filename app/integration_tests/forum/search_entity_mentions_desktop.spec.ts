@@ -215,7 +215,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
     });
 
     test(
-        quote`can render ${entityType} immediately after creation (possibly before it’s indexed)`,
+        quote`can render ${entityType} immediately after creation (possibly before it\u2019s indexed)`,
         async ({context: browserContext, page, viewport}) => {
             assert(viewport);
 

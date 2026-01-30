@@ -245,7 +245,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                       size="base"
                                       description="Close"
                                       withoutTooltip={true}
-                                      pressErrorTitle="Couldn’t close"
+                                      pressErrorTitle="Couldn\u2019t close"
                                       onPress={onMobileClose}
                                   >
                                       <X />
@@ -261,7 +261,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                       <Button
                                           paddingX="2"
                                           fontSize="100"
-                                          pressErrorTitle="Couldn’t cancel"
+                                          pressErrorTitle="Couldn\u2019t cancel"
                                           onPress={onMobileCancel}
                                       >
                                           Cancel
@@ -281,7 +281,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                           size="base"
                                           description="Go back"
                                           withoutTooltip={true}
-                                          pressErrorTitle="Couldn’t go back"
+                                          pressErrorTitle="Couldn\u2019t go back"
                                           onPress={handleBackButtonPress}
                                       >
                                           <ArrowLeft />
@@ -776,7 +776,7 @@ function createShareMenuItem({
                 )
             ) : undefined,
         iconPlacement: "end",
-        pressErrorTitle: "Couldn’t share",
+        pressErrorTitle: "Couldn\u2019t share",
         onPress: onShare,
         extraActions:
             platform === "desktop" ? (

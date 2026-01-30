@@ -67,7 +67,7 @@ export async function resizeAvatar(
 
         if (!result) {
             throw new InternalError("Failed to resize avatar", {
-                displayMessage: errorDisplayMessage`We couldn’t upload your avatar. Please try again or use a different image.`,
+                displayMessage: errorDisplayMessage`We couldn\u2019t upload your avatar. Please try again or use a different image.`,
             });
         }
 
@@ -205,7 +205,7 @@ async function resizeAvatarAttempt({
         } catch (error) {
             if (error instanceof InvalidArgumentError) {
                 throw new InvalidArgumentError(error.message, {
-                    displayMessage: errorDisplayMessage`This image format isn’t supported. Please upload a different image.`,
+                    displayMessage: errorDisplayMessage`This image format isn\u2019t supported. Please upload a different image.`,
                 });
             }
 

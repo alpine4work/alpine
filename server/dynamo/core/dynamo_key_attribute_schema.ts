@@ -584,7 +584,7 @@ export class DynamoKeyAttributeSchema<Value> {
                 assert(
                     !value.startsWith(maxLabelStringForDynamoKeyAttribute) ||
                         value === maxLabelStringForDynamoKeyAttribute,
-                    "Can’t start a label string with U+10FFFF",
+                    "Can\u2019t start a label string with U+10FFFF",
                 );
 
                 const serializedString = baseSchema.serialize(value);

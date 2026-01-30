@@ -129,7 +129,7 @@ test("loads a query with three tasks", async () => {
     });
 });
 
-test("can’t load a query as the wrong space", async () => {
+test("can\u2019t load a query as the wrong space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -170,7 +170,7 @@ test("can’t load a query as the wrong space", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can’t apply an action transaction as the wrong space", async () => {
+test("can\u2019t apply an action transaction as the wrong space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -722,7 +722,7 @@ test("will load with a negative limit", async () => {
     });
 });
 
-test("won’t load with a non-integer limit", async () => {
+test("won\u2019t load with a non-integer limit", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     await runAllPromises([
@@ -1393,7 +1393,7 @@ test("can load while server receiving action transactions is delayed (scenario 2
     });
 });
 
-test("load can’t introduce new task data which moves task outside of loaded range", async () => {
+test("load can\u2019t introduce new task data which moves task outside of loaded range", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1514,7 +1514,7 @@ test("load can’t introduce new task data which moves task outside of loaded ra
     });
 });
 
-test("load can’t introduce new task data which keeps task inside loaded range", async () => {
+test("load can\u2019t introduce new task data which keeps task inside loaded range", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1639,7 +1639,7 @@ test("load can’t introduce new task data which keeps task inside loaded range"
     });
 });
 
-test("load can’t introduce new task data which removes task from query", async () => {
+test("load can\u2019t introduce new task data which removes task from query", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1767,7 +1767,7 @@ test("load can’t introduce new task data which removes task from query", async
     });
 });
 
-test("load can’t introduce new task data which adds updated task to query", async () => {
+test("load can\u2019t introduce new task data which adds updated task to query", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1914,7 +1914,7 @@ test("load can’t introduce new task data which adds updated task to query", as
     });
 });
 
-test("load can’t introduce new task data which adds fresh task to query", async () => {
+test("load can\u2019t introduce new task data which adds fresh task to query", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2038,7 +2038,7 @@ test("load can’t introduce new task data which adds fresh task to query", asyn
     });
 });
 
-test("load gets task that’s ahead of actions when it’s fresh", async () => {
+test("load gets task that\u2019s ahead of actions when it\u2019s fresh", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2162,7 +2162,7 @@ test("load gets task that’s ahead of actions when it’s fresh", async () => {
     });
 });
 
-test("load gets old task at old position that’s ahead of actions when already loaded", async () => {
+test("load gets old task at old position that\u2019s ahead of actions when already loaded", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2305,7 +2305,7 @@ test("load gets old task at old position that’s ahead of actions when already 
     });
 });
 
-test("load gets old task at old position that’s ahead of actions when already loaded and clearing action history", async () => {
+test("load gets old task at old position that\u2019s ahead of actions when already loaded and clearing action history", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2462,7 +2462,7 @@ test("load gets old task at old position that’s ahead of actions when already 
     });
 });
 
-test("load doesn’t put loaded task in already loaded range", async () => {
+test("load doesn\u2019t put loaded task in already loaded range", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3434,7 +3434,7 @@ test("after loading tasks we will replay actions to add missing tasks that have 
     });
 });
 
-test("after loading tasks we will replay actions but won’t add false positive missing tasks", async () => {
+test("after loading tasks we will replay actions but won\u2019t add false positive missing tasks", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3535,7 +3535,7 @@ test("after loading tasks we will replay actions but won’t add false positive 
     });
 });
 
-test("after loading tasks we will replay actions but won’t add false positive missing tasks that were already loaded", async () => {
+test("after loading tasks we will replay actions but won\u2019t add false positive missing tasks that were already loaded", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 

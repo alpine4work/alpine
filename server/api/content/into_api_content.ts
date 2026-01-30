@@ -149,7 +149,7 @@ function* intoApiContentListBlockElements(
                       element => {
                           if (element.type !== "Paragraph") {
                               throw new InternalError(
-                                  quote`${element.type} block element isn’t supported in list block element item`,
+                                  quote`${element.type} block element isn\u2019t supported in list block element item`,
                               );
                           }
                           return element;
@@ -271,7 +271,7 @@ function intoApiContentBlockElement(
                             case "Table":
                             case "Code": {
                                 throw new InternalError(
-                                    quote`${element.type} block element isn’t supported in \`Quote\` block element`,
+                                    quote`${element.type} block element isn\u2019t supported in \`Quote\` block element`,
                                 );
                             }
                             default:
@@ -325,7 +325,7 @@ function intoApiContentBlockElement(
                                                 case "Heading":
                                                 case "Divider": {
                                                     throw new InternalError(
-                                                        quote`${element.type} block element isn’t supported in \`Table\` block element`,
+                                                        quote`${element.type} block element isn\u2019t supported in \`Table\` block element`,
                                                     );
                                                 }
                                                 default:
@@ -371,7 +371,7 @@ function intoApiContentBlockElement(
                                               const apiMark = intoApiContentInlineElementMark(mark);
                                               if (apiMark.type === "Code") {
                                                   throw new InternalError(
-                                                      quote`${apiMark.type} mark isn’t supported in \`Code\` block element`,
+                                                      quote`${apiMark.type} mark isn\u2019t supported in \`Code\` block element`,
                                                   );
                                               }
                                               return apiMark;
@@ -404,7 +404,7 @@ function intoApiContentBlockElement(
                 elements: [
                     {
                         type: "Text",
-                        text: "(There’s a file attachment here but ChatGPT can’t currently see files in Alpine.)",
+                        text: "(There\u2019s a file attachment here but ChatGPT can\u2019t currently see files in Alpine.)",
                     },
                 ],
             };
@@ -589,7 +589,7 @@ function intoApiContentSnippetInlineElementMark(
             return {type: "Code"};
         default:
             throw new InternalError(
-                quote`${mark.type.name} mark isn’t supported in \`ContentSnippet\` inline element`,
+                quote`${mark.type.name} mark isn\u2019t supported in \`ContentSnippet\` inline element`,
             );
     }
 }

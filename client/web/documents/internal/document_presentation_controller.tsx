@@ -289,7 +289,7 @@ const documentPresentationInstructionalExampleContent = new Lazy(() => {
             ]),
             schema.node("paragraph", null, [
                 schema.text(
-                    "The photographs we choose don’t just capture moments–they shape how millions of readers understand our natural world. Today, I’ll share how we’re adapting our editorial approach for an era where audiences expect more than just beautiful images.",
+                    "The photographs we choose don\u2019t just capture moments–they shape how millions of readers understand our natural world. Today, I\u2019ll share how we\u2019re adapting our editorial approach for an era where audiences expect more than just beautiful images.",
                 ),
             ]),
             schema.node("divider"),
@@ -318,7 +318,7 @@ const documentPresentationInstructionalExampleContent = new Lazy(() => {
             schema.node("heading", {level: 1}, [schema.text("Featured story: Arctic wildlife")]),
             schema.node("paragraph", null, [
                 schema.text(
-                    "Last month’s cover story presented us with a challenge. We had two options:",
+                    "Last month\u2019s cover story presented us with a challenge. We had two options:",
                 ),
             ]),
             schema.node("orderedListItem", null, [
@@ -337,7 +337,7 @@ const documentPresentationInstructionalExampleContent = new Lazy(() => {
             ]),
             schema.node("paragraph", null, [
                 schema.text(
-                    "We chose the second image. Here’s why this represents our new editorial direction…",
+                    "We chose the second image. Here\u2019s why this represents our new editorial direction…",
                 ),
             ]),
         ]),
@@ -452,7 +452,7 @@ function DocumentPresentationInstructionalConfirmationModal({
             aria-describedby={descriptionId}
             onClose={onClose}
             primaryButtonLabel="Present"
-            primaryButtonPressErrorTitle="Couldn’t present document"
+            primaryButtonPressErrorTitle="Couldn\u2019t present document"
             onPrimaryButtonPress={onPresent}
             maxWidth="44rem"
             buttonsPaddingX="7"
@@ -495,8 +495,8 @@ function DocumentPresentationInstructionalConfirmationModal({
                     style={{lineHeight: 1.5}}
                 >
                     Effortlessly turn your document into a slide deck. Each divider in your document
-                    creates a new slide. To add a divider either type “---” in an empty line or
-                    right click and choose insert &gt; divider.
+                    creates a new slide. To add a divider either type &#x201C;---&#x201D; in an
+                    empty line or right click and choose insert &gt; divider.
                 </Box>
                 <Box paddingX="7" paddingBottom="6">
                     <Box position="relative" display="flex" gap="14" paddingRight="6">

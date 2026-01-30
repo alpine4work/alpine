@@ -281,7 +281,7 @@ test("must be authorized to access space to upload", async () => {
     });
     expect(responseBody).toEqual({
         ok: false,
-        error: new PermissionDeniedError("Account doesn’t have access to space"),
+        error: new PermissionDeniedError("Account doesn\u2019t have access to space"),
     });
 });
 
@@ -452,7 +452,7 @@ chunk\r\n\
     );
 });
 
-test("can’t upload data with a Content-Length header that’s too big", async () => {
+test("can\u2019t upload data with a Content-Length header that\u2019s too big", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -535,7 +535,7 @@ chunk\r\n\
 // what's in `Content-Length`. But we want to make sure this happens with a
 // test so we don't accidentally let attackers upload larger files then what
 // we allow.
-test("if more data is written than what’s in Content-Length server truncates the content and only processes the truncated content", async () => {
+test("if more data is written than what\u2019s in Content-Length server truncates the content and only processes the truncated content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -695,7 +695,7 @@ Connection: close\r\n\
     /* eslint-enable string-quotes */
 });
 
-test("can observe file while it’s being uploaded", async () => {
+test("can observe file while it\u2019s being uploaded", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -820,7 +820,7 @@ chunk\r\n\
     );
 });
 
-test("can’t process invalid image data", async () => {
+test("can\u2019t process invalid image data", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -879,7 +879,7 @@ test("can’t process invalid image data", async () => {
     );
 });
 
-test("can’t process image with the wrong content type", async () => {
+test("can\u2019t process image with the wrong content type", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1134,7 +1134,7 @@ test("can upload image with a provided id", async () => {
     );
 });
 
-test("can’t upload image with the same provided id twice", async () => {
+test("can\u2019t upload image with the same provided id twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 

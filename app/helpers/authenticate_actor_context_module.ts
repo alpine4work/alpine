@@ -84,7 +84,7 @@ export async function authenticateActorContextModule(
 
     if (sessionCookiePayload && authorizationHeader) {
         throw new InvalidArgumentError(
-            "Can’t provide both an `Authorization` header and a session cookie",
+            "Can\u2019t provide both an `Authorization` header and a session cookie",
         );
     }
 
@@ -150,7 +150,7 @@ export async function authenticateActorContextModule(
             case "Bot": {
                 // Bot actors can't render React pages or call RPCs. They must use the API.
                 throw new PermissionDeniedError(
-                    "Can’t access `AppService` as a bot actor, bot actors must use `ApiService`",
+                    "Can\u2019t access `AppService` as a bot actor, bot actors must use `ApiService`",
                 );
             }
             default:

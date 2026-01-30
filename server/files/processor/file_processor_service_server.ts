@@ -197,7 +197,7 @@ export async function handleInternalMiniflareGetObject(
     },
 ): Promise<Response> {
     if (process.env.NODE_ENV === "production")
-        throw new InvalidArgumentError("Can’t use Miniflare in production");
+        throw new InvalidArgumentError("Can\u2019t use Miniflare in production");
 
     // Double check to make sure we can only use this route with Miniflare.
     assert(processContext.r2.isMiniflare());

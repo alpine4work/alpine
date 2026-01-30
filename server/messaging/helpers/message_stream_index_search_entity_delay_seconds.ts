@@ -19,14 +19,14 @@ export const messageStreamIndexSearchEntityDelaySeconds = Math.ceil(
  * Should we schedule a new `IndexSearchEntity` job for a message stream?
  *
  * Invariant: we always want an `IndexSearchEntity` job scheduled to run *after*
- * the stream’s timeout, so that if no further pings arrive, the job can see
+ * the stream's timeout, so that if no further pings arrive, the job can see
  * that the stream has expired and index the final state.
  *
  * When we receive the first stream part operation, we queue an
  * `IndexSearchEntity` job to run 20 seconds in the future (10 seconds after
  * the initial stream timeout at T+10).
  *
- * Each subsequent stream operation pushes the stream’s timeout forward, since
+ * Each subsequent stream operation pushes the stream's timeout forward, since
  * the stream times out after the *last* operation. If an operation updates the
  * timeout so that the currently scheduled `IndexSearchEntity` job would now run
  * *before* the new timeout, we queue a new `IndexSearchEntity` job to run
@@ -40,7 +40,7 @@ export const messageStreamIndexSearchEntityDelaySeconds = Math.ceil(
  * 4. pingStream    @ T12, timeoutTime = T22, indexSearchEntity.jobTime = T32
  *
  *    - At step 4, we finally schedule a new job at T32. The previously
- *      scheduled job at T20 would run before the stream’s timeout (T22), so
+ *      scheduled job at T20 would run before the stream's timeout (T22), so
  *      we need a new job after the timeout. This is important because the job
  *      needs to be able to determine whether the stream has timed out.
  */

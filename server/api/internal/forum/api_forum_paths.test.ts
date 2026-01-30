@@ -64,7 +64,7 @@ test("can read channel information", async () => {
     });
 });
 
-test("can’t read channel information without access", async () => {
+test("can\u2019t read channel information without access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -83,13 +83,13 @@ test("can’t read channel information without access", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("You aren’t allowed"),
+                message: expect.stringMatching("You aren\u2019t allowed"),
             }),
         },
     });
 });
 
-test("can’t read channel information for non-existent channel", async () => {
+test("can\u2019t read channel information for non-existent channel", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -105,7 +105,7 @@ test("can’t read channel information for non-existent channel", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("doesn’t exist"),
+                message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
     });
@@ -161,7 +161,7 @@ test("can read post information", async () => {
     });
 });
 
-test("can’t read post information without access", async () => {
+test("can\u2019t read post information without access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
@@ -181,13 +181,13 @@ test("can’t read post information without access", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("You aren’t allowed"),
+                message: expect.stringMatching("You aren\u2019t allowed"),
             }),
         },
     });
 });
 
-test("can’t read post information for non-existent post", async () => {
+test("can\u2019t read post information for non-existent post", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -203,7 +203,7 @@ test("can’t read post information for non-existent post", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("doesn’t exist"),
+                message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
     });
@@ -422,7 +422,7 @@ describe("post creation", () => {
         });
     });
 
-    test("can’t create post without access to channel", async () => {
+    test("can\u2019t create post without access to channel", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -453,13 +453,13 @@ describe("post creation", () => {
             body: {
                 error: expect.objectContaining({
                     message:
-                        "You aren’t allowed to post in this channel. Ask someone who can share the channel to give you post access.",
+                        "You aren\u2019t allowed to post in this channel. Ask someone who can share the channel to give you post access.",
                 }),
             },
         });
     });
 
-    test("can’t create post for non-existent channel", async () => {
+    test("can\u2019t create post for non-existent channel", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -487,13 +487,13 @@ describe("post creation", () => {
             body: {
                 error: expect.objectContaining({
                     message:
-                        "This channel doesn’t exist. Try searching “my channels” to see channels you’ve posted in.",
+                        "This channel doesn\u2019t exist. Try searching \u201Cmy channels\u201D to see channels you\u2019ve posted in.",
                 }),
             },
         });
     });
 
-    test("can’t create post without authorization (no API key)", async () => {
+    test("can\u2019t create post without authorization (no API key)", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 

@@ -37,7 +37,7 @@ test("merging identical tasks returns a referentially equal value to the first o
     expect(collection2.merge(collection1)).not.toBe(collection1);
 });
 
-test("merging tasks returns a referentially equal value to the first one if the first task didn’t change", () => {
+test("merging tasks returns a referentially equal value to the first one if the first task didn\u2019t change", () => {
     const spaceId = generateId<SpaceId>();
     const collectionId = generateId<TaskCollectionId>();
     const accountId = generateId<AccountId>();

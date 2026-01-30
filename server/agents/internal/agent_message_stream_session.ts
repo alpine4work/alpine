@@ -200,7 +200,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
                         let content = part.payload.content;
 
                         // Convert all straight quotes (`'` and `"`) into proper curly quotes
-                        // (`“`, `”`, `‘`, `’`). Since LLMs typically only output straight quotes.
+                        // (`"`, `"`, `'`, `'`). Since LLMs typically only output straight quotes.
                         // Curly quotes are proper typography and are consistent with text written in
                         // Alpine where we automatically convert quotes into curly quotes.
                         content = convertApiContentToProperQuotes(part.payload.content);

@@ -31,7 +31,7 @@ export type FileImageContentType = FileWebSafeImageContentType | FileWebUnsafeIm
  * Image types with broad web browser support (Chrome, Firefox, and Safari)
  * that are safe to serve in an `<img>` tag.
  *
- * This list is based on MDN's “[Common image file types][1].”
+ * This list is based on MDN's "[Common image file types][1]."
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
  */
@@ -48,7 +48,7 @@ export type FileWebSafeImageContentType =
  * Somewhat popular image types that don't have broad web browser support. We
  * need to convert these images into a format with better web browser support.
  *
- * This list is based on MDN's “[Common image file types][1].” We include
+ * This list is based on MDN's "[Common image file types][1]." We include
  * `.heif` and `.heic` since [`.heic` is Apple's default image file format][2].
  * We consider `image/heif` and `image/heic` to be the same format. They're
  * registered with the same specification in the [IANA media types
@@ -103,7 +103,7 @@ export const FileImageContentTypeSchema = Schema.enum(getFileImageContentTypes()
  * inputs.
  *
  * You can find common MIME types and their file extensions in the MDN article
- * “[Common MIME types][2]”.
+ * "[Common MIME types][2]".
  *
  * [1]: https://www.adobe.com/acrobat/about-adobe-pdf.html
  * [2]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
@@ -207,8 +207,8 @@ const fileMicrosoftOfficeDocumentContentTypes: {
  *
  * - [Matroska (MKV)](https://en.wikipedia.org/wiki/Matroska)
  *   - MDN doesn't have documentation for the Matroska format. You can see
- *     Matroska's video/audio codec support in Wikipedia's “[Comparison of
- *     video container formats][7]” article. It supports some video codecs with
+ *     Matroska's video/audio codec support in Wikipedia's "[Comparison of
+ *     video container formats][7]" article. It supports some video codecs with
  *     browser support (e.g. VP9) and some video codecs which don't have broad
  *     browser support (e.g. MPEG-2).
  *

@@ -547,11 +547,11 @@ module.exports = {
                             ...baseNoRestrictedImports.paths,
                             {
                                 name: "~/client/web/styles/internal/styles.js",
-                                message: "Can’t import style bundle from `.css.ts` file",
+                                message: "Can\u2019t import style bundle from `.css.ts` file",
                             },
                             {
                                 name: "~/client/web/styles/styles.js",
-                                message: "Can’t import style bundle from `.css.ts` file",
+                                message: "Can\u2019t import style bundle from `.css.ts` file",
                             },
                         ],
                     },

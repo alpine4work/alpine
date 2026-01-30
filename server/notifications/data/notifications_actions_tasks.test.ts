@@ -909,7 +909,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("won’t send new notifications for account that loses access to task", async () => {
+        test("won\u2019t send new notifications for account that loses access to task", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -1001,7 +1001,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("won’t get a notification for a mention if the account doesn’t have access to task", async () => {
+        test("won\u2019t get a notification for a mention if the account doesn\u2019t have access to task", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -1082,7 +1082,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        test("setting a reaction on a task comment that’s not the latest comment archives the task comment inbox entry", async () => {
+        test("setting a reaction on a task comment that\u2019s not the latest comment archives the task comment inbox entry", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 

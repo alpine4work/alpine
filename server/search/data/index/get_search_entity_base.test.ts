@@ -375,7 +375,7 @@ describe("User access to search entities based on urlGrant and context", () => {
             expect(privateResult).toEqual({isPrivate: true});
         });
 
-        test("Document with urlGrant vs entities that don’t support urlGrant", async () => {
+        test("Document with urlGrant vs entities that don\u2019t support urlGrant", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 

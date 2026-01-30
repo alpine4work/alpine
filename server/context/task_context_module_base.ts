@@ -253,7 +253,7 @@ export class TestTaskContextModule
         options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<TaskRealtimeLoadQueriesOutput> {
         throw new UnimplementedError(
-            "`TestTaskContextModule.loadQueries()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
+            "`TestTaskContextModule.loadQueries()` can\u2019t be implemented in unit tests because we don\u2019t run `TaskRealtimeService` in unit tests",
         );
     }
 
@@ -269,7 +269,7 @@ export class TestTaskContextModule
         if (this._alwaysNotFound) return Promise.resolve(null);
 
         throw new UnimplementedError(
-            "`TestTaskContextModule.getTaskWithoutDependenciesIfPossible()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
+            "`TestTaskContextModule.getTaskWithoutDependenciesIfPossible()` can\u2019t be implemented in unit tests because we don\u2019t run `TaskRealtimeService` in unit tests",
         );
     }
 
@@ -285,7 +285,7 @@ export class TestTaskContextModule
         if (this._alwaysNotFound) return Promise.resolve(null);
 
         throw new UnimplementedError(
-            "`TestTaskContextModule.getCollectionIfPossible()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
+            "`TestTaskContextModule.getCollectionIfPossible()` can\u2019t be implemented in unit tests because we don\u2019t run `TaskRealtimeService` in unit tests",
         );
     }
 

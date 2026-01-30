@@ -243,7 +243,7 @@ async function runPrCommand({continue: shouldContinue = false}: {continue: boole
             throw error;
 
         throw new FailedPreconditionError(
-            `Can’t find the GitHub CLI, to install visit: ${chalk.underline(
+            `Can\u2019t find the GitHub CLI, to install visit: ${chalk.underline(
                 "https://cli.github.com",
             )}`,
         );
@@ -592,7 +592,7 @@ async function checkGitIsClean() {
     const statusOutput = await runProcess("git", ["status", "--porcelain"]);
     if (statusOutput.trim().length > 0) {
         throw new FailedPreconditionError(
-            "Working directory isn’t clean, please commit or stash changes",
+            "Working directory isn\u2019t clean, please commit or stash changes",
         );
     }
 }

@@ -368,10 +368,10 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                             setShouldShowConfirmSaveDialog(false);
                         }}
                         primaryButtonLabel="Save"
-                        primaryButtonPressErrorTitle="Couldn’t save name"
+                        primaryButtonPressErrorTitle="Couldn\u2019t save name"
                         onPrimaryButtonPress={() => onSave(name)}
                         cancelButtonLabel="Discard name"
-                        cancelButtonPressErrorTitle="Couldn’t discard name"
+                        cancelButtonPressErrorTitle="Couldn\u2019t discard name"
                         onCancelButtonPress={onCancel}
                     />
                 ) : name.length !== 0 ? (
@@ -385,16 +385,16 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                             setShouldShowConfirmSaveDialog(false);
                         }}
                         primaryButtonLabel="Save"
-                        primaryButtonPressErrorTitle="Couldn’t save collection"
+                        primaryButtonPressErrorTitle="Couldn\u2019t save collection"
                         onPrimaryButtonPress={() => onSave(name)}
                         cancelButtonLabel="Discard collection"
-                        cancelButtonPressErrorTitle="Couldn’t discard collection"
+                        cancelButtonPressErrorTitle="Couldn\u2019t discard collection"
                         onCancelButtonPress={onCancel}
                     />
                 ) : (
                     <ModalDialog
                         title="Save collection"
-                        description="You can’t save your collection until you give it a name."
+                        description="You can\u2019t save your collection until you give it a name."
                         onClose={() => {
                             // Return focus to the editor if the dialog is closed. This acts as a "cancel"
                             // and lets the user continue writing.
@@ -405,7 +405,7 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                         isPrimaryButtonDisabled={true}
                         onPrimaryButtonPress={() => {}}
                         cancelButtonLabel="Discard collection"
-                        cancelButtonPressErrorTitle="Couldn’t discard collection"
+                        cancelButtonPressErrorTitle="Couldn\u2019t discard collection"
                         onCancelButtonPress={onCancel}
                     />
                 ))}

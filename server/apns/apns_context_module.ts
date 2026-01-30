@@ -17,7 +17,7 @@ export class ApnsContextModule extends ApnsContextModuleBase {
      * Send a push notification to the provided Apple device token.
      *
      * For more information on supported properties on a notification object
-     * see “[Generating a remove notification][1]”.
+     * see "[Generating a remove notification][1]".
      *
      * [1]: https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
      */

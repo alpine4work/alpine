@@ -33,7 +33,7 @@ test("returns null when bot is not instantiated in space", async () => {
     expect(await getBotAccountIdForSpaceIfExists(session.action(), bot.id, space.id)).toEqual(null);
 });
 
-test("throws when account doesn’t have access to space", async () => {
+test("throws when account doesn\u2019t have access to space", async () => {
     const bot = await TestBot.create(context);
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -41,7 +41,7 @@ test("throws when account doesn’t have access to space", async () => {
 
     await expect(
         getBotAccountIdForSpaceIfExists(otherSession.action(), bot.id, space.id),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
 test("works with system context", async () => {

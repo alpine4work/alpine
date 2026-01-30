@@ -2949,7 +2949,7 @@ test("task references can be added and removed through actions on a referenced t
     expect(query.getReferencedCollectionIdsForTest()).toEqual(new Set([]));
 });
 
-test("task references can be added and removed through actions on a task that’s both loaded and referenced", () => {
+test("task references can be added and removed through actions on a task that\u2019s both loaded and referenced", () => {
     const store = new TaskClientStore({
         accountRegistry,
         spaceId,
@@ -3607,7 +3607,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
     expect(query.getReferencedCollectionIdsForTest()).toEqual(new Set([]));
 });
 
-test("temporarily holds on to actions applied to task that wasn’t backfilled", () => {
+test("temporarily holds on to actions applied to task that wasn\u2019t backfilled", () => {
     const store = new TaskClientStore({
         accountRegistry,
         spaceId,
@@ -3655,7 +3655,7 @@ test("temporarily holds on to actions applied to task that wasn’t backfilled",
     errors = [];
 });
 
-test("temporarily holds on to actions applied to collection that wasn’t backfilled", () => {
+test("temporarily holds on to actions applied to collection that wasn\u2019t backfilled", () => {
     const store = new TaskClientStore({
         accountRegistry,
         spaceId,

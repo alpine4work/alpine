@@ -8457,7 +8457,7 @@ test("can filter by title includes", async () => {
                 type: "Title",
                 operation: {
                     type: "Includes",
-                    titleQuery: "“brown”",
+                    titleQuery: "\u201Cbrown\u201D",
                 },
             },
         ]),
@@ -8469,7 +8469,7 @@ test("can filter by title includes", async () => {
                 type: "Title",
                 operation: {
                     type: "Includes",
-                    titleQuery: "(“brown”)",
+                    titleQuery: "(\u201Cbrown\u201D)",
                 },
             },
         ]),
@@ -8481,7 +8481,7 @@ test("can filter by title includes", async () => {
                 type: "Title",
                 operation: {
                     type: "Includes",
-                    titleQuery: " (“brown”) ",
+                    titleQuery: " (\u201Cbrown\u201D) ",
                 },
             },
         ]),
@@ -8752,7 +8752,7 @@ test("can filter by title excludes", async () => {
                 type: "Title",
                 operation: {
                     type: "Excludes",
-                    titleQuery: "“brown”",
+                    titleQuery: "\u201Cbrown\u201D",
                 },
             },
         ]),
@@ -8764,7 +8764,7 @@ test("can filter by title excludes", async () => {
                 type: "Title",
                 operation: {
                     type: "Excludes",
-                    titleQuery: "(“brown”)",
+                    titleQuery: "(\u201Cbrown\u201D)",
                 },
             },
         ]),
@@ -8776,7 +8776,7 @@ test("can filter by title excludes", async () => {
                 type: "Title",
                 operation: {
                     type: "Excludes",
-                    titleQuery: " (“brown”) ",
+                    titleQuery: " (\u201Cbrown\u201D) ",
                 },
             },
         ]),

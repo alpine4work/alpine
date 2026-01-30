@@ -120,7 +120,7 @@ export function getChannelAndMetadataIfPossible(
                         channelPromiseResolver.reject(result.error);
                     } else {
                         channelPromiseResolver.reject(
-                            new InternalError("Promise resolver wasn’t resolved"),
+                            new InternalError("Promise resolver wasn\u2019t resolved"),
                         );
                     }
                 }

@@ -896,7 +896,7 @@ const ContextMenu = forwardRef(function ContextMenu(
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
             case "ArrowUp": {
-                event.preventDefault(); // Don’t scroll
+                event.preventDefault(); // Don't scroll
                 event.stopPropagation();
 
                 if (focusedMenuItemIndex !== null) {

@@ -93,7 +93,9 @@ export default function SpaceGeneralSettingsRoute() {
                 if (!responseBody.ok) throw responseBody.error;
 
                 if (responseBody.type !== "UploadSpaceAvatar") {
-                    throw new InternalError(quote`Unexpected response type “${responseBody.type}”`);
+                    throw new InternalError(
+                        quote`Unexpected response type \u201C${responseBody.type}\u201D`,
+                    );
                 }
                 return responseBody;
             },
@@ -142,7 +144,7 @@ export default function SpaceGeneralSettingsRoute() {
                         {name !== null && (
                             <InlineEditorToolbar
                                 ref={nameInlineEditorToolbarRef}
-                                saveErrorTitle="Couldn’t save space name"
+                                saveErrorTitle="Couldn\u2019t save space name"
                                 onSave={handleSaveName}
                                 onCancel={handleCancelNameEditing}
                             />
@@ -230,10 +232,10 @@ export default function SpaceGeneralSettingsRoute() {
                         inputRef.current?.focus();
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Couldn’t save space name"
+                    primaryButtonPressErrorTitle="Couldn\u2019t save space name"
                     onPrimaryButtonPress={handleSaveName}
                     cancelButtonLabel="Discard changes"
-                    cancelButtonPressErrorTitle="Couldn’t discard changes"
+                    cancelButtonPressErrorTitle="Couldn\u2019t discard changes"
                     onCancelButtonPress={handleCancelNameEditing}
                 />
             )}

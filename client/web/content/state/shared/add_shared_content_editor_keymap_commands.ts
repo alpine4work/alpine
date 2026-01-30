@@ -50,9 +50,9 @@ function getPunctuation(
                 return {openingPunctuation: "[", closingPunctuation: "]"};
             /* eslint-disable string-quotes */
             case '"':
-                return {openingPunctuation: "“", closingPunctuation: "”"};
+                return {openingPunctuation: "\u201C", closingPunctuation: "\u201D"};
             case "'":
-                return {openingPunctuation: "‘", closingPunctuation: "’"};
+                return {openingPunctuation: "\u2018", closingPunctuation: "\u2019"};
             /* eslint-enable string-quotes */
             default:
                 throw exhaustive(punctuation);
@@ -241,13 +241,13 @@ export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>)
             text === "{}" ||
             // eslint-disable-next-line string-quotes
             text === '""' ||
-            text === "“”"
+            text === "\u201C\u201D"
             // Since we don't auto-balance single quotes (to avoid confusing them with
             // contractions) we won't delete empty single quotes.
             //
             // ```
             // text === "''" ||
-            // text === "‘’"
+            // text === "''"
             // ```
         ) {
             dispatch?.(state.tr.deleteRange($bracketStart.pos, $bracketEnd.pos));

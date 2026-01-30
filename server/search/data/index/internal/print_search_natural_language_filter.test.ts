@@ -452,7 +452,7 @@ describe("printSearchNaturalLanguageFilter", () => {
         );
     });
 
-    test("doesn’t print year if the date is in the current year", () => {
+    test("doesn\u2019t print year if the date is in the current year", () => {
         const specificDate = new Date("2025-02-01T00:00:00.000Z");
 
         const filter = createDefaultedFilter({
@@ -475,7 +475,7 @@ describe("printSearchNaturalLanguageFilter", () => {
         );
     });
 
-    test("doesn’t print ‘created’ twice", () => {
+    test("doesn\u2019t print \u2018created\u2019 twice", () => {
         const specificDate = new Date("2025-02-01T00:00:00.000Z");
 
         const filter = createDefaultedFilter({

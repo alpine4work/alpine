@@ -13,7 +13,7 @@ const context = createTestContext({
     spacesInjection,
 });
 
-test("can get an account’s registered apple devices", async () => {
+test("can get an account\u2019s registered apple devices", async () => {
     const [space1, space2] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),

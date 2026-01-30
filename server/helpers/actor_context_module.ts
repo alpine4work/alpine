@@ -450,7 +450,7 @@ export class ImpersonatedAccountActorContextModule
     public getTokenPayload(): TokenPayload {
         // NOTE(calebmer): We don't need cross-service communication for impersonated
         // actors right now but may need the capability in the future.
-        throw new InternalError("Can’t create token for impersonated account actor");
+        throw new InternalError("Can\u2019t create token for impersonated account actor");
     }
 
     public getPropagatedData(): TracerEventData {

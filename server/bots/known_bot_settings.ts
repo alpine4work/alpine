@@ -25,7 +25,7 @@ export const knownBotSettings = new Lazy((): Record<BotId, KnownBotSettings> => 
     return {
         [chatGptKnownBotId]: {
             description: parseSimpleContentFromMarkdown(`\
-ChatGPT is an AI assistant created by OpenAI. ChatGPT can help you with whatever you’re
+ChatGPT is an AI assistant created by OpenAI. ChatGPT can help you with whatever you\u2019re
 working on in Alpine.
 
 Want to use your own OpenAI API key? Let us know: [feedback@alpine.inc](mailto:feedback@alpine.inc)
@@ -37,10 +37,10 @@ Want to use your own OpenAI API key? Let us know: [feedback@alpine.inc](mailto:f
 Edit and run code with Cursor Cloud Agents. You can work with Cursor like any other software
 engineer in Alpine.
 
-Mention Cursor from anywhere to launch a new Cloud Agent. Reply to one of Cursor’s messages to add a
+Mention Cursor from anywhere to launch a new Cloud Agent. Reply to one of Cursor\u2019s messages to add a
 follow-up for the Cloud Agent.
 
-Start by setting up Cursor Cloud Agents in [Cursor’s web dashboard](https://cursor.com/dashboard?tab=cloud-agents).
+Start by setting up Cursor Cloud Agents in [Cursor\u2019s web dashboard](https://cursor.com/dashboard?tab=cloud-agents).
 `),
             schema: {
                 properties: new Map([
@@ -49,7 +49,7 @@ Start by setting up Cursor Cloud Agents in [Cursor’s web dashboard](https://cu
                         {
                             type: "String",
                             label: "Cloud Agents API key",
-                            hint: "Create key in Cursor’s web dashboard",
+                            hint: "Create key in Cursor\u2019s web dashboard",
                             placeholder:
                                 "key_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                             isCode: true,

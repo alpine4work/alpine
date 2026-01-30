@@ -21,7 +21,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 // The same error message is copied in `WebNavigationController.swift`'s
 // `showUnhealthyAlert()` function. If we update the message here, we should
 // update it there as well.
-export const offlineErrorDisplayMessage = errorDisplayMessage`Your device isn’t connected to the internet. Make sure you’re online then try again.`;
+export const offlineErrorDisplayMessage = errorDisplayMessage`Your device isn\u2019t connected to the internet. Make sure you\u2019re online then try again.`;
 
 const globalFetch = typeof fetch !== "undefined" ? fetch : undefined;
 

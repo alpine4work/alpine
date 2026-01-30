@@ -48,7 +48,7 @@ const libreofficeExecutablePath = new Lazy(async () => {
         }
         default: {
             throw new InternalError(
-                quote`Haven’t implemented finding LibreOffice executable on platform ${process.platform}`,
+                quote`Haven\u2019t implemented finding LibreOffice executable on platform ${process.platform}`,
             );
         }
     }
@@ -65,7 +65,7 @@ const libreofficeExecutablePath = new Lazy(async () => {
     }
 
     throw new InternalError(
-        "Couldn’t find LibreOffice executable. For features that require LibreOffice to " +
+        "Couldn\u2019t find LibreOffice executable. For features that require LibreOffice to " +
             "work (e.g. converting Microsoft Word documents to PDF) you need to install " +
             "LibreOffice on the machine running `FileProcessorService`: " +
             "https://www.libreoffice.org/download/download-libreoffice",

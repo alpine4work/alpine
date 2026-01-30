@@ -32,7 +32,7 @@ export function computeDeleteMessageReaction({
     if (clientPos === "Files") {
         if (message.payload.type !== "Content") {
             throw new FailedPreconditionError(
-                "Can’t set reaction on messages with a non-content payload",
+                "Can\u2019t set reaction on messages with a non-content payload",
             );
         }
 

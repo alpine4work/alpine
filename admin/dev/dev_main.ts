@@ -1029,7 +1029,7 @@ function getBazelPackageByBazelTarget(bazelTarget: string): BazelPackage {
     assert(bazelTarget.startsWith("//"));
     const bazelPackagePath = bazelTarget.slice(2).split(":", 2)[0]!;
     const bazelPackage = getBazelPackageByRelativeDirectoryPathWithoutTraversing(bazelPackagePath);
-    assert(bazelPackage, "Bazel target doesn’t point to a valid Bazel package");
+    assert(bazelPackage, "Bazel target doesn\u2019t point to a valid Bazel package");
     return bazelPackage;
 }
 

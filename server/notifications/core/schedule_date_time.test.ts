@@ -18,7 +18,7 @@ describe("isScheduleDateTime", () => {
         expect(isScheduleDateTime(validDate)).toBe(true);
     });
 
-    test("returns true for New Year’s Day at midnight", () => {
+    test("returns true for New Year\u2019s Day at midnight", () => {
         const validDate = new Date("2024-01-01T00:00:00.000Z");
         expect(isScheduleDateTime(validDate)).toBe(true);
     });
@@ -325,7 +325,7 @@ describe("deserializeScheduleDateTimeString", () => {
         expect(result.toISOString()).toBe("2023-08-21T15:00:00.000Z");
     });
 
-    test("returns valid ScheduleDateTime from New Year’s Day string", () => {
+    test("returns valid ScheduleDateTime from New Year\u2019s Day string", () => {
         const dateString = "2024-01-01T00:00:00.000Z" as ScheduleDateTimeString;
         const result = deserializeScheduleDateTimeString(dateString);
         expect(isScheduleDateTime(result)).toBe(true);

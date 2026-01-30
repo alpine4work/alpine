@@ -88,7 +88,7 @@ export function SpaceLayoutSideBar({
                             size="lg"
                             description="Home"
                             tooltipPlacement="right"
-                            pressErrorTitle="Couldn’t open home"
+                            pressErrorTitle="Couldn\u2019t open home"
                             onPress={async () => {
                                 await rootNavigate(`/s/${space.id}`);
                             }}
@@ -182,7 +182,7 @@ function SpaceLayoutSideBarNavigationButtons() {
                     keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+[" : "Ctrl+["}
                     tooltipPlacement="top"
                     isDisabled={!navigationState.hasPreviousLocation}
-                    pressErrorTitle="Couldn’t go back"
+                    pressErrorTitle="Couldn\u2019t go back"
                     onPress={() => navigate(-1)}
                 >
                     <ArrowLeft />
@@ -193,7 +193,7 @@ function SpaceLayoutSideBarNavigationButtons() {
                     keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+]" : "Ctrl+]"}
                     tooltipPlacement="top"
                     isDisabled={!navigationState.hasNextLocation}
-                    pressErrorTitle="Couldn’t go forwards"
+                    pressErrorTitle="Couldn\u2019t go forwards"
                     onPress={() => navigate(1)}
                 >
                     <ArrowRight />
@@ -216,7 +216,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                     {
                         icon: <Gear />,
                         label: "Settings",
-                        pressErrorTitle: "Couldn’t open settings",
+                        pressErrorTitle: "Couldn\u2019t open settings",
                         onPress: () => rootNavigate(`/s/${space.id}/settings/profile`),
                     },
                     ...(currentAccount.initialData.plan !== "LifetimeAccess"
@@ -235,7 +235,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                                       />
                                   ),
                                   label: "Purchase lifetime access",
-                                  pressErrorTitle: "Couldn’t open purchase page",
+                                  pressErrorTitle: "Couldn\u2019t open purchase page",
                                   onPress: async () => {
                                       const {result} = await createLifetimeAccessCheckoutSessionUrl(
                                           context,
@@ -265,7 +265,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                     {
                         icon: <SignOut />,
                         label: "Sign out",
-                        pressErrorTitle: "Couldn’t sign out",
+                        pressErrorTitle: "Couldn\u2019t sign out",
                         onPress: () => rootNavigate("/sign-out"),
                     },
                 ],

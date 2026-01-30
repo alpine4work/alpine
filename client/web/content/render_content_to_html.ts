@@ -744,7 +744,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         const loop = (isParagraph: boolean, generator: HtmlElementGenerator) => {
             if (isParagraph && htmlPTagOmissionTagNames.get().has(generator.tagName)) {
                 throw new InternalError(
-                    `Can’t render \`<p>\` tag to HTML with \`<${generator.tagName}>\` child`,
+                    `Can\u2019t render \`<p>\` tag to HTML with \`<${generator.tagName}>\` child`,
                 );
             }
 

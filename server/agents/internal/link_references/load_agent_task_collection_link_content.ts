@@ -210,7 +210,7 @@ function getEmptyTaskCollectionContent(
         children: [
             {
                 type: "text",
-                value: `There aren’t any${taskStatusDescriptor} tasks in the ${taskCollection.name} collection.`,
+                value: `There aren\u2019t any${taskStatusDescriptor} tasks in the ${taskCollection.name} collection.`,
             },
         ],
     };

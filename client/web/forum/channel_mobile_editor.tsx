@@ -121,7 +121,7 @@ export function ChannelMobileEditor({
                     isDisabled={
                         (!hasNameChanged && !hasDescriptionChanged) || name.trim().length === 0
                     }
-                    pressErrorTitle="Couldn’t save channel"
+                    pressErrorTitle="Couldn\u2019t save channel"
                     onPress={async () => {
                         await onSave({name: name.trim(), description: descriptionState.getDoc()});
                         onCloseWithAnimation({hasSaved: true});

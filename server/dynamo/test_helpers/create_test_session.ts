@@ -100,7 +100,7 @@ export function createTestSession(
         get createdTime() {
             if (sessionCreatedTime === null) {
                 throw new InternalError(
-                    "Can’t access session `createdTime` until after test hook runs",
+                    "Can\u2019t access session `createdTime` until after test hook runs",
                 );
             }
             return sessionCreatedTime;

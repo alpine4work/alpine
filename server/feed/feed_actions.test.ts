@@ -251,7 +251,7 @@ test("creating a post will create a feed candidate", async () => {
     ]);
 });
 
-test("private channels don’t add feed candidates until made public", async () => {
+test("private channels don\u2019t add feed candidates until made public", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -734,7 +734,7 @@ test("making a public document adds a feed candidate entry fifteen minutes later
     ]);
 });
 
-test("private task collections don’t add feed candidates until made public fifteen minutes later", async () => {
+test("private task collections don\u2019t add feed candidates until made public fifteen minutes later", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -942,7 +942,7 @@ test("private task collections don’t add feed candidates until made public fif
     );
 });
 
-test("private task collections don’t add feed candidates until made public immediately if there are many tasks", async () => {
+test("private task collections don\u2019t add feed candidates until made public immediately if there are many tasks", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2302,7 +2302,7 @@ test("can add feed account candidates", async () => {
     expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
 });
 
-test("can’t add feed account candidates for bot account", async () => {
+test("can\u2019t add feed account candidates for bot account", async () => {
     const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
@@ -2720,7 +2720,7 @@ test("get and update feed gets new entries every call", async () => {
     });
 });
 
-test("can’t get and update feed for bot account", async () => {
+test("can\u2019t get and update feed for bot account", async () => {
     const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
@@ -2747,7 +2747,7 @@ test("can’t get and update feed for bot account", async () => {
     ).rejects.toThrow("Bot account not allowed");
 });
 
-test("won’t add entries to feed account doesn’t have access to", async () => {
+test("won\u2019t add entries to feed account doesn\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 

@@ -122,11 +122,13 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
         }
 
         if (newSpaceAccountItem.state.type !== "Active") {
-            throw new FailedPreconditionError("Can’t move space owner role to an inactive account");
+            throw new FailedPreconditionError(
+                "Can\u2019t move space owner role to an inactive account",
+            );
         }
 
         if (newSpaceAccountItem.botId) {
-            throw new FailedPreconditionError("Can’t move space owner role to bot account");
+            throw new FailedPreconditionError("Can\u2019t move space owner role to bot account");
         }
 
         // when `oldOwnerAccountId === newOwnerAccountId`, we don't need to update

@@ -62,7 +62,7 @@ export function AuthenticationSignUpProfileView({
 
     return (
         <Form
-            submitErrorTitle="Couldn’t sign up"
+            submitErrorTitle="Couldn\u2019t sign up"
             onSubmit={async () => {
                 await saveAccountSignUpProfile(context, {
                     accountId: state.accountId,
@@ -92,7 +92,7 @@ export function AuthenticationSignUpProfileView({
             <LogoWordmark size="32" />
             <Spacer space="1" />
             <Box fontSize="100" color="grey-60" userSelect="text">
-                Nice to meet you, what’s your name?
+                Nice to meet you, what&#x2019;s your name?
             </Box>
             <Spacer space="8" />
             <TextInput

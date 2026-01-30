@@ -366,14 +366,14 @@ export function createTestContext(
         if (shouldStartOpensearch) {
             throw new InternalError(
                 "Resetting DynamoDB in tests while OpenSearch is also running (`shouldStartOpensearch: true`) is dangerous " +
-                    "because while DynamoDB’s data is reset, data in OpenSearch remains which may cause unexpected issues.",
+                    "because while DynamoDB\u2019s data is reset, data in OpenSearch remains which may cause unexpected issues.",
             );
         }
 
         if (shouldSendJobsToSqs) {
             throw new InternalError(
                 "Resetting DynamoDB in tests while SQS is also running (`shouldSendJobsToSqs: true`) is dangerous " +
-                    "because while DynamoDB’s data is reset, messages in SQS remain which may cause unexpected issues.",
+                    "because while DynamoDB\u2019s data is reset, messages in SQS remain which may cause unexpected issues.",
             );
         }
 

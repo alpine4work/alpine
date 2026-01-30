@@ -328,8 +328,8 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                             loadCollectionIds.length > 0 &&
                             loadSubscriptions.length === 0 &&
                             loadTaskIds.length === 0
-                                ? "Couldn’t load collections"
-                                : "Couldn’t load tasks",
+                                ? "Couldn\u2019t load collections"
+                                : "Couldn\u2019t load tasks",
                         error,
                     });
                 }

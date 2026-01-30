@@ -319,11 +319,11 @@ export function addContentFileVideoPlayerBehavior(
                     if (!document.fullscreenElement) {
                         containerElement.requestFullscreen({navigationUI: "hide"}).catch(error => {
                             getReporter().displayError(
-                                "Couldn’t fullscreen video",
+                                "Couldn\u2019t fullscreen video",
                                 new PermissionDeniedError(
                                     error instanceof Error ? error.message : String(error),
                                     {
-                                        displayMessage: errorDisplayMessage`Your browser blocked this video from being fullscreened. Try checking your browser’s permissions for this website.`,
+                                        displayMessage: errorDisplayMessage`Your browser blocked this video from being fullscreened. Try checking your browser\u2019s permissions for this website.`,
                                     },
                                 ),
                             );
@@ -331,7 +331,7 @@ export function addContentFileVideoPlayerBehavior(
                     } else {
                         document.exitFullscreen().catch(error => {
                             getReporter().logErrorWithoutDisplaying(
-                                "Couldn’t exit video fullscreen",
+                                "Couldn\u2019t exit video fullscreen",
                                 error,
                             );
                         });

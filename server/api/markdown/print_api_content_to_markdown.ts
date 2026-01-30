@@ -1356,8 +1356,8 @@ function printApiContentInlineElementHighlightMarkColor(
 /**
  * If the list has an orderStart of 1, we inject an empty html `span` element
  * into the list content so that something like
- * `1. ` becomes `1. <span data-start=”1”/>`
- * or `1. first item` becomes `1. <span data-start=”1”/>first item`.
+ * `1. ` becomes `1. <span data-start="1"/>`
+ * or `1. first item` becomes `1. <span data-start="1"/>first item`.
  *
  * This ensures that we maintain the orderStart value from the original content
  * and can parse it back into the exact same content later. See the note below
@@ -1458,7 +1458,7 @@ function addOrderedStartSpanToFirstItemInOrderedListIfNeeded(listContent: List):
     function insertSpanIntoContent(content: ListItem | Paragraph) {
         content.children.unshift({
             type: "html",
-            value: `<span data-start=”${listContent.start}”/>`,
+            value: `<span data-start=\u201D${listContent.start}\u201D/>`,
         });
     }
 }

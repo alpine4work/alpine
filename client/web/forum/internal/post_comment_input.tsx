@@ -355,7 +355,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
                     .startTypingInCommentInput({})
                     .catch(error =>
                         reporter.logErrorWithoutDisplaying(
-                            "Couldn’t update typing indicator",
+                            "Couldn\u2019t update typing indicator",
                             error,
                         ),
                     );
@@ -368,7 +368,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
                     .stopTypingInCommentInput({})
                     .catch(error =>
                         reporter.logErrorWithoutDisplaying(
-                            "Couldn’t update typing indicator",
+                            "Couldn\u2019t update typing indicator",
                             error,
                         ),
                     );
@@ -482,7 +482,7 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                                     paddingRight: messageInputEditorPaddingX[platform],
                                 }}
                             >
-                                Can’t comment on posts in{" "}
+                                Can&#x2019;t comment on posts in{" "}
                                 {platform === "mobile" ? (
                                     // There isn't enough space on mobile to consistently render the channel name.
                                     // So on mobile only say "this channel". You should be able to see the channel

@@ -439,7 +439,7 @@ function PostListView(
     if (routeLayout === "narrow" && !isPostView) {
         assert(
             !posts.hasOpenPostComments(),
-            "Posts can’t have open comments on narrow route layouts",
+            "Posts can\u2019t have open comments on narrow route layouts",
         );
     }
 
@@ -742,7 +742,7 @@ function PostListView(
         messageNoun: "comment",
         onUpdateMessageContent: async ({roomKey, messageIndex, contentVersion, steps}) => {
             const procedures = proceduresByPostIdRef.current.get(roomKey);
-            if (!procedures) throw new InternalError("Post comment input isn’t mounted");
+            if (!procedures) throw new InternalError("Post comment input isn\u2019t mounted");
 
             await procedures.updateCommentContent({
                 commentIndex: messageIndex,
@@ -752,7 +752,7 @@ function PostListView(
         },
         onDeleteMessage: async ({roomKey, messageIndex}) => {
             const procedures = proceduresByPostIdRef.current.get(roomKey);
-            if (!procedures) throw new InternalError("Post comment input isn’t mounted");
+            if (!procedures) throw new InternalError("Post comment input isn\u2019t mounted");
 
             await procedures.deleteComment({
                 commentIndex: messageIndex,
@@ -1128,7 +1128,7 @@ function PostListView(
     const handleSetMessageReaction: Memo<OnSetMessageReactionFunction<PostId>> = useCallback(
         async (postId, {messageIndex, ...input}) => {
             const procedures = proceduresByPostIdRef.current.get(postId);
-            if (!procedures) throw new InternalError("Post comment input isn’t mounted");
+            if (!procedures) throw new InternalError("Post comment input isn\u2019t mounted");
 
             await procedures.setCommentReaction({
                 commentIndex: messageIndex,
@@ -1141,7 +1141,7 @@ function PostListView(
     const handleDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<PostId>> = useCallback(
         async (postId, {messageIndex, ...input}) => {
             const procedures = proceduresByPostIdRef.current.get(postId);
-            if (!procedures) throw new InternalError("Post comment input isn’t mounted");
+            if (!procedures) throw new InternalError("Post comment input isn\u2019t mounted");
 
             await procedures.deleteCommentReaction({
                 commentIndex: messageIndex,
@@ -1426,7 +1426,7 @@ function PostListView(
                                         );
                                         if (!procedures)
                                             throw new InternalError(
-                                                "Post comment input isn’t mounted",
+                                                "Post comment input isn\u2019t mounted",
                                             );
 
                                         await procedures.deleteComment({
@@ -1642,7 +1642,9 @@ function PostListView(
                             onDeletePostComment={async postCommentIndex => {
                                 const procedures = proceduresByPostIdRef.current.get(item.post.id);
                                 if (!procedures)
-                                    throw new InternalError("Post comment input isn’t mounted");
+                                    throw new InternalError(
+                                        "Post comment input isn\u2019t mounted",
+                                    );
 
                                 await procedures.deleteComment({
                                     commentIndex: postCommentIndex,
@@ -2259,7 +2261,7 @@ function PostListView(
                                         );
                                         if (!procedures)
                                             throw new InternalError(
-                                                "Post comment input isn’t mounted",
+                                                "Post comment input isn\u2019t mounted",
                                             );
 
                                         await procedures.deleteComment({

@@ -322,7 +322,7 @@ function ChannelPostsRoute({
             });
 
             promise.catch(error => {
-                reporter.displayError("Couldn’t mark post as done", error);
+                reporter.displayError("Couldn\u2019t mark post as done", error);
             });
 
             archiveInboxChannelPostsEntryPostOptimistically({
@@ -357,7 +357,7 @@ function ChannelPostsRoute({
             });
 
             promise.catch(error => {
-                reporter.displayError("Couldn’t move notification to new", error);
+                reporter.displayError("Couldn\u2019t move notification to new", error);
             });
 
             // Wait for our inbox entry to update in realtime. The realtime update event

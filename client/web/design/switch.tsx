@@ -45,8 +45,8 @@ export function Switch({
 
             const defaultChangeErrorTitle =
                 event.pointerType === "touch"
-                    ? "The switch you tapped didn’t work"
-                    : "The switch you clicked didn’t work";
+                    ? "The switch you tapped didn\u2019t work"
+                    : "The switch you clicked didn\u2019t work";
 
             let promise;
             try {

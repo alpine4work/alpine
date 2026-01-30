@@ -22,13 +22,15 @@ export function computeUpdateMessageContent(
     };
 } {
     if (messageItem.payload.type !== "Content")
-        throw new FailedPreconditionError("Can’t update message with a non-content payload");
+        throw new FailedPreconditionError("Can\u2019t update message with a non-content payload");
 
     if (messageItem.payload.clerical)
-        throw new FailedPreconditionError("Can’t update clerical message content");
+        throw new FailedPreconditionError("Can\u2019t update clerical message content");
 
     if (contentVersion !== (messageItem.payload.contentUpdate?.mappings.length ?? 0)) {
-        throw new FailedPreconditionError("Can’t update message with mismatched content version");
+        throw new FailedPreconditionError(
+            "Can\u2019t update message with mismatched content version",
+        );
     }
 
     let content = messageItem.payload.content;
@@ -43,7 +45,7 @@ export function computeUpdateMessageContent(
         }
         if (!stepResult.doc) {
             throw new FailedPreconditionError(
-                `Couldn’t apply step to content: ${stepResult.failed!}`,
+                `Couldn\u2019t apply step to content: ${stepResult.failed!}`,
             );
         }
 

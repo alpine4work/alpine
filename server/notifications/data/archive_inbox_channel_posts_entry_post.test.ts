@@ -316,7 +316,7 @@ test("archiving single post is idempotent when all but one posts are archived", 
     ]);
 });
 
-test("can’t archive individual post without access to space", async () => {
+test("can\u2019t archive individual post without access to space", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -338,10 +338,10 @@ test("can’t archive individual post without access to space", async () => {
             bucketGeneration: 0,
             postId: post2.id,
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
-test("noops when archiving individual post in entry that doesn’t exist", async () => {
+test("noops when archiving individual post in entry that doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -357,7 +357,7 @@ test("noops when archiving individual post in entry that doesn’t exist", async
     expect(await testGetInboxEntries(session, {filter: "Archive"})).toEqual([]);
 });
 
-test("can’t archive individual post which doesn’t exist in inbox entry", async () => {
+test("can\u2019t archive individual post which doesn\u2019t exist in inbox entry", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 

@@ -17,7 +17,7 @@ export function InboxViewTopBarModeToggleButton({
                 variant={filter === "New" ? "quiet-on" : "quiet-off"}
                 height="6"
                 paddingX="2"
-                pressErrorTitle="Can’t open new notifications"
+                pressErrorTitle="Can\u2019t open new notifications"
                 onPress={onNewPress}
             >
                 New
@@ -26,7 +26,7 @@ export function InboxViewTopBarModeToggleButton({
                 variant={filter === "Archive" ? "quiet-on" : "quiet-off"}
                 height="6"
                 paddingX="2"
-                pressErrorTitle="Can’t open old notifications"
+                pressErrorTitle="Can\u2019t open old notifications"
                 onPress={onArchivePress}
             >
                 Old

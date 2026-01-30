@@ -57,11 +57,11 @@ const crawlPromise = new Lazy(async () => {
 
     assert(
         getConstructedDynamoTableSchemaCount() === 0,
-        "Some `DynamoTableSchema`s have already been constructed so won’t be captured in our recording",
+        "Some `DynamoTableSchema`s have already been constructed so won\u2019t be captured in our recording",
     );
     assert(
         getConstructedOpensearchIndexCount() === 0,
-        "Some `OpensearchIndex`s have already been constructed so won’t be captured in our recording",
+        "Some `OpensearchIndex`s have already been constructed so won\u2019t be captured in our recording",
     );
 
     const [

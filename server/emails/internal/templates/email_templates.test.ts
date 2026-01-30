@@ -80,7 +80,7 @@ describe("getTitleFromHtml", () => {
             expected: "First Title",
         },
         {
-            description: "handles title with special characters that don’t need decoding",
+            description: "handles title with special characters that don\u2019t need decoding",
             html: "<html><head><title>Title with @#$%^*()_+-=[]{}|;:,.?</title></head></html>",
             expected: "Title with @#$%^*()_+-=[]{}|;:,.?",
         },
@@ -112,7 +112,7 @@ describe("getTitleFromHtml", () => {
         {
             description: "decodes multiple different HTML entities",
             html: "<html><head><title>&lt;Company&gt; &amp; &#8220;Products&#8221; &#8211; Overview</title></head></html>",
-            expected: "<Company> & “Products” – Overview",
+            expected: "<Company> & \u201CProducts\u201D – Overview",
         },
         {
             description: "handles title with complex HTML entity combinations",
@@ -124,10 +124,10 @@ describe("getTitleFromHtml", () => {
             description: "handles title in complex HTML document",
             html: `
             <!DOCTYPE html>
-            <html lang=”en”>
+            <html lang=\u201Den\u201D>
             <head>
-                <meta charset=”UTF-8”>
-                <meta name=”viewport” content=”width=device-width, initial-scale=1.0”>
+                <meta charset=\u201DUTF-8\u201D>
+                <meta name=\u201Dviewport\u201D content=\u201Dwidth=device-width, initial-scale=1.0\u201D>
                 <title>Complex Document &amp; Title</title>
                 <style>body { margin: 0; }</style>
             </head>
@@ -191,7 +191,7 @@ describe("renderReactEmailTemplate", () => {
                     digestEntries: [
                         {
                             summary: [{type: "Account", name: "Bob"}, " sent you a message"],
-                            preview: "Bob: Did you see Alice’s photos? They’re amazing!",
+                            preview: "Bob: Did you see Alice\u2019s photos? They\u2019re amazing!",
                             brandIconType: "Chat",
                             time: new Date("2025-08-21T08:42:11Z"),
                             url: "/s/1234/inbox?selected=3",
@@ -216,7 +216,7 @@ describe("renderReactEmailTemplate", () => {
                         },
                         {
                             summary: [
-                                "New comment thread on “My Important Document” by ",
+                                "New comment thread on \u201CMy Important Document\u201D by ",
                                 {type: "Account", name: "Caominhe"},
                             ],
                             preview: "Caominhe: Good thinking! 👍",
@@ -279,7 +279,7 @@ describe("renderReactEmailTemplate", () => {
                         },
                         {
                             summary: ["Your post in Weekly Recap has new comments"],
-                            preview: "Bob: OMG! 🤩 I’m so excited for this feature!",
+                            preview: "Bob: OMG! 🤩 I\u2019m so excited for this feature!",
                             brandIconType: "Post",
                             time: new Date("2025-08-21T17:11Z"),
                             url: "/s/1234/inbox?selected=5",
@@ -326,7 +326,7 @@ describe("renderReactEmailTemplate", () => {
                                 {type: "Account", name: "Felicia"},
                             ],
                             preview:
-                                "Felicia: I’m working on the new design for diagrams and need some feedback. Please take a look!",
+                                "Felicia: I\u2019m working on the new design for diagrams and need some feedback. Please take a look!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T22:36:11Z"),
                             url: "/s/1234/inbox?selected=2",

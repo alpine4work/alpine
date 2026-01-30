@@ -5,7 +5,7 @@ const reactionCharacterIdsArray = Object.values(reactionCharacterIds).flatMap(id
 );
 
 // This allows us to use 0 as a special "null" value in the future if we need.
-test("`reactionCharacterIds` doesn’t include zero", () => {
+test("`reactionCharacterIds` doesn\u2019t include zero", () => {
     expect(reactionCharacterIdsArray.includes(0)).toEqual(false);
 });
 

@@ -80,12 +80,12 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
 
     const {submitErrorTitle, buttonLabel, subheadingEnd} = {
         SignInOneTimePassword: {
-            submitErrorTitle: "Couldn’t sign in",
+            submitErrorTitle: "Couldn\u2019t sign in",
             buttonLabel: "Sign in",
             subheadingEnd: "sign in",
         },
         SignUpOneTimePassword: {
-            submitErrorTitle: "Couldn’t sign up",
+            submitErrorTitle: "Couldn\u2019t sign up",
             buttonLabel: "Sign up",
             subheadingEnd: "finish signing up",
         },

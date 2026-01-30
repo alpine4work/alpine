@@ -49,7 +49,7 @@ test("does not allow updating the observedTimeZone to an invalid time zone", asy
     ).rejects.toThrow(InvalidArgumentError);
 });
 
-test("should create a new account settings item and set the observedTimeZone if it doesn’t exist", async () => {
+test("should create a new account settings item and set the observedTimeZone if it doesn\u2019t exist", async () => {
     const space1 = await TestSpace.create(context);
 
     const accountId = generateId<AccountId>();

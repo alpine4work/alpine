@@ -36,10 +36,10 @@ test("can toggle document sharing on/off with switch", async ({
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
-    await expect(page1.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page2.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
@@ -66,7 +66,7 @@ test("can toggle document sharing on/off with switch", async ({
     }).toPass({timeout: 5000});
 
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
-    await expect(page2.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(
@@ -88,7 +88,7 @@ test("can toggle document sharing on/off with switch", async ({
         page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
     ).toHaveAttribute("aria-label", "Icon indicating the document is private");
 
-    await expect(page2.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
@@ -116,10 +116,10 @@ test("can toggle document sharing on/off with share dialog default grant", async
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
-    await expect(page1.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page2.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
@@ -136,7 +136,7 @@ test("can toggle document sharing on/off with share dialog default grant", async
 
     await page1
         .getByTestId("ShareOverlayDefaultGrant")
-        .getByRole("button", {name: "can’t access"})
+        .getByRole("button", {name: "can\u2019t access"})
         .click();
 
     await expect(
@@ -161,7 +161,7 @@ test("can toggle document sharing on/off with share dialog default grant", async
     }).toPass({timeout: 5000});
 
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
-    await expect(page2.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(
@@ -183,7 +183,7 @@ test("can toggle document sharing on/off with share dialog default grant", async
         "Icon indicating the document is shared with everyone in Test Space",
     );
 
-    await page1.getByRole("menuitem", {name: "can’t access"}).click();
+    await page1.getByRole("menuitem", {name: "can\u2019t access"}).click();
 
     await expect(
         page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -193,7 +193,7 @@ test("can toggle document sharing on/off with share dialog default grant", async
         page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
     ).toHaveAttribute("aria-label", "Icon indicating the document is private");
 
-    await expect(page2.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
@@ -221,10 +221,10 @@ test("can toggle document sharing on/off with share dialog url grant", async ({
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
-    await expect(page1.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page2.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
@@ -241,7 +241,7 @@ test("can toggle document sharing on/off with share dialog url grant", async ({
 
     await page1
         .getByTestId("ShareOverlayUrlGrant")
-        .getByRole("button", {name: "can’t access"})
+        .getByRole("button", {name: "can\u2019t access"})
         .click();
 
     await expect(
@@ -266,7 +266,7 @@ test("can toggle document sharing on/off with share dialog url grant", async ({
     }).toPass({timeout: 5000});
 
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
-    await expect(page2.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(
@@ -285,7 +285,7 @@ test("can toggle document sharing on/off with share dialog url grant", async ({
         "Icon indicating the document is shared with anyone with the link",
     );
 
-    await page1.getByRole("menuitem", {name: "can’t access"}).click();
+    await page1.getByRole("menuitem", {name: "can\u2019t access"}).click();
 
     await expect(
         page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -295,7 +295,7 @@ test("can toggle document sharing on/off with share dialog url grant", async ({
         page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
     ).toHaveAttribute("aria-label", "Icon indicating the document is private");
 
-    await expect(page2.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
@@ -323,10 +323,10 @@ test("can toggle document sharing on/off with share dialog account grant", async
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
-    await expect(page1.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page2.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
@@ -364,7 +364,7 @@ test("can toggle document sharing on/off with share dialog account grant", async
     }).toPass({timeout: 5000});
 
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
-    await expect(page2.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(
@@ -388,7 +388,7 @@ test("can toggle document sharing on/off with share dialog account grant", async
         page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
     ).toHaveAttribute("aria-label", "Icon indicating the document is private");
 
-    await expect(page2.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
@@ -490,7 +490,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             page.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`).getByText(
                 {
                     Manage: "can edit",
-                    Edit: "can edit (can’t share)",
+                    Edit: "can edit (can\u2019t share)",
                     Comment: "can comment",
                     View: "can view",
                 }[accessLevel],
@@ -498,10 +498,12 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             ),
         ).toBeVisible();
         await expect(
-            page.getByTestId("ShareOverlayDefaultGrant").getByText("can’t access", {exact: true}),
+            page
+                .getByTestId("ShareOverlayDefaultGrant")
+                .getByText("can\u2019t access", {exact: true}),
         ).toBeVisible();
         await expect(
-            page.getByTestId("ShareOverlayUrlGrant").getByText("can’t access", {exact: true}),
+            page.getByTestId("ShareOverlayUrlGrant").getByText("can\u2019t access", {exact: true}),
         ).toBeVisible();
 
         if (hasAccessLevel(accessLevel, "Manage")) {
@@ -513,12 +515,12 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await expect(
                 page
                     .getByTestId("ShareOverlayDefaultGrant")
-                    .getByRole("button", {name: "can’t access"}),
+                    .getByRole("button", {name: "can\u2019t access"}),
             ).toBeVisible();
             await expect(
                 page
                     .getByTestId("ShareOverlayUrlGrant")
-                    .getByRole("button", {name: "can’t access"}),
+                    .getByRole("button", {name: "can\u2019t access"}),
             ).toBeVisible();
 
             await expect(page.getByPlaceholder("Add people")).toBeVisible();
@@ -531,12 +533,12 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await expect(
                 page
                     .getByTestId("ShareOverlayDefaultGrant")
-                    .getByRole("button", {name: "can’t access"}),
+                    .getByRole("button", {name: "can\u2019t access"}),
             ).toBeHidden();
             await expect(
                 page
                     .getByTestId("ShareOverlayUrlGrant")
-                    .getByRole("button", {name: "can’t access"}),
+                    .getByRole("button", {name: "can\u2019t access"}),
             ).toBeHidden();
 
             await expect(page.getByPlaceholder("Add people")).toBeHidden();
@@ -811,7 +813,7 @@ test("anonymous accounts can see document shared with url grant", async ({
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Search"})).toBeVisible();
-    await expect(page2.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText(
@@ -824,11 +826,11 @@ test("anonymous accounts can see document shared with url grant", async ({
         page2.getByRole("textbox", {name: "Document"}).locator("[data-comment]"),
     ).toBeVisible();
 
-    await expect(page1.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
-    await expect(page1.getByText("You aren’t signed in")).toBeVisible();
-    await expect(page1.getByText("You don’t have access to this space")).toBeHidden();
-    await expect(page1.getByText("You aren’t allowed to access this document")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t signed in")).toBeVisible();
+    await expect(page1.getByText("You don\u2019t have access to this space")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t allowed to access this document")).toBeHidden();
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
@@ -853,7 +855,7 @@ test("anonymous accounts can see document shared with url grant", async ({
 
     await page2
         .getByTestId("ShareOverlayUrlGrant")
-        .getByRole("button", {name: "can’t access"})
+        .getByRole("button", {name: "can\u2019t access"})
         .click();
 
     await expect(
@@ -879,7 +881,7 @@ test("anonymous accounts can see document shared with url grant", async ({
 
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
-    await expect(page1.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
@@ -894,7 +896,7 @@ test("anonymous accounts can see document shared with url grant", async ({
 
     await page2.getByTestId("ShareOverlayUrlGrant").getByRole("button", {name: "can view"}).click();
 
-    await page2.getByRole("menuitem", {name: "can’t access"}).click();
+    await page2.getByRole("menuitem", {name: "can\u2019t access"}).click();
 
     await expect(
         page2.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -908,11 +910,11 @@ test("anonymous accounts can see document shared with url grant", async ({
         });
     }).toPass({timeout: 5000});
 
-    await expect(page1.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
-    await expect(page1.getByText("You aren’t signed in")).toBeVisible();
-    await expect(page1.getByText("You don’t have access to this space")).toBeHidden();
-    await expect(page1.getByText("You aren’t allowed to access this document")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t signed in")).toBeVisible();
+    await expect(page1.getByText("You don\u2019t have access to this space")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t allowed to access this document")).toBeHidden();
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
@@ -974,7 +976,7 @@ test("accounts from another space can see document shared with url grant", async
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Search"})).toBeVisible();
-    await expect(page2.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText(
@@ -987,11 +989,11 @@ test("accounts from another space can see document shared with url grant", async
         page2.getByRole("textbox", {name: "Document"}).locator("[data-comment]"),
     ).toBeVisible();
 
-    await expect(page1.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
-    await expect(page1.getByText("You don’t have access to this space")).toBeVisible();
-    await expect(page1.getByText("You aren’t signed in")).toBeHidden();
-    await expect(page1.getByText("You aren’t allowed to access this document")).toBeHidden();
+    await expect(page1.getByText("You don\u2019t have access to this space")).toBeVisible();
+    await expect(page1.getByText("You aren\u2019t signed in")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t allowed to access this document")).toBeHidden();
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
@@ -1016,7 +1018,7 @@ test("accounts from another space can see document shared with url grant", async
 
     await page2
         .getByTestId("ShareOverlayUrlGrant")
-        .getByRole("button", {name: "can’t access"})
+        .getByRole("button", {name: "can\u2019t access"})
         .click();
 
     await expect(
@@ -1042,7 +1044,7 @@ test("accounts from another space can see document shared with url grant", async
 
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
-    await expect(page1.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
@@ -1057,7 +1059,7 @@ test("accounts from another space can see document shared with url grant", async
 
     await page2.getByTestId("ShareOverlayUrlGrant").getByRole("button", {name: "can view"}).click();
 
-    await page2.getByRole("menuitem", {name: "can’t access"}).click();
+    await page2.getByRole("menuitem", {name: "can\u2019t access"}).click();
 
     await expect(
         page2.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -1071,11 +1073,11 @@ test("accounts from another space can see document shared with url grant", async
         });
     }).toPass({timeout: 5000});
 
-    await expect(page1.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
-    await expect(page1.getByText("You don’t have access to this space")).toBeVisible();
-    await expect(page1.getByText("You aren’t signed in")).toBeHidden();
-    await expect(page1.getByText("You aren’t allowed to access this document")).toBeHidden();
+    await expect(page1.getByText("You don\u2019t have access to this space")).toBeVisible();
+    await expect(page1.getByText("You aren\u2019t signed in")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t allowed to access this document")).toBeHidden();
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
@@ -1135,7 +1137,7 @@ test("accounts from same space can see document shared with url grant", async ({
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Search"})).toBeVisible();
-    await expect(page2.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText(
@@ -1148,11 +1150,11 @@ test("accounts from same space can see document shared with url grant", async ({
         page2.getByRole("textbox", {name: "Document"}).locator("[data-comment]"),
     ).toBeVisible();
 
-    await expect(page1.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
-    await expect(page1.getByText("You aren’t allowed to access this document")).toBeVisible();
-    await expect(page1.getByText("You aren’t signed in")).toBeHidden();
-    await expect(page1.getByText("You don’t have access to this space")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t allowed to access this document")).toBeVisible();
+    await expect(page1.getByText("You aren\u2019t signed in")).toBeHidden();
+    await expect(page1.getByText("You don\u2019t have access to this space")).toBeHidden();
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeVisible();
@@ -1177,7 +1179,7 @@ test("accounts from same space can see document shared with url grant", async ({
 
     await page2
         .getByTestId("ShareOverlayUrlGrant")
-        .getByRole("button", {name: "can’t access"})
+        .getByRole("button", {name: "can\u2019t access"})
         .click();
 
     await expect(
@@ -1203,7 +1205,7 @@ test("accounts from same space can see document shared with url grant", async ({
 
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Search"})).toBeVisible();
-    await expect(page1.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
@@ -1227,7 +1229,7 @@ test("accounts from same space can see document shared with url grant", async ({
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
 
-    await page2.getByRole("menuitem", {name: "can’t access"}).click();
+    await page2.getByRole("menuitem", {name: "can\u2019t access"}).click();
 
     await expect(
         page2.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -1237,11 +1239,11 @@ test("accounts from same space can see document shared with url grant", async ({
     // realtime.
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeHidden();
 
-    await expect(page1.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
-    await expect(page1.getByText("You aren’t allowed to access this document")).toBeVisible();
-    await expect(page1.getByText("You aren’t signed in")).toBeHidden();
-    await expect(page1.getByText("You don’t have access to this space")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t allowed to access this document")).toBeVisible();
+    await expect(page1.getByText("You aren\u2019t signed in")).toBeHidden();
+    await expect(page1.getByText("You don\u2019t have access to this space")).toBeHidden();
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeVisible();
@@ -1308,7 +1310,7 @@ test("account that used to be a member of space but was removed can see document
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Search"})).toBeVisible();
-    await expect(page2.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText(
@@ -1321,11 +1323,11 @@ test("account that used to be a member of space but was removed can see document
         page2.getByRole("textbox", {name: "Document"}).locator("[data-comment]"),
     ).toBeVisible();
 
-    await expect(page1.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
-    await expect(page1.getByText("You don’t have access to this space")).toBeVisible();
-    await expect(page1.getByText("You aren’t signed in")).toBeHidden();
-    await expect(page1.getByText("You aren’t allowed to access this document")).toBeHidden();
+    await expect(page1.getByText("You don\u2019t have access to this space")).toBeVisible();
+    await expect(page1.getByText("You aren\u2019t signed in")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t allowed to access this document")).toBeHidden();
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
@@ -1353,7 +1355,7 @@ test("account that used to be a member of space but was removed can see document
 
     await page2
         .getByTestId("ShareOverlayUrlGrant")
-        .getByRole("button", {name: "can’t access"})
+        .getByRole("button", {name: "can\u2019t access"})
         .click();
 
     await expect(
@@ -1382,7 +1384,7 @@ test("account that used to be a member of space but was removed can see document
 
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
-    await expect(page1.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
@@ -1397,7 +1399,7 @@ test("account that used to be a member of space but was removed can see document
 
     await page2.getByTestId("ShareOverlayUrlGrant").getByRole("button", {name: "can view"}).click();
 
-    await page2.getByRole("menuitem", {name: "can’t access"}).click();
+    await page2.getByRole("menuitem", {name: "can\u2019t access"}).click();
 
     await expect(
         page2.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -1414,11 +1416,11 @@ test("account that used to be a member of space but was removed can see document
         });
     }).toPass({timeout: 5000});
 
-    await expect(page1.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
-    await expect(page1.getByText("You don’t have access to this space")).toBeVisible();
-    await expect(page1.getByText("You aren’t signed in")).toBeHidden();
-    await expect(page1.getByText("You aren’t allowed to access this document")).toBeHidden();
+    await expect(page1.getByText("You don\u2019t have access to this space")).toBeVisible();
+    await expect(page1.getByText("You aren\u2019t signed in")).toBeHidden();
+    await expect(page1.getByText("You aren\u2019t allowed to access this document")).toBeHidden();
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
@@ -1434,7 +1436,7 @@ test("account that used to be a member of space but was removed can see document
     await browserContext1.close();
 });
 
-test("can’t change permission level of account who invited you", async ({
+test("can\u2019t change permission level of account who invited you", async ({
     context: browserContext,
     page,
 }) => {
@@ -1455,19 +1457,19 @@ test("can’t change permission level of account who invited you", async ({
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "remove access"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await expect(
@@ -1482,19 +1484,19 @@ test("can’t change permission level of account who invited you", async ({
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "can comment"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await expect(
@@ -1504,7 +1506,7 @@ test("can’t change permission level of account who invited you", async ({
     ).toBeVisible();
 });
 
-test("can’t change permission level of account who invited the account who invited you", async ({
+test("can\u2019t change permission level of account who invited the account who invited you", async ({
     context: browserContext,
     page,
 }) => {
@@ -1526,19 +1528,19 @@ test("can’t change permission level of account who invited the account who inv
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "remove access"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await expect(
@@ -1553,19 +1555,19 @@ test("can’t change permission level of account who invited the account who inv
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "can comment"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await expect(
@@ -1633,7 +1635,7 @@ test("will be warned before lowering your own permission level", async ({
     ).toBeVisible();
 
     await expect(page.getByRole("textbox", {name: "Document"})).toBeVisible();
-    await expect(page.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await page.getByRole("button", {name: "I understand, make this change"}).click();
@@ -1643,11 +1645,11 @@ test("will be warned before lowering your own permission level", async ({
     ).toBeHidden();
 
     await expect(page.getByRole("textbox", {name: "Document"})).toBeHidden();
-    await expect(page.getByText("Couldn’t open document")).toBeVisible();
+    await expect(page.getByText("Couldn\u2019t open document")).toBeVisible();
     await expect(page.getByRole("img", {name: "Error icon"})).toBeHidden();
 });
 
-test("will be prevented from lowering your own permission level if you’re the last manager", async ({
+test("will be prevented from lowering your own permission level if you\u2019re the last manager", async ({
     context: browserContext,
     page,
 }) => {
@@ -1669,7 +1671,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeHidden();
 
@@ -1677,7 +1679,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeVisible();
 
@@ -1685,7 +1687,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeHidden();
 
@@ -1702,7 +1704,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeHidden();
 
@@ -1710,7 +1712,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeVisible();
 
@@ -1718,7 +1720,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeHidden();
 
@@ -1748,7 +1750,7 @@ test("will send a notification when sharing with account", async ({
     await page1.goto(`/s/${space.id}/documents/${document.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
-    await expect(page1.getByText("Couldn’t open document")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByText("No new notifications")).toBeVisible();

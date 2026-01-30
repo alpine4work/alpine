@@ -1454,7 +1454,7 @@ function protectInboxEntryModelBuilder<Value>(
 ): Promise<Value> {
     switch (context.actor.type) {
         case "Anonymous": {
-            throw new PermissionDeniedError("Can’t read inbox as an anonymous actor");
+            throw new PermissionDeniedError("Can\u2019t read inbox as an anonymous actor");
         }
         case "System": {
             return impersonateAccountAsSystemContext(
@@ -1471,7 +1471,7 @@ function protectInboxEntryModelBuilder<Value>(
             return action(context);
         }
         case "Bot": {
-            throw new InternalError("Bot actors shouldn’t have an inbox");
+            throw new InternalError("Bot actors shouldn\u2019t have an inbox");
         }
         default:
             throw exhaustive(context.actor);

@@ -16,7 +16,7 @@ export function validateEmailAddress(emailAddress: string): EmailAddress {
 
     if (!isEmailAddressValid(emailAddress)) {
         throw new InvalidArgumentError("Expected string to be an email address", {
-            displayMessage: errorDisplayMessage`“${emailAddress}” isn’t an email address. Try again with an email address like “name@company.com”.`,
+            displayMessage: errorDisplayMessage`\u201C${emailAddress}\u201D isn\u2019t an email address. Try again with an email address like \u201Cname@company.com\u201D.`,
         });
     }
 

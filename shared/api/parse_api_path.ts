@@ -167,7 +167,7 @@ type ApiPathsType = [
 
 export function parseApiPath(path: string): ApiPathObject {
     if (!path.startsWith("/")) {
-        throw new InvalidArgumentError("Path doesn’t start with `/`", {
+        throw new InvalidArgumentError("Path doesn\u2019t start with `/`", {
             displayMessage: getDisplayMessage(),
         });
     }
@@ -175,7 +175,7 @@ export function parseApiPath(path: string): ApiPathObject {
     const pathSegments = path.slice(1).split("/");
 
     if (pathSegments.length < 2) {
-        throw new InvalidArgumentError("Path doesn’t have at least two path segments", {
+        throw new InvalidArgumentError("Path doesn\u2019t have at least two path segments", {
             displayMessage: getDisplayMessage(),
         });
     }
@@ -183,7 +183,7 @@ export function parseApiPath(path: string): ApiPathObject {
     switch (pathSegments[0]) {
         case "accounts": {
             if (!isId<AccountId>(pathSegments[1]!)) {
-                throw new InvalidArgumentError("Second path segment isn’t an `Id`", {
+                throw new InvalidArgumentError("Second path segment isn\u2019t an `Id`", {
                     displayMessage: getDisplayMessage(),
                 });
             }
@@ -198,7 +198,7 @@ export function parseApiPath(path: string): ApiPathObject {
         }
         case "channels": {
             if (!isId<ChannelId>(pathSegments[1]!)) {
-                throw new InvalidArgumentError("Second path segment isn’t an `Id`", {
+                throw new InvalidArgumentError("Second path segment isn\u2019t an `Id`", {
                     displayMessage: getDisplayMessage(),
                 });
             }
@@ -213,7 +213,7 @@ export function parseApiPath(path: string): ApiPathObject {
         }
         case "chats": {
             if (!isId<ChatId>(pathSegments[1]!)) {
-                throw new InvalidArgumentError("Second path segment isn’t an `Id`", {
+                throw new InvalidArgumentError("Second path segment isn\u2019t an `Id`", {
                     displayMessage: getDisplayMessage(),
                 });
             }
@@ -232,7 +232,7 @@ export function parseApiPath(path: string): ApiPathObject {
                 const messageIndex = parseMessageIndexIfExists(pathSegments[3]!);
                 if (typeof messageIndex !== "number") {
                     throw new InvalidArgumentError(
-                        "Fourth path segment isn’t a valid message index",
+                        "Fourth path segment isn\u2019t a valid message index",
                         {
                             displayMessage: getDisplayMessage(),
                         },
@@ -249,14 +249,14 @@ export function parseApiPath(path: string): ApiPathObject {
         }
         case "documents": {
             if (!isId<DocumentId>(pathSegments[1]!)) {
-                throw new InvalidArgumentError("Second path segment isn’t an `Id`", {
+                throw new InvalidArgumentError("Second path segment isn\u2019t an `Id`", {
                     displayMessage: getDisplayMessage(),
                 });
             }
 
             if (pathSegments[2] === "threads") {
                 if (!isId<DocumentCommentThreadId>(pathSegments[3]!)) {
-                    throw new InvalidArgumentError("Fourth path segment isn’t an `Id`", {
+                    throw new InvalidArgumentError("Fourth path segment isn\u2019t an `Id`", {
                         displayMessage: getDisplayMessage(),
                     });
                 }
@@ -272,7 +272,7 @@ export function parseApiPath(path: string): ApiPathObject {
                         const commentIndex = parseMessageIndexIfExists(pathSegments[5]);
                         if (typeof commentIndex !== "number") {
                             throw new InvalidArgumentError(
-                                "Sixth path segment isn’t a valid message index",
+                                "Sixth path segment isn\u2019t a valid message index",
                                 {
                                     displayMessage: getDisplayMessage(),
                                 },
@@ -323,7 +323,7 @@ export function parseApiPath(path: string): ApiPathObject {
         }
         case "posts": {
             if (!isId<PostId>(pathSegments[1]!)) {
-                throw new InvalidArgumentError("Second path segment isn’t an `Id`", {
+                throw new InvalidArgumentError("Second path segment isn\u2019t an `Id`", {
                     displayMessage: getDisplayMessage(),
                 });
             }
@@ -339,7 +339,7 @@ export function parseApiPath(path: string): ApiPathObject {
                     const commentIndex = parseMessageIndexIfExists(pathSegments[3]);
                     if (typeof commentIndex !== "number") {
                         throw new InvalidArgumentError(
-                            "Fourth path segment isn’t a valid message index",
+                            "Fourth path segment isn\u2019t a valid message index",
                             {
                                 displayMessage: getDisplayMessage(),
                             },
@@ -368,7 +368,7 @@ export function parseApiPath(path: string): ApiPathObject {
         }
         case "tasks": {
             if (!isId<TaskId>(pathSegments[1]!)) {
-                throw new InvalidArgumentError("Second path segment isn’t an `Id`", {
+                throw new InvalidArgumentError("Second path segment isn\u2019t an `Id`", {
                     displayMessage: getDisplayMessage(),
                 });
             }
@@ -384,7 +384,7 @@ export function parseApiPath(path: string): ApiPathObject {
                     const commentIndex = parseMessageIndexIfExists(pathSegments[3]);
                     if (typeof commentIndex !== "number") {
                         throw new InvalidArgumentError(
-                            "Fourth path segment isn’t a valid message index",
+                            "Fourth path segment isn\u2019t a valid message index",
                             {
                                 displayMessage: getDisplayMessage(),
                             },
@@ -413,7 +413,7 @@ export function parseApiPath(path: string): ApiPathObject {
         }
         case "task-collections": {
             if (!isId<TaskCollectionId>(pathSegments[1]!)) {
-                throw new InvalidArgumentError("Second path segment isn’t an `Id`", {
+                throw new InvalidArgumentError("Second path segment isn\u2019t an `Id`", {
                     displayMessage: getDisplayMessage(),
                 });
             }
@@ -434,7 +434,7 @@ export function parseApiPath(path: string): ApiPathObject {
     }
 
     function getDisplayMessage() {
-        return errorDisplayMessage`Invalid mention target path: “${path}”.`;
+        return errorDisplayMessage`Invalid mention target path: \u201C${path}\u201D.`;
     }
 }
 

@@ -62,7 +62,7 @@ export async function impersonateAccountAsSystemContext<
     // impersonate it.
     if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
         throw new PermissionDeniedError(
-            "Can’t impersonate account that’s not a member of system actor’s space",
+            "Can\u2019t impersonate account that\u2019s not a member of system actor\u2019s space",
         );
     }
 
@@ -72,7 +72,7 @@ export async function impersonateAccountAsSystemContext<
     // the bot. Therefore there's not much stuff a bot can do on its own so it
     // doesn't make sense to impersonate a bot.
     if (await isBotSpaceAccount(context, context.actor.getSpaceId(), accountId)) {
-        throw new PermissionDeniedError("Can’t impersonate bot account");
+        throw new PermissionDeniedError("Can\u2019t impersonate bot account");
     }
 
     return context.with(

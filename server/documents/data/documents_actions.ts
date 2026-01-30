@@ -2056,7 +2056,7 @@ export class DocumentContentCacheForUpdate {
 
                     if (entry.version > nullableAttributes.version) {
                         throw new InternalError(
-                            "We’ve cached document content that has a version number ahead of what’s in the database",
+                            "We\u2019ve cached document content that has a version number ahead of what\u2019s in the database",
                         );
                     }
                 }
@@ -2635,7 +2635,7 @@ export async function updateDocumentContent(
 
         const internalDocument = await cache.getAndCacheDocument(context, documentId);
         if (!internalDocument)
-            throw new NotFoundError("Can not update document that doesn’t exist");
+            throw new NotFoundError("Can not update document that doesn\u2019t exist");
 
         let expectedAccessLevel: AccessLevel = "Edit";
 
@@ -2742,7 +2742,7 @@ export async function updateDocumentContent(
         // know this update intended to update the access policy.
         if (!intentionallyUpdateAccessPolicy && hasAccessPolicyChanged) {
             throw new PermissionDeniedError(
-                "Can’t update the document’s access policy unless `intentionallyUpdateAccessPolicy` is provided",
+                "Can\u2019t update the document\u2019s access policy unless `intentionallyUpdateAccessPolicy` is provided",
             );
         }
 
@@ -2755,7 +2755,7 @@ export async function updateDocumentContent(
             !isDeepEqual(intentionallyUpdateAccessPolicy.accessPolicy, newAccessPolicy)
         ) {
             throw new PermissionDeniedError(
-                "The document’s new access policy doesn’t match `intentionallyUpdateAccessPolicy`",
+                "The document\u2019s new access policy doesn\u2019t match `intentionallyUpdateAccessPolicy`",
             );
         }
 
@@ -3305,7 +3305,7 @@ export async function updateDocumentContent(
                             }),
                     );
                     if (!commentThreadItem)
-                        throw new NotFoundError("Couldn’t find document comment thread");
+                        throw new NotFoundError("Couldn\u2019t find document comment thread");
 
                     // If the comment thread is already resolved, then we don't want to remove the
                     // `ranges` in the resolution state. So leave the comment thread alone. We do
@@ -3361,7 +3361,7 @@ export async function updateDocumentContent(
                             }),
                     );
                     if (!commentThreadItem)
-                        throw new NotFoundError("Couldn’t find document comment thread");
+                        throw new NotFoundError("Couldn\u2019t find document comment thread");
 
                     if (commentThreadItem.resolutionState.type === "Unresolved") {
                         transaction.push(
@@ -4877,8 +4877,8 @@ export function putDocumentCommentStreamPart(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -5208,8 +5208,8 @@ export function completeDocumentCommentStream(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -5357,8 +5357,8 @@ export function pingDocumentCommentStream(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -5504,7 +5504,7 @@ export async function getDocumentCommentAtVersion(
             }
 
             if (item.version < version) {
-                throw new FailedPreconditionError("Can’t get message at a future version");
+                throw new FailedPreconditionError("Can\u2019t get message at a future version");
             }
 
             return item;
@@ -5843,10 +5843,12 @@ export function deleteDocumentComment(
             throw new PermissionDeniedError("Can only delete comments you authored");
 
         if (commentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can’t delete comments with a non-content payload");
+            throw new FailedPreconditionError(
+                "Can\u2019t delete comments with a non-content payload",
+            );
 
         if (commentItem.payload.clerical)
-            throw new FailedPreconditionError("Can’t delete clerical comments");
+            throw new FailedPreconditionError("Can\u2019t delete clerical comments");
 
         const deletedTime = new Date();
 
@@ -6157,7 +6159,7 @@ export async function getDocumentCommentThreadAndInitialComments(
     const {commentThread, initialComments, initialOtherReferencedComments} =
         await getDocumentCommentThreadAndInitialCommentsIfExists(context, input);
 
-    if (!commentThread) throw new NotFoundError("Couldn’t find document comment thread");
+    if (!commentThread) throw new NotFoundError("Couldn\u2019t find document comment thread");
 
     return {commentThread, initialComments, initialOtherReferencedComments};
 }

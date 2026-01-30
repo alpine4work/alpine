@@ -1117,7 +1117,7 @@ test("tuple schema can not change element lengths", () => {
     });
 });
 
-test("union schema can become object schema when there’s one variant", () => {
+test("union schema can become object schema when there\u2019s one variant", () => {
     testCase({
         isBackwardsCompatible: true,
         lastSchema: Schema.union({
@@ -1178,7 +1178,7 @@ test("union schema can become object schema when there’s one variant", () => {
     });
 });
 
-test("union schema can become object schema when there’s multiple variants", () => {
+test("union schema can become object schema when there\u2019s multiple variants", () => {
     testCase({
         isBackwardsCompatible: true,
         lastSchema: Schema.union({
@@ -1564,7 +1564,7 @@ test("object can become union with default type", () => {
     });
 });
 
-test("object can become union with default type when there’s a type value", () => {
+test("object can become union with default type when there\u2019s a type value", () => {
     testCase({
         isBackwardsCompatible: true,
         lastSchema: Schema.object({type: Schema.value("a"), foo: Schema.integer}),

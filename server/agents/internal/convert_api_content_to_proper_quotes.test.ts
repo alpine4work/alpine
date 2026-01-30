@@ -24,7 +24,7 @@ test("converts double quotes to proper curly quotes", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "He said “Hello world”"}],
+                    elements: [{type: "Text", text: "He said \u201CHello world\u201D"}],
                 },
             ],
         },
@@ -45,7 +45,7 @@ test("converts single quotes to proper curly quotes", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "It’s a ‘beautiful’ day"}],
+                    elements: [{type: "Text", text: "It\u2019s a \u2018beautiful\u2019 day"}],
                 },
             ],
         },
@@ -66,7 +66,7 @@ test("handles quotes after whitespace as opening quotes", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "Start “quote after space"}],
+                    elements: [{type: "Text", text: "Start \u201Cquote after space"}],
                 },
             ],
         },
@@ -87,7 +87,7 @@ test("handles quotes after tab as opening quotes", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "Start\t“quote after tab"}],
+                    elements: [{type: "Text", text: "Start\t\u201Cquote after tab"}],
                 },
             ],
         },
@@ -108,7 +108,7 @@ test("handles quotes after newline as opening quotes", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "Start\n“quote after newline"}],
+                    elements: [{type: "Text", text: "Start\n\u201Cquote after newline"}],
                 },
             ],
         },
@@ -129,7 +129,7 @@ test("handles quotes at beginning of text as opening quotes", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "“Quote at start"}],
+                    elements: [{type: "Text", text: "\u201CQuote at start"}],
                 },
             ],
         },
@@ -150,7 +150,7 @@ test("handles single quotes at beginning of text as opening quotes", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "‘Quote at start"}],
+                    elements: [{type: "Text", text: "\u2018Quote at start"}],
                 },
             ],
         },
@@ -176,7 +176,7 @@ test("handles mixed single and double quotes", () => {
                     elements: [
                         {
                             type: "Text",
-                            text: "He said “I can’t believe it’s ‘already’ done”",
+                            text: "He said \u201CI can\u2019t believe it\u2019s \u2018already\u2019 done\u201D",
                         },
                     ],
                 },
@@ -203,11 +203,11 @@ test("handles multiple paragraphs", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "First “paragraph”"}],
+                    elements: [{type: "Text", text: "First \u201Cparagraph\u201D"}],
                 },
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "Second ‘paragraph’"}],
+                    elements: [{type: "Text", text: "Second \u2018paragraph\u2019"}],
                 },
             ],
         },
@@ -233,9 +233,9 @@ test("handles quotes in different inline elements", () => {
                 {
                     type: "Paragraph",
                     elements: [
-                        {type: "Text", text: "Before “quote"},
+                        {type: "Text", text: "Before \u201Cquote"},
                         {type: "Text", text: " middle"},
-                        {type: "Text", text: " end” after"},
+                        {type: "Text", text: " end\u201D after"},
                     ],
                 },
             ],
@@ -262,7 +262,7 @@ test("handles empty text elements", () => {
                     type: "Paragraph",
                     elements: [
                         {type: "Text", text: ""},
-                        {type: "Text", text: "“Hello”"},
+                        {type: "Text", text: "\u201CHello\u201D"},
                     ],
                 },
             ],
@@ -289,7 +289,7 @@ test("handles empty text elements with single quote", () => {
                     type: "Paragraph",
                     elements: [
                         {type: "Text", text: ""},
-                        {type: "Text", text: "‘Hello’"},
+                        {type: "Text", text: "\u2018Hello\u2019"},
                     ],
                 },
             ],
@@ -337,9 +337,9 @@ test("handles non-text inline elements unchanged", () => {
                 {
                     type: "Paragraph",
                     elements: [
-                        {type: "Text", text: "Before “quote”"},
+                        {type: "Text", text: "Before \u201Cquote\u201D"},
                         {type: "Break"},
-                        {type: "Text", text: "After ‘quote’"},
+                        {type: "Text", text: "After \u2018quote\u2019"},
                     ],
                 },
             ],
@@ -376,18 +376,18 @@ test("handles complex nested structure", () => {
                 {
                     type: "Heading",
                     level: 1,
-                    elements: [{type: "Text", text: "Chapter “One”"}],
+                    elements: [{type: "Text", text: "Chapter \u201COne\u201D"}],
                 },
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "It was a ‘dark and stormy’ night."}],
+                    elements: [{type: "Text", text: "It was a \u2018dark and stormy\u2019 night."}],
                 },
                 {
                     type: "Quote",
                     elements: [
                         {
                             type: "Paragraph",
-                            elements: [{type: "Text", text: "He whispered “quietly”"}],
+                            elements: [{type: "Text", text: "He whispered \u201Cquietly\u201D"}],
                         },
                     ],
                 },
@@ -410,7 +410,7 @@ test("handles consecutive quotes correctly", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "“Hello”“World”"}],
+                    elements: [{type: "Text", text: "\u201CHello\u201D\u201CWorld\u201D"}],
                 },
             ],
         },
@@ -431,7 +431,7 @@ test("handles consecutive single quotes correctly", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "‘Hello’‘World’"}],
+                    elements: [{type: "Text", text: "\u2018Hello\u2019\u2018World\u2019"}],
                 },
             ],
         },
@@ -452,7 +452,7 @@ test("handles single quote at end of text", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "Don’t"}],
+                    elements: [{type: "Text", text: "Don\u2019t"}],
                 },
             ],
         },
@@ -473,7 +473,7 @@ test("handles double quote at end of text", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "Say “hello”"}],
+                    elements: [{type: "Text", text: "Say \u201Chello\u201D"}],
                 },
             ],
         },
@@ -509,7 +509,7 @@ test("handles quotes after mention (possessive)", () => {
                             target: {type: "Account", id: accountId},
                             title: "Caleb",
                         },
-                        {type: "Text", text: "’s idea"},
+                        {type: "Text", text: "\u2019s idea"},
                     ],
                 },
             ],
@@ -517,7 +517,7 @@ test("handles quotes after mention (possessive)", () => {
     );
 });
 
-test("doesn’t convert quotes to proper quotes in code", () => {
+test("doesn\u2019t convert quotes to proper quotes in code", () => {
     testConvertApiContentToProperQuotes(
         {
             elements: [

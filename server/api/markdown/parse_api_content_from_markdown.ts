@@ -543,11 +543,11 @@ function* parseApiContentBlockElementFromMarkdown(
                             case "td": {
                                 if (tableState === null) {
                                     throw new UnimplementedError(
-                                        "Table HTML isn’t supported in this Markdown block content parent",
+                                        "Table HTML isn\u2019t supported in this Markdown block content parent",
                                         {
                                             // Make sure we have a nice error message for API users trying to parse invalid
                                             // Markdown content into API content.
-                                            displayMessage: errorDisplayMessage`Table HTML isn’t supported in this Markdown block content parent.`,
+                                            displayMessage: errorDisplayMessage`Table HTML isn\u2019t supported in this Markdown block content parent.`,
                                         },
                                     );
                                 }
@@ -752,11 +752,11 @@ function* parseApiContentBlockElementFromMarkdown(
                             case "td": {
                                 if (tableState === null) {
                                     throw new UnimplementedError(
-                                        "Table HTML isn’t supported in this Markdown block content parent",
+                                        "Table HTML isn\u2019t supported in this Markdown block content parent",
                                         {
                                             // Make sure we have a nice error message for API users trying to parse invalid
                                             // Markdown content into API content.
-                                            displayMessage: errorDisplayMessage`Table HTML isn’t supported in this Markdown block content parent.`,
+                                            displayMessage: errorDisplayMessage`Table HTML isn\u2019t supported in this Markdown block content parent.`,
                                         },
                                     );
                                 }
@@ -1790,11 +1790,11 @@ function* parseApiContentInlineElementFromMarkdown(
                             case "th":
                             case "td": {
                                 throw new UnimplementedError(
-                                    "Table HTML isn’t supported in Markdown phrasing content",
+                                    "Table HTML isn\u2019t supported in Markdown phrasing content",
                                     {
                                         // Make sure we have a nice error message for API users trying to parse invalid
                                         // Markdown content into API content.
-                                        displayMessage: errorDisplayMessage`Table HTML isn’t supported in Markdown phrasing content.`,
+                                        displayMessage: errorDisplayMessage`Table HTML isn\u2019t supported in Markdown phrasing content.`,
                                     },
                                 );
                             }
@@ -1869,11 +1869,11 @@ function* parseApiContentInlineElementFromMarkdown(
                             case "th":
                             case "td": {
                                 throw new UnimplementedError(
-                                    "Table HTML isn’t supported in Markdown phrasing content",
+                                    "Table HTML isn\u2019t supported in Markdown phrasing content",
                                     {
                                         // Make sure we have a nice error message for API users trying to parse invalid
                                         // Markdown content into API content.
-                                        displayMessage: errorDisplayMessage`Table HTML isn’t supported in Markdown phrasing content.`,
+                                        displayMessage: errorDisplayMessage`Table HTML isn\u2019t supported in Markdown phrasing content.`,
                                     },
                                 );
                             }
@@ -2358,7 +2358,7 @@ function getOrderStartIfExists(content: List): number | undefined {
     // (has no content).
     // Example:
     // ```markdown
-    // 1. <span data-start=”1”/>
+    // 1. <span data-start="1"/>
     // ```
     if (doesElementHaveExplicitOrderStart(firstListItemContent)) return orderedStart;
 
@@ -2373,7 +2373,7 @@ function getOrderStartIfExists(content: List): number | undefined {
     // the span into the first paragraph element like so:
     //
     // ```markdown
-    // 1. <span data-start=”1”/>Hello world!
+    // 1. <span data-start="1"/>Hello world!
     // ```
     if (doesElementHaveExplicitOrderStart(firstListItemContent.children[0]!)) {
         return orderedStart;
@@ -2388,6 +2388,6 @@ function getOrderStartIfExists(content: List): number | undefined {
     function doesElementHaveExplicitOrderStart(
         element: PhrasingContent | BlockContent | DefinitionContent,
     ): boolean {
-        return element.type === "html" && element.value.includes(`span data-start=”1”`);
+        return element.type === "html" && element.value.includes(`span data-start=\u201D1\u201D`);
     }
 }

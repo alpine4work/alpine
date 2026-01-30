@@ -184,7 +184,7 @@ test("will optimistically update the DOM synchronously", () => {
     expect(getTextbox().textContent).toEqual("Hello world!");
 });
 
-test("won’t ever commit optimistic update if it doesn’t match props", () => {
+test("won\u2019t ever commit optimistic update if it doesn\u2019t match props", () => {
     function NoopContentEditor() {
         const [state] = useState(() =>
             ContentEditorState.create({

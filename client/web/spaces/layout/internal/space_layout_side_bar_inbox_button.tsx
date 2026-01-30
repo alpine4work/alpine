@@ -300,7 +300,7 @@ export function SpaceLayoutSideBarInboxButton({
                 size="lg"
                 description="Inbox"
                 tooltipPlacement="right"
-                pressErrorTitle="Couldn’t open inbox"
+                pressErrorTitle="Couldn\u2019t open inbox"
                 // Don't focus the button on press since pressing will open the overlay and
                 // should focus the overlay.
                 //

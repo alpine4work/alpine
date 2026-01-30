@@ -214,7 +214,7 @@ export function DocumentCommentInput({
                     // request fails.
                     .catch(error =>
                         reporter.logErrorWithoutDisplaying(
-                            "Couldn’t update typing indicator",
+                            "Couldn\u2019t update typing indicator",
                             error,
                         ),
                     );
@@ -227,7 +227,7 @@ export function DocumentCommentInput({
                     // request fails.
                     .catch(error =>
                         reporter.logErrorWithoutDisplaying(
-                            "Couldn’t update typing indicator",
+                            "Couldn\u2019t update typing indicator",
                             error,
                         ),
                     );

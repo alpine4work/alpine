@@ -34,7 +34,7 @@ describe("parseApiPath", () => {
     describe("error cases", () => {
         test("throws on path not starting with /", () => {
             expect(() => parseApiPath(`accounts/${accountId}` as any)).toThrow(
-                "Path doesn’t start with `/`",
+                "Path doesn\u2019t start with `/`",
             );
         });
 
@@ -46,7 +46,7 @@ describe("parseApiPath", () => {
 
         test("throws on path with less than two path segments", () => {
             expect(() => parseApiPath("/accounts" as any)).toThrow(
-                "Path doesn’t have at least two path segments",
+                "Path doesn\u2019t have at least two path segments",
             );
         });
     });
@@ -61,7 +61,7 @@ describe("parseApiPath", () => {
 
         test("throws on invalid account ID", () => {
             expect(() => parseApiPath("/accounts/invalid-id" as any)).toThrow(
-                "Second path segment isn’t an `Id`",
+                "Second path segment isn\u2019t an `Id`",
             );
         });
 
@@ -82,7 +82,7 @@ describe("parseApiPath", () => {
 
         test("throws on invalid channel ID", () => {
             expect(() => parseApiPath("/channels/invalid-id" as any)).toThrow(
-                "Second path segment isn’t an `Id`",
+                "Second path segment isn\u2019t an `Id`",
             );
         });
 
@@ -124,19 +124,19 @@ describe("parseApiPath", () => {
 
         test("throws on invalid chat ID", () => {
             expect(() => parseApiPath("/chats/invalid-id" as any)).toThrow(
-                "Second path segment isn’t an `Id`",
+                "Second path segment isn\u2019t an `Id`",
             );
         });
 
         test("throws on invalid message index", () => {
             expect(() => parseApiPath(`/chats/${chatId}/messages/abc` as any)).toThrow(
-                "Fourth path segment isn’t a valid message index",
+                "Fourth path segment isn\u2019t a valid message index",
             );
             expect(() => parseApiPath(`/chats/${chatId}/messages/-1` as any)).toThrow(
-                "Fourth path segment isn’t a valid message index",
+                "Fourth path segment isn\u2019t a valid message index",
             );
             expect(() => parseApiPath(`/chats/${chatId}/messages/1.5` as any)).toThrow(
-                "Fourth path segment isn’t a valid message index",
+                "Fourth path segment isn\u2019t a valid message index",
             );
         });
 
@@ -208,14 +208,14 @@ describe("parseApiPath", () => {
 
         test("throws on invalid document ID", () => {
             expect(() => parseApiPath("/documents/invalid-id" as any)).toThrow(
-                "Second path segment isn’t an `Id`",
+                "Second path segment isn\u2019t an `Id`",
             );
         });
 
         test("throws on invalid thread ID", () => {
             expect(() =>
                 parseApiPath(`/documents/${documentId}/threads/invalid-id` as any),
-            ).toThrow("Fourth path segment isn’t an `Id`");
+            ).toThrow("Fourth path segment isn\u2019t an `Id`");
         });
 
         test("throws on invalid comment index", () => {
@@ -223,12 +223,12 @@ describe("parseApiPath", () => {
                 parseApiPath(
                     `/documents/${documentId}/threads/${documentCommentThreadId}/messages/abc` as any,
                 ),
-            ).toThrow("Sixth path segment isn’t a valid message index");
+            ).toThrow("Sixth path segment isn\u2019t a valid message index");
             expect(() =>
                 parseApiPath(
                     `/documents/${documentId}/threads/${documentCommentThreadId}/messages/-1`,
                 ),
-            ).toThrow("Sixth path segment isn’t a valid message index");
+            ).toThrow("Sixth path segment isn\u2019t a valid message index");
         });
 
         test("throws on extra path segments", () => {
@@ -279,16 +279,16 @@ describe("parseApiPath", () => {
 
         test("throws on invalid post ID", () => {
             expect(() => parseApiPath("/posts/invalid-id" as any)).toThrow(
-                "Second path segment isn’t an `Id`",
+                "Second path segment isn\u2019t an `Id`",
             );
         });
 
         test("throws on invalid comment index", () => {
             expect(() => parseApiPath(`/posts/${postId}/messages/abc` as any)).toThrow(
-                "Fourth path segment isn’t a valid message index",
+                "Fourth path segment isn\u2019t a valid message index",
             );
             expect(() => parseApiPath(`/posts/${postId}/messages/-1`)).toThrow(
-                "Fourth path segment isn’t a valid message index",
+                "Fourth path segment isn\u2019t a valid message index",
             );
         });
 
@@ -333,16 +333,16 @@ describe("parseApiPath", () => {
 
         test("throws on invalid task ID", () => {
             expect(() => parseApiPath("/tasks/invalid-id" as any)).toThrow(
-                "Second path segment isn’t an `Id`",
+                "Second path segment isn\u2019t an `Id`",
             );
         });
 
         test("throws on invalid comment index", () => {
             expect(() => parseApiPath(`/tasks/${taskId}/messages/abc` as any)).toThrow(
-                "Fourth path segment isn’t a valid message index",
+                "Fourth path segment isn\u2019t a valid message index",
             );
             expect(() => parseApiPath(`/tasks/${taskId}/messages/-1`)).toThrow(
-                "Fourth path segment isn’t a valid message index",
+                "Fourth path segment isn\u2019t a valid message index",
             );
         });
 
@@ -366,7 +366,7 @@ describe("parseApiPath", () => {
 
         test("throws on invalid task collection ID", () => {
             expect(() => parseApiPath("/task-collections/invalid-id" as any)).toThrow(
-                "Second path segment isn’t an `Id`",
+                "Second path segment isn\u2019t an `Id`",
             );
         });
 

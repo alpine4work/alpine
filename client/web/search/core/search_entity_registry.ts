@@ -251,7 +251,7 @@ export class SearchEntityRegistry {
         if (this._entityUpdatesScheduledDuringRun >= 20) {
             this._entityUpdatesScheduledDuringRun = 0;
             throw new InternalError(
-                "`SearchEntityRegistry._runScheduledEntityUpdates()` scheduled new updates 20 times in a loop, there’s likely an update cycle",
+                "`SearchEntityRegistry._runScheduledEntityUpdates()` scheduled new updates 20 times in a loop, there\u2019s likely an update cycle",
             );
         }
 

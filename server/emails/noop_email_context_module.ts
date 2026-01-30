@@ -12,17 +12,17 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 export class NoopEmailContextModule extends EmailContextModuleBase {
     public override async send(): Promise<void> {
         if (process.env.NODE_ENV === "production")
-            throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
+            throw new DataLossError("Can\u2019t use `NoopEmailContextModule` in production");
     }
 
     public override async sendImmediately(): Promise<void> {
         if (process.env.NODE_ENV === "production")
-            throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
+            throw new DataLossError("Can\u2019t use `NoopEmailContextModule` in production");
     }
 
     protected async _send(): Promise<void> {
         if (process.env.NODE_ENV === "production")
-            throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
+            throw new DataLossError("Can\u2019t use `NoopEmailContextModule` in production");
     }
 
     public async getSignedUnsubscribeUrlForAppService({

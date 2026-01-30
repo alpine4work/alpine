@@ -486,7 +486,7 @@ export function TaskPersonalView({
                 label: "Copy link",
                 icon: <LinkIcon />,
                 iconPlacement: "end",
-                pressErrorTitle: "Couldn’t copy link",
+                pressErrorTitle: "Couldn\u2019t copy link",
                 onPress: async () => {
                     const url = new URL(`/s/${space.id}/tasks`, window.location.href);
                     await writeTextToClipboard(url.toString());

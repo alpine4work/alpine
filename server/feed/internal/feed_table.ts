@@ -10,7 +10,7 @@ import {Schema} from "~/shared/schema/schema.js";
 export const feedEntryBlockMaxEntryCount = 10;
 
 const FeedCandidateEntrySchema = FeedEntrySchema.validation(
-    "Welcome feed entry isn’t allowed as feed candidate entry",
+    "Welcome feed entry isn\u2019t allowed as feed candidate entry",
     (entry): entry is Exclude<FeedEntry, {type: "Welcome"}> => entry.type !== "Welcome",
 );
 

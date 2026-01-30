@@ -59,11 +59,11 @@ describe("normalizeMarkdownLinkLabelForPath", () => {
             expect(normalizeMarkdownLinkLabelForPath("  my document  ")).toBe("my-document");
         });
 
-        test("replaces ampersands with “and”", () => {
+        test("replaces ampersands with \u201Cand\u201D", () => {
             expect(normalizeMarkdownLinkLabelForPath("D&D Notes")).toBe("d-and-d-notes");
         });
 
-        test("replaces multiple ampersands with “and” when surrounded by spaces", () => {
+        test("replaces multiple ampersands with \u201Cand\u201D when surrounded by spaces", () => {
             expect(
                 normalizeMarkdownLinkLabelForPath(
                     "Texas A & M is playing North Carolina A & T this weekend",
@@ -96,7 +96,7 @@ describe("normalizeMarkdownLinkLabelForPath", () => {
         });
 
         test("removes quotes", () => {
-            expect(normalizeMarkdownLinkLabelForPath("Document “with” quotes")).toBe(
+            expect(normalizeMarkdownLinkLabelForPath("Document \u201Cwith\u201D quotes")).toBe(
                 "document-with-quotes",
             );
         });

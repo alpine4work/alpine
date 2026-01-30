@@ -52,7 +52,7 @@ export function PostMobileEditor({
     const [postFromState, setPost] = useState(postFromProps);
     let post = assertExists(
         postFromState,
-        "`<PostMobileEditorView>`’s `post` prop must be non-null on initial render",
+        "`<PostMobileEditorView>`\u2019s `post` prop must be non-null on initial render",
     );
 
     // If `postFromProps` becomes null (the parent component lost the data somehow)
@@ -94,7 +94,7 @@ export function PostMobileEditor({
             variant="neutral"
             withoutMinWidth={true}
             isDisabled={!hasContentChanged || isContentEmpty(state.getDoc())}
-            pressErrorTitle="Couldn’t save post"
+            pressErrorTitle="Couldn\u2019t save post"
             onPress={onSave}
         >
             Save

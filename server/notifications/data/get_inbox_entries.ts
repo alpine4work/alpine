@@ -83,7 +83,7 @@ export async function getInboxEntries(
 
         assert(
             (inboxItem?.entryCount ?? 0) === result.items.length,
-            "Expected inbox item’s `entryCount` to have the correct number of non-archived inbox entries",
+            "Expected inbox item\u2019s `entryCount` to have the correct number of non-archived inbox entries",
         );
 
         assert(
@@ -93,7 +93,7 @@ export async function getInboxEntries(
                         loudNotificationCount + item.model.loudNotificationCount,
                     0,
                 ),
-            "Expected inbox item’s `loudNotificationCount` to be the sum of all non-archived inbox entry loud notification counts",
+            "Expected inbox item\u2019s `loudNotificationCount` to be the sum of all non-archived inbox entry loud notification counts",
         );
     }
 

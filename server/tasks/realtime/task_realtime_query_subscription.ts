@@ -205,21 +205,21 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
             tasks.length > 0 ||
                 (this._referencedTaskEntryById.size === 0 &&
                     this._referencedCollectionEntryById.size === 0),
-            "If query subscription has no loaded tasks then it shouldn’t have referenced tasks or referenced collections either",
+            "If query subscription has no loaded tasks then it shouldn\u2019t have referenced tasks or referenced collections either",
         );
 
         for (const task of tasks) {
             if (task.parent.taskId.value) {
                 assert(
                     this._referencedTaskEntryById.has(task.parent.taskId.value),
-                    "Query subscription should keep track of loaded tasks’ parent tasks",
+                    "Query subscription should keep track of loaded tasks\u2019 parent tasks",
                 );
             }
 
             for (const {collectionId} of task.collections.raw.collections.getArray()) {
                 assert(
                     this._referencedCollectionEntryById.has(collectionId),
-                    "Query subscription should keep track of loaded tasks’ collections",
+                    "Query subscription should keep track of loaded tasks\u2019 collections",
                 );
             }
         }
@@ -423,7 +423,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
             assert(
                 !previousTaskById.has(newTask.id),
-                "Subscription can’t add task that’s already loaded with `_onLoadedTaskAdd()`",
+                "Subscription can\u2019t add task that\u2019s already loaded with `_onLoadedTaskAdd()`",
             );
 
             previousTaskById.set(newTask.id, newTask);
@@ -490,7 +490,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
             assert(
                 previousTaskById.get(oldTask.id) === oldTask,
-                "Subscription can’t remove task that is not loaded with `_onLoadedTaskRemove()`",
+                "Subscription can\u2019t remove task that is not loaded with `_onLoadedTaskRemove()`",
             );
 
             previousTaskById.delete(oldTask.id);

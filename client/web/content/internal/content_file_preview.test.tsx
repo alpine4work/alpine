@@ -84,7 +84,7 @@ const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     ],
 ]);
 
-test("will refresh signed URL when it’s about to expire", async () => {
+test("will refresh signed URL when it\u2019s about to expire", async () => {
     const fileId = generateChronologicalId<FileId>();
     const expirationTime1Seconds = Math.round((Date.now() + 1000 * 60 * 2) / 1000);
 

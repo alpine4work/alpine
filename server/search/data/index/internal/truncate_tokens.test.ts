@@ -9,15 +9,19 @@ test("truncates document titles appropriately", async () => {
     );
 
     expect(
-        truncateTokens(tokenizer, "How we’re designing our personal task management product", 16),
-    ).toEqual("How we’re designing our personal task management product");
+        truncateTokens(
+            tokenizer,
+            "How we\u2019re designing our personal task management product",
+            16,
+        ),
+    ).toEqual("How we\u2019re designing our personal task management product");
 
     // https://www.theverge.com/23966325/openai-sam-altman-fired-turmoil-chatgpt
     expect(
         truncateTokens(
             tokenizer,
-            "Turmoil at OpenAI: after firing Sam Altman, what’s next for the creators of ChatGPT?",
+            "Turmoil at OpenAI: after firing Sam Altman, what\u2019s next for the creators of ChatGPT?",
             16,
         ),
-    ).toEqual("Turmoil at OpenAI: after firing Sam Altman, what’s next…");
+    ).toEqual("Turmoil at OpenAI: after firing Sam Altman, what\u2019s next…");
 });

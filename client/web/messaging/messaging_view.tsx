@@ -780,7 +780,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                             // request fails.
                             .catch(error =>
                                 reporter.logErrorWithoutDisplaying(
-                                    "Couldn’t update typing indicator",
+                                    "Couldn\u2019t update typing indicator",
                                     error,
                                 ),
                             );
@@ -792,7 +792,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                             // request fails.
                             .catch(error =>
                                 reporter.logErrorWithoutDisplaying(
-                                    "Couldn’t update typing indicator",
+                                    "Couldn\u2019t update typing indicator",
                                     error,
                                 ),
                             );

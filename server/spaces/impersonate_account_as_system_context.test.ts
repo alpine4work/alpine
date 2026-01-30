@@ -30,7 +30,7 @@ test("can impersonate an account", async () => {
     });
 });
 
-test("can’t impersonate an account as a session actor", async () => {
+test("can\u2019t impersonate an account as a session actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -48,7 +48,7 @@ test("can’t impersonate an account as a session actor", async () => {
     ).rejects.toThrow("Session actor is not a system actor");
 });
 
-test("can’t impersonate an account as an impersonated account actor", async () => {
+test("can\u2019t impersonate an account as an impersonated account actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -66,7 +66,7 @@ test("can’t impersonate an account as an impersonated account actor", async ()
     ).rejects.toThrow("Impersonated account actor is not a system actor");
 });
 
-test("can’t impersonate an account as a bot actor", async () => {
+test("can\u2019t impersonate an account as a bot actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -86,7 +86,7 @@ test("can’t impersonate an account as a bot actor", async () => {
     ).rejects.toThrow("Bot actor is not a system actor");
 });
 
-test("can’t impersonate an account as a bot actor with a scope for that account", async () => {
+test("can\u2019t impersonate an account as a bot actor with a scope for that account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -106,7 +106,7 @@ test("can’t impersonate an account as a bot actor with a scope for that accoun
     ).rejects.toThrow("Bot actor is not a system actor");
 });
 
-test("can’t impersonate an account that’s not a member of the space", async () => {
+test("can\u2019t impersonate an account that\u2019s not a member of the space", async () => {
     const space = await TestSpace.create(context);
 
     const otherSpace = await TestSpace.create(context);
@@ -122,10 +122,12 @@ test("can’t impersonate an account that’s not a member of the space", async 
                 accountId: context.actor.getAccountId(),
             }),
         ),
-    ).rejects.toThrow("Can’t impersonate account that’s not a member of system actor’s space");
+    ).rejects.toThrow(
+        "Can\u2019t impersonate account that\u2019s not a member of system actor\u2019s space",
+    );
 });
 
-test("can’t impersonate bot account", async () => {
+test("can\u2019t impersonate bot account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
     const botAccount = await TestBot.createAndInstantiate(session);
@@ -136,5 +138,5 @@ test("can’t impersonate bot account", async () => {
             spaceId: context.actor.getSpaceId(),
             accountId: context.actor.getAccountId(),
         })),
-    ).rejects.toThrow("Can’t impersonate bot account");
+    ).rejects.toThrow("Can\u2019t impersonate bot account");
 });

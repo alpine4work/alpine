@@ -86,7 +86,7 @@ const emailTemplatePreviews: {
                     digestEntries: [
                         {
                             summary: [{type: "Account", name: "Bob"}, " sent you a message"],
-                            preview: "Bob: Did you see Alice’s photos? They’re amazing!",
+                            preview: "Bob: Did you see Alice\u2019s photos? They\u2019re amazing!",
                             brandIconType: "Chat",
                             time: new Date("2025-08-21T08:42:11Z"),
                             url: new URL(`/s/1234/inbox?selected=3`, emailPreviewBaseUrl),
@@ -116,7 +116,7 @@ const emailTemplatePreviews: {
                         },
                         {
                             summary: [
-                                "New comment thread on “My Important Document” by ",
+                                "New comment thread on \u201CMy Important Document\u201D by ",
                                 {type: "Account", name: "Caominhe"},
                             ],
                             preview: "Caominhe: Good thinking! 👍",
@@ -192,7 +192,7 @@ const emailTemplatePreviews: {
                         },
                         {
                             summary: ["Your post in Weekly Recap has new comments"],
-                            preview: "Bob: OMG! 🤩 I’m so excited for this feature!",
+                            preview: "Bob: OMG! 🤩 I\u2019m so excited for this feature!",
                             brandIconType: "Post",
                             time: new Date("2025-08-21T17:11Z"),
                             url: new URL(`/s/1234/inbox?selected=5`, emailPreviewBaseUrl),
@@ -249,7 +249,7 @@ const emailTemplatePreviews: {
                                 {type: "Account", name: "Felicia"},
                             ],
                             preview:
-                                "Felicia: I’m working on the new design for diagrams and need some feedback. Please take a look!",
+                                "Felicia: I\u2019m working on the new design for diagrams and need some feedback. Please take a look!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T22:36:11Z"),
                             url: new URL(`/s/1234/inbox?selected=2`, emailPreviewBaseUrl),

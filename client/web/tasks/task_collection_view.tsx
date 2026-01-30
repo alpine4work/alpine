@@ -347,7 +347,7 @@ export function TaskCollectionView({
                 label: "Copy link",
                 icon: <LinkIcon />,
                 iconPlacement: "end",
-                pressErrorTitle: "Couldn’t copy collection link",
+                pressErrorTitle: "Couldn\u2019t copy collection link",
                 onPress: copyLink,
             },
             ...(favoriteMenuAction ? [favoriteMenuAction] : []),
@@ -464,7 +464,8 @@ export function TaskCollectionView({
                                     title: "Delete task collection?",
                                     description: "The tasks in the collection will not be deleted.",
                                     primaryButtonLabel: "Delete",
-                                    primaryButtonPressErrorTitle: "Couldn’t delete task collection",
+                                    primaryButtonPressErrorTitle:
+                                        "Couldn\u2019t delete task collection",
                                     onPrimaryButtonPress: async () => {
                                         // Wait until navigation has finished to actually delete the
                                         // collection.

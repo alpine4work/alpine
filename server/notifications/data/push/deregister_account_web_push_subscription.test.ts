@@ -29,7 +29,7 @@ describe("deregisterAccountWebPushSubscription", () => {
         jest.clearAllMocks();
     });
 
-    test("Session actor allows deregistering own account’s web push subscription", async () => {
+    test("Session actor allows deregistering own account\u2019s web push subscription", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const browserId = generateId<BrowserId>();
@@ -52,7 +52,7 @@ describe("deregisterAccountWebPushSubscription", () => {
         );
     });
 
-    test("Session actor throws PermissionDeniedError when deregistering a different account’s subscription", async () => {
+    test("Session actor throws PermissionDeniedError when deregistering a different account\u2019s subscription", async () => {
         const space = await TestSpace.create(context);
         const [session1, session2] = await Promise.all([
             space.createSession(),
@@ -69,7 +69,7 @@ describe("deregisterAccountWebPushSubscription", () => {
         expect(deregisterWebPushSubscriptionWithoutAuthorizationMock).not.toHaveBeenCalled();
     });
 
-    test("ImpersonatedAccount actor allows deregistering the impersonated account’s web push subscription", async () => {
+    test("ImpersonatedAccount actor allows deregistering the impersonated account\u2019s web push subscription", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const browserId = generateId<BrowserId>();
@@ -95,7 +95,7 @@ describe("deregisterAccountWebPushSubscription", () => {
         );
     });
 
-    test("ImpersonatedAccount actor throws PermissionDeniedError when deregistering a different account’s subscription", async () => {
+    test("ImpersonatedAccount actor throws PermissionDeniedError when deregistering a different account\u2019s subscription", async () => {
         const space = await TestSpace.create(context);
         const [session1, session2] = await Promise.all([
             space.createSession(),
@@ -115,7 +115,7 @@ describe("deregisterAccountWebPushSubscription", () => {
         expect(deregisterWebPushSubscriptionWithoutAuthorizationMock).not.toHaveBeenCalled();
     });
 
-    test("System actor allows deregistering any account’s web push subscription", async () => {
+    test("System actor allows deregistering any account\u2019s web push subscription", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const browserId = generateId<BrowserId>();

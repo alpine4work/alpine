@@ -803,7 +803,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             setCover: unimplementedDispatchCommand,
             openMobileKeyboardToolbarCommentInputIfPossible: () => {
                 throw new UnimplementedError(
-                    "Opening the content editor’s mobile keyboard toolbar comment input on initial render is not implemented",
+                    "Opening the content editor\u2019s mobile keyboard toolbar comment input on initial render is not implemented",
                 );
             },
             _getInternalView: () => {
@@ -1928,7 +1928,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             promise.catch(error => {
                 reporter.displayError(
-                    hasUploadFileError ? "Couldn’t upload file" : "Couldn’t paste",
+                    hasUploadFileError ? "Couldn\u2019t upload file" : "Couldn\u2019t paste",
                     error,
                 );
             });
@@ -4680,11 +4680,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                     ) => {
                         switch (suggestion.kind) {
                             case "replace":
-                                return `Replace “${selectedText}” with “${suggestion.text}”`;
+                                return `Replace \u201C${selectedText}\u201D with \u201C${suggestion.text}\u201D`;
                             case "remove":
-                                return `Remove “${selectedText}”`;
+                                return `Remove \u201C${selectedText}\u201D`;
                             case "insertafter":
-                                return `Add “${suggestion.text}” after “${selectedText}”`;
+                                return `Add \u201C${suggestion.text}\u201D after \u201C${selectedText}\u201D`;
                         }
                     };
 
@@ -4730,7 +4730,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         key: selectedLintText,
                                         kind: selectedLint.category,
                                     }),
-                                pressErrorTitle: "Couldn’t ignore issue",
+                                pressErrorTitle: "Couldn\u2019t ignore issue",
                             },
                         ]);
                     }

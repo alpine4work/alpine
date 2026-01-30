@@ -142,7 +142,7 @@ test("multiple accounts can react to post", async () => {
     ]);
 });
 
-test("updating a reaction preserves the account’s order in the post’s reactions", async () => {
+test("updating a reaction preserves the account\u2019s order in the post\u2019s reactions", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3, session4] = await space.createSessions(4);
 
@@ -177,7 +177,7 @@ test("updating a reaction preserves the account’s order in the post’s reacti
     ]);
 });
 
-test("deleting a reaction then adding a new one changes the account’s order in the post’s reactions", async () => {
+test("deleting a reaction then adding a new one changes the account\u2019s order in the post\u2019s reactions", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3, session4] = await space.createSessions(4);
 
@@ -220,7 +220,7 @@ test("deleting a reaction then adding a new one changes the account’s order in
     ]);
 });
 
-test("can’t react to post actor doesn’t have access to", async () => {
+test("can\u2019t react to post actor doesn\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -234,7 +234,7 @@ test("can’t react to post actor doesn’t have access to", async () => {
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
 
     expect((await post.get()).reactions.get()).toEqual(new Map());
 });
@@ -253,7 +253,7 @@ test("can react to post in private channel if actor has access", async () => {
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
 
     await post.setReaction(session3, {
         character: {type: "Tree", variant: "Green"},
@@ -267,7 +267,7 @@ test("can react to post in private channel if actor has access", async () => {
     );
 });
 
-test("can’t react to post in private channel if actor has view access", async () => {
+test("can\u2019t react to post in private channel if actor has view access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
@@ -281,14 +281,14 @@ test("can’t react to post in private channel if actor has view access", async 
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
 
     await expect(
         post.setReaction(session3, {
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
 
     expect((await post.get()).reactions.get()).toEqual(new Map());
 });
@@ -307,7 +307,7 @@ test("can react to post in private channel if actor has comment access", async (
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
 
     await post.setReaction(session3, {
         character: {type: "Tree", variant: "Green"},
@@ -560,7 +560,7 @@ test("multiple accounts can react to post comment file", async () => {
     }
 });
 
-test("updating a reaction preserves the account’s order in the post comment file’s reactions", async () => {
+test("updating a reaction preserves the account\u2019s order in the post comment file\u2019s reactions", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3, session4] = await space.createSessions(4);
 
@@ -628,7 +628,7 @@ test("updating a reaction preserves the account’s order in the post comment fi
     }
 });
 
-test("deleting a reaction then adding a new one changes the account’s order in the post comment file’s reactions", async () => {
+test("deleting a reaction then adding a new one changes the account\u2019s order in the post comment file\u2019s reactions", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3, session4] = await space.createSessions(4);
 

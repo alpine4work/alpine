@@ -312,7 +312,10 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         // Start the Node.js inspector if an `--inspectorPort` argument was provided.
         const inspectorPortString: string | undefined = (parsedOptions.values as any).inspectorPort;
         if (inspectorPortString) {
-            assert(process.env.NODE_ENV === "development", "Can’t inspect process in production");
+            assert(
+                process.env.NODE_ENV === "development",
+                "Can\u2019t inspect process in production",
+            );
 
             inspector.open(parseInt(inspectorPortString, 10));
 
@@ -403,7 +406,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         //
         // eslint-disable-next-line no-console
         console.error(
-            "Event loop has emptied before service finished running. This is likely due to awaiting a promise that never resolves. The simplest example of this is: `await new Promise(() => {})`. Another cause we’ve seen is a deadlock in our promise-based mutex implementation (`shared/helpers/async/mutex.ts`).",
+            "Event loop has emptied before service finished running. This is likely due to awaiting a promise that never resolves. The simplest example of this is: `await new Promise(() => {})`. Another cause we\u2019ve seen is a deadlock in our promise-based mutex implementation (`shared/helpers/async/mutex.ts`).",
         );
 
         process.exitCode = 1;

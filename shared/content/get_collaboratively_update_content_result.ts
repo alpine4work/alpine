@@ -86,7 +86,7 @@ export function getCollaborativelyUpdateContentResult(
 
             if (clientVersion > currentVersion) {
                 throw new FailedPreconditionError(
-                    "Can not update content with steps at version ahead of the content’s current version",
+                    "Can not update content with steps at version ahead of the content\u2019s current version",
                 );
             }
 
@@ -118,7 +118,7 @@ export function getCollaborativelyUpdateContentResult(
                             const attrSpec = node.type.spec.attrs?.[step.attr];
                             if (!attrSpec) {
                                 throw new FailedPreconditionError(
-                                    quote`Couldn’t apply attr step to node ${node.type.name} because it doesn’t support attr ${step.attr}`,
+                                    quote`Couldn\u2019t apply attr step to node ${node.type.name} because it doesn\u2019t support attr ${step.attr}`,
                                 );
                             }
 
@@ -133,14 +133,14 @@ export function getCollaborativelyUpdateContentResult(
                     } catch (error) {
                         if (error instanceof RangeError) {
                             throw new FailedPreconditionError(
-                                `Couldn’t apply step to content: ${error.message}`,
+                                `Couldn\u2019t apply step to content: ${error.message}`,
                             );
                         }
                         throw error;
                     }
                     if (!stepResult.doc) {
                         throw new FailedPreconditionError(
-                            `Couldn’t apply step to content: ${stepResult.failed!}`,
+                            `Couldn\u2019t apply step to content: ${stepResult.failed!}`,
                         );
                     }
 
@@ -181,14 +181,14 @@ export function getCollaborativelyUpdateContentResult(
                         } catch (error) {
                             if (error instanceof RangeError) {
                                 throw new DataLossError(
-                                    `Couldn’t apply inverse of saved content step: ${error.message}`,
+                                    `Couldn\u2019t apply inverse of saved content step: ${error.message}`,
                                 );
                             }
                             throw error;
                         }
                         if (!invertedStepResult.doc) {
                             throw new DataLossError(
-                                `Couldn’t apply inverse of saved content step: ${invertedStepResult.failed!}`,
+                                `Couldn\u2019t apply inverse of saved content step: ${invertedStepResult.failed!}`,
                             );
                         }
 
@@ -206,7 +206,7 @@ export function getCollaborativelyUpdateContentResult(
                                 const attrSpec = node.type.spec.attrs?.[step.attr];
                                 if (!attrSpec) {
                                     throw new FailedPreconditionError(
-                                        quote`Couldn’t apply attr step to node ${node.type.name} because it doesn’t support attr ${step.attr}`,
+                                        quote`Couldn\u2019t apply attr step to node ${node.type.name} because it doesn\u2019t support attr ${step.attr}`,
                                     );
                                 }
 
@@ -221,14 +221,14 @@ export function getCollaborativelyUpdateContentResult(
                         } catch (error) {
                             if (error instanceof RangeError) {
                                 throw new FailedPreconditionError(
-                                    `Couldn’t apply step to content: ${error.message}`,
+                                    `Couldn\u2019t apply step to content: ${error.message}`,
                                 );
                             }
                             throw error;
                         }
                         if (!stepResult.doc) {
                             throw new FailedPreconditionError(
-                                `Couldn’t apply step to content: ${stepResult.failed!}`,
+                                `Couldn\u2019t apply step to content: ${stepResult.failed!}`,
                             );
                         }
 
@@ -282,7 +282,7 @@ export function getCollaborativelyUpdateContentResult(
                             const attrSpec = node.type.spec.attrs?.[rebasedStep.attr];
                             if (!attrSpec) {
                                 throw new InternalError(
-                                    quote`Couldn’t apply attr step to node ${node.type.name} because it doesn’t support attr ${rebasedStep.attr} (AFTER REBASING)`,
+                                    quote`Couldn\u2019t apply attr step to node ${node.type.name} because it doesn\u2019t support attr ${rebasedStep.attr} (AFTER REBASING)`,
                                 );
                             }
 
@@ -422,7 +422,7 @@ export function getCollaborativelyUpdateContentResult(
                             node.text!.includes("\n")
                         ) {
                             throw new FailedPreconditionError(
-                                "Can’t add `\\n` character to `codeBlockLine` node",
+                                "Can\u2019t add `\\n` character to `codeBlockLine` node",
                             );
                         }
 
@@ -438,7 +438,7 @@ export function getCollaborativelyUpdateContentResult(
                         // - `bold` marks on `paragraph` instead of a `paragraph`'s text
                         if (!node.type.isLeaf && node.marks.length > 0) {
                             throw new FailedPreconditionError(
-                                `Can’t add marks directly to non-leaf \`${node.type.name}\` node`,
+                                `Can\u2019t add marks directly to non-leaf \`${node.type.name}\` node`,
                             );
                         }
                     });

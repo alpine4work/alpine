@@ -101,7 +101,7 @@ export function NotificationDigestEmailTemplate({
             loudNotificationAccountByIds.size - 3
         } others are trying to get your attention in ${spaceName}`;
     } else {
-        subject = `What’s been happening in ${spaceName}`;
+        subject = `What\u2019s been happening in ${spaceName}`;
     }
 
     const preview = `You have ${printPrettySmallNumberSummary(
@@ -245,7 +245,8 @@ export function NotificationDigestEmailTemplate({
             </Section>
             <Section style={{paddingTop: emailSpacing["6"]}}>
                 <EmailFooterText>
-                    You’re receiving this email because you’re a member of {spaceName}.{" "}
+                    You&#x2019;re receiving this email because you&#x2019;re a member of {spaceName}
+                    .{" "}
                     <EmailLink
                         href={unsubscribeUrl.toString()}
                         color="grey-50"

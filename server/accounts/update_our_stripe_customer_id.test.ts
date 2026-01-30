@@ -33,7 +33,7 @@ describe("updateOurStripeCustomerId()", () => {
         expect(result1?.stripeCustomerId).toBe(stripeCustomerId1);
     });
 
-    test("should create a new account billing item and set the Stripe customer ID if it doesn’t exist", async () => {
+    test("should create a new account billing item and set the Stripe customer ID if it doesn\u2019t exist", async () => {
         const space1 = await TestSpace.create(context);
         const stripeCustomerId = "cus_test789";
 

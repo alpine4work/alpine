@@ -49,7 +49,7 @@ export function afterTestEnds(callback: () => MaybePromise<void>) {
 
     if (!isTestRunning) {
         throw new InternalError(
-            "Can’t register callback for after test ends when no test is running",
+            "Can\u2019t register callback for after test ends when no test is running",
         );
     }
 

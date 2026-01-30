@@ -687,7 +687,7 @@ async function actuallyHandleFetch(
                 // Can't forward a request to upgrade to a WebSocket connection to
                 // this endpoint of `TaskRealtimeService`.
                 if (request.headers.has("upgrade"))
-                    throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
+                    throw new InvalidArgumentError("Can\u2019t upgrade to WebSocket connection");
 
                 if (request.method !== "POST") {
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
@@ -773,7 +773,7 @@ async function actuallyHandleFetch(
                 // Can't forward a request to upgrade to a WebSocket connection to
                 // `FileProcessorService`. All WebSocket connection routes are enumerated above.
                 if (request.headers.has("upgrade"))
-                    throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
+                    throw new InvalidArgumentError("Can\u2019t upgrade to WebSocket connection");
 
                 const createContext = ({sessionId, accountId}: SessionTokenPayload) =>
                     Context.new({
@@ -873,7 +873,7 @@ async function actuallyHandleFetch(
                 // Can't forward a request to upgrade to a WebSocket connection to
                 // `FileProcessorService`. All WebSocket connection routes are enumerated above.
                 if (request.headers.has("upgrade"))
-                    throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
+                    throw new InvalidArgumentError("Can\u2019t upgrade to WebSocket connection");
 
                 return fetchFile(executionContext, env, tokenAgent, request, url, span, route);
             }
@@ -907,7 +907,7 @@ async function actuallyHandleFetch(
             // works. We'll improve it later.
             case "FileCorsProxy": {
                 if (request.headers.has("upgrade")) {
-                    throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
+                    throw new InvalidArgumentError("Can\u2019t upgrade to WebSocket connection");
                 }
 
                 if (request.method !== "GET") {
@@ -987,7 +987,7 @@ async function actuallyHandleFetch(
     // Can't forward a request to upgrade to a WebSocket connection to
     // `AppService`. All WebSocket connection routes are enumerated above.
     if (request.headers.has("upgrade")) {
-        return new Response("400 Bad Request: Can’t upgrade to WebSocket connection", {
+        return new Response("400 Bad Request: Can\u2019t upgrade to WebSocket connection", {
             status: 400,
             headers: {"content-type": "text/plain"},
         });

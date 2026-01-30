@@ -990,7 +990,7 @@ ${"Long message content.".repeat(100)}
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a comment thread on the document “[Code Review](/document/code-review).” The following is a \
+This is a comment thread on the document \u201C[Code Review](/document/code-review).\u201D The following is a \
 preview of the document near the comment. The specific text this comment was left on is wrapped in \
 \`<comment></comment>\`.
 
@@ -1165,7 +1165,7 @@ Thanks Alice!
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a comment thread on the document “[Code Review](/document/code-review).” The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in \`<comment></comment>\`.
+This is a comment thread on the document \u201C[Code Review](/document/code-review).\u201D The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in \`<comment></comment>\`.
 
 <document_preview>
 <comment>Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. They promoted a *water boy* **to captain** to the ~~head~~ of their <mark class="highlight-orange">army</mark>.</comment>
@@ -1244,7 +1244,7 @@ Thanks Alice!
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a comment thread on the document “[Code Review](/document/code-review).”
+This is a comment thread on the document \u201C[Code Review](/document/code-review).\u201D
 
 <time>November 21st at 8:10am EST</time>
 
@@ -1311,7 +1311,7 @@ Thanks Alice!
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a comment thread on the document “[Resources Doc](/document/resources-doc).”
+This is a comment thread on the document \u201C[Resources Doc](/document/resources-doc).\u201D
 
 <time>November 21st at 8:16am EST</time>
 

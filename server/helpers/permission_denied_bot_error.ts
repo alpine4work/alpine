@@ -3,6 +3,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 
 export function permissionDeniedBotError() {
     return new PermissionDeniedError("Bot account not allowed", {
-        displayMessage: errorDisplayMessage`Tried to do something a bot isn’t allowed to do.`,
+        displayMessage: errorDisplayMessage`Tried to do something a bot isn\u2019t allowed to do.`,
     });
 }

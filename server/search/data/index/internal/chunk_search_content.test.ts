@@ -330,7 +330,7 @@ test("discovers heading structure", async () => {
                 ]),
                 schema.node("paragraph", {}, [
                     schema.text(
-                        "Transitioning to renewable energy sources is not just an environmental imperative but an economic opportunity. Investments in renewable technologies drive innovation and create job opportunities, fostering economic growth. Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn’t as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources. By diversifying energy portfolios, nations can enhance energy security and reduce dependence on finite resources.",
+                        "Transitioning to renewable energy sources is not just an environmental imperative but an economic opportunity. Investments in renewable technologies drive innovation and create job opportunities, fostering economic growth. Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn\u2019t as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources. By diversifying energy portfolios, nations can enhance energy security and reduce dependence on finite resources.",
                     ),
                 ]),
                 schema.node("heading", {level: 2}, [
@@ -344,7 +344,7 @@ test("discovers heading structure", async () => {
                 schema.node("divider", {}, []),
                 schema.node("paragraph", {}, [
                     schema.text(
-                        "To realize a sustainable future, a collective effort is necessary. Governments, industries, and individuals must collaborate to accelerate the transition towards renewable energy. Policymakers can implement supportive regulations and incentives to encourage renewable energy adoption, such as tax credits and subsidies for renewable projects. Industries can invest in research and development to enhance renewable technologies’ efficiency and affordability. Individuals can contribute by adopting energy-efficient practices and supporting renewable energy initiatives in their communities. Together, this collective action can pave the way for a sustainable energy future, mitigating environmental impact and ensuring a resilient and thriving planet for generations to come.",
+                        "To realize a sustainable future, a collective effort is necessary. Governments, industries, and individuals must collaborate to accelerate the transition towards renewable energy. Policymakers can implement supportive regulations and incentives to encourage renewable energy adoption, such as tax credits and subsidies for renewable projects. Industries can invest in research and development to enhance renewable technologies\u2019 efficiency and affordability. Individuals can contribute by adopting energy-efficient practices and supporting renewable energy initiatives in their communities. Together, this collective action can pave the way for a sustainable energy future, mitigating environmental impact and ensuring a resilient and thriving planet for generations to come.",
                     ),
                 ]),
             ]),
@@ -358,7 +358,7 @@ test("discovers heading structure", async () => {
 
 The urgent need for renewable energy arises from the escalating environmental issues caused by conventional energy sources. Fossil fuels, the primary energy source for centuries, emit greenhouse gases, contributing significantly to climate change. Renewable energy, derived from natural resources like sunlight, wind, and water, offers a cleaner alternative, reducing carbon emissions and mitigating environmental degradation. Embracing renewables aligns with global initiatives to combat climate change, preserving ecosystems and safeguarding the planet for future generations.
 
-Transitioning to renewable energy sources is not just an environmental imperative but an economic opportunity. Investments in renewable technologies drive innovation and create job opportunities, fostering economic growth. Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn’t as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources. By diversifying energy portfolios, nations can enhance energy security and reduce dependence on finite resources.
+Transitioning to renewable energy sources is not just an environmental imperative but an economic opportunity. Investments in renewable technologies drive innovation and create job opportunities, fostering economic growth. Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn\u2019t as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources. By diversifying energy portfolios, nations can enhance energy security and reduce dependence on finite resources.
 
 ### Advantages and Challenges of Renewable Energy Adoption
 
@@ -366,7 +366,7 @@ The adoption of renewable energy brings forth numerous advantages, from reducing
 
 ---
 
-To realize a sustainable future, a collective effort is necessary. Governments, industries, and individuals must collaborate to accelerate the transition towards renewable energy. Policymakers can implement supportive regulations and incentives to encourage renewable energy adoption, such as tax credits and subsidies for renewable projects. Industries can invest in research and development to enhance renewable technologies’ efficiency and affordability. Individuals can contribute by adopting energy-efficient practices and supporting renewable energy initiatives in their communities. Together, this collective action can pave the way for a sustainable energy future, mitigating environmental impact and ensuring a resilient and thriving planet for generations to come.`,
+To realize a sustainable future, a collective effort is necessary. Governments, industries, and individuals must collaborate to accelerate the transition towards renewable energy. Policymakers can implement supportive regulations and incentives to encourage renewable energy adoption, such as tax credits and subsidies for renewable projects. Industries can invest in research and development to enhance renewable technologies\u2019 efficiency and affordability. Individuals can contribute by adopting energy-efficient practices and supporting renewable energy initiatives in their communities. Together, this collective action can pave the way for a sustainable energy future, mitigating environmental impact and ensuring a resilient and thriving planet for generations to come.`,
         isGroup: true,
         tokenCount: 431,
         context: {sectionHeading: null},
@@ -438,7 +438,7 @@ To realize a sustainable future, a collective effort is necessary. Governments, 
                                 tokenCount: 16,
                             },
                             {
-                                text: "Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn’t as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources.",
+                                text: "Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn\u2019t as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources.",
                                 tokenCount: 37,
                             },
                             {
@@ -530,7 +530,7 @@ To realize a sustainable future, a collective effort is necessary. Governments, 
                                 tokenCount: 24,
                             },
                             {
-                                text: "Industries can invest in research and development to enhance renewable technologies’ efficiency and affordability.",
+                                text: "Industries can invest in research and development to enhance renewable technologies\u2019 efficiency and affordability.",
                                 tokenCount: 17,
                             },
                             {
@@ -646,7 +646,7 @@ test("discovers bullet list structure", async () => {
                     ]),
                     schema.node("paragraph", {}, [
                         schema.text(
-                            "Here’s a second paragraph in the list item to make sure that works.",
+                            "Here\u2019s a second paragraph in the list item to make sure that works.",
                         ),
                     ]),
                 ]),
@@ -682,7 +682,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
 - Supporting Local Communities: Sustainable agriculture encourages local food production and distribution, supporting local economies and communities.
 - Food Security: Diverse and sustainable farming methods contribute to food security, ensuring a more resilient food system.
 
-  Here’s a second paragraph in the list item to make sure that works.
+  Here\u2019s a second paragraph in the list item to make sure that works.
 - Knowledge Sharing: Sustainable farming practices involve education and knowledge sharing within communities, empowering farmers with valuable skills.`,
         isGroup: true,
         tokenCount: 330,
@@ -953,7 +953,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                 tokenCount: 23,
                             },
                             {
-                                text: "\n\n  Here’s a second paragraph in the list item to make sure that works.",
+                                text: "\n\n  Here\u2019s a second paragraph in the list item to make sure that works.",
                                 tokenCount: 16,
                             },
                         ],
@@ -3018,14 +3018,16 @@ test("escapes markdown characters", async () => {
                 schema.node("paragraph", {}, [
                     schema.text("This is backticks surrounding text: `code?`"),
                 ]),
-                schema.node("paragraph", {}, [schema.text("Here’s a math expression: 2 + 4 > 5")]),
-                schema.node("paragraph", {}, [schema.text("Here’s some braces: [INTERNAL]")]),
                 schema.node("paragraph", {}, [
-                    schema.text("Here’s some braces that look like a checkbox: [x]"),
+                    schema.text("Here\u2019s a math expression: 2 + 4 > 5"),
+                ]),
+                schema.node("paragraph", {}, [schema.text("Here\u2019s some braces: [INTERNAL]")]),
+                schema.node("paragraph", {}, [
+                    schema.text("Here\u2019s some braces that look like a checkbox: [x]"),
                 ]),
                 schema.node("paragraph", {}, [
                     schema.text(
-                        "Here’s some braces that look like a link: [Google](https://google.com)",
+                        "Here\u2019s some braces that look like a link: [Google](https://google.com)",
                     ),
                 ]),
                 schema.node("paragraph", {}, [
@@ -3088,13 +3090,13 @@ This is multiple backticks: \\\`\\\`\\\`
 
 This is backticks surrounding text: \\\`code?\\\`
 
-Here’s a math expression: 2 + 4 > 5
+Here\u2019s a math expression: 2 + 4 > 5
 
-Here’s some braces: [INTERNAL]
+Here\u2019s some braces: [INTERNAL]
 
-Here’s some braces that look like a checkbox: [x]
+Here\u2019s some braces that look like a checkbox: [x]
 
-Here’s some braces that look like a link: [Google\\](https://google.com)
+Here\u2019s some braces that look like a link: [Google\\](https://google.com)
 
 [x] this checked checkbox starts the line
 
@@ -3246,7 +3248,9 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
                 isGroup: false,
                 tokenCount: 12,
                 context: {sectionHeading: null},
-                sentenceChunks: [{text: "Here’s a math expression: 2 + 4 > 5", tokenCount: 12}],
+                sentenceChunks: [
+                    {text: "Here\u2019s a math expression: 2 + 4 > 5", tokenCount: 12},
+                ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -3254,7 +3258,7 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
                 isGroup: false,
                 tokenCount: 10,
                 context: {sectionHeading: null},
-                sentenceChunks: [{text: "Here’s some braces: [INTERNAL]", tokenCount: 10}],
+                sentenceChunks: [{text: "Here\u2019s some braces: [INTERNAL]", tokenCount: 10}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -3263,7 +3267,10 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
                 tokenCount: 16,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {text: "Here’s some braces that look like a checkbox: [x]", tokenCount: 16},
+                    {
+                        text: "Here\u2019s some braces that look like a checkbox: [x]",
+                        tokenCount: 16,
+                    },
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -3274,7 +3281,7 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
                 context: {sectionHeading: null},
                 sentenceChunks: [
                     {
-                        text: "Here’s some braces that look like a link: [Google\\](https://google.com)",
+                        text: "Here\u2019s some braces that look like a link: [Google\\](https://google.com)",
                         tokenCount: 25,
                     },
                 ],
@@ -3386,42 +3393,44 @@ test("escapes 4 spaces which would create a code block", async () => {
     expect(
         testGetFullSearchContentChunk(
             schema.node("doc", {}, [
-                schema.node("paragraph", {}, [schema.text("    this isn’t a code block")]),
+                schema.node("paragraph", {}, [schema.text("    this isn\u2019t a code block")]),
                 schema.node("quoteBlock", {}, [
-                    schema.node("paragraph", {}, [schema.text("    this also isn’t a code block")]),
+                    schema.node("paragraph", {}, [
+                        schema.text("    this also isn\u2019t a code block"),
+                    ]),
                 ]),
                 schema.node("unorderedListItem", {}, [
                     schema.node("paragraph", {}, [
-                        schema.text("    this unordered list item isn’t a code block"),
+                        schema.text("    this unordered list item isn\u2019t a code block"),
                     ]),
                 ]),
                 schema.node("orderedListItem", {}, [
                     schema.node("paragraph", {}, [
-                        schema.text("    this ordered list item isn’t a code block"),
+                        schema.text("    this ordered list item isn\u2019t a code block"),
                     ]),
                 ]),
                 schema.node("paragraph", {}, [schema.text(">     similarly, not a code block")]),
                 schema.node("paragraph", {}, [schema.text("-     nor is this a code block")]),
                 schema.node("paragraph", {}, [
-                    schema.text("1.     finally, this isn’t a code block"),
+                    schema.text("1.     finally, this isn\u2019t a code block"),
                 ]),
             ]),
             {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
-&#x0020;   this isn’t a code block
+&#x0020;   this isn\u2019t a code block
 
-> &#x0020;   this also isn’t a code block
+> &#x0020;   this also isn\u2019t a code block
 
-- &#x0020;   this unordered list item isn’t a code block
-1. &#x0020;   this ordered list item isn’t a code block
+- &#x0020;   this unordered list item isn\u2019t a code block
+1. &#x0020;   this ordered list item isn\u2019t a code block
 
 \\> &#x0020;   similarly, not a code block
 
 \\- &#x0020;   nor is this a code block
 
-1\\. &#x0020;   finally, this isn’t a code block`,
+1\\. &#x0020;   finally, this isn\u2019t a code block`,
         isGroup: true,
         tokenCount: 111,
         context: {sectionHeading: null},
@@ -3430,7 +3439,7 @@ test("escapes 4 spaces which would create a code block", async () => {
                 isGroup: false,
                 tokenCount: 13,
                 context: {sectionHeading: null},
-                sentenceChunks: [{text: "&#x0020;   this isn’t a code block", tokenCount: 13}],
+                sentenceChunks: [{text: "&#x0020;   this isn\u2019t a code block", tokenCount: 13}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -3439,7 +3448,7 @@ test("escapes 4 spaces which would create a code block", async () => {
                 tokenCount: 15,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {text: "> &#x0020;   this also isn’t a code block", tokenCount: 15},
+                    {text: "> &#x0020;   this also isn\u2019t a code block", tokenCount: 15},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -3455,7 +3464,7 @@ test("escapes 4 spaces which would create a code block", async () => {
                         context: {sectionHeading: null},
                         sentenceChunks: [
                             {
-                                text: "- &#x0020;   this unordered list item isn’t a code block",
+                                text: "- &#x0020;   this unordered list item isn\u2019t a code block",
                                 tokenCount: 19,
                             },
                         ],
@@ -3468,7 +3477,7 @@ test("escapes 4 spaces which would create a code block", async () => {
                         context: {sectionHeading: null},
                         sentenceChunks: [
                             {
-                                text: "1. &#x0020;   this ordered list item isn’t a code block",
+                                text: "1. &#x0020;   this ordered list item isn\u2019t a code block",
                                 tokenCount: 18,
                             },
                         ],
@@ -3500,7 +3509,7 @@ test("escapes 4 spaces which would create a code block", async () => {
                 tokenCount: 18,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {text: "1\\. &#x0020;   finally, this isn’t a code block", tokenCount: 18},
+                    {text: "1\\. &#x0020;   finally, this isn\u2019t a code block", tokenCount: 18},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -3522,10 +3531,12 @@ for (const numSpaces of [1, 2, 3]) {
         expect(
             testGetFullSearchContentChunk(
                 schema.node("doc", {}, [
-                    schema.node("paragraph", {}, [schema.text(`${spaces}this isn’t a code block`)]),
+                    schema.node("paragraph", {}, [
+                        schema.text(`${spaces}this isn\u2019t a code block`),
+                    ]),
                     schema.node("quoteBlock", {}, [
                         schema.node("paragraph", {}, [
-                            schema.text(`${spaces}this also isn’t a code block`),
+                            schema.text(`${spaces}this also isn\u2019t a code block`),
                         ]),
                     ]),
                 ]),
@@ -3533,9 +3544,9 @@ for (const numSpaces of [1, 2, 3]) {
             ),
         ).toEqual({
             text: `\
-${chunkEscapedSpaces}this isn’t a code block
+${chunkEscapedSpaces}this isn\u2019t a code block
 
-> ${chunkEscapedSpaces}this also isn’t a code block`,
+> ${chunkEscapedSpaces}this also isn\u2019t a code block`,
             isGroup: true,
             tokenCount: 16,
             context: {sectionHeading: null},
@@ -3544,7 +3555,9 @@ ${chunkEscapedSpaces}this isn’t a code block
                     isGroup: false,
                     tokenCount: 7,
                     context: {sectionHeading: null},
-                    sentenceChunks: [{text: `${spaces}this isn’t a code block`, tokenCount: 7}],
+                    sentenceChunks: [
+                        {text: `${spaces}this isn\u2019t a code block`, tokenCount: 7},
+                    ],
                     lineMarginTop: 2,
                     lineMarginBottom: 2,
                 },
@@ -3554,7 +3567,7 @@ ${chunkEscapedSpaces}this isn’t a code block
                     context: {sectionHeading: null},
                     sentenceChunks: [
                         {
-                            text: `> ${spaces}this also isn’t a code block`,
+                            text: `> ${spaces}this also isn\u2019t a code block`,
                             tokenCount: 9,
                         },
                     ],
@@ -3696,7 +3709,7 @@ test("correctly chunks document content", async () => {
                     {
                         type: "paragraph",
                         content: [
-                            {type: "text", text: "Our product’s mission is: "},
+                            {type: "text", text: "Our product\u2019s mission is: "},
                             {
                                 type: "text",
                                 marks: [{type: "bold"}],
@@ -3736,7 +3749,7 @@ test("correctly chunks document content", async () => {
                                     },
                                     {
                                         type: "text",
-                                        text: " Bringing a project to completion shouldn’t involve jumping between tools and losing track of where things are happening. Instead it should feel like a continuous experience from idea to execution.",
+                                        text: " Bringing a project to completion shouldn\u2019t involve jumping between tools and losing track of where things are happening. Instead it should feel like a continuous experience from idea to execution.",
                                     },
                                 ],
                             },
@@ -3756,7 +3769,7 @@ test("correctly chunks document content", async () => {
                                     },
                                     {
                                         type: "text",
-                                        text: " We plan to unify conversations across the product experience. Never lose track of what’s happening and pick up the conversation where you left off.",
+                                        text: " We plan to unify conversations across the product experience. Never lose track of what\u2019s happening and pick up the conversation where you left off.",
                                     },
                                 ],
                             },
@@ -3776,7 +3789,7 @@ test("correctly chunks document content", async () => {
                                     },
                                     {
                                         type: "text",
-                                        text: " Work collaboration tools are being commoditized and the value proposition is increasingly moving to the integration of features. Enterprise buyers don’t want to pay for tools that do the same thing. By shipping a bundle we build a defensible enterprise business.",
+                                        text: " Work collaboration tools are being commoditized and the value proposition is increasingly moving to the integration of features. Enterprise buyers don\u2019t want to pay for tools that do the same thing. By shipping a bundle we build a defensible enterprise business.",
                                     },
                                 ],
                             },
@@ -3836,7 +3849,7 @@ test("correctly chunks document content", async () => {
                                     },
                                     {
                                         type: "text",
-                                        text: " With all your conversations in one place, we can make sure they don’t reach you outside of work hours. We hope to help make work a more enjoyable and equitable place to be through our product’s design and get out of the way when you’re done for the day.",
+                                        text: " With all your conversations in one place, we can make sure they don\u2019t reach you outside of work hours. We hope to help make work a more enjoyable and equitable place to be through our product\u2019s design and get out of the way when you\u2019re done for the day.",
                                     },
                                 ],
                             },
@@ -3852,7 +3865,7 @@ test("correctly chunks document content", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "When a customer uses Cyberworlds, the product should be a core part of their employee’s day-to-day roles. To help illustrate how we want the product to feel, here’s a journey of how a Cyberworlds user may go about their day:",
+                                text: "When a customer uses Cyberworlds, the product should be a core part of their employee\u2019s day-to-day roles. To help illustrate how we want the product to feel, here\u2019s a journey of how a Cyberworlds user may go about their day:",
                             },
                         ],
                     },
@@ -3865,7 +3878,7 @@ test("correctly chunks document content", async () => {
                                 content: [
                                     {
                                         type: "text",
-                                        text: "“When I start my day, I check my Cyberworlds inbox. I see my manager mentioned me in a document with a question. Next, my inbox shows me a summary of projects I am subscribed and tagged in. One of the projects has a task assigned to me I completed yesterday. I set the status to “done” without leaving my inbox.”",
+                                        text: "\u201CWhen I start my day, I check my Cyberworlds inbox. I see my manager mentioned me in a document with a question. Next, my inbox shows me a summary of projects I am subscribed and tagged in. One of the projects has a task assigned to me I completed yesterday. I set the status to \u201Cdone\u201D without leaving my inbox.\u201D",
                                     },
                                 ],
                             },
@@ -3880,7 +3893,7 @@ test("correctly chunks document content", async () => {
                                 content: [
                                     {
                                         type: "text",
-                                        text: "“Once I’ve responded to everyone that needs my attention and skimmed subscriptions I’m casually interested in, I go to my personal task list. Cyberworlds recommends I work on a task due tomorrow. I mark the task as “in progress” which helps me organize my tasks and helps my manager see the project as a whole is on track.”",
+                                        text: "\u201COnce I\u2019ve responded to everyone that needs my attention and skimmed subscriptions I\u2019m casually interested in, I go to my personal task list. Cyberworlds recommends I work on a task due tomorrow. I mark the task as \u201Cin progress\u201D which helps me organize my tasks and helps my manager see the project as a whole is on track.\u201D",
                                     },
                                 ],
                             },
@@ -3895,7 +3908,7 @@ test("correctly chunks document content", async () => {
                                 content: [
                                     {
                                         type: "text",
-                                        text: "“While I’m working on the task, I get a message from someone on a different team asking for advice using a tool my team owns. I remember a co-worker on my team wrote a guide for this tool last week. I hit a keyboard shortcut, type a quick search, find the document in seconds, and send it all without leaving the Cyberworlds chat.”",
+                                        text: "\u201CWhile I\u2019m working on the task, I get a message from someone on a different team asking for advice using a tool my team owns. I remember a co-worker on my team wrote a guide for this tool last week. I hit a keyboard shortcut, type a quick search, find the document in seconds, and send it all without leaving the Cyberworlds chat.\u201D",
                                     },
                                 ],
                             },
@@ -3910,7 +3923,7 @@ test("correctly chunks document content", async () => {
                                 content: [
                                     {
                                         type: "text",
-                                        text: "“At the end of the day, I get a calendar notification from Cyberworlds for a work happy hour. I pack up and leave knowing I won’t get a single work notification until tomorrow morning.”",
+                                        text: "\u201CAt the end of the day, I get a calendar notification from Cyberworlds for a work happy hour. I pack up and leave knowing I won\u2019t get a single work notification until tomorrow morning.\u201D",
                                     },
                                 ],
                             },
@@ -3925,7 +3938,7 @@ test("correctly chunks document content", async () => {
                                 content: [
                                     {
                                         type: "text",
-                                        text: "“The next day when I sit down with my coffee before work, I casually browse my Cyberworlds feed instead of reading the news. Here’s a post of my co-worker’s cute dog, here’s a meme a younger colleague shared, here’s a post from a senior designer talking about color theory. I open Cyberworlds instead of reading the news because it brings me joy and brings me closer to my team.”",
+                                        text: "\u201CThe next day when I sit down with my coffee before work, I casually browse my Cyberworlds feed instead of reading the news. Here\u2019s a post of my co-worker\u2019s cute dog, here\u2019s a meme a younger colleague shared, here\u2019s a post from a senior designer talking about color theory. I open Cyberworlds instead of reading the news because it brings me joy and brings me closer to my team.\u201D",
                                     },
                                 ],
                             },
@@ -3941,7 +3954,7 @@ test("correctly chunks document content", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "In order to reach our vision, it’s not enough to build a great product. We need to build the team and company that can make this product a reality. We care just as much about building a strong, independent, company as we care about delivering this product. We believe only an independent company can deliver a product at the quality level workers deserve.",
+                                text: "In order to reach our vision, it\u2019s not enough to build a great product. We need to build the team and company that can make this product a reality. We care just as much about building a strong, independent, company as we care about delivering this product. We believe only an independent company can deliver a product at the quality level workers deserve.",
                             },
                         ],
                     },
@@ -3952,7 +3965,7 @@ test("correctly chunks document content", async () => {
                             {type: "text", marks: [{type: "italic"}], text: "incredibly"},
                             {
                                 type: "text",
-                                text: " crowded space and workplace productivity suites have taken decades to get to where we currently are. There’s certainly hubris in believing we can build a product of that scope and win the space. Here’s our plan:",
+                                text: " crowded space and workplace productivity suites have taken decades to get to where we currently are. There\u2019s certainly hubris in believing we can build a product of that scope and win the space. Here\u2019s our plan:",
                             },
                         ],
                     },
@@ -3997,7 +4010,7 @@ test("correctly chunks document content", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "We won’t start with one product. Instead we will start with:",
+                                text: "We won\u2019t start with one product. Instead we will start with:",
                             },
                         ],
                     },
@@ -4059,7 +4072,7 @@ test("correctly chunks document content", async () => {
                                     {type: "text", marks: [{type: "bold"}], text: "Tasks:"},
                                     {
                                         type: "text",
-                                        text: " Every person gets a best-in-class personalized task product and the data ladders up into a larger project management system managers can use to plan and track work across teams. Project management solutions don’t work if the end-user isn’t in the habit of contributing data.",
+                                        text: " Every person gets a best-in-class personalized task product and the data ladders up into a larger project management system managers can use to plan and track work across teams. Project management solutions don\u2019t work if the end-user isn\u2019t in the habit of contributing data.",
                                     },
                                 ],
                             },
@@ -4079,7 +4092,7 @@ test("correctly chunks document content", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "We believe what will truly differentiate our solution and make it 10x better than what’s out there is deep integration across products. The meta features we will have at launch are:",
+                                text: "We believe what will truly differentiate our solution and make it 10x better than what\u2019s out there is deep integration across products. The meta features we will have at launch are:",
                             },
                         ],
                     },
@@ -4093,7 +4106,7 @@ test("correctly chunks document content", async () => {
                                     {type: "text", marks: [{type: "bold"}], text: "Search:"},
                                     {
                                         type: "text",
-                                        text: " Rich search capability accessible from anywhere that gets a user to their destination from a simple text input in seconds. As usage grows we want to improve search ranking with natural language processing (“documents by Caleb”), knowledge of the content link graph (PageRank anyone?), and knowledge of the social graph (prioritize content from my teammates).",
+                                        text: " Rich search capability accessible from anywhere that gets a user to their destination from a simple text input in seconds. As usage grows we want to improve search ranking with natural language processing (\u201Cdocuments by Caleb\u201D), knowledge of the content link graph (PageRank anyone?), and knowledge of the social graph (prioritize content from my teammates).",
                                     },
                                 ],
                             },
@@ -4141,7 +4154,7 @@ test("correctly chunks document content", async () => {
                                     {type: "text", marks: [{type: "bold"}], text: "Feed:"},
                                     {
                                         type: "text",
-                                        text: " The home page will be an algorithmically ranked feed showing you interesting content from across your organization. This helps people feel more connected to and learn from their colleagues. In addition to being a growth lever as people see how their co-workers use the product. Feed is where watercooler style soft work happens. Unlike inbox which is a part of a user’s core workflow.",
+                                        text: " The home page will be an algorithmically ranked feed showing you interesting content from across your organization. This helps people feel more connected to and learn from their colleagues. In addition to being a growth lever as people see how their co-workers use the product. Feed is where watercooler style soft work happens. Unlike inbox which is a part of a user\u2019s core workflow.",
                                     },
                                 ],
                             },
@@ -4157,12 +4170,12 @@ test("correctly chunks document content", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "We want the product to feel well made and trustworthy. We recognize that people can’t perceive every marginal quality improvement but on the whole we know how different a well built product can ",
+                                text: "We want the product to feel well made and trustworthy. We recognize that people can\u2019t perceive every marginal quality improvement but on the whole we know how different a well built product can ",
                             },
                             {type: "text", marks: [{type: "italic"}], text: "feel"},
                             {
                                 type: "text",
-                                text: ". In a world where most software doesn’t feel amazing, people will want to share our software which does.",
+                                text: ". In a world where most software doesn\u2019t feel amazing, people will want to share our software which does.",
                             },
                         ],
                     },
@@ -4180,7 +4193,7 @@ test("correctly chunks document content", async () => {
                                     },
                                     {
                                         type: "text",
-                                        text: " Users perceive the product as responding immediately to any of their commands. The product doesn’t slow down as usage across their company increases. When the user wants to “write something down real quick” they open Cyberworlds.",
+                                        text: " Users perceive the product as responding immediately to any of their commands. The product doesn\u2019t slow down as usage across their company increases. When the user wants to \u201Cwrite something down real quick\u201D they open Cyberworlds.",
                                     },
                                 ],
                             },
@@ -4196,7 +4209,7 @@ test("correctly chunks document content", async () => {
                                     {type: "text", marks: [{type: "bold"}], text: "Zero glitches:"},
                                     {
                                         type: "text",
-                                        text: " When the user expects something to happen, it happens. It is exceedingly rare to see an error message or UI in a broken state. The product feels reliable for even the customer’s most critical work.",
+                                        text: " When the user expects something to happen, it happens. It is exceedingly rare to see an error message or UI in a broken state. The product feels reliable for even the customer\u2019s most critical work.",
                                     },
                                 ],
                             },
@@ -4243,12 +4256,12 @@ test("correctly chunks document content", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "These teams are also more likely to be using the “",
+                                text: "These teams are also more likely to be using the \u201C",
                             },
                             {type: "text", marks: [{type: "bold"}], text: "Slack stack"},
                             {
                                 type: "text",
-                                text: ".” The Slack stack is what we call a hand-rolled collaboration suite using Slack and other point solution products like Zoom, Quip, Asana, Atlassian, Notion, and Google Workspace on the side (for email and calendar). We believe that if we can build the products and features in the previous section we will be in striking distance of a 10x improvement compared to cobbling together equivalent tools in the Slack stack.",
+                                text: ".\u201D The Slack stack is what we call a hand-rolled collaboration suite using Slack and other point solution products like Zoom, Quip, Asana, Atlassian, Notion, and Google Workspace on the side (for email and calendar). We believe that if we can build the products and features in the previous section we will be in striking distance of a 10x improvement compared to cobbling together equivalent tools in the Slack stack.",
                             },
                         ],
                     },
@@ -4338,7 +4351,7 @@ test("correctly chunks document content", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "Joe is a product manager reading Sara’s document. He notices Cyberworlds has a personal task list so he adds some personal tasks there since it’s convenient and has the features he needs. As he starts to add more tasks he notices the timeline feature. So for the next project his team is building he creates a work timeline in Cyberworlds. He shares this with his team and manager who all start to sign in. Organically his team and the other teams they are working with start to prefer using Cyberworlds to other tools bought by their organization because they are high quality and deeply integrated with each other.",
+                                text: "Joe is a product manager reading Sara\u2019s document. He notices Cyberworlds has a personal task list so he adds some personal tasks there since it\u2019s convenient and has the features he needs. As he starts to add more tasks he notices the timeline feature. So for the next project his team is building he creates a work timeline in Cyberworlds. He shares this with his team and manager who all start to sign in. Organically his team and the other teams they are working with start to prefer using Cyberworlds to other tools bought by their organization because they are high quality and deeply integrated with each other.",
                             },
                         ],
                     },
@@ -4380,7 +4393,7 @@ test("correctly chunks document content", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "Each product we launch is more revenue from the customers we already have because they’ll use the product more. And expands the aperture of companies we can credibly say “replace your existing tools with Cyberworlds.”",
+                                text: "Each product we launch is more revenue from the customers we already have because they\u2019ll use the product more. And expands the aperture of companies we can credibly say \u201Creplace your existing tools with Cyberworlds.\u201D",
                             },
                         ],
                     },
@@ -4460,18 +4473,18 @@ This document is a part of our packet introducing Cyberworlds (code name, will c
 
 ## Vision
 
-Our product’s mission is: **Help people work together**
+Our product\u2019s mission is: **Help people work together**
 
 People can build great things when they work together. We aim to improve the productivity of our customers so they can build even more great things.
 
 Cyberworlds will streamline work collaboration by bringing together the top productivity tools (chat, documents, tasks, video conferencing, calendaring, email, sheets, slides) into one deeply integrated product. Some things we believe:
 
-- **Our tools are fragmented.** Bringing a project to completion shouldn’t involve jumping between tools and losing track of where things are happening. Instead it should feel like a continuous experience from idea to execution.
-- **Conversations are core to collaboration.** We plan to unify conversations across the product experience. Never lose track of what’s happening and pick up the conversation where you left off.
-- **All-in-one is the new norm.** Work collaboration tools are being commoditized and the value proposition is increasingly moving to the integration of features. Enterprise buyers don’t want to pay for tools that do the same thing. By shipping a bundle we build a defensible enterprise business.
+- **Our tools are fragmented.** Bringing a project to completion shouldn\u2019t involve jumping between tools and losing track of where things are happening. Instead it should feel like a continuous experience from idea to execution.
+- **Conversations are core to collaboration.** We plan to unify conversations across the product experience. Never lose track of what\u2019s happening and pick up the conversation where you left off.
+- **All-in-one is the new norm.** Work collaboration tools are being commoditized and the value proposition is increasingly moving to the integration of features. Enterprise buyers don\u2019t want to pay for tools that do the same thing. By shipping a bundle we build a defensible enterprise business.
 - **Quality is hard to find.** Growth hacks, design drift, lack of conviction, and tech debt have taken a toll on the user experience of existing products. Users are frustrated and want something better. Today, buyers are facing tough decisions between best-in-class products and a bundle—we plan to build a best-in-class product bundle.
 - **Dedicated to our craft.** We believe execution is the key to this opportunity. The innovation here is not the product but rather in designing a company that can build at the quality users deserve with meaningful momentum. By committing to these values we hope to attract top talent.
-- **Stay focused and maintain work-life boundaries.** With all your conversations in one place, we can make sure they don’t reach you outside of work hours. We hope to help make work a more enjoyable and equitable place to be through our product’s design and get out of the way when you’re done for the day.`,
+- **Stay focused and maintain work-life boundaries.** With all your conversations in one place, we can make sure they don\u2019t reach you outside of work hours. We hope to help make work a more enjoyable and equitable place to be through our product\u2019s design and get out of the way when you\u2019re done for the day.`,
         },
 
         // Chunk 2:
@@ -4479,17 +4492,17 @@ Cyberworlds will streamline work collaboration by bringing together the top prod
             preambleEndIndex: 58,
             tokenCountWithoutPreamble: 432,
             text: `\
-This is from the “Product vision and strategy” document:
+This is from the \u201CProduct vision and strategy\u201D document:
 
 ### User journey
 
-When a customer uses Cyberworlds, the product should be a core part of their employee’s day-to-day roles. To help illustrate how we want the product to feel, here’s a journey of how a Cyberworlds user may go about their day:
+When a customer uses Cyberworlds, the product should be a core part of their employee\u2019s day-to-day roles. To help illustrate how we want the product to feel, here\u2019s a journey of how a Cyberworlds user may go about their day:
 
-- “When I start my day, I check my Cyberworlds inbox. I see my manager mentioned me in a document with a question. Next, my inbox shows me a summary of projects I am subscribed and tagged in. One of the projects has a task assigned to me I completed yesterday. I set the status to “done” without leaving my inbox.”
-- “Once I’ve responded to everyone that needs my attention and skimmed subscriptions I’m casually interested in, I go to my personal task list. Cyberworlds recommends I work on a task due tomorrow. I mark the task as “in progress” which helps me organize my tasks and helps my manager see the project as a whole is on track.”
-- “While I’m working on the task, I get a message from someone on a different team asking for advice using a tool my team owns. I remember a co-worker on my team wrote a guide for this tool last week. I hit a keyboard shortcut, type a quick search, find the document in seconds, and send it all without leaving the Cyberworlds chat.”
-- “At the end of the day, I get a calendar notification from Cyberworlds for a work happy hour. I pack up and leave knowing I won’t get a single work notification until tomorrow morning.”
-- “The next day when I sit down with my coffee before work, I casually browse my Cyberworlds feed instead of reading the news. Here’s a post of my co-worker’s cute dog, here’s a meme a younger colleague shared, here’s a post from a senior designer talking about color theory. I open Cyberworlds instead of reading the news because it brings me joy and brings me closer to my team.”`,
+- \u201CWhen I start my day, I check my Cyberworlds inbox. I see my manager mentioned me in a document with a question. Next, my inbox shows me a summary of projects I am subscribed and tagged in. One of the projects has a task assigned to me I completed yesterday. I set the status to \u201Cdone\u201D without leaving my inbox.\u201D
+- \u201COnce I\u2019ve responded to everyone that needs my attention and skimmed subscriptions I\u2019m casually interested in, I go to my personal task list. Cyberworlds recommends I work on a task due tomorrow. I mark the task as \u201Cin progress\u201D which helps me organize my tasks and helps my manager see the project as a whole is on track.\u201D
+- \u201CWhile I\u2019m working on the task, I get a message from someone on a different team asking for advice using a tool my team owns. I remember a co-worker on my team wrote a guide for this tool last week. I hit a keyboard shortcut, type a quick search, find the document in seconds, and send it all without leaving the Cyberworlds chat.\u201D
+- \u201CAt the end of the day, I get a calendar notification from Cyberworlds for a work happy hour. I pack up and leave knowing I won\u2019t get a single work notification until tomorrow morning.\u201D
+- \u201CThe next day when I sit down with my coffee before work, I casually browse my Cyberworlds feed instead of reading the news. Here\u2019s a post of my co-worker\u2019s cute dog, here\u2019s a meme a younger colleague shared, here\u2019s a post from a senior designer talking about color theory. I open Cyberworlds instead of reading the news because it brings me joy and brings me closer to my team.\u201D`,
         },
 
         // Chunk 3:
@@ -4497,25 +4510,25 @@ When a customer uses Cyberworlds, the product should be a core part of their emp
             preambleEndIndex: 58,
             tokenCountWithoutPreamble: 412,
             text: `\
-This is from the “Product vision and strategy” document:
+This is from the \u201CProduct vision and strategy\u201D document:
 
 ## Strategy
 
-In order to reach our vision, it’s not enough to build a great product. We need to build the team and company that can make this product a reality. We care just as much about building a strong, independent, company as we care about delivering this product. We believe only an independent company can deliver a product at the quality level workers deserve.
+In order to reach our vision, it\u2019s not enough to build a great product. We need to build the team and company that can make this product a reality. We care just as much about building a strong, independent, company as we care about delivering this product. We believe only an independent company can deliver a product at the quality level workers deserve.
 
-Workplace productivity is an *incredibly* crowded space and workplace productivity suites have taken decades to get to where we currently are. There’s certainly hubris in believing we can build a product of that scope and win the space. Here’s our plan:
+Workplace productivity is an *incredibly* crowded space and workplace productivity suites have taken decades to get to where we currently are. There\u2019s certainly hubris in believing we can build a product of that scope and win the space. Here\u2019s our plan:
 
 We spend 1–2 years building a product that…
 
 1. Customers can adopt, pay for, and start to use for internal communication
 2. Demonstrates our product vision to the market
 
-We won’t start with one product. Instead we will start with:
+We won\u2019t start with one product. Instead we will start with:
 
 - **Documents:** You are in our documents product now. Documents are an unstructured canvas customers can use to communicate longer form content.
 - **Chat:** Person-to-person (or small group), live, synchronous communication. Similar to Slack our product will have the ability for person-to-person messaging and group chats. The forum product will be preferred for broadcast style communication and structured discussions.
 - **Forum:** Asynchronous, threaded communication among large groups of people. Posts are organized into topics and ranked by an algorithmic feed. The best parts of email combined with the best parts of realtime chat.
-- **Tasks:** Every person gets a best-in-class personalized task product and the data ladders up into a larger project management system managers can use to plan and track work across teams. Project management solutions don’t work if the end-user isn’t in the habit of contributing data.
+- **Tasks:** Every person gets a best-in-class personalized task product and the data ladders up into a larger project management system managers can use to plan and track work across teams. Project management solutions don\u2019t work if the end-user isn\u2019t in the habit of contributing data.
 
 We hope to make each product 10–20% higher quality than competitive solutions in core workflows and will fill out feature gaps over time.`,
         },
@@ -4525,14 +4538,14 @@ We hope to make each product 10–20% higher quality than competitive solutions 
             preambleEndIndex: 84,
             tokenCountWithoutPreamble: 322,
             text: `\
-This is from the “Product vision and strategy” document in the “Strategy” section:
+This is from the \u201CProduct vision and strategy\u201D document in the \u201CStrategy\u201D section:
 
-We believe what will truly differentiate our solution and make it 10x better than what’s out there is deep integration across products. The meta features we will have at launch are:
+We believe what will truly differentiate our solution and make it 10x better than what\u2019s out there is deep integration across products. The meta features we will have at launch are:
 
-- **Search:** Rich search capability accessible from anywhere that gets a user to their destination from a simple text input in seconds. As usage grows we want to improve search ranking with natural language processing (“documents by Caleb”), knowledge of the content link graph (PageRank anyone?), and knowledge of the social graph (prioritize content from my teammates).
+- **Search:** Rich search capability accessible from anywhere that gets a user to their destination from a simple text input in seconds. As usage grows we want to improve search ranking with natural language processing (\u201Cdocuments by Caleb\u201D), knowledge of the content link graph (PageRank anyone?), and knowledge of the social graph (prioritize content from my teammates).
 - **Inbox:** All of your mentions and subscriptions in one, organized, place. With intelligent prioritization of notifications and better handling of resolved/unresolved states than read/unread.
 - **Mobile:** We want to meet people wherever they work. Many people spend a good chunk of time working from their phones. We aim to have a feature compatible and high quality mobile app. We have a technical strategy that will get us to feature compatible in 1–2 years. Meeting our quality bar is a risk but we can iterate over time.
-- **Feed:** The home page will be an algorithmically ranked feed showing you interesting content from across your organization. This helps people feel more connected to and learn from their colleagues. In addition to being a growth lever as people see how their co-workers use the product. Feed is where watercooler style soft work happens. Unlike inbox which is a part of a user’s core workflow.`,
+- **Feed:** The home page will be an algorithmically ranked feed showing you interesting content from across your organization. This helps people feel more connected to and learn from their colleagues. In addition to being a growth lever as people see how their co-workers use the product. Feed is where watercooler style soft work happens. Unlike inbox which is a part of a user\u2019s core workflow.`,
         },
 
         // Chunk 5:
@@ -4540,14 +4553,14 @@ We believe what will truly differentiate our solution and make it 10x better tha
             preambleEndIndex: 58,
             tokenCountWithoutPreamble: 227,
             text: `\
-This is from the “Product vision and strategy” document:
+This is from the \u201CProduct vision and strategy\u201D document:
 
 ### What quality means to us
 
-We want the product to feel well made and trustworthy. We recognize that people can’t perceive every marginal quality improvement but on the whole we know how different a well built product can *feel*. In a world where most software doesn’t feel amazing, people will want to share our software which does.
+We want the product to feel well made and trustworthy. We recognize that people can\u2019t perceive every marginal quality improvement but on the whole we know how different a well built product can *feel*. In a world where most software doesn\u2019t feel amazing, people will want to share our software which does.
 
-- **Speed of thought:** Users perceive the product as responding immediately to any of their commands. The product doesn’t slow down as usage across their company increases. When the user wants to “write something down real quick” they open Cyberworlds.
-- **Zero glitches:** When the user expects something to happen, it happens. It is exceedingly rare to see an error message or UI in a broken state. The product feels reliable for even the customer’s most critical work.
+- **Speed of thought:** Users perceive the product as responding immediately to any of their commands. The product doesn\u2019t slow down as usage across their company increases. When the user wants to \u201Cwrite something down real quick\u201D they open Cyberworlds.
+- **Zero glitches:** When the user expects something to happen, it happens. It is exceedingly rare to see an error message or UI in a broken state. The product feels reliable for even the customer\u2019s most critical work.
 - **Design excellence:** We practice and expect design excellence across the product and organization. Our product will be meticulously crafted in every pixel and interaction. Interaction design excellence includes making sure the product is accessible by keyboard and by touch.`,
         },
 
@@ -4556,13 +4569,13 @@ We want the product to feel well made and trustworthy. We recognize that people 
             preambleEndIndex: 58,
             tokenCountWithoutPreamble: 407,
             text: `\
-This is from the “Product vision and strategy” document:
+This is from the \u201CProduct vision and strategy\u201D document:
 
 ### Differentiation, go to market, and pricing
 
 Our initial customer base will be product, design, and engineering teams. These teams are more likely to appreciate a product with an intense focus on craft. If we are successful at building a high quality product we will have marketing material for these teams. We show how much thought we put into the product, share our techniques, and in turn get teams excited to try our product for themselves. (This also has a side effect of attracting talent to come work with us.)
 
-These teams are also more likely to be using the “**Slack stack**.” The Slack stack is what we call a hand-rolled collaboration suite using Slack and other point solution products like Zoom, Quip, Asana, Atlassian, Notion, and Google Workspace on the side (for email and calendar). We believe that if we can build the products and features in the previous section we will be in striking distance of a 10x improvement compared to cobbling together equivalent tools in the Slack stack.
+These teams are also more likely to be using the \u201C**Slack stack**.\u201D The Slack stack is what we call a hand-rolled collaboration suite using Slack and other point solution products like Zoom, Quip, Asana, Atlassian, Notion, and Google Workspace on the side (for email and calendar). We believe that if we can build the products and features in the previous section we will be in striking distance of a 10x improvement compared to cobbling together equivalent tools in the Slack stack.
 
 Our product led growth motion will be: insist on email sign in using a company email address. Strongly discouraging, maybe even disallowing (without extra friction), signing up with free email domains like @gmail.com. When the user verifies their email address we automatically add them to the company workspace. (This is why we sent you one-time password to your email when you signed in. We verify your email and get you in at the same time.)
 
@@ -4576,7 +4589,7 @@ Our pricing tokenizer will be **usage based pricing**. *Every single employee in
             preambleEndIndex: 118,
             tokenCountWithoutPreamble: 178,
             text: `\
-This is from the “Product vision and strategy” document in the “Differentiation, go to market, and pricing” section:
+This is from the \u201CProduct vision and strategy\u201D document in the \u201CDifferentiation, go to market, and pricing\u201D section:
 
 Right now, the plan is to charge by hours using the product in increments of \\~100 hours/week. Tracking time is a unified way to measure usage across all products. It is simple to understand and so easy for finance teams to estimate. We charge in increments of 100 hours/week so that individual behavior does not change the bill. Increased usage from at least two or three users is needed for the bill to increase (say usage from individual users fluctuates between 5–20 hours/week).
 
@@ -4590,13 +4603,13 @@ While this pricing tokenizer can get expensive when Cyberworlds is fully adopted
             preambleEndIndex: 58,
             tokenCountWithoutPreamble: 323,
             text: `\
-This is from the “Product vision and strategy” document:
+This is from the \u201CProduct vision and strategy\u201D document:
 
 ### Example scenario of the product led growth motion
 
 Sara is a designer at a company which uses the Slack stack. She has seen design tips from Cyberworlds on Twitter and TikTok. She needs to write a document and thinks highly of the Cyberworlds document editor so signs in with her company email (automatically creating a workspace for the company). She shares the document link with her team and when they sign in with their company emails they are automatically added to the workspace and can see her document.
 
-Joe is a product manager reading Sara’s document. He notices Cyberworlds has a personal task list so he adds some personal tasks there since it’s convenient and has the features he needs. As he starts to add more tasks he notices the timeline feature. So for the next project his team is building he creates a work timeline in Cyberworlds. He shares this with his team and manager who all start to sign in. Organically his team and the other teams they are working with start to prefer using Cyberworlds to other tools bought by their organization because they are high quality and deeply integrated with each other.
+Joe is a product manager reading Sara\u2019s document. He notices Cyberworlds has a personal task list so he adds some personal tasks there since it\u2019s convenient and has the features he needs. As he starts to add more tasks he notices the timeline feature. So for the next project his team is building he creates a work timeline in Cyberworlds. He shares this with his team and manager who all start to sign in. Organically his team and the other teams they are working with start to prefer using Cyberworlds to other tools bought by their organization because they are high quality and deeply integrated with each other.
 
 The bill grows at a measured pace as more and more folks within the organization adopt the product. At first it starts as a small cost which can be easily justified and expensed. Over time the bill attracts the attention of IT.
 
@@ -4608,13 +4621,13 @@ Eventually our sales team makes contact with IT. We make the argument that the c
             preambleEndIndex: 58,
             tokenCountWithoutPreamble: 206,
             text: `\
-This is from the “Product vision and strategy” document:
+This is from the \u201CProduct vision and strategy\u201D document:
 
 ---
 
 This is only a strategy for how we beat the Slack stack in product teams. Eventually we want to compete against Microsoft. If we can land in product teams, start to eat market share from the Slack stack, from there we can start to build out the full product suite. Email, calendar, video conferencing, white boarding, slides, sheets, etc.
 
-Each product we launch is more revenue from the customers we already have because they’ll use the product more. And expands the aperture of companies we can credibly say “replace your existing tools with Cyberworlds.”
+Each product we launch is more revenue from the customers we already have because they\u2019ll use the product more. And expands the aperture of companies we can credibly say \u201Creplace your existing tools with Cyberworlds.\u201D
 
 In the first 3–4 years we will likely be very focused on beating the Slack stack in product teams. Once we are in a position of strength there, we will update our strategy.
 
@@ -4656,12 +4669,12 @@ test("correctly chunks long document content by sentences", async () => {
         {
             preambleEndIndex: 42,
             tokenCountWithoutPreamble: 498,
-            text: "This is from the “Lorem Ipsum” document:\n\nInteger pretium augue non tortor tempus, dapibus fermentum mi egestas. Nullam aliquet, nibh semper aliquam ornare, quam mi vehicula felis, ac eleifend nisi metus sed lorem. Maecenas pellentesque orci nulla, vel tincidunt ipsum dignissim ac. Cras elementum venenatis ultricies. Sed efficitur interdum sem, ac vulputate nibh tincidunt non. Vivamus vitae euismod quam, nec vehicula massa. Sed tortor erat, dictum eget sem in, pretium placerat arcu. Mauris ut vulputate ipsum, quis porttitor lacus. Fusce consequat nulla in gravida ultricies. Morbi venenatis, odio a congue aliquam, arcu mi molestie quam, ac porttitor massa nibh ut velit. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed magna ligula, porttitor in augue ut, rutrum rutrum erat. Fusce vehicula augue tincidunt eleifend maximus. Curabitur vel ullamcorper ligula. Fusce velit nibh, posuere at suscipit venenatis, vehicula mattis mi. Integer at erat commodo, dictum nunc id, egestas ex. Maecenas aliquet lacus vel urna ornare condimentum. Nullam nec laoreet felis. Vestibulum eget tincidunt enim. Sed dictum mi tellus, ut efficitur nunc hendrerit ac. In a ipsum neque. Proin id nibh eu leo placerat sagittis. Vivamus vitae iaculis turpis. Sed vulputate quis sapien eu ornare. Donec eleifend semper est, malesuada tincidunt risus iaculis at.",
+            text: "This is from the \u201CLorem Ipsum\u201D document:\n\nInteger pretium augue non tortor tempus, dapibus fermentum mi egestas. Nullam aliquet, nibh semper aliquam ornare, quam mi vehicula felis, ac eleifend nisi metus sed lorem. Maecenas pellentesque orci nulla, vel tincidunt ipsum dignissim ac. Cras elementum venenatis ultricies. Sed efficitur interdum sem, ac vulputate nibh tincidunt non. Vivamus vitae euismod quam, nec vehicula massa. Sed tortor erat, dictum eget sem in, pretium placerat arcu. Mauris ut vulputate ipsum, quis porttitor lacus. Fusce consequat nulla in gravida ultricies. Morbi venenatis, odio a congue aliquam, arcu mi molestie quam, ac porttitor massa nibh ut velit. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed magna ligula, porttitor in augue ut, rutrum rutrum erat. Fusce vehicula augue tincidunt eleifend maximus. Curabitur vel ullamcorper ligula. Fusce velit nibh, posuere at suscipit venenatis, vehicula mattis mi. Integer at erat commodo, dictum nunc id, egestas ex. Maecenas aliquet lacus vel urna ornare condimentum. Nullam nec laoreet felis. Vestibulum eget tincidunt enim. Sed dictum mi tellus, ut efficitur nunc hendrerit ac. In a ipsum neque. Proin id nibh eu leo placerat sagittis. Vivamus vitae iaculis turpis. Sed vulputate quis sapien eu ornare. Donec eleifend semper est, malesuada tincidunt risus iaculis at.",
         },
         {
             preambleEndIndex: 42,
             tokenCountWithoutPreamble: 200,
-            text: "This is from the “Lorem Ipsum” document:\n\nAliquam ultricies vitae mauris nec malesuada. Curabitur dolor lectus, rhoncus eget lobortis et, ullamcorper vitae elit. Maecenas finibus tortor sed tincidunt lobortis. Phasellus facilisis est vitae neque porttitor, vitae blandit ipsum placerat. Nunc et tincidunt urna. Nunc aliquam odio ullamcorper justo suscipit sollicitudin. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Mauris ac lorem tempor, tempus magna euismod, convallis felis. Integer ac ex diam. Nunc lacinia vestibulum erat, sed placerat nisi molestie et.",
+            text: "This is from the \u201CLorem Ipsum\u201D document:\n\nAliquam ultricies vitae mauris nec malesuada. Curabitur dolor lectus, rhoncus eget lobortis et, ullamcorper vitae elit. Maecenas finibus tortor sed tincidunt lobortis. Phasellus facilisis est vitae neque porttitor, vitae blandit ipsum placerat. Nunc et tincidunt urna. Nunc aliquam odio ullamcorper justo suscipit sollicitudin. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Mauris ac lorem tempor, tempus magna euismod, convallis felis. Integer ac ex diam. Nunc lacinia vestibulum erat, sed placerat nisi molestie et.",
         },
     ]);
 });
@@ -5397,7 +5410,7 @@ test("drops inline formatting within a code block", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "This means you won’t have to manually rewrite a test file path into a Bazel label! By passing in a file path, we’ll automatically figure out that the test label for ",
+                                text: "This means you won\u2019t have to manually rewrite a test file path into a Bazel label! By passing in a file path, we\u2019ll automatically figure out that the test label for ",
                             },
                             {
                                 type: "text",
@@ -5410,7 +5423,7 @@ test("drops inline formatting within a code block", async () => {
                                 marks: [{type: "code"}],
                                 text: "//server/documents/data:documents_table_test",
                             },
-                            {type: "text", text: " then we’ll run that test."},
+                            {type: "text", text: " then we\u2019ll run that test."},
                         ],
                     },
                 ],
@@ -5425,7 +5438,7 @@ I added the ability to pass in paths to \`dev test\`. For example:
 dev test server/documents/data/documents_table.test.ts
 \`\`\`
 
-This means you won’t have to manually rewrite a test file path into a Bazel label! By passing in a file path, we’ll automatically figure out that the test label for \`server/documents/data/documents_table.test.ts\` is \`//server/documents/data:documents_table_test\` then we’ll run that test.`,
+This means you won\u2019t have to manually rewrite a test file path into a Bazel label! By passing in a file path, we\u2019ll automatically figure out that the test label for \`server/documents/data/documents_table.test.ts\` is \`//server/documents/data:documents_table_test\` then we\u2019ll run that test.`,
         isGroup: true,
         context: {sectionHeading: null},
         tokenCount: 117,
@@ -5472,11 +5485,11 @@ This means you won’t have to manually rewrite a test file path into a Bazel la
                 context: {sectionHeading: null},
                 sentenceChunks: [
                     {
-                        text: "This means you won’t have to manually rewrite a test file path into a Bazel label!",
+                        text: "This means you won\u2019t have to manually rewrite a test file path into a Bazel label!",
                         tokenCount: 21,
                     },
                     {
-                        text: "By passing in a file path, we’ll automatically figure out that the test label for `server/documents/data/documents_table.test.ts` is `//server/documents/data:documents_table_test` then we’ll run that test.",
+                        text: "By passing in a file path, we\u2019ll automatically figure out that the test label for `server/documents/data/documents_table.test.ts` is `//server/documents/data:documents_table_test` then we\u2019ll run that test.",
                         tokenCount: 57,
                     },
                 ],

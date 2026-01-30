@@ -50,7 +50,7 @@ export async function createSpaceWelcomePackageTransactionEntries(
             channelId: randomChannelId,
             channelName: "Random",
             channelDescription: createSimpleMessageContent(
-                "A place for conversations that aren’t about work. Share memes, ask for recommendations, or post about whatever’s on your mind.",
+                "A place for conversations that aren\u2019t about work. Share memes, ask for recommendations, or post about whatever\u2019s on your mind.",
             ),
             createdTime: currentTime,
         }),

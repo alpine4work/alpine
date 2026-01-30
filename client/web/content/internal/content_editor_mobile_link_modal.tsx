@@ -145,7 +145,7 @@ export function ContentEditorMobileLinkModal({
                         isFocusable={false}
                         paddingX="2"
                         fontSize="100"
-                        pressErrorTitle="Couldn’t cancel"
+                        pressErrorTitle="Couldn\u2019t cancel"
                         onPress={onCloseWithAnimation}
                     >
                         Cancel

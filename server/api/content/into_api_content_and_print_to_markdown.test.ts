@@ -168,7 +168,7 @@ test("ordered list item with order start 1", () => {
             ],
         },
         `\
-1. <span data-start=”1”/>foo
+1. <span data-start=\u201D1\u201D/>foo
 
 2. bar
 `,
@@ -220,11 +220,11 @@ test("ordered list item with order start 1 and and reset to 1", () => {
             ],
         },
         `\
-1. <span data-start=”1”/>foo
+1. <span data-start=\u201D1\u201D/>foo
 
 2. bar
 
-1) <span data-start=”1”/>restart 1
+1) <span data-start=\u201D1\u201D/>restart 1
 `,
     );
 });

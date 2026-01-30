@@ -97,8 +97,8 @@ export function ContentFileViewerModalMobile({
         }
 
         if (!url) {
-            throw new FailedPreconditionError("File hasn’t finished uploading", {
-                displayMessage: errorDisplayMessage`The file hasn’t finished uploading. Wait a few seconds then try again.`,
+            throw new FailedPreconditionError("File hasn\u2019t finished uploading", {
+                displayMessage: errorDisplayMessage`The file hasn\u2019t finished uploading. Wait a few seconds then try again.`,
             });
         }
 
@@ -231,7 +231,7 @@ export function ContentFileViewerModalMobile({
                                 variant="quiet-above-content-file-viewer-modal"
                                 description="Share"
                                 withoutTooltip
-                                pressErrorTitle={`Couldn’t share ${getFileContentTypeNoun(
+                                pressErrorTitle={`Couldn\u2019t share ${getFileContentTypeNoun(
                                     file.contentType,
                                 )}`}
                                 isDisabled={
@@ -273,7 +273,7 @@ export function ContentFileViewerModalMobile({
                                         title={
                                             error instanceof ContentFileProcessorError
                                                 ? error.title
-                                                : `Couldn’t open ${getFileContentTypeNoun(
+                                                : `Couldn\u2019t open ${getFileContentTypeNoun(
                                                       file.contentType,
                                                   )}`
                                         }
@@ -290,7 +290,7 @@ export function ContentFileViewerModalMobile({
                                                 ? file.alternative.isProcessing
                                                 : file.isUploading
                                         }
-                                        pressErrorTitle={`Couldn’t download ${getFileContentTypeNoun(
+                                        pressErrorTitle={`Couldn\u2019t download ${getFileContentTypeNoun(
                                             file.contentType,
                                         )}`}
                                         onPress={onShare}
@@ -367,7 +367,7 @@ function ContentFileViewerMobile(props: {
                         isDisabled={
                             file.alternative ? file.alternative.isProcessing : file.isUploading
                         }
-                        pressErrorTitle={`Couldn’t download ${getFileContentTypeNoun(
+                        pressErrorTitle={`Couldn\u2019t download ${getFileContentTypeNoun(
                             file.contentType,
                         )}`}
                         onPress={onShare}

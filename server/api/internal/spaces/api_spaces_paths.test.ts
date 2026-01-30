@@ -37,7 +37,7 @@ test("can read account information", async () => {
     });
 });
 
-test("can’t read account information for non-existent account", async () => {
+test("can\u2019t read account information for non-existent account", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -53,7 +53,7 @@ test("can’t read account information for non-existent account", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("doesn’t exist"),
+                message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
     });
@@ -82,7 +82,7 @@ test("can read space information", async () => {
     });
 });
 
-test("can’t read space information for non-existent space", async () => {
+test("can\u2019t read space information for non-existent space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -98,13 +98,13 @@ test("can’t read space information for non-existent space", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("doesn’t exist"),
+                message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
     });
 });
 
-test("can’t read space information for space bot doesn’t have access to", async () => {
+test("can\u2019t read space information for space bot doesn\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
@@ -121,7 +121,7 @@ test("can’t read space information for space bot doesn’t have access to", as
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("You don’t have access"),
+                message: expect.stringMatching("You don\u2019t have access"),
             }),
         },
     });
@@ -153,7 +153,7 @@ test("can read account information in specific space", async () => {
     });
 });
 
-test("can’t read account information in non-existent space", async () => {
+test("can\u2019t read account information in non-existent space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -169,13 +169,13 @@ test("can’t read account information in non-existent space", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("You don’t have access"),
+                message: expect.stringMatching("You don\u2019t have access"),
             }),
         },
     });
 });
 
-test("can’t read non-existent account information in space", async () => {
+test("can\u2019t read non-existent account information in space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -191,13 +191,13 @@ test("can’t read non-existent account information in space", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("doesn’t exist"),
+                message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
     });
 });
 
-test("can’t read account information without proper access to space", async () => {
+test("can\u2019t read account information without proper access to space", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
     const session1 = await space1.createSession({role: "Admin"});
@@ -215,7 +215,7 @@ test("can’t read account information without proper access to space", async ()
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: expect.objectContaining({
-                message: expect.stringMatching("You don’t have access"),
+                message: expect.stringMatching("You don\u2019t have access"),
             }),
         },
     });
@@ -369,7 +369,7 @@ test("can read other bot settings (which hides secrets)", async () => {
     });
 });
 
-test("can’t read bot settings for space bot doesn’t have access to", async () => {
+test("can\u2019t read bot settings for space bot doesn\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});

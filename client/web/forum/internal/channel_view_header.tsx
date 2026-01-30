@@ -307,13 +307,13 @@ function ChannelViewHeaderMobileDescriptionEditor({
                             if (isSaving) return;
 
                             save().catch(error => {
-                                reporter.displayError("Couldn’t save description", error);
+                                reporter.displayError("Couldn\u2019t save description", error);
                             });
                         }}
                     />
                     <InlineEditorToolbar
                         isSaving={isSaving}
-                        saveErrorTitle="Couldn’t save description"
+                        saveErrorTitle="Couldn\u2019t save description"
                         onSave={save}
                         onCancel={onCancel}
                     />
@@ -330,10 +330,10 @@ function ChannelViewHeaderMobileDescriptionEditor({
                         setShouldShowConfirmSaveDialog(false);
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Couldn’t save description"
+                    primaryButtonPressErrorTitle="Couldn\u2019t save description"
                     onPrimaryButtonPress={save}
                     cancelButtonLabel="Discard description"
-                    cancelButtonPressErrorTitle="Couldn’t discard description"
+                    cancelButtonPressErrorTitle="Couldn\u2019t discard description"
                     onCancelButtonPress={onCancel}
                 />
             )}

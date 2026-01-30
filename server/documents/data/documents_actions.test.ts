@@ -1166,7 +1166,7 @@ test("reads the document on first update but not on subsequent updates", async (
     expect(getCount()).toEqual(1);
 });
 
-test("can’t update a document that doesn’t exist", async () => {
+test("can\u2019t update a document that doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1182,7 +1182,7 @@ test("can’t update a document that doesn’t exist", async () => {
     }).rejects.toThrow(NotFoundError);
 });
 
-test("won’t cache a document that doesn’t exist when updating", async () => {
+test("won\u2019t cache a document that doesn\u2019t exist when updating", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1214,7 +1214,7 @@ test("won’t cache a document that doesn’t exist when updating", async () => 
     expect(getCount()).toEqual(2);
 });
 
-test("can’t read a corrupted document", async () => {
+test("can\u2019t read a corrupted document", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const document = await TestDocument.create(session);
@@ -1230,7 +1230,7 @@ test("can’t read a corrupted document", async () => {
     }).rejects.toThrow(DataLossError);
 });
 
-test("can’t update a corrupted document", async () => {
+test("can\u2019t update a corrupted document", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const document = await TestDocument.create(session);
@@ -1251,7 +1251,7 @@ test("can’t update a corrupted document", async () => {
     }).rejects.toThrow(DataLossError);
 });
 
-test("won’t cache a corrupted document while updating", async () => {
+test("won\u2019t cache a corrupted document while updating", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const document = await TestDocument.create(session);
@@ -2863,7 +2863,7 @@ test("can not add a newline character to an existing `codeBlockLine` node in a d
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        new FailedPreconditionError("Can’t add `\\n` character to `codeBlockLine` node"),
+        new FailedPreconditionError("Can\u2019t add `\\n` character to `codeBlockLine` node"),
     );
 
     expect(massageDocument(await document.get())).toEqual({
@@ -2906,7 +2906,7 @@ test("can not add a newline character with a new `codeBlockLine` node in a docum
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        new FailedPreconditionError("Can’t add `\\n` character to `codeBlockLine` node"),
+        new FailedPreconditionError("Can\u2019t add `\\n` character to `codeBlockLine` node"),
     );
 
     expect(massageDocument(await document.get())).toEqual({
@@ -2915,7 +2915,7 @@ test("can not add a newline character with a new `codeBlockLine` node in a docum
     });
 });
 
-test("can’t add comment mark to `fileRow` node in a document", async () => {
+test("can\u2019t add comment mark to `fileRow` node in a document", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2979,7 +2979,7 @@ test("can’t add comment mark to `fileRow` node in a document", async () => {
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply step to content: Invalid content for node doc: <title, comment(fileRow(file, file))>",
+            "Couldn\u2019t apply step to content: Invalid content for node doc: <title, comment(fileRow(file, file))>",
         ),
     );
 
@@ -3078,7 +3078,7 @@ test("can add comment mark to `file` node in a document with `fileRow` as a pare
     });
 });
 
-test("can’t add comment mark to `fileRowTable` node in a document", async () => {
+test("can\u2019t add comment mark to `fileRowTable` node in a document", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const document = await TestDocument.create(session);
@@ -3141,7 +3141,7 @@ test("can’t add comment mark to `fileRowTable` node in a document", async () =
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply step to content: Invalid content for node table: <comment(tableRow(tableCell(fileRowTable(file)), t",
+            "Couldn\u2019t apply step to content: Invalid content for node table: <comment(tableRow(tableCell(fileRowTable(file)), t",
         ),
     );
 
@@ -3163,7 +3163,7 @@ test("can’t add comment mark to `fileRowTable` node in a document", async () =
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply step to content: Invalid content for node tableRow: <comment(tableCell(fileRowTable(file))), tableCell",
+            "Couldn\u2019t apply step to content: Invalid content for node tableRow: <comment(tableCell(fileRowTable(file))), tableCell",
         ),
     );
 
@@ -3185,7 +3185,7 @@ test("can’t add comment mark to `fileRowTable` node in a document", async () =
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply step to content: Invalid content for node tableCell: <comment(fileRowTable(file))>",
+            "Couldn\u2019t apply step to content: Invalid content for node tableCell: <comment(fileRowTable(file))>",
         ),
     );
 
@@ -3296,7 +3296,7 @@ test("can add comment mark to `file` node in a document with `fileRowTable` as a
     });
 });
 
-test("can’t add bold mark to `paragraph` node in a document", async () => {
+test("can\u2019t add bold mark to `paragraph` node in a document", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3311,7 +3311,7 @@ test("can’t add bold mark to `paragraph` node in a document", async () => {
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply step to content: No node at mark step's position",
+            "Couldn\u2019t apply step to content: No node at mark step's position",
         ),
     );
 
@@ -3324,7 +3324,7 @@ test("can’t add bold mark to `paragraph` node in a document", async () => {
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply step to content: Invalid content for node doc: <title, bold(paragraph)>",
+            "Couldn\u2019t apply step to content: Invalid content for node doc: <title, bold(paragraph)>",
         ),
     );
 
@@ -3337,7 +3337,7 @@ test("can’t add bold mark to `paragraph` node in a document", async () => {
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply step to content: No node at mark step's position",
+            "Couldn\u2019t apply step to content: No node at mark step's position",
         ),
     );
 });
@@ -3460,7 +3460,7 @@ test("counts step count contributions for each account", async () => {
         ]),
     );
 
-    await document.type(session2, " I’m going to need to get more creative with test data.");
+    await document.type(session2, " I\u2019m going to need to get more creative with test data.");
 
     expect(
         await DocumentsTable.getItem(context, {
@@ -3596,7 +3596,7 @@ test("counts step count contributions for each account with alternating cache", 
         ]),
     );
 
-    await document.type(session2, " I’m going to need to get more creative with test data.");
+    await document.type(session2, " I\u2019m going to need to get more creative with test data.");
 
     expect(
         await DocumentsTable.getItem(context, {
@@ -4365,7 +4365,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
 
     await expect(document.update(session, [new AttrStep(3, "direction", "left")])).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply attr step to node `file` because it doesn’t support attr `direction`",
+            "Couldn\u2019t apply attr step to node `file` because it doesn\u2019t support attr `direction`",
         ),
     );
 
@@ -4373,7 +4373,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
         document.update(session, [new AttrStep(3, "direction", "left")], {versionOverride: 1}),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply attr step to node `file` because it doesn’t support attr `direction`",
+            "Couldn\u2019t apply attr step to node `file` because it doesn\u2019t support attr `direction`",
         ),
     );
 
@@ -4381,7 +4381,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
         document.update(session, [new AttrStep(2, "direction", "left")], {versionOverride: 1}),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply attr step to node `fileRow` because it doesn’t support attr `direction`",
+            "Couldn\u2019t apply attr step to node `fileRow` because it doesn\u2019t support attr `direction`",
         ),
     );
 
@@ -4389,7 +4389,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
         document.update(session, [new AttrStep(3, "direction", "left")], {versionOverride: 0}),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply step to content: No node at attribute step's position",
+            "Couldn\u2019t apply step to content: No node at attribute step's position",
         ),
     );
 
@@ -4397,7 +4397,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
         document.update(session, [new AttrStep(2, "direction", "left")], {versionOverride: 0}),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn’t apply attr step to node `paragraph` because it doesn’t support attr `direction`",
+            "Couldn\u2019t apply attr step to node `paragraph` because it doesn\u2019t support attr `direction`",
         ),
     );
 
@@ -5063,13 +5063,13 @@ test("getting document with comments requires comment access level", async () =>
         await getDocument(session1.action(), document.id);
         await getDocument(session2.action(), document.id);
         await expect(getDocument(session3.action(), document.id)).rejects.toThrow(
-            "Actor doesn’t have `Comment` access level",
+            "Actor doesn\u2019t have `Comment` access level",
         );
         await expect(getDocument(session4.action(), document.id)).rejects.toThrow(
-            "Actor doesn’t have `View` access level",
+            "Actor doesn\u2019t have `View` access level",
         );
         await expect(getDocument(otherSession.action(), document.id)).rejects.toThrow(
-            "Account doesn’t have access to space",
+            "Account doesn\u2019t have access to space",
         );
     }
 
@@ -5077,13 +5077,13 @@ test("getting document with comments requires comment access level", async () =>
         await getDocumentContent(session1.action(), document.id);
         await getDocumentContent(session2.action(), document.id);
         await expect(getDocumentContent(session3.action(), document.id)).rejects.toThrow(
-            "Actor doesn’t have `Comment` access level",
+            "Actor doesn\u2019t have `Comment` access level",
         );
         await expect(getDocumentContent(session4.action(), document.id)).rejects.toThrow(
-            "Actor doesn’t have `View` access level",
+            "Actor doesn\u2019t have `View` access level",
         );
         await expect(getDocumentContent(otherSession.action(), document.id)).rejects.toThrow(
-            "Account doesn’t have access to space",
+            "Account doesn\u2019t have access to space",
         );
     }
 
@@ -5098,16 +5098,16 @@ test("getting document with comments requires comment access level", async () =>
         );
         await expect(
             getDocumentContentForCollaborationServiceInitialization(session3.action(), document.id),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentContentForCollaborationServiceInitialization(session4.action(), document.id),
-        ).rejects.toThrow("Actor doesn’t have `View` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
         await expect(
             getDocumentContentForCollaborationServiceInitialization(
                 otherSession.action(),
                 document.id,
             ),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5130,7 +5130,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentAndCommentThreadsWithInitialComments(session4.action(), {
                 documentId: document.id,
@@ -5138,7 +5138,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow("Actor doesn’t have `View` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
         await expect(
             getDocumentAndCommentThreadsWithInitialComments(otherSession.action(), {
                 documentId: document.id,
@@ -5146,7 +5146,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     // Check that even when `commentThreadIds` is empty we still throw if the actor
@@ -5171,7 +5171,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentAndCommentThreadsWithInitialComments(session4.action(), {
                 documentId: document.id,
@@ -5179,7 +5179,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow("Actor doesn’t have `View` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
         await expect(
             getDocumentAndCommentThreadsWithInitialComments(otherSession.action(), {
                 documentId: document.id,
@@ -5187,7 +5187,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5207,21 +5207,21 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 isFirstComment: true,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThreadNotificationSubscribers(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 isFirstComment: true,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThreadNotificationSubscribers(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 isFirstComment: true,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5238,19 +5238,19 @@ test("getting document with comments requires comment access level", async () =>
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThread(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThread(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5267,19 +5267,19 @@ test("getting document with comments requires comment access level", async () =>
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThreadContent(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThreadContent(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5299,21 +5299,21 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 commentIndex: 0,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentAuthorId(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 commentIndex: 0,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentAuthorId(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 commentIndex: 0,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5330,19 +5330,19 @@ test("getting document with comments requires comment access level", async () =>
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             batchGetDocumentCommentThreadReferencesIfExists(session4.action(), {
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             batchGetDocumentCommentThreadReferencesIfExists(otherSession.action(), {
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5362,21 +5362,21 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThreadAndInitialComments(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThreadAndInitialComments(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5396,21 +5396,21 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThreadAndInitialCommentsIfExists(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentCommentThreadAndInitialCommentsIfExists(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5427,13 +5427,13 @@ test("getting document with comments requires comment access level", async () =>
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency(session4.action(), {
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency(
                 otherSession.action(),
@@ -5442,7 +5442,7 @@ test("getting document with comments requires comment access level", async () =>
                     commentThreadIds: [commentThread.id],
                 },
             ),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5462,21 +5462,21 @@ test("getting document with comments requires comment access level", async () =>
                 startVersion: 0,
                 endVersion: 4,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentContentSteps(session4.action(), {
                 id: document.id,
                 startVersion: 0,
                 endVersion: 4,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getDocumentContentSteps(otherSession.action(), {
                 id: document.id,
                 startVersion: 0,
                 endVersion: 4,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 });
 
@@ -5520,19 +5520,19 @@ test("getting document with resolved comment thread requires comment access leve
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getResolvedDocumentCommentThreadRanges(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
         await expect(
             getResolvedDocumentCommentThreadRanges(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 });
 
@@ -5566,10 +5566,10 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentWithOptionalComments(session3.action(), document.id);
         await expect(
             getDocumentWithOptionalComments(session4.action(), document.id),
-        ).rejects.toThrow("Actor doesn’t have `View` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
         await expect(
             getDocumentWithOptionalComments(otherSession.action(), document.id),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5578,10 +5578,10 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentWithOptionalCommentsIfExists(session3.action(), document.id);
         await expect(
             getDocumentWithOptionalCommentsIfExists(session4.action(), document.id),
-        ).rejects.toThrow("Actor doesn’t have `View` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
         await expect(
             getDocumentWithOptionalCommentsIfExists(otherSession.action(), document.id),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5590,10 +5590,10 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentContentWithOptionalComments(session3.action(), document.id);
         await expect(
             getDocumentContentWithOptionalComments(session4.action(), document.id),
-        ).rejects.toThrow("Actor doesn’t have `View` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
         await expect(
             getDocumentContentWithOptionalComments(otherSession.action(), document.id),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5614,13 +5614,13 @@ test("getting document without comments requires view access level", async () =>
                 context.action(session4, {serviceName: "DocumentCollaborationService"}),
                 document.id,
             ),
-        ).rejects.toThrow("Actor doesn’t have `View` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
         await expect(
             getDocumentContentForCollaborationServiceInitialization(
                 context.action(otherSession, {serviceName: "DocumentCollaborationService"}),
                 document.id,
             ),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5628,10 +5628,10 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentPreview(session2.action(), document.id);
         await getDocumentPreview(session3.action(), document.id);
         await expect(getDocumentPreview(session4.action(), document.id)).rejects.toThrow(
-            "Actor doesn’t have `View` access level",
+            "Actor doesn\u2019t have `View` access level",
         );
         await expect(getDocumentPreview(otherSession.action(), document.id)).rejects.toThrow(
-            "Account doesn’t have access to space",
+            "Account doesn\u2019t have access to space",
         );
     }
 
@@ -5640,11 +5640,11 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentPreviewIfExists(session2.action(), document.id);
         await getDocumentPreviewIfExists(session3.action(), document.id);
         await expect(getDocumentPreviewIfExists(session4.action(), document.id)).rejects.toThrow(
-            "Actor doesn’t have `View` access level",
+            "Actor doesn\u2019t have `View` access level",
         );
         await expect(
             getDocumentPreviewIfExists(otherSession.action(), document.id),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5652,10 +5652,10 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentTitleIfExists(session2.action(), document.id);
         await getDocumentTitleIfExists(session3.action(), document.id);
         await expect(getDocumentTitleIfExists(session4.action(), document.id)).rejects.toThrow(
-            "Actor doesn’t have `View` access level",
+            "Actor doesn\u2019t have `View` access level",
         );
         await expect(getDocumentTitleIfExists(otherSession.action(), document.id)).rejects.toThrow(
-            "Account doesn’t have access to space",
+            "Account doesn\u2019t have access to space",
         );
     }
 
@@ -5665,10 +5665,10 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentContentPreviewIfExists(session3.action(), document.id);
         await expect(
             getDocumentContentPreviewIfExists(session4.action(), document.id),
-        ).rejects.toThrow("Actor doesn’t have `View` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `View` access level");
         await expect(
             getDocumentContentPreviewIfExists(otherSession.action(), document.id),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     }
 
     {
@@ -5809,7 +5809,7 @@ test("must have the manage access level on documents you create", async () => {
     });
 });
 
-test("must have edit access to edit a document and can change the document’s access policy", async () => {
+test("must have edit access to edit a document and can change the document\u2019s access policy", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -5845,7 +5845,7 @@ test("must have edit access to edit a document and can change the document’s a
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -5899,7 +5899,7 @@ test("must have edit access to edit a document and can change the document’s a
     });
 });
 
-test("can’t update access policy unintentionally", async () => {
+test("can\u2019t update access policy unintentionally", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -5935,7 +5935,7 @@ test("can’t update access policy unintentionally", async () => {
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -5961,7 +5961,7 @@ test("can’t update access policy unintentionally", async () => {
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        "Can’t update the document’s access policy unless `intentionallyUpdateAccessPolicy` is provided",
+        "Can\u2019t update the document\u2019s access policy unless `intentionallyUpdateAccessPolicy` is provided",
     );
 
     expect(massageDocument(await document.get())).toEqual({
@@ -5981,7 +5981,7 @@ test("can’t update access policy unintentionally", async () => {
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -5994,7 +5994,7 @@ test("can’t update access policy unintentionally", async () => {
     });
 });
 
-test("can’t update access policy with a mismatched intentional access policy", async () => {
+test("can\u2019t update access policy with a mismatched intentional access policy", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -6030,7 +6030,7 @@ test("can’t update access policy with a mismatched intentional access policy",
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -6066,7 +6066,7 @@ test("can’t update access policy with a mismatched intentional access policy",
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        "The document’s new access policy doesn’t match `intentionallyUpdateAccessPolicy`",
+        "The document\u2019s new access policy doesn\u2019t match `intentionallyUpdateAccessPolicy`",
     );
 
     expect(massageDocument(await document.get())).toEqual({
@@ -6086,7 +6086,7 @@ test("can’t update access policy with a mismatched intentional access policy",
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -6099,7 +6099,7 @@ test("can’t update access policy with a mismatched intentional access policy",
     });
 });
 
-test("can’t update the access policy without the manage access level", async () => {
+test("can\u2019t update the access policy without the manage access level", async () => {
     {
         const space = await TestSpace.create(context);
         const [session1, session2] = await space.createSessions(2);
@@ -6139,7 +6139,7 @@ test("can’t update the access policy without the manage access level", async (
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6168,7 +6168,7 @@ test("can’t update the access policy without the manage access level", async (
                 },
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6187,7 +6187,7 @@ test("can’t update the access policy without the manage access level", async (
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6239,7 +6239,7 @@ test("can’t update the access policy without the manage access level", async (
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6268,7 +6268,7 @@ test("can’t update the access policy without the manage access level", async (
                 },
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6287,7 +6287,7 @@ test("can’t update the access policy without the manage access level", async (
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6339,7 +6339,7 @@ test("can’t update the access policy without the manage access level", async (
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6394,7 +6394,7 @@ test("can’t update the access policy without the manage access level", async (
     }
 });
 
-test("can’t update the access policy without the manage access level even if the update is a noop", async () => {
+test("can\u2019t update the access policy without the manage access level even if the update is a noop", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
@@ -6433,7 +6433,7 @@ test("can’t update the access policy without the manage access level even if t
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -6456,7 +6456,7 @@ test("can’t update the access policy without the manage access level even if t
             },
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -6475,7 +6475,7 @@ test("can’t update the access policy without the manage access level even if t
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -6530,7 +6530,7 @@ test("can handle conflicting access policy changes", async () => {
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6604,7 +6604,7 @@ test("can handle conflicting access policy changes", async () => {
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 3,
@@ -6658,7 +6658,7 @@ test("can handle conflicting access policy changes", async () => {
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6786,7 +6786,7 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6825,7 +6825,7 @@ test("can handle conflicting access policy changes within a single update call",
                 clientId: generateId(),
             }),
         ).rejects.toThrow(
-            "The document’s new access policy doesn’t match `intentionallyUpdateAccessPolicy`",
+            "The document\u2019s new access policy doesn\u2019t match `intentionallyUpdateAccessPolicy`",
         );
 
         expect(massageDocument(await document.get())).toEqual({
@@ -6845,7 +6845,7 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6899,7 +6899,7 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -6954,7 +6954,7 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 3,
@@ -7008,7 +7008,7 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
         expect(massageDocument(await document.get())).toEqual({
             version: 1,
@@ -7075,7 +7075,7 @@ test("can handle conflicting access policy changes within a single update call",
     }
 });
 
-test("can’t revoke access from account with a lower manage generation", async () => {
+test("can\u2019t revoke access from account with a lower manage generation", async () => {
     const space = await TestSpace.create(context);
     const [aliceSession, bobSession, carolSession] = await space.createSessions(3);
 
@@ -7134,7 +7134,7 @@ test("can’t revoke access from account with a lower manage generation", async 
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     );
 
     expect(massageDocument(await document.get())).toEqual({
@@ -7193,7 +7193,7 @@ test("can’t revoke access from account with a lower manage generation", async 
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        "Can’t revoke manage access from an account with a manage generation less than our actor",
+        "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     );
 
     expect(massageDocument(await document.get())).toEqual({
@@ -7218,7 +7218,7 @@ test("can’t revoke access from account with a lower manage generation", async 
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        "Can’t revoke manage access from an account with a manage generation less than our actor",
+        "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     );
 
     expect(massageDocument(await document.get())).toEqual({
@@ -7279,7 +7279,7 @@ test("can’t revoke access from account with a lower manage generation", async 
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        "Can’t revoke manage access from an account with a manage generation less than our actor",
+        "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     );
 
     await expect(
@@ -7294,11 +7294,11 @@ test("can’t revoke access from account with a lower manage generation", async 
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        "Can’t revoke manage access from an account with a manage generation less than our actor",
+        "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     );
 });
 
-test("can’t create document with bot account", async () => {
+test("can\u2019t create document with bot account", async () => {
     const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
@@ -7325,10 +7325,10 @@ test("can’t create document with bot account", async () => {
                 ]),
             ),
         }),
-    ).rejects.toThrow("Can’t grant access to a bot account");
+    ).rejects.toThrow("Can\u2019t grant access to a bot account");
 });
 
-test("can’t share document with bot account", async () => {
+test("can\u2019t share document with bot account", async () => {
     const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
@@ -7382,7 +7382,7 @@ test("can’t share document with bot account", async () => {
             },
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Can’t grant access to a bot account");
+    ).rejects.toThrow("Can\u2019t grant access to a bot account");
 });
 
 test("getting a document with optional comments strips comments if the actor only has view access", async () => {
@@ -7742,7 +7742,7 @@ test("getting a document with optional comments strips comments if the actor onl
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can get a document with references as actors that don’t have access to the space", async () => {
+test("can get a document with references as actors that don\u2019t have access to the space", async () => {
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession({role: "Admin"});
 
@@ -7926,14 +7926,14 @@ test("can get a document with references as actors that don’t have access to t
 
     await expect(
         getDocumentWithOptionalComments(otherSession.action(), document.id),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
     await expect(getDocumentWithOptionalComments(session2.action(), document.id)).rejects.toThrow(
-        new PermissionDeniedError("Actor doesn’t have `View` access level"),
+        new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
     );
 
     await expect(getDocumentWithOptionalComments(session3.action(), document.id)).rejects.toThrow(
-        new PermissionDeniedError("Account doesn’t have access to space"),
+        new PermissionDeniedError("Account doesn\u2019t have access to space"),
     );
 
     await expect(
@@ -7948,14 +7948,14 @@ test("can get a document with references as actors that don’t have access to t
             context.impersonatedAccountAction(space.id, session2.account.id),
             document.id,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     await expect(
         getDocumentWithOptionalComments(
             context.impersonatedAccountAction(space.id, session3.account.id),
             document.id,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
     await expect(
         getDocumentWithOptionalComments(
@@ -7963,7 +7963,7 @@ test("can get a document with references as actors that don’t have access to t
             document.id,
         ),
     ).rejects.toThrow(
-        new PermissionDeniedError("Impersonated account actor doesn’t have access to space"),
+        new PermissionDeniedError("Impersonated account actor doesn\u2019t have access to space"),
     );
 
     await document.access.grantUrl(session1);
@@ -8555,14 +8555,14 @@ test("can get a document with references as actors that don’t have access to t
 
     await expect(
         getDocumentWithOptionalComments(otherSession.action(), document.id),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
     await expect(getDocumentWithOptionalComments(session2.action(), document.id)).rejects.toThrow(
-        new PermissionDeniedError("Actor doesn’t have `View` access level"),
+        new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
     );
 
     await expect(getDocumentWithOptionalComments(session3.action(), document.id)).rejects.toThrow(
-        new PermissionDeniedError("Account doesn’t have access to space"),
+        new PermissionDeniedError("Account doesn\u2019t have access to space"),
     );
 
     await expect(
@@ -8577,14 +8577,14 @@ test("can get a document with references as actors that don’t have access to t
             context.impersonatedAccountAction(space.id, session2.account.id),
             document.id,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     await expect(
         getDocumentWithOptionalComments(
             context.impersonatedAccountAction(space.id, session3.account.id),
             document.id,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to space"));
 
     await expect(
         getDocumentWithOptionalComments(
@@ -8592,7 +8592,7 @@ test("can get a document with references as actors that don’t have access to t
             document.id,
         ),
     ).rejects.toThrow(
-        new PermissionDeniedError("Impersonated account actor doesn’t have access to space"),
+        new PermissionDeniedError("Impersonated account actor doesn\u2019t have access to space"),
     );
 });
 
@@ -8632,7 +8632,7 @@ test("can make updates to comment marks with comment access", async () => {
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -8664,7 +8664,7 @@ test("can make updates to comment marks with comment access", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -8684,7 +8684,7 @@ test("can make updates to comment marks with comment access", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -8693,7 +8693,7 @@ test("can make updates to comment marks with comment access", async () => {
             steps: [new AddMarkStep(4, 6, schema.mark("bold", {commentThreadId}))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 1,
@@ -8743,7 +8743,7 @@ test("can make updates to comment marks with comment access", async () => {
             ],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -8755,7 +8755,7 @@ test("can make updates to comment marks with comment access", async () => {
             ],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -8764,7 +8764,7 @@ test("can make updates to comment marks with comment access", async () => {
             steps: [new RemoveAllMarksStep(schema.mark("bold"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 2,
@@ -8810,7 +8810,7 @@ test("can make updates to comment marks with comment access", async () => {
             clientId: generateId(),
             unresolveCommentThreadIds: [commentThreadId],
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -8825,7 +8825,7 @@ test("can make updates to comment marks with comment access", async () => {
             clientId: generateId(),
             unresolveCommentThreadIds: [commentThreadId],
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -8838,7 +8838,7 @@ test("can make updates to comment marks with comment access", async () => {
             ],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     expect(massageDocument(await document.get())).toEqual({
         version: 3,
@@ -8949,7 +8949,7 @@ test("can add comment mark to `file` node in a document with comment access leve
             ],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -8969,7 +8969,7 @@ test("can add comment mark to `file` node in a document with comment access leve
             ],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -8978,7 +8978,7 @@ test("can add comment mark to `file` node in a document with comment access leve
             steps: [new AddNodeMarkStep(3, schema.marks.bold.create())],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await updateDocumentContent(session2.action(), {
         id: document.id,
@@ -9022,7 +9022,7 @@ test("can add comment mark to `file` node in a document with comment access leve
             ],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -9034,7 +9034,7 @@ test("can add comment mark to `file` node in a document with comment access leve
             ],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await expect(
         updateDocumentContent(session2.action(), {
@@ -9043,7 +9043,7 @@ test("can add comment mark to `file` node in a document with comment access leve
             steps: [new RemoveNodeMarkStep(3, schema.marks.bold.create())],
             clientId: generateId(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
+    ).rejects.toThrow("Actor doesn\u2019t have `Edit` access level");
 
     await updateDocumentContent(session2.action(), {
         id: document.id,
@@ -9271,7 +9271,7 @@ test("can get and update document content preview", async () => {
 
     await document.type(session, "y");
 
-    // Won't update the content preview if the content preview doesn’t change:
+    // Won't update the content preview if the content preview doesn't change:
     {
         const {content, updateContentPreview} = await getDocumentContent(
             session.action(),
@@ -11530,7 +11530,7 @@ describe("Comments", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can not get comment threads for a document that doesn’t exist", async () => {
+    test("can not get comment threads for a document that doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const otherSpace = await TestSpace.create(context);
@@ -11900,7 +11900,7 @@ describe("Comments", () => {
     });
 
     describe("Notification subscribers", () => {
-        test("throws when trying to access a comment thread that doesn’t exist", async () => {
+        test("throws when trying to access a comment thread that doesn\u2019t exist", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -14425,7 +14425,7 @@ describe("Comments", () => {
         }
     });
 
-    test("can’t resolve comment thread which doesn’t exist", async () => {
+    test("can\u2019t resolve comment thread which doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -14453,7 +14453,7 @@ describe("Comments", () => {
         expect((await document.get()).version).toEqual(2);
     });
 
-    test("can’t resolve comment thread if there are no other steps", async () => {
+    test("can\u2019t resolve comment thread if there are no other steps", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -14482,7 +14482,7 @@ describe("Comments", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t resolve comment thread if there isn’t a `removeAllMarks` step", async () => {
+    test("can\u2019t resolve comment thread if there isn\u2019t a `removeAllMarks` step", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -14521,7 +14521,7 @@ describe("Comments", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t resolve comment thread if there is a `removeAllMarks` step for a different comment thread", async () => {
+    test("can\u2019t resolve comment thread if there is a `removeAllMarks` step for a different comment thread", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -14558,7 +14558,7 @@ describe("Comments", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can’t resolve comment thread if there is another step alongside a `removeAllMarks` step", async () => {
+    test("can\u2019t resolve comment thread if there is another step alongside a `removeAllMarks` step", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -15254,7 +15254,7 @@ describe("Comments", () => {
         );
     });
 
-    test("can’t unresolve comment thread which doesn’t exist", async () => {
+    test("can\u2019t unresolve comment thread which doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -15341,7 +15341,7 @@ describe("Comments", () => {
         }
     });
 
-    test("can unresolve comment thread if there’s no `addMarksAfterRemoveAll` step", async () => {
+    test("can unresolve comment thread if there\u2019s no `addMarksAfterRemoveAll` step", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -15437,7 +15437,7 @@ describe("Comments", () => {
         }
     });
 
-    test("can unresolve comment thread if there’s an `addMarksAfterRemoveAll` step for the wrong comment thread", async () => {
+    test("can unresolve comment thread if there\u2019s an `addMarksAfterRemoveAll` step for the wrong comment thread", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -16589,7 +16589,7 @@ describe("Comments", () => {
         );
     });
 
-    test("can resolve comment thread where content snippet doesn’t include title", async () => {
+    test("can resolve comment thread where content snippet doesn\u2019t include title", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -16701,7 +16701,7 @@ describe("Comments", () => {
         );
     });
 
-    test("can’t get comment thread if you don’t have access to the space", async () => {
+    test("can\u2019t get comment thread if you don\u2019t have access to the space", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const otherSpace = await TestSpace.create(context);
@@ -16729,7 +16729,7 @@ describe("Comments", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t get comment thread content if you don’t have access to the space", async () => {
+    test("can\u2019t get comment thread content if you don\u2019t have access to the space", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const otherSpace = await TestSpace.create(context);
@@ -16757,7 +16757,7 @@ describe("Comments", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t get comment thread for a comment which doesn’t exist", async () => {
+    test("can\u2019t get comment thread for a comment which doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -16776,7 +16776,7 @@ describe("Comments", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can’t get comment thread contentfor a comment which doesn’t exist", async () => {
+    test("can\u2019t get comment thread contentfor a comment which doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -16876,7 +16876,7 @@ describe("Comments", () => {
         });
     });
 
-    test("can’t get resolved comment thread ranges if comment thread is not resolved", async () => {
+    test("can\u2019t get resolved comment thread ranges if comment thread is not resolved", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -16916,7 +16916,7 @@ describe("Comments", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can’t get resolved comment thread ranges if you don’t have access to the space", async () => {
+    test("can\u2019t get resolved comment thread ranges if you don\u2019t have access to the space", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const otherSpace = await TestSpace.create(context);
@@ -16950,7 +16950,7 @@ describe("Comments", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can’t get resolved comment thread ranges for a comment which doesn’t exist", async () => {
+    test("can\u2019t get resolved comment thread ranges for a comment which doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -17423,7 +17423,7 @@ describe("`getDocumentAccessPolicyForBotScope()`", () => {
         );
     });
 
-    test("can’t get access policy for scoped document other than the one scoped", async () => {
+    test("can\u2019t get access policy for scoped document other than the one scoped", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -17439,7 +17439,7 @@ describe("`getDocumentAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped document");
     });
 
-    test("can’t get access policy with space scope", async () => {
+    test("can\u2019t get access policy with space scope", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -17451,7 +17451,7 @@ describe("`getDocumentAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped document");
     });
 
-    test("can’t get access policy with space scope even if document is shared with space", async () => {
+    test("can\u2019t get access policy with space scope even if document is shared with space", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -17464,7 +17464,7 @@ describe("`getDocumentAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped document");
     });
 
-    test("can’t get access policy with account scope even if account has access to document", async () => {
+    test("can\u2019t get access policy with account scope even if account has access to document", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -17479,7 +17479,7 @@ describe("`getDocumentAccessPolicyForBotScope()`", () => {
         ).rejects.toThrow("Can only get access policy for the scoped document");
     });
 
-    test("can’t get access policy for document in different space even if scope declares access", async () => {
+    test("can\u2019t get access policy for document in different space even if scope declares access", async () => {
         const space = await TestSpace.create(context);
         const otherSpace = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -17493,10 +17493,10 @@ describe("`getDocumentAccessPolicyForBotScope()`", () => {
                 otherBotAccount.action({type: "Document", documentId: document.id}),
                 document.id,
             ),
-        ).rejects.toThrow("Account doesn’t have access to space");
+        ).rejects.toThrow("Account doesn\u2019t have access to space");
     });
 
-    test("can’t get access policy for document which doesn’t exist", async () => {
+    test("can\u2019t get access policy for document which doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const botAccount = await TestBot.createAndInstantiate(session);
@@ -17513,7 +17513,7 @@ describe("`getDocumentAccessPolicyForBotScope()`", () => {
 });
 
 describe("idempotence", () => {
-    test("can’t idempotently update document by default in sequence", async () => {
+    test("can\u2019t idempotently update document by default in sequence", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -17541,7 +17541,7 @@ describe("idempotence", () => {
         expect(await document.getString()).toEqual('doc(title, paragraph("aaa"))');
     });
 
-    test("can’t idempotently update document by default in parallel", async () => {
+    test("can\u2019t idempotently update document by default in parallel", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -18318,7 +18318,7 @@ describe("idempotence", () => {
         ).resolves.toEqual(false);
     });
 
-    test("can’t idempotently update document after losing access", async () => {
+    test("can\u2019t idempotently update document after losing access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession();
         const session2 = await space.createSession();

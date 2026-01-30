@@ -20,7 +20,7 @@ function accountEmailAddressNotFoundErrorDisplayMessage(
     urlPath.searchParams.set("email", emailAddress);
     if (toSearchParam) urlPath.searchParams.set("to", toSearchParam);
 
-    return errorDisplayMessage`Can’t find an account for “${emailAddress}”. Try again with a different email or ${errorDisplayMessage.link(
+    return errorDisplayMessage`Can\u2019t find an account for \u201C${emailAddress}\u201D. Try again with a different email or ${errorDisplayMessage.link(
         "sign up",
         urlPath.toString(),
     )}.`;

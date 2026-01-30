@@ -15,7 +15,7 @@ export function fromApiMessageContentPayloadParent(
         case "Post": {
             // TODO(calebmer, #public-api): Implement this but only for post comments.
             throw new UnimplementedError(
-                "Creating messages with a post parent isn’t implemented yet",
+                "Creating messages with a post parent isn\u2019t implemented yet",
             );
         }
         default:

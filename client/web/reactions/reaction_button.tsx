@@ -71,7 +71,7 @@ export function ReactionButton({
                                 {
                                     key: reactionButtonContextMenuActionKey,
                                     label: "See reactions",
-                                    pressErrorTitle: "Couldn’t open reactions",
+                                    pressErrorTitle: "Couldn\u2019t open reactions",
                                     onPress: onPressSeeReactions,
                                 },
                             ],

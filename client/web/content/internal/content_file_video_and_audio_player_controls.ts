@@ -650,7 +650,7 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                     return;
                 }
 
-                getReporter().displayError("Couldn’t play video", error);
+                getReporter().displayError("Couldn\u2019t play video", error);
             });
         } else {
             mediaElement.pause();

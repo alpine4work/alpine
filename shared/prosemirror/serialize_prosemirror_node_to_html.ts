@@ -123,7 +123,7 @@ export type ProsemirrorHtmlSerializationInlineDecoration = {
  * Serializes a ProseMirror node to an HTML string.
  *
  * ProseMirror only ships with a way to serialize nodes to DOM nodes. When
- * server-side rendering we don’t have access to the DOM and so need to be able
+ * server-side rendering we don't have access to the DOM and so need to be able
  * to serialize ProseMirror content to an HTML string.
  */
 export function serializeProsemirrorNodeToHtml(
@@ -183,7 +183,7 @@ export function serializeProsemirrorNodeToHtml(
  * Serializes a ProseMirror fragment to an HTML string.
  *
  * ProseMirror only ships with a way to serialize nodes to DOM nodes. When
- * server-side rendering we don’t have access to the DOM and so need to be able
+ * server-side rendering we don't have access to the DOM and so need to be able
  * to serialize ProseMirror content to an HTML string.
  */
 export function serializeProsemirrorFragmentToHtml(

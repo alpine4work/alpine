@@ -112,7 +112,7 @@ async function getMessageReferencesForMultipleAccounts(
     return new Map(referencesByAccountId);
 }
 
-test("only loads an account from DynamoDB once no matter how many accounts we’re loading for", async () => {
+test("only loads an account from DynamoDB once no matter how many accounts we\u2019re loading for", async () => {
     const space = await TestSpace.create(context);
     const sessions = await space.createSessions(50);
 
@@ -159,13 +159,13 @@ test("only loads an account from DynamoDB once no matter how many accounts we’
         [25, 6],
         // Steps:
         // 1. Call impersonateAccountAsSystemContext for N accounts (loads Space#Account items).
-        // 2. Fetch the author’s AccountModel (Query for avatar + attributes).
+        // 2. Fetch the author's AccountModel (Query for avatar + attributes).
         // 3. Load AccountModels for 3 reference IDs.
         //    - Each reference load includes a Space#Account get (batched when possible) and an AccountModel query.
         //
         // DynamoDB calls (example with N = 4 accounts total: 1 author + 3 references):
-        //   - 1x GetItem for author’s Space#Account
-        //   - 1x Query for author’s AccountItem
+        //   - 1x GetItem for author's Space#Account
+        //   - 1x Query for author's AccountItem
         //   - 1x BatchGetItem for Space#Accounts of all 3 reference IDs
         //   - 3x Queries for AccountItems of the 3 reference IDs
         // Total: 6 calls
@@ -207,7 +207,7 @@ test("only loads an account from DynamoDB once no matter how many accounts we’
     }
 });
 
-test("only loads a file from DynamoDB once no matter how many accounts we’re loading for", async () => {
+test("only loads a file from DynamoDB once no matter how many accounts we\u2019re loading for", async () => {
     const space = await TestSpace.create(context);
     const sessions = await space.createSessions(50);
 
@@ -278,7 +278,7 @@ test("only loads a file from DynamoDB once no matter how many accounts we’re l
     }
 });
 
-test("only loads a search entity from DynamoDB once no matter how many accounts we’re loading for", async () => {
+test("only loads a search entity from DynamoDB once no matter how many accounts we\u2019re loading for", async () => {
     const space = await TestSpace.create(context);
     const sessions = await space.createSessions(50);
 
@@ -438,7 +438,7 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
     }
 });
 
-test("only loads a search entity from DynamoDB once no matter how many accounts we’re loading for but may return a private entity if account doesn’t have access", async () => {
+test("only loads a search entity from DynamoDB once no matter how many accounts we\u2019re loading for but may return a private entity if account doesn\u2019t have access", async () => {
     const space = await TestSpace.create(context);
     const sessions = await space.createSessions(50);
 
@@ -708,7 +708,7 @@ test("can have one account fail to load data while other accounts successfully l
                               ok: false,
                               error: expect.objectContaining({
                                   message:
-                                      "Actor doesn’t have `View` access level (and 2 other errors)",
+                                      "Actor doesn\u2019t have `View` access level (and 2 other errors)",
                               }),
                           },
                 ]),

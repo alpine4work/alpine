@@ -63,7 +63,7 @@ export class AwsRequestSigner {
                     }),
                 };
             } catch (error) {
-                throw InternalError.from(error, "Couldn’t fetch AWS credentials");
+                throw InternalError.from(error, "Couldn\u2019t fetch AWS credentials");
             }
         });
     }

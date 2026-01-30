@@ -880,7 +880,7 @@ test("snips a single line in the middle of a single paragraph with marks", () =>
     );
 });
 
-test("snips a single line in the middle of a single paragraph with marks and doesn’t treat mentions as line breaks", () => {
+test("snips a single line in the middle of a single paragraph with marks and doesn\u2019t treat mentions as line breaks", () => {
     const accountId1 = generateId<AccountId>();
     const accountId2 = generateId<AccountId>();
 
@@ -4669,7 +4669,7 @@ test("snips double break nodes as empty lines", () => {
     );
 });
 
-test("doesn’t snip cells in a table row when snipping content after", () => {
+test("doesn\u2019t snip cells in a table row when snipping content after", () => {
     expectSnippet(
         {pos: 0, lines: {linesAbove: 0, linesBelow: 2}},
         schema2.nodeFromJSON({
@@ -4917,7 +4917,7 @@ test("doesn’t snip cells in a table row when snipping content after", () => {
     );
 });
 
-test("doesn’t snip cells in a table row when snipping content after (large cells)", () => {
+test("doesn\u2019t snip cells in a table row when snipping content after (large cells)", () => {
     expectSnippet(
         {pos: 0, lines: {linesAbove: 0, linesBelow: 2}},
         schema2.nodeFromJSON({
@@ -5159,7 +5159,7 @@ test("doesn’t snip cells in a table row when snipping content after (large cel
     );
 });
 
-test("doesn’t snip cells in a table row when snipping content before", () => {
+test("doesn\u2019t snip cells in a table row when snipping content before", () => {
     expectSnippet(
         {pos: -1, lines: {linesAbove: 1, linesBelow: 0}},
         schema2.nodeFromJSON({
@@ -5406,7 +5406,7 @@ test("doesn’t snip cells in a table row when snipping content before", () => {
     );
 });
 
-test("doesn’t snip cells in a table row when snipping content before (large cells)", () => {
+test("doesn\u2019t snip cells in a table row when snipping content before (large cells)", () => {
     expectSnippet(
         {pos: -1, lines: {linesAbove: 1, linesBelow: 0}},
         schema2.nodeFromJSON({

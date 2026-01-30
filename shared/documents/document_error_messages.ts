@@ -8,10 +8,10 @@ export const documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: R
     AccessLevel,
     ErrorDisplayMessage
 > = {
-    View: errorDisplayMessage`You aren’t allowed to access this document. Ask someone with access to share it with you.`,
-    Comment: errorDisplayMessage`You aren’t allowed to see comments on this document. Ask someone who can share the document to give you comment access.`,
-    Edit: errorDisplayMessage`You aren’t allowed to edit this document. Ask someone who can share the document to give you edit access.`,
-    Manage: errorDisplayMessage`You aren’t allowed to share this document. Ask someone who can share the document to give you share access.`,
+    View: errorDisplayMessage`You aren\u2019t allowed to access this document. Ask someone with access to share it with you.`,
+    Comment: errorDisplayMessage`You aren\u2019t allowed to see comments on this document. Ask someone who can share the document to give you comment access.`,
+    Edit: errorDisplayMessage`You aren\u2019t allowed to edit this document. Ask someone who can share the document to give you edit access.`,
+    Manage: errorDisplayMessage`You aren\u2019t allowed to share this document. Ask someone who can share the document to give you share access.`,
 };
 
 // If the client detects this specific error message it will revert any
@@ -22,7 +22,7 @@ export const documentBackfillFutureVersionErrorMessage =
 export function createDocumentNotFoundError(documentId: string | undefined) {
     return new NotFoundError("Document not found", {
         aggregateDedupeKey: documentId,
-        displayMessage: errorDisplayMessage`This document doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
+        displayMessage: errorDisplayMessage`This document doesn\u2019t exist. Try searching \u201Cmy documents\u201D to see documents you\u2019ve created.`,
     });
 }
 
@@ -33,7 +33,7 @@ export function createDocumentCommentThreadNotFoundError(
     return new NotFoundError("Document comment thread not found", {
         aggregateDedupeKey:
             commentThreadId !== undefined ? `${documentId}-${commentThreadId}` : undefined,
-        displayMessage: errorDisplayMessage`This comment thread doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
+        displayMessage: errorDisplayMessage`This comment thread doesn\u2019t exist. Try searching \u201Cmy documents\u201D to see documents you\u2019ve created.`,
     });
 }
 
@@ -44,6 +44,6 @@ export function createDocumentCommentNotFoundError(
 ) {
     return new NotFoundError("Document comment not found", {
         aggregateDedupeKey: `${documentId}-${commentThreadId}-${commentIndex}`,
-        displayMessage: errorDisplayMessage`This comment doesn’t exist. Try searching “my document comments” to see your recent document comments.`,
+        displayMessage: errorDisplayMessage`This comment doesn\u2019t exist. Try searching \u201Cmy document comments\u201D to see your recent document comments.`,
     });
 }

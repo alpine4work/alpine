@@ -419,7 +419,7 @@ test("multiple accounts can react to a chat message", async () => {
     ]);
 });
 
-test("updating a reaction preserves the account’s order in the chat message’s reactions", async () => {
+test("updating a reaction preserves the account\u2019s order in the chat message\u2019s reactions", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3, session4] = await space.createSessions(4);
 
@@ -464,7 +464,7 @@ test("updating a reaction preserves the account’s order in the chat message’
     ]);
 });
 
-test("deleting a reaction then adding a new one changes the account’s order in the chat message’s reactions", async () => {
+test("deleting a reaction then adding a new one changes the account\u2019s order in the chat message\u2019s reactions", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3, session4] = await space.createSessions(4);
 
@@ -622,7 +622,7 @@ test("can delete a reaction from a file and text reaction remains", async () => 
     expect(fileReactions).toEqual({});
 });
 
-test("can’t react to chat message actor doesn’t have access to", async () => {
+test("can\u2019t react to chat message actor doesn\u2019t have access to", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
     const [session1] = await space1.createSessions(1);
@@ -870,7 +870,7 @@ test("multiple accounts can react to chat file", async () => {
     ]);
 });
 
-test("updating a reaction preserves the account’s order in the chat file’s reactions", async () => {
+test("updating a reaction preserves the account\u2019s order in the chat file\u2019s reactions", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3, session4] = await space.createSessions(4);
     const chat = await TestChat.get(session1, session2, session3, session4);
@@ -935,7 +935,7 @@ test("updating a reaction preserves the account’s order in the chat file’s r
     ]);
 });
 
-test("deleting a reaction then adding a new one changes the account’s order in the chat file’s reactions", async () => {
+test("deleting a reaction then adding a new one changes the account\u2019s order in the chat file\u2019s reactions", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3, session4] = await space.createSessions(4);
     const chat = await TestChat.get(session1, session2, session3, session4);

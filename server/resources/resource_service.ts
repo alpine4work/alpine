@@ -349,7 +349,7 @@ async function actuallyHandleFetch(
     const tokenAgent = await sharedResources.tokenAgentPromise;
 
     if (request.headers.has("upgrade")) {
-        throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
+        throw new InvalidArgumentError("Can\u2019t upgrade to WebSocket connection");
     }
 
     let response: Response;

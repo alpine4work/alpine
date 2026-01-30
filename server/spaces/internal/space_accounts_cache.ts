@@ -495,7 +495,9 @@ export async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
                 }
 
                 if (!account) {
-                    throw new DataLossError("Space account item exists but account item doesn’t");
+                    throw new DataLossError(
+                        "Space account item exists but account item doesn\u2019t",
+                    );
                 }
 
                 return createAccountModelFromItem(

@@ -46,7 +46,7 @@ export class StoreWeakImmediateListeners {
         const listenerEntry = this._listeners.get(listener);
 
         if (listenerEntry === undefined) {
-            throw new InternalError("Can’t remove listener that wasn’t added to store");
+            throw new InternalError("Can\u2019t remove listener that wasn\u2019t added to store");
         } else if (listenerEntry.count > 1) {
             listenerEntry.count--;
             return false;

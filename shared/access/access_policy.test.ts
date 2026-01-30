@@ -110,7 +110,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     const accessPolicy2 = produce(accessPolicy1, accessPolicy => {
@@ -135,7 +135,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -148,7 +148,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     const accessPolicy3 = produce(accessPolicy2, accessPolicy => {
@@ -179,7 +179,7 @@ test("validates access policy updates without default grants", () => {
                 accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 3});
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change account grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -189,7 +189,7 @@ test("validates access policy updates without default grants", () => {
                 accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 3});
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change account grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -199,7 +199,7 @@ test("validates access policy updates without default grants", () => {
                 accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 3});
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change account grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -209,7 +209,7 @@ test("validates access policy updates without default grants", () => {
                 accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change account grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -219,7 +219,7 @@ test("validates access policy updates without default grants", () => {
                 accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change account grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -229,7 +229,7 @@ test("validates access policy updates without default grants", () => {
                 accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change account grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -241,7 +241,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
+        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     });
 
     expect(
@@ -254,7 +254,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
+        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     });
 
     expect(
@@ -267,7 +267,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
+        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     });
 
     expect(
@@ -280,7 +280,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
+        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     });
 
     expect(
@@ -343,7 +343,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
+        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     });
 
     expect(
@@ -356,7 +356,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
+        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     });
 
     expect(
@@ -369,7 +369,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
+        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     });
 
     expect(
@@ -382,7 +382,7 @@ test("validates access policy updates without default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
+        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
     });
 
     expect(
@@ -457,7 +457,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new default grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     const accessPolicy2 = produce(accessPolicy1, accessPolicy => {
@@ -474,7 +474,7 @@ test("validates access policy updates with default grants", () => {
 
     expect(validateAccessPolicyUpdate(accountId2, accessPolicy1, accessPolicy2)).toEqual({
         ok: false,
-        reason: "Can’t update access policy unless actor has manage access",
+        reason: "Can\u2019t update access policy unless actor has manage access",
     });
 
     expect(validateAccessPolicyUpdate(accountId2, accessPolicy2, accessPolicy1)).toEqual({
@@ -483,7 +483,7 @@ test("validates access policy updates with default grants", () => {
 
     expect(validateAccessPolicyUpdate(accountId3, accessPolicy1, accessPolicy2)).toEqual({
         ok: false,
-        reason: "Can’t update access policy unless actor has manage access",
+        reason: "Can\u2019t update access policy unless actor has manage access",
     });
 
     expect(validateAccessPolicyUpdate(accountId3, accessPolicy2, accessPolicy1)).toEqual({
@@ -500,7 +500,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -513,7 +513,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -526,7 +526,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -539,7 +539,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     const accessPolicy3 = produce(accessPolicy2, accessPolicy => {
@@ -570,7 +570,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 2};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change default grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change default grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -580,7 +580,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 2};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change default grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change default grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -590,7 +590,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 2};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change default grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change default grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -600,7 +600,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 0};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change default grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change default grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -610,7 +610,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 0};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change default grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change default grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -620,7 +620,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 0};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t change default grant manage generation"});
+    ).toEqual({ok: false, reason: "Can\u2019t change default grant manage generation"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -632,7 +632,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -673,7 +673,7 @@ test("validates access policy updates with default grants", () => {
 
     expect(validateAccessPolicyUpdate(accountId2, accessPolicy4, accessPolicy3)).toEqual({
         ok: false,
-        reason: "Can’t set new default grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(validateAccessPolicyUpdate(accountId3, accessPolicy3, accessPolicy4)).toEqual({
@@ -682,7 +682,7 @@ test("validates access policy updates with default grants", () => {
 
     expect(validateAccessPolicyUpdate(accountId3, accessPolicy4, accessPolicy3)).toEqual({
         ok: false,
-        reason: "Can’t update access policy unless actor has manage access",
+        reason: "Can\u2019t update access policy unless actor has manage access",
     });
 
     expect(
@@ -695,7 +695,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -708,7 +708,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -731,7 +731,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new default grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -744,7 +744,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new default grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -757,7 +757,7 @@ test("validates access policy updates with default grants", () => {
         ),
     ).toEqual({
         ok: false,
-        reason: "Can’t set new default grant manage generation to be less than or equal to our actor’s manage generation",
+        reason: "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     expect(
@@ -771,7 +771,7 @@ test("validates access policy updates with default grants", () => {
     ).toEqual({ok: true});
 });
 
-test("validates access policy can’t remove all manage access", () => {
+test("validates access policy can\u2019t remove all manage access", () => {
     const accountId1 = generateId<AccountId>();
 
     const accessPolicy1: AccessPolicy = {
@@ -788,7 +788,10 @@ test("validates access policy can’t remove all manage access", () => {
                 accessPolicy.accountGrantById.delete(accountId1);
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t update access policy so that no one has manage access"});
+    ).toEqual({
+        ok: false,
+        reason: "Can\u2019t update access policy so that no one has manage access",
+    });
 
     const accessPolicy2 = produce(accessPolicy1, accessPolicy => {
         accessPolicy.defaultGrant = {level: "Manage", generation: 1};
@@ -814,7 +817,10 @@ test("validates access policy can’t remove all manage access", () => {
                 accessPolicy.defaultGrant = null;
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t update access policy so that no one has manage access"});
+    ).toEqual({
+        ok: false,
+        reason: "Can\u2019t update access policy so that no one has manage access",
+    });
 
     expect(
         validateAccessPolicyUpdate(

@@ -92,7 +92,7 @@ async function runOptimizeDeps(deps, resolvedConfig, ssr) {
                 ssr,
                 false,
             );
-            if (!resolvedDep) throw new Error(`Couldn’t resolve import \`${dep}\``);
+            if (!resolvedDep) throw new Error(`Couldn\u2019t resolve import \`${dep}\``);
 
             // Ignore any non-JavaScript files. e.g. `.css` files.
             if (!/\.(jsx?|cjs|mjs)$/.test(resolvedDep.id)) return;

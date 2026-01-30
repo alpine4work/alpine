@@ -189,7 +189,7 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
         } else if (post.author.id === event.authorId) {
             subtitle += "their";
         } else {
-            subtitle += `${getAccountShortNameWithoutFullNameTooltip(post.author.initialData)}’s`;
+            subtitle += `${getAccountShortNameWithoutFullNameTooltip(post.author.initialData)}\u2019s`;
         }
 
         subtitle += ` post in ${post.channel.name}`;

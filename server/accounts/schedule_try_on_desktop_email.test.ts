@@ -98,7 +98,7 @@ test("only sends email once when scheduled after send", async () => {
     expect(sendEmailImmediatelySpy).toHaveBeenCalledTimes(1);
 });
 
-test("can’t schedule email for account that’s not yours", async () => {
+test("can\u2019t schedule email for account that\u2019s not yours", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     await session.account.createEmailAddress();
@@ -111,7 +111,7 @@ test("can’t schedule email for account that’s not yours", async () => {
             emailAddress: otherEmailAddress,
             openSpaceId: space.id,
         }),
-    ).rejects.toThrow("Can’t schedule try on desktop email for a different account");
+    ).rejects.toThrow("Can\u2019t schedule try on desktop email for a different account");
 
     expect(sendEmailImmediatelySpy).toHaveBeenCalledTimes(0);
 

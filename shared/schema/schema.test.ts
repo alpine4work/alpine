@@ -585,7 +585,7 @@ test("union requires variant objects to have a type property of the same name", 
                 type: Schema.value("bar"),
             }),
         });
-    }).toThrow("Expected value schema for union variant’s `type` property to be `foo`");
+    }).toThrow("Expected value schema for union variant\u2019s `type` property to be `foo`");
 
     Schema.union({
         // @ts-expect-error
@@ -601,7 +601,7 @@ test("union requires variant objects to have a type property of the same name", 
                 type: Schema.value("bar").originalValue("qux"),
             }),
         });
-    }).toThrow("Expected value schema for union variant’s `type` property to be `foo`");
+    }).toThrow("Expected value schema for union variant\u2019s `type` property to be `foo`");
 
     expect(() => {
         Schema.union({
@@ -610,7 +610,7 @@ test("union requires variant objects to have a type property of the same name", 
                 type: Schema.value("bar").originalValue("foo"),
             }),
         });
-    }).toThrow("Expected value schema for union variant’s `type` property to be `foo`");
+    }).toThrow("Expected value schema for union variant\u2019s `type` property to be `foo`");
 });
 
 test("union does not validate objects with an unknown type string", () => {
@@ -780,7 +780,7 @@ test("interface can create multiple independent implementations", () => {
     expect(cast<{type: string; breed?: string}>(dog1).breed).toEqual(undefined);
     expect(dog1.deserialize(DogSchema)).toEqual({type: "Dog", age: 2, breed: "Labrador"});
     expect(() => dog1.deserialize(CatSchema)).toThrow(
-        "Can’t deserialize `InterfaceSchemaInstance` with different schemas",
+        "Can\u2019t deserialize `InterfaceSchemaInstance` with different schemas",
     );
 
     const dog2 = Animal.schema.deserialize(Animal.schema.serialize(dog1));
@@ -790,7 +790,7 @@ test("interface can create multiple independent implementations", () => {
     expect(cast<{type: string; breed?: string}>(dog2).breed).toEqual(undefined);
     expect(dog2.deserialize(DogSchema)).toEqual({type: "Dog", age: 2, breed: "Labrador"});
     expect(() => dog2.deserialize(CatSchema)).toThrow(
-        "Can’t deserialize `InterfaceSchemaInstance` with different schemas",
+        "Can\u2019t deserialize `InterfaceSchemaInstance` with different schemas",
     );
 
     const dog3 = Animal.schema.deserialize(Animal.schema.serialize(dog2));
@@ -1074,7 +1074,7 @@ test("`ObjectSchema` validation combinator prevents use of omit with validations
     }).validation("min must be less than max", value => value.min < value.max);
 
     expect(() => rangeSchema.omit(["name"])).toThrow(
-        "Can’t use `omit()` on object schema with validations",
+        "Can\u2019t use `omit()` on object schema with validations",
     );
 });
 
@@ -1085,7 +1085,7 @@ test("`ObjectSchema` validation combinator prevents use of partial with validati
     }).validation("min must be less than max", value => value.min < value.max);
 
     expect(() => rangeSchema.partial()).toThrow(
-        "Can’t use `partial()` on object schema with validations",
+        "Can\u2019t use `partial()` on object schema with validations",
     );
 });
 

@@ -96,11 +96,11 @@ test("`sentenceTaskTitleTestScenario` is correct", () => {
     const title1 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
     view.dispatch(view.state.tr.step(new ReplaceStep(4, 4, textSlice("quick "))));
     const title2 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
-    view.dispatch(view.state.tr.step(new ReplaceStep(10, 10, textSlice("(“brown”) "))));
+    view.dispatch(view.state.tr.step(new ReplaceStep(10, 10, textSlice("(\u201Cbrown\u201D) "))));
     const title3 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
     view.dispatch(view.state.tr.step(new ReplaceStep(20, 20, textSlice("fox "))));
     const title4 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
-    view.dispatch(view.state.tr.step(new ReplaceStep(24, 24, textSlice("can’t "))));
+    view.dispatch(view.state.tr.step(new ReplaceStep(24, 24, textSlice("can\u2019t "))));
     const title5 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
     view.dispatch(view.state.tr.step(new ReplaceStep(30, 30, textSlice("jump "))));
     const title6 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
@@ -113,7 +113,7 @@ test("`sentenceTaskTitleTestScenario` is correct", () => {
 
     expect(view.state.doc.toString()).toEqual(
         // eslint-disable-next-line string-quotes
-        'doc("The quick (“brown”) fox can’t jump 32.3 feet, right?")',
+        'doc("The quick (\u201Cbrown\u201D) fox can\u2019t jump 32.3 feet, right?")',
     );
 
     assert(updates.length === 9);

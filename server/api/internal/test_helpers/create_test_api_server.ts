@@ -79,7 +79,7 @@ export function createTestApiServer(
         path: string,
         options?: TestApiServerRequestOptions,
     ): Promise<TestApiServerResponse> {
-        if (server === undefined) throw new InternalError("`beforeAll()` hook hasn’t run");
+        if (server === undefined) throw new InternalError("`beforeAll()` hook hasn\u2019t run");
 
         let request;
 
@@ -122,12 +122,12 @@ export function createTestApiServer(
 
         get jobQueueTokenAgent() {
             if (jobQueueTokenAgent === undefined)
-                throw new InternalError("`beforeAll()` hook hasn’t run");
+                throw new InternalError("`beforeAll()` hook hasn\u2019t run");
             return jobQueueTokenAgent;
         },
         get apiTokenAgent() {
             if (apiTokenAgent === undefined)
-                throw new InternalError("`beforeAll()` hook hasn’t run");
+                throw new InternalError("`beforeAll()` hook hasn\u2019t run");
             return apiTokenAgent;
         },
     };

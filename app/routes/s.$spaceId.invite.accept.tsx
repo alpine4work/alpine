@@ -32,7 +32,7 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
     );
 
     if (!currentAccount) {
-        throw new PermissionDeniedError("Account isn’t invited to the space");
+        throw new PermissionDeniedError("Account isn\u2019t invited to the space");
     }
 
     if (currentAccount.initialData.space.state.type !== "InvitePending") {

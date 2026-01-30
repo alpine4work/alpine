@@ -465,7 +465,7 @@ export class FileRegistry {
                             getContext()
                                 .tracer.getRoot()
                                 .logException(
-                                    "Couldn’t refresh expired file preview URL signature",
+                                    "Couldn\u2019t refresh expired file preview URL signature",
                                     error,
                                 );
                         },
@@ -555,7 +555,7 @@ export class FileRegistry {
                             getContext()
                                 .tracer.getRoot()
                                 .logException(
-                                    "Polling for file that hasn’t finished loading failed",
+                                    "Polling for file that hasn\u2019t finished loading failed",
                                     error,
                                 );
                         },

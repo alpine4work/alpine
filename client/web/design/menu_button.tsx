@@ -38,7 +38,7 @@ function MenuButton(
         extraOverlayBottom,
     }: {
         /**
-         * All the actions available in a menu’s popup. When clicking on the button
+         * All the actions available in a menu's popup. When clicking on the button
          * element to open
          *
          * If you have nested arrays then each sub-array will form a section with a

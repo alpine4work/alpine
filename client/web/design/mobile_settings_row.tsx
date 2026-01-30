@@ -38,8 +38,8 @@ export function MobileSettingsRow({
         onPress: event => {
             const defaultPressErrorTitle =
                 event.pointerType === "touch"
-                    ? "The setting you tapped didn’t work"
-                    : "The setting you clicked didn’t work";
+                    ? "The setting you tapped didn\u2019t work"
+                    : "The setting you clicked didn\u2019t work";
 
             let promise;
             try {

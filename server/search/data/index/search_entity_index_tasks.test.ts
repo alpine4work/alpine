@@ -180,7 +180,7 @@ test("will only index a task once if update happened within the timeout", async 
         body: null,
     });
 
-    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let\u2019s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -195,7 +195,7 @@ test("will only index a task once if update happened within the timeout", async 
 
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: null,
     });
 
@@ -232,7 +232,7 @@ test("will index a task again if update happened after timeout", async () => {
         body: null,
     });
 
-    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let\u2019s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -247,7 +247,7 @@ test("will index a task again if update happened after timeout", async () => {
 
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: null,
     });
 
@@ -301,7 +301,7 @@ test("will index a task again if update happened after timeout with more updates
         body: null,
     });
 
-    await task.typeTitle(session, " Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, " Do They Know Things? Let\u2019s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -316,7 +316,7 @@ test("will index a task again if update happened after timeout with more updates
 
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: null,
     });
 
@@ -429,7 +429,10 @@ test("will schedule another indexing job if task authorization is updated after 
         body: null,
     });
 
-    await task.typeTitle(session1, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(
+        session1,
+        ": What Do They Know? Do They Know Things? Let\u2019s Find Out.",
+    );
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -467,7 +470,7 @@ test("will schedule another indexing job if task authorization is updated after 
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: null,
     });
 
@@ -477,7 +480,7 @@ test("will schedule another indexing job if task authorization is updated after 
     expect(indexSearchEntityJobCount).toEqual(3);
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: null,
     });
 
@@ -521,7 +524,10 @@ test("will not schedule another indexing job if task authorization is updated tw
         body: null,
     });
 
-    await task.typeTitle(session1, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(
+        session1,
+        ": What Do They Know? Do They Know Things? Let\u2019s Find Out.",
+    );
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -559,7 +565,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: null,
     });
 
@@ -573,7 +579,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: null,
     });
 
@@ -583,7 +589,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(indexSearchEntityJobCount).toEqual(3);
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: null,
     });
 
@@ -1506,7 +1512,7 @@ test("will not index a task twice if notes update happened within the timeout", 
                 new Slice(
                     Fragment.from([
                         TaskNotesContentProsemirrorSchema.text(
-                            "What Do They Know? Do They Know Things? Let’s Find Out.",
+                            "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
                         ),
                     ]),
                     0,
@@ -1530,7 +1536,7 @@ test("will not index a task twice if notes update happened within the timeout", 
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     // Make sure there are no more jobs in the queue.
@@ -1593,7 +1599,7 @@ test("will index a task twice if a notes update happens after last indexing", as
         body: null,
     });
 
-    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let\u2019s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -1608,7 +1614,7 @@ test("will index a task twice if a notes update happens after last indexing", as
 
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: "This is the title of a game show from BoJack",
     });
 
@@ -1637,7 +1643,7 @@ test("will index a task twice if a notes update happens after last indexing", as
 
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: "This is the title of a game show from BoJack",
     });
 
@@ -1646,7 +1652,7 @@ test("will index a task twice if a notes update happens after last indexing", as
 
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: "This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
@@ -1655,7 +1661,7 @@ test("will index a task twice if a notes update happens after last indexing", as
 
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: "This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
@@ -1719,7 +1725,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
         body: null,
     });
 
-    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let\u2019s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -1772,7 +1778,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
 
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: "This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
@@ -1781,7 +1787,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
 
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(task)).toEqual({
-        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let\u2019s Find Out.",
         body: "This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
@@ -1922,7 +1928,7 @@ test("can get affinitive collections for an account", async () => {
 
 test("effective task collection name fuzzy searching", async () => {
     const bookNames = [
-        "Old Man’s War",
+        "Old Man\u2019s War",
         "The Lock Artist",
         "HTML5",
         "Thank You Jeeves",
@@ -2057,17 +2063,17 @@ test("effective task collection name fuzzy searching", async () => {
         "Test Mxyz",
         "Test Mabc",
         "Monster 1959",
-        "Old Man’s War",
+        "Old Man\u2019s War",
     ]);
-    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Old Man’s War", "Test Mxyz"]);
-    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Old Man’s War", "Test Mxyz"]);
+    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Old Man\u2019s War", "Test Mxyz"]);
+    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Old Man\u2019s War", "Test Mxyz"]);
     expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
     expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
     expect(await testSearch("tes m")).toEqual([
         "Test Mxyz",
         "Test Mabc",
         "Monster 1959",
-        "Old Man’s War",
+        "Old Man\u2019s War",
     ]);
 
     // Testing typos
@@ -2163,7 +2169,7 @@ test("effective task collection name fuzzy searching", async () => {
     ]);
 });
 
-test("excludes collections account doesn’t have access to when searching", async () => {
+test("excludes collections account doesn\u2019t have access to when searching", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();

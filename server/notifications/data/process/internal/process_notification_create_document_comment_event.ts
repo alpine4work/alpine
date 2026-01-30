@@ -342,7 +342,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                         // We should have loaded `firstCommentAuthor` under the same conditions as it
                         // took to reach this branch.
                         assertExists(firstCommentAuthor).initialData,
-                    )}’s`;
+                    )}\u2019s`;
                 }
 
                 subtitle += ` thread on ${truncatedDocumentTitle}`;

@@ -31,7 +31,7 @@ export async function updateSpaceAccountRole(
 
     if (role === "Owner") {
         throw new FailedPreconditionError(
-            "Can’t update a space account’s role to owner (maybe you want `moveSpaceAccountOwnerRole()` instead)",
+            "Can\u2019t update a space account\u2019s role to owner (maybe you want `moveSpaceAccountOwnerRole()` instead)",
         );
     }
 
@@ -56,11 +56,11 @@ export async function updateSpaceAccountRole(
         assert(account);
 
         if (hasSpaceRole(spaceAccountItem.role, "Owner")) {
-            throw new PermissionDeniedError("Can’t modify space owner account’s role");
+            throw new PermissionDeniedError("Can\u2019t modify space owner account\u2019s role");
         }
 
         if (account.botId) {
-            throw new FailedPreconditionError("Can’t modify bot account’s role");
+            throw new FailedPreconditionError("Can\u2019t modify bot account\u2019s role");
         }
 
         const updateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({

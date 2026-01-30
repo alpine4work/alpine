@@ -741,7 +741,7 @@ test("will paste markdown with content after code block from web browser", () =>
     );
 });
 
-test("pasting list item in list item with different indentation uses the target list item’s indentation", () => {
+test("pasting list item in list item with different indentation uses the target list item\u2019s indentation", () => {
     render(
         <TestContentEditor
             initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
@@ -801,7 +801,7 @@ test("pasting list item in list item with different indentation uses the target 
     });
 });
 
-test("pasting list item in list item with different indentation uses the new list item’s indentation (with slice open start of 0)", () => {
+test("pasting list item in list item with different indentation uses the new list item\u2019s indentation (with slice open start of 0)", () => {
     render(
         <TestContentEditor
             initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
@@ -861,7 +861,7 @@ test("pasting list item in list item with different indentation uses the new lis
     });
 });
 
-test("pasting list item in list item with different indentation and type (ordered list) uses the target list item’s indentation and type", () => {
+test("pasting list item in list item with different indentation and type (ordered list) uses the target list item\u2019s indentation and type", () => {
     render(
         <TestContentEditor
             initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
@@ -921,7 +921,7 @@ test("pasting list item in list item with different indentation and type (ordere
     });
 });
 
-test("pasting list item in list item with different indentation and type (unordered list) uses the target list item’s indentation and type", () => {
+test("pasting list item in list item with different indentation and type (unordered list) uses the target list item\u2019s indentation and type", () => {
     render(
         <TestContentEditor
             initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
@@ -981,7 +981,7 @@ test("pasting list item in list item with different indentation and type (unorde
     });
 });
 
-test("pasting list item in list item with different indentation and type (check list) uses the target list item’s indentation and type", () => {
+test("pasting list item in list item with different indentation and type (check list) uses the target list item\u2019s indentation and type", () => {
     render(
         <TestContentEditor
             initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
@@ -1041,7 +1041,7 @@ test("pasting list item in list item with different indentation and type (check 
     });
 });
 
-test("pasting block quote in list item with different indentation uses the target list item’s indentation", () => {
+test("pasting block quote in list item with different indentation uses the target list item\u2019s indentation", () => {
     render(
         <TestContentEditor
             initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
@@ -1101,7 +1101,7 @@ test("pasting block quote in list item with different indentation uses the targe
     });
 });
 
-test("pasting multiple list items in list item with different indentation uses the target list item’s indentation", () => {
+test("pasting multiple list items in list item with different indentation uses the target list item\u2019s indentation", () => {
     render(
         <TestContentEditor
             initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
@@ -1388,7 +1388,7 @@ test("pasting multiple paragraphs from a list item followed by more list items i
     });
 });
 
-test("pasting multiple list items in list item with different indentation uses the target list item’s indentation until a non-list item node", () => {
+test("pasting multiple list items in list item with different indentation uses the target list item\u2019s indentation until a non-list item node", () => {
     render(
         <TestContentEditor
             initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({

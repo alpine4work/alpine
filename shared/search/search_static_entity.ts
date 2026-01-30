@@ -66,7 +66,7 @@ export const searchStaticEntityById: {
         otherHitTexts: ["all tasks", "tasks", "my tasks"],
     },
     TaskQueryFilteredToCreatorIsCurrentAccount: {
-        title: "Tasks I’ve created",
+        title: "Tasks I\u2019ve created",
         otherHitTexts: [
             "all tasks",
             "my tasks",
@@ -90,7 +90,7 @@ export const searchStaticEntityById: {
         ],
     },
     TaskQueryFilteredToAssignerIsCurrentAccount: {
-        title: "Tasks I’ve assigned to others",
+        title: "Tasks I\u2019ve assigned to others",
         otherHitTexts: ["assigned tasks", "task views", "assigned to others"],
     },
     SearchFavorites: {

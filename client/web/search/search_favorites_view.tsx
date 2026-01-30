@@ -229,7 +229,7 @@ export function SearchFavoritesView({
                     );
                 },
                 error => {
-                    reporter.displayError("Couldn’t move shortcut divider", error);
+                    reporter.displayError("Couldn\u2019t move shortcut divider", error);
                 },
             );
 
@@ -338,7 +338,7 @@ export function SearchFavoritesView({
                 );
             },
             error => {
-                reporter.displayError("Couldn’t move favorite", error);
+                reporter.displayError("Couldn\u2019t move favorite", error);
             },
         );
 
@@ -712,7 +712,7 @@ function SearchFavoritesViewItem({
                     label: "Copy link",
                     icon: <LinkIcon />,
                     iconPlacement: "end",
-                    pressErrorTitle: "Couldn’t copy link",
+                    pressErrorTitle: "Couldn\u2019t copy link",
                     onPress: async () => {
                         const url = new URL(path, window.location.href);
                         await writeTextToClipboard(url.toString());
@@ -722,7 +722,7 @@ function SearchFavoritesViewItem({
             [
                 {
                     label: "Remove from favorites",
-                    pressErrorTitle: "Couldn’t remove from favorite",
+                    pressErrorTitle: "Couldn\u2019t remove from favorite",
                     onPress: handleRemovePress,
                 },
             ],

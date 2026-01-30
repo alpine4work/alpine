@@ -308,7 +308,7 @@ export function TaskRealtimeClientContextProvider({
 
     if (client.spaceId !== spaceId) {
         throw new InternalError(
-            "Can’t change initial `SpaceId` passed into `<TaskStoreContextProvider>`, must remount the component",
+            "Can\u2019t change initial `SpaceId` passed into `<TaskStoreContextProvider>`, must remount the component",
         );
     }
 

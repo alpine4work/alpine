@@ -108,7 +108,7 @@ function DigestNotificationsSection({inbox}: {inbox: DynamoGeneralRealtimeItem<I
             <Switch
                 fontSize="100"
                 isSelected={isSubscribed}
-                changeErrorTitle={`Couldn’t ${
+                changeErrorTitle={`Couldn\u2019t ${
                     isSubscribed ? "unsubscribe" : "subscribe"
                 } from email notifications`}
                 onChange={async isSubscribed => {
@@ -211,7 +211,7 @@ function PushNotificationsSection({
 
                 if (!subscription) {
                     throw new FailedPreconditionError(
-                        "Couldn’t subscribe to push notifications in browser",
+                        "Couldn\u2019t subscribe to push notifications in browser",
                     );
                 }
                 await registerAccountWebPushSubscriptionAndOptInToSpace(context, {
@@ -259,7 +259,7 @@ function PushNotificationsSection({
                         // switch to the page.
                         (permissionState === null || permissionState === "granted")
                     }
-                    changeErrorTitle={`Couldn’t ${
+                    changeErrorTitle={`Couldn\u2019t ${
                         isSubscribed ? "disable" : "enable"
                     } push notifications`}
                     onChange={handleToggle}

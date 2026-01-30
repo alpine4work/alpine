@@ -15,7 +15,7 @@ import {InternalError} from "~/shared/error/error.js";
 export async function loader({params}: LoaderArgs) {
     if (process.env.NODE_ENV !== "production") {
         throw new InternalError(
-            "Development only warning: If you’re linking to an account then instead of navigating to `/s/:spaceId/accounts/:accountId` you should navigate directly to `/s/:spaceId/chat/with/:accountId`. It’s a slight optimization since we don’t need to perform a `redirect()` network roundtrip on the client",
+            "Development only warning: If you\u2019re linking to an account then instead of navigating to `/s/:spaceId/accounts/:accountId` you should navigate directly to `/s/:spaceId/chat/with/:accountId`. It\u2019s a slight optimization since we don\u2019t need to perform a `redirect()` network roundtrip on the client",
         );
     }
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);

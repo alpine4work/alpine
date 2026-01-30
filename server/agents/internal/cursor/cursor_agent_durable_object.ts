@@ -306,7 +306,7 @@ async function getCursorBotSettings({
 
     if (!/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(settings.values.githubRepositoryUrl)) {
         throw new FailedPreconditionError("Invalid `githubRepositoryUrl` string in bot settings", {
-            displayMessage: errorDisplayMessage`“${settings.values.githubRepositoryUrl}” isn’t a valid GitHub repository URL. Make sure your GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)} is formatted as “https://github.com/your-org/your-repo”.`,
+            displayMessage: errorDisplayMessage`\u201C${settings.values.githubRepositoryUrl}\u201D isn\u2019t a valid GitHub repository URL. Make sure your GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)} is formatted as \u201Chttps://github.com/your-org/your-repo\u201D.`,
         });
     }
 
@@ -389,7 +389,7 @@ async function withCursorAgentMessageStreamSession<Value>(
                             type: "Paragraph",
                             elements: Array.from(
                                 concatIterables(
-                                    [{type: "Text", text: "Couldn’t start coding. "}],
+                                    [{type: "Text", text: "Couldn\u2019t start coding. "}],
                                     renderErrorDisplayMessageForCursorAgent(displayMessage),
                                 ),
                             ),
@@ -556,7 +556,7 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
             });
 
             paragraphElements.push(
-                {type: "Text", text: "Started coding. I’ll let you know when I’m done ("},
+                {type: "Text", text: "Started coding. I\u2019ll let you know when I\u2019m done ("},
                 {
                     type: "Text",
                     text: "watch me work",
@@ -890,13 +890,13 @@ async function handleCursorAgentAddFollowUpFirstPartyWebhook({
             elements.push({
                 type: "Paragraph",
                 elements: [
-                    {type: "Text", text: "Gotcha. I’ll update my “"},
+                    {type: "Text", text: "Gotcha. I\u2019ll update my \u201C"},
                     {
                         type: "Text",
                         text: agent.name,
                         marks: agent.targetPrUrl ? [{type: "Link", url: agent.targetPrUrl}] : [],
                     },
-                    {type: "Text", text: "” PR ("},
+                    {type: "Text", text: "\u201D PR ("},
                     {
                         type: "Text",
                         text: "watch me work",
@@ -1202,7 +1202,7 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
     // parts.
     //
     // Example messages for "Can you add a new danger button variant for our shared
-    // `<Button>` component that’s red?" It has 8 "thinking" messages and 1 final
+    // `<Button>` component that's red?" It has 8 "thinking" messages and 1 final
     // summary message which is more verbose than `summary` from the webhook call.
     //
     // > I'll help you add a new danger button variant for the shared `<Button>`
@@ -1228,11 +1228,11 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
     //
     // Summary from the webhook call (which is what we use here):
     //
-    // > A new “danger” variant was added to the shared `<Button>` component in
+    // > A new "danger" variant was added to the shared `<Button>` component in
     // > `client/web/design/button.tsx`.
     // >
-    // > *   The `ButtonVariant` type was extended to include `”danger”`.
-    // > *   Styling for the “danger” variant was implemented:
+    // > *   The `ButtonVariant` type was extended to include `"danger"`.
+    // > *   Styling for the "danger" variant was implemented:
     // >     *   Enabled state: `red-60` background with `grey-0` text.
     // >     *   Disabled state: `grey-5` background with `grey-30` text.
     // >

@@ -70,7 +70,7 @@ export async function authorizePostAccessIfPossible(
                         return {
                             ok: false,
                             error: new PermissionDeniedError(
-                                "Account doesn’t have edit access to post",
+                                "Account doesn\u2019t have edit access to post",
                             ),
                         };
                     }

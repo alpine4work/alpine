@@ -5,7 +5,7 @@
  * second).
  *
  * For a great article explaining DynamoDB consistency models and latency
- * expectations read “[Understanding Eventual Consistency in DynamoDB][2].”
+ * expectations read "[Understanding Eventual Consistency in DynamoDB][2]."
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
  * [2]: https://www.alexdebrie.com/posts/dynamodb-eventual-consistency

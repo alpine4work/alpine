@@ -43,12 +43,12 @@ export function Form({
 }) {
     assert(
         button.type === Button,
-        "`<Form>` component’s `button` prop must be a `<Button>` component",
+        "`<Form>` component\u2019s `button` prop must be a `<Button>` component",
     );
 
     assert(
         !button.props.onPress,
-        "`<Form>` component’s `button` prop must not have an `onPress` prop (the `<Form>` component handles submission)",
+        "`<Form>` component\u2019s `button` prop must not have an `onPress` prop (the `<Form>` component handles submission)",
     );
 
     const isDisabled = button.props.isDisabled ?? false;

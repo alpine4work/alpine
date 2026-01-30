@@ -54,7 +54,7 @@ export async function createActorContextModuleFromAuthorizationHeader(
         }
         case "System": {
             if (spaceId !== authorizationHeaderPayload.spaceId) {
-                throw new PermissionDeniedError("System actor doesn’t have access to space");
+                throw new PermissionDeniedError("System actor doesn\u2019t have access to space");
             }
             return SystemActorContextModule.dangerouslyNew(
                 serviceName,

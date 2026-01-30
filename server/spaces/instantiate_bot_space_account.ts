@@ -52,7 +52,7 @@ export async function instantiateBotSpaceAccount(
         if (!isDynamoTransactionCancelledExceptionByConditionCheckError(error, 1)) {
             throw error;
         } else {
-            throw new FailedPreconditionError("Can’t instantiate bot twice in the same space");
+            throw new FailedPreconditionError("Can\u2019t instantiate bot twice in the same space");
         }
     }
 
@@ -61,7 +61,7 @@ export async function instantiateBotSpaceAccount(
 
 /**
  * Create the transaction entries for instantiating a bot account in a space.
- * Does not check that you’re the owner of the space.
+ * Does not check that you're the owner of the space.
  *
  * IMPORTANT: You must perform authorization yourself.
  *

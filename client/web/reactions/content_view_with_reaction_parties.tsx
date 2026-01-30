@@ -281,7 +281,7 @@ export function ContentViewReactionParty({
                             },
                             error => {
                                 setIsReactionPartyPressPending(false);
-                                reporter.displayError("Couldn’t open reactions", error);
+                                reporter.displayError("Couldn\u2019t open reactions", error);
                             },
                         );
                     }}

@@ -87,7 +87,7 @@ export function addContentFileContentViewEntityPreviewBehavior(
                 getReporter,
                 navigate: () => {
                     throw new UnimplementedError(
-                        "Shouldn’t be able to navigate from inert file entity preview",
+                        "Shouldn\u2019t be able to navigate from inert file entity preview",
                     );
                 },
             });
@@ -125,7 +125,7 @@ export function addContentFileContentViewEntityPreviewBehavior(
                     getReporter,
                     rootNavigate: () => {
                         throw new UnimplementedError(
-                            "Shouldn’t be able to navigate from inert file preview",
+                            "Shouldn\u2019t be able to navigate from inert file preview",
                         );
                     },
                 });

@@ -170,7 +170,7 @@ export default function TaskCommentsRoute() {
                     menuActions={[
                         {
                             label: "Open task",
-                            pressErrorTitle: "Couldn’t open task",
+                            pressErrorTitle: "Couldn\u2019t open task",
                             onPress: () => {
                                 if (isFromTaskDetailView) {
                                     navigate(-1);

@@ -3875,6 +3875,6 @@ async function getOpensearchQueryActorAccessClause<IndexType extends "Keyword" |
             },
         } as SearchAccessPolicyForBotOrSessionResponse<IndexType>;
     } else {
-        throw new InternalError("Bot doesn’t have an access policy defined for Search");
+        throw new InternalError("Bot doesn\u2019t have an access policy defined for Search");
     }
 }

@@ -134,7 +134,7 @@ describe("ContentEditorSpellChecker", () => {
             const specialChars = "abcABC123@#$%^&*()-=[]\\;',/+{}|:\"<>";
 
             for (const char of specialChars) {
-                test(`detects ‘${char}’ as typing`, () => {
+                test(`detects \u2018${char}\u2019 as typing`, () => {
                     const spellChecker = new ContentEditorSpellChecker(
                         () => context,
                         spaceId,

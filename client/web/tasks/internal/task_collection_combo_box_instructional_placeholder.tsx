@@ -15,7 +15,7 @@ export function TaskCollectionComboBoxInstructionalPlaceholder({
                         My collections
                     </Box>
                     <Box fontSize="50" color="grey-50">
-                        We’ll recommend the collections you use most here
+                        We&#x2019;ll recommend the collections you use most here
                     </Box>
                 </Box>
                 <Box

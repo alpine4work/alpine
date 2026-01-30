@@ -147,7 +147,7 @@ const testDocument: DocumentContentWithReferences = {
                                 }),
                             },
                         },
-                        {type: "text", text: " mention. After that there’s some "},
+                        {type: "text", text: " mention. After that there\u2019s some "},
                         {type: "text", marks: [{type: "bold"}], text: "bold"},
                         {type: "text", text: " text and then some "},
                         {type: "text", marks: [{type: "italic"}], text: "italic text with "},
@@ -466,8 +466,8 @@ test("can copy when selection is entirely in content view", () => {
             focusOffset: 18,
         }),
     ).toEqual({
-        text: "st Document\n\nThis is a test paragraph with a Sarah mention. After that there’s some bold text and then som",
-        html: `<h1 data-pm-slice="1 1 []">st Document</h1><p>This is a test paragraph with a <span data-cy-mention="${account.id}" data-cy-mention-short="">Sarah</span> mention. After that there’s some <strong>bold</strong> text and then som</p>`,
+        text: "st Document\n\nThis is a test paragraph with a Sarah mention. After that there\u2019s some bold text and then som",
+        html: `<h1 data-pm-slice="1 1 []">st Document</h1><p>This is a test paragraph with a <span data-cy-mention="${account.id}" data-cy-mention-short="">Sarah</span> mention. After that there\u2019s some <strong>bold</strong> text and then som</p>`,
     });
 
     expect(

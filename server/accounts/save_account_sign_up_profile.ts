@@ -62,7 +62,7 @@ export async function saveAccountSignUpProfile(
         // spaces yet!
         if (!isInNoSpaces) {
             throw new PermissionDeniedError(
-                "Can only finish account sign up when the account hasn’t joined any spaces (the account may have pending invites)",
+                "Can only finish account sign up when the account hasn\u2019t joined any spaces (the account may have pending invites)",
             );
         }
 

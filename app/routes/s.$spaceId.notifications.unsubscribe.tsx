@@ -88,8 +88,8 @@ export default function NotificationsUnsubscribeRoute() {
                         <>
                             <LogoWordmark size="32" />
                             <Box>
-                                You’ve been unsubscribed from email notification updates for this
-                                space.
+                                You&#x2019;ve been unsubscribed from email notification updates for
+                                this space.
                             </Box>
                             <Box>You may now leave this window.</Box>
                         </>

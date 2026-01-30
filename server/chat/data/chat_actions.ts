@@ -243,7 +243,7 @@ export async function createChatForTest(
     );
 
     if (accounts.every(account => account.botId)) {
-        throw new PermissionDeniedError("Can’t create a chat with only bot accounts");
+        throw new PermissionDeniedError("Can\u2019t create a chat with only bot accounts");
     }
 
     // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use
@@ -621,7 +621,7 @@ function actuallyGetOrCreateChatForAccounts(
                 ]);
 
             if (isActorBotAccount && otherAccounts.every(account => account.botId)) {
-                throw new PermissionDeniedError("Can’t create a chat with only bot accounts");
+                throw new PermissionDeniedError("Can\u2019t create a chat with only bot accounts");
             }
 
             // If the optimistic `ChatId` does not exist then create a new chat with the
@@ -1115,8 +1115,8 @@ export function putChatMessageStreamPart(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -1436,8 +1436,8 @@ export function completeChatMessageStream(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -1581,8 +1581,8 @@ export function pingChatMessageStream(
         ]);
 
         if (!item) {
-            throw new FailedPreconditionError("Message isn’t a stream", {
-                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            throw new FailedPreconditionError("Message isn\u2019t a stream", {
+                displayMessage: errorDisplayMessage`Message isn\u2019t a stream.`,
             });
         }
 
@@ -1888,7 +1888,7 @@ async function authorizeChatAccessAndReturnItemIfPossible(
             if (!ok) {
                 return {
                     ok: false,
-                    error: new PermissionDeniedError("Bot actor doesn’t have access to chat", {
+                    error: new PermissionDeniedError("Bot actor doesn\u2019t have access to chat", {
                         displayMessage: chatPermissionDeniedErrorDisplayMessage,
                     }),
                 };
@@ -1968,7 +1968,7 @@ async function authorizeChatAccessForAccountAndReturnItems(
     );
 }
 
-const chatPermissionDeniedErrorDisplayMessage = errorDisplayMessage`You don’t have access to this chat.`;
+const chatPermissionDeniedErrorDisplayMessage = errorDisplayMessage`You don\u2019t have access to this chat.`;
 
 export async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
     context: ServerActionContext,
@@ -2019,7 +2019,9 @@ export async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
                     ) {
                         return {
                             ok: false,
-                            error: new PermissionDeniedError("Account isn’t a member of space"),
+                            error: new PermissionDeniedError(
+                                "Account isn\u2019t a member of space",
+                            ),
                         };
                     }
 
@@ -2044,7 +2046,7 @@ export async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
     if (!chatAccountItem) {
         return {
             ok: false,
-            error: new PermissionDeniedError("Account doesn’t have access to chat", {
+            error: new PermissionDeniedError("Account doesn\u2019t have access to chat", {
                 displayMessage: chatPermissionDeniedErrorDisplayMessage,
             }),
         };
@@ -2377,7 +2379,7 @@ export async function getChatMessageAtVersion(
             }
 
             if (item.version < version) {
-                throw new FailedPreconditionError("Can’t get message at a future version");
+                throw new FailedPreconditionError("Can\u2019t get message at a future version");
             }
 
             return item;
@@ -2547,10 +2549,12 @@ export function deleteChatMessage(
             throw new PermissionDeniedError("Can only delete messages you authored");
 
         if (chatMessageItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can’t delete messages with a non-content payload");
+            throw new FailedPreconditionError(
+                "Can\u2019t delete messages with a non-content payload",
+            );
 
         if (chatMessageItem.payload.clerical)
-            throw new FailedPreconditionError("Can’t delete clerical messages");
+            throw new FailedPreconditionError("Can\u2019t delete clerical messages");
 
         const deletedTime = new Date();
 

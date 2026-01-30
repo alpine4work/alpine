@@ -1894,7 +1894,7 @@ test("file row (one file, channel entity)", async () => {
                                 MessageContentProsemirrorSchema.node("doc", null, [
                                     MessageContentProsemirrorSchema.node("paragraph", null, [
                                         MessageContentProsemirrorSchema.text(
-                                            "This is a channel where we talk about some stuff. Here’s a description that wraps onto multiple lines.",
+                                            "This is a channel where we talk about some stuff. Here\u2019s a description that wraps onto multiple lines.",
                                         ),
                                     ]),
                                 ]),

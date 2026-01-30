@@ -152,7 +152,7 @@ export function createMockAgentKingKongRecording(
         3,
         p(text("Exploring legal cases regarding King Kong", [bold])),
         p(
-            "I’m thinking about the relevant legal cases related to King Kong. One significant case is Universal v Nintendo. Another important one is Universal City Studios, Inc. v. RKO General, Inc. from 1975, which determined that King Kong rights were in the public domain concerning the film plot. There’s also the case regarding Universal’s 1976 remake rights and RKO. Ultimately, the rights surrounding King Kong are quite complicated, with several cases involved, including others like RKO v. Dino De Laurentiis.",
+            "I\u2019m thinking about the relevant legal cases related to King Kong. One significant case is Universal v Nintendo. Another important one is Universal City Studios, Inc. v. RKO General, Inc. from 1975, which determined that King Kong rights were in the public domain concerning the film plot. There\u2019s also the case regarding Universal\u2019s 1976 remake rights and RKO. Ultimately, the rights surrounding King Kong are quite complicated, with several cases involved, including others like RKO v. Dino De Laurentiis.",
         ),
     );
 
@@ -161,7 +161,7 @@ export function createMockAgentKingKongRecording(
         4,
         p(text("Reviewing King Kong rights cases", [bold])),
         p(
-            "I’m thinking about the legal battles over King Kong rights. Cooper sued RKO in 1976, arguing he owned rights to King Kong, but the court ruled that RKO retained ownership of the film rights. However, it seems Cooper kept some publication rights. The original film is still copyrighted, but the 1932 novelization by Delos W. Lovelace entered the public domain in the 1960s. I should also look up “Universal City Studios v. RKO General” to gather more information.",
+            "I\u2019m thinking about the legal battles over King Kong rights. Cooper sued RKO in 1976, arguing he owned rights to King Kong, but the court ruled that RKO retained ownership of the film rights. However, it seems Cooper kept some publication rights. The original film is still copyrighted, but the 1932 novelization by Delos W. Lovelace entered the public domain in the 1960s. I should also look up \u201CUniversal City Studios v. RKO General\u201D to gather more information.",
         ),
     );
 
@@ -182,7 +182,7 @@ export function createMockAgentKingKongRecording(
         7,
         p(text("Investigating legal cases", [bold])),
         p(
-            "Searching in Alpine might be a bit tricky since results may be limited. I can explain the Universal v. Nintendo case, which relies on a prior one, Universal City Studios v. RKO General, Inc., but I’ll need to reference it carefully since the separate document isn’t available. I need to link to Alpine documents while discussing relevant cases about King Kong, and it looks like “King Kong vs. Godzilla” might have some rights discussions worth exploring. Let’s open that up!",
+            "Searching in Alpine might be a bit tricky since results may be limited. I can explain the Universal v. Nintendo case, which relies on a prior one, Universal City Studios v. RKO General, Inc., but I\u2019ll need to reference it carefully since the separate document isn\u2019t available. I need to link to Alpine documents while discussing relevant cases about King Kong, and it looks like \u201CKing Kong vs. Godzilla\u201D might have some rights discussions worth exploring. Let\u2019s open that up!",
         ),
     );
 
@@ -233,10 +233,10 @@ export function createMockAgentKingKongRecording(
         13,
         p(text("Planning legal search", [bold])),
         p(
-            "I see this task isn’t too challenging; it’s mostly about searching and summarizing. First, I’ll search Alpine for “King Kong” and then pull out key cases. After that, I’ll summarize the holdings and outcomes while including pointers to the relevant documents.",
+            "I see this task isn\u2019t too challenging; it\u2019s mostly about searching and summarizing. First, I\u2019ll search Alpine for \u201CKing Kong\u201D and then pull out key cases. After that, I\u2019ll summarize the holdings and outcomes while including pointers to the relevant documents.",
         ),
         p(
-            "I’ll make sure to provide dates and outcomes, noting that the user is in PST. I’ll check to clarify: the dates are in 1983, so no confusion there. I’ll also add a prompt asking if the user wants me to dig deeper. I’ll keep everything concise and stick to the “Search Alpine” results.",
+            "I\u2019ll make sure to provide dates and outcomes, noting that the user is in PST. I\u2019ll check to clarify: the dates are in 1983, so no confusion there. I\u2019ll also add a prompt asking if the user wants me to dig deeper. I\u2019ll keep everything concise and stick to the \u201CSearch Alpine\u201D results.",
         ),
     );
 
@@ -245,10 +245,10 @@ export function createMockAgentKingKongRecording(
         14,
         p(text("Summarizing King Kong legal cases", [bold])),
         p(
-            "I see some key details in play, like the 1984 appeals and the 1986 counterclaims decision that awarded damages of 1.8 million plus $56,689.41, along with fees and profits. This decision indicated that Tiger’s King Kong infringed on Donkey Kong. The document quotes that “at best, Donkey Kong is a parody of King Kong” and mentions there’s “no right over the name King Kong.”",
+            "I see some key details in play, like the 1984 appeals and the 1986 counterclaims decision that awarded damages of 1.8 million plus $56,689.41, along with fees and profits. This decision indicated that Tiger\u2019s King Kong infringed on Donkey Kong. The document quotes that \u201Cat best, Donkey Kong is a parody of King Kong\u201D and mentions there\u2019s \u201Cno right over the name King Kong.\u201D",
         ),
         p(
-            "The user seems to be interested in the Donkey Kong case, specifically Universal City Studios, Inc. v. Nintendo Co., Ltd., from 1983 to 1986. I’ll prepare the final response and provide the required links.",
+            "The user seems to be interested in the Donkey Kong case, specifically Universal City Studios, Inc. v. Nintendo Co., Ltd., from 1983 to 1986. I\u2019ll prepare the final response and provide the required links.",
         ),
     );
 
@@ -257,21 +257,25 @@ export function createMockAgentKingKongRecording(
         15,
         p(text("Drafting with clarity", [bold])),
         p(
-            "I recognize that all Alpine links are acceptable, which is great! I need to keep in mind the word limits for my responses, ensuring they remain concise but still thorough. Balancing brevity with clarity is key here. Let’s get started on drafting the content while adhering to those guidelines. I want to make sure I cover everything necessary without getting too lengthy. Keeping it neat and informative feels like the way to go!",
+            "I recognize that all Alpine links are acceptable, which is great! I need to keep in mind the word limits for my responses, ensuring they remain concise but still thorough. Balancing brevity with clarity is key here. Let\u2019s get started on drafting the content while adhering to those guidelines. I want to make sure I cover everything necessary without getting too lengthy. Keeping it neat and informative feels like the way to go!",
         ),
     );
 
     putContentPart(768541, 16, p("Plan:"));
 
-    putContentPart(768648, 17, ul(p("Searched Alpine for “King Kong” + legal/lawsuit.")));
+    putContentPart(768648, 17, ul(p("Searched Alpine for \u201CKing Kong\u201D + legal/lawsuit.")));
 
     putContentPart(768661, 18, ul(p("Pulled the most relevant Alpine docs.")));
 
-    putContentPart(768674, 19, ul(p("Summarized each case’s core facts, rulings, and impact.")));
+    putContentPart(
+        768674,
+        19,
+        ul(p("Summarized each case\u2019s core facts, rulings, and impact.")),
+    );
 
     putContentPart(768686, 20, ul(p("Linked to the source docs so you can dive deeper.")));
 
-    putContentPart(768697, 21, p("Likely the one you’re thinking of"));
+    putContentPart(768697, 21, p("Likely the one you\u2019re thinking of"));
 
     let part22Paragraph1: string;
     let part22Paragraph2: string;
@@ -299,7 +303,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         (part22Paragraph2 +=
-                            " Nintendo’s Donkey Kong infringed King Kong. Nintendo countered that Universal had already argued King Kong’s story/characters were public domain in a prior case against RKO. Judge Robert W. Sweet (S.D.N.Y.) found no Universal rights in “King Kong” as a trademark and no likelihood of confusion; he also criticized Universal’s threats to Nintendo’s licensees. The Second Circuit affirmed. On Nintendo’s counterclaims, Universal was ordered to"),
+                            " Nintendo\u2019s Donkey Kong infringed King Kong. Nintendo countered that Universal had already argued King Kong\u2019s story/characters were public domain in a prior case against RKO. Judge Robert W. Sweet (S.D.N.Y.) found no Universal rights in \u201CKing Kong\u201D as a trademark and no likelihood of confusion; he also criticized Universal\u2019s threats to Nintendo\u2019s licensees. The Second Circuit affirmed. On Nintendo\u2019s counterclaims, Universal was ordered to"),
                     ),
                 ),
             ),
@@ -315,7 +319,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         (part22Paragraph2 +=
-                            " pay Nintendo about $1.8M in fees/costs plus profits from Universal’s King Kong licensing tied to the dispute (~$56.7k). Nintendo also got additional damages/fees; Tiger’s “King Kong” handheld was found to infringe Donkey Kong’s expression. Impact: A landmark win for Nintendo and a key modern episode in the tangled “King Kong” rights story. Source: Universal"),
+                            " pay Nintendo about $1.8M in fees/costs plus profits from Universal\u2019s King Kong licensing tied to the dispute (~$56.7k). Nintendo also got additional damages/fees; Tiger\u2019s \u201CKing Kong\u201D handheld was found to infringe Donkey Kong\u2019s expression. Impact: A landmark win for Nintendo and a key modern episode in the tangled \u201CKing Kong\u201D rights story. Source: Universal"),
                     ),
                 ),
             ),
@@ -434,7 +438,7 @@ export function createMockAgentKingKongRecording(
         ul(
             li(
                 p(part24Paragraph1),
-                ul(p((part24Paragraph2 += " Universal’s Donkey Kong claims."))),
+                ul(p((part24Paragraph2 += " Universal\u2019s Donkey Kong claims."))),
             ),
         ),
     );
@@ -488,7 +492,7 @@ export function createMockAgentKingKongRecording(
 
     let part25Paragraph1: string;
 
-    putContentPart(771145, 25, ul(p((part25Paragraph1 = "Merian C. Cooper’s"))));
+    putContentPart(771145, 25, ul(p((part25Paragraph1 = "Merian C. Cooper\u2019s"))));
 
     putContentPart(771242, 25, ul(p((part25Paragraph1 += " 196"))));
 
@@ -543,7 +547,12 @@ export function createMockAgentKingKongRecording(
     putContentPart(
         772828,
         25,
-        ul(li(p(part25Paragraph1), ul(p((part25Paragraph2A += "ho’s King Kong vs. Godzilla"))))),
+        ul(
+            li(
+                p(part25Paragraph1),
+                ul(p((part25Paragraph2A += "ho\u2019s King Kong vs. Godzilla"))),
+            ),
+        ),
     );
 
     putContentPart(
@@ -566,13 +575,18 @@ export function createMockAgentKingKongRecording(
     putContentPart(
         773173,
         25,
-        ul(li(p(part25Paragraph1), ul(p((part25Paragraph2A += " the Alpine doc, it “never"))))),
+        ul(
+            li(
+                p(part25Paragraph1),
+                ul(p((part25Paragraph2A += " the Alpine doc, it \u201Cnever"))),
+            ),
+        ),
     );
 
     putContentPart(
         773293,
         25,
-        ul(li(p(part25Paragraph1), ul(p((part25Paragraph2A += " went through,”"))))),
+        ul(li(p(part25Paragraph1), ul(p((part25Paragraph2A += " went through,\u201D"))))),
     );
 
     putContentPart(
@@ -581,7 +595,7 @@ export function createMockAgentKingKongRecording(
         ul(
             li(
                 p(part25Paragraph1),
-                ul(p((part25Paragraph2A += " because Cooper wasn’t the sole owner he"))),
+                ul(p((part25Paragraph2A += " because Cooper wasn\u2019t the sole owner he"))),
             ),
         ),
     );
@@ -618,7 +632,12 @@ export function createMockAgentKingKongRecording(
     putContentPart(
         773962,
         25,
-        ul(li(p(part25Paragraph1), ul(p((part25Paragraph2A += "’s face design at RKO’s"))))),
+        ul(
+            li(
+                p(part25Paragraph1),
+                ul(p((part25Paragraph2A += "\u2019s face design at RKO\u2019s"))),
+            ),
+        ),
     );
 
     putContentPart(
@@ -679,7 +698,7 @@ export function createMockAgentKingKongRecording(
                     p(
                         text(part25Paragraph2A),
                         mention({type: "Document", id: documentIds.kingKongVsGodzilla}),
-                        text((part25Paragraph2B += "see “Conception” and production")),
+                        text((part25Paragraph2B += "see \u201CConception\u201D and production")),
                     ),
                 ),
             ),
@@ -723,7 +742,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         (part26Paragraph2 =
-                            "The Alpine entry on Peter Jackson’s 2005 remake states that"),
+                            "The Alpine entry on Peter Jackson\u2019s 2005 remake states that"),
                     ),
                 ),
             ),
@@ -739,7 +758,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         (part26Paragraph2 +=
-                            " Universal “did not have to worry about lawsuits concerning"),
+                            " Universal \u201Cdid not have to worry about lawsuits concerning"),
                     ),
                 ),
             ),
@@ -766,7 +785,7 @@ export function createMockAgentKingKongRecording(
                 ul(
                     p(
                         (part26Paragraph2 +=
-                            " character is held in the public domain.” This reflects"),
+                            " character is held in the public domain.\u201D This reflects"),
                     ),
                 ),
             ),
@@ -796,7 +815,12 @@ export function createMockAgentKingKongRecording(
         ul(
             li(
                 p(part26Paragraph1),
-                ul(p((part26Paragraph2 += " to how “public domain” arguments were leveraged"))),
+                ul(
+                    p(
+                        (part26Paragraph2 +=
+                            " to how \u201Cpublic domain\u201D arguments were leveraged"),
+                    ),
+                ),
             ),
         ),
     );

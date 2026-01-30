@@ -357,7 +357,7 @@ function expectUnauthorizedCollection() {
     return expect.objectContaining({type: "Unauthorized"});
 }
 
-test("can’t load a query with no filters", async () => {
+test("can\u2019t load a query with no filters", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
@@ -982,7 +982,7 @@ test("two subscriptions with different queries load different queries", async ()
     expect(getCount()).toEqual(2);
 });
 
-test("will send actions for updated tasks in the subscription’s loaded range", async () => {
+test("will send actions for updated tasks in the subscription\u2019s loaded range", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
@@ -1102,7 +1102,7 @@ test("will send actions for updated tasks in the subscription’s loaded range",
     ]);
 });
 
-test("will send actions for removed tasks in the subscription’s loaded range", async () => {
+test("will send actions for removed tasks in the subscription\u2019s loaded range", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
@@ -1222,7 +1222,7 @@ test("will send actions for removed tasks in the subscription’s loaded range",
     expect(testTakeEvents(connection)).toEqual([]);
 });
 
-test("will backfill added tasks in the subscription’s loaded range", async () => {
+test("will backfill added tasks in the subscription\u2019s loaded range", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
@@ -7903,7 +7903,7 @@ test("race condition: parent task can change before previous grandparent task ha
     ]);
 });
 
-test("race condition: parent task is removed before it’s loaded", async () => {
+test("race condition: parent task is removed before it\u2019s loaded", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
     const session = await space.createSession();
@@ -12504,7 +12504,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
 
     await expect(task3.updateParentTask(session, task1, {time: time2})).rejects.toThrow(
         new FailedPreconditionError(
-            "Updating task’s `parentTaskId` would create a circular dependency",
+            "Updating task\u2019s `parentTaskId` would create a circular dependency",
         ),
     );
 
@@ -12800,7 +12800,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     await expect(task3.updateParentTask(session, task1, {time: time2})).rejects.toThrow(
         new FailedPreconditionError(
-            "Updating task’s `parentTaskId` would create a circular dependency",
+            "Updating task\u2019s `parentTaskId` would create a circular dependency",
         ),
     );
 
@@ -13131,7 +13131,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     await expect(task3.updateParentTask(session, task1, {time: time3})).rejects.toThrow(
         new FailedPreconditionError(
-            "Updating task’s `parentTaskId` would create a circular dependency",
+            "Updating task\u2019s `parentTaskId` would create a circular dependency",
         ),
     );
 
@@ -13322,7 +13322,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     await expect(task3.updateParentTask(session, task1, {time: time3})).rejects.toThrow(
         new FailedPreconditionError(
-            "Updating task’s `parentTaskId` would create a circular dependency",
+            "Updating task\u2019s `parentTaskId` would create a circular dependency",
         ),
     );
 
@@ -13564,7 +13564,7 @@ test("can subscribe to task", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 });
 
-test("can’t subscribe to task that doesn’t exist", async () => {
+test("can\u2019t subscribe to task that doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -13585,7 +13585,7 @@ test("can’t subscribe to task that doesn’t exist", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 });
 
-test("can’t subscribe to task that you don’t have access to", async () => {
+test("can\u2019t subscribe to task that you don\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13703,7 +13703,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
         {
             type: "TaskSubscriptionError",
             id: taskSubscriptionId,
-            error: new PermissionDeniedError("Actor doesn’t have `View` access level"),
+            error: new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
         },
     ]);
 
@@ -13783,18 +13783,20 @@ test("will lose access to subscribed task upon reauthorization if account remove
         accountId: session2.account.id,
     });
 
-    await expect(connection.authorize()).rejects.toThrow("Account doesn’t have access to space");
+    await expect(connection.authorize()).rejects.toThrow(
+        "Account doesn\u2019t have access to space",
+    );
 
     expect(connection.isClosed()).toEqual(true);
     expect((connection.getCloseError() as any).message).toEqual(
-        "Account doesn’t have access to space",
+        "Account doesn\u2019t have access to space",
     );
 
     expect(testTakeEvents(connection)).toEqual([
         {
             type: "TaskSubscriptionError",
             id: taskSubscriptionId,
-            error: new PermissionDeniedError("Account doesn’t have access to space"),
+            error: new PermissionDeniedError("Account doesn\u2019t have access to space"),
         },
     ]);
 
@@ -14452,7 +14454,7 @@ test("can subscribe to collection", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 });
 
-test("can’t subscribe to collection that doesn’t exist", async () => {
+test("can\u2019t subscribe to collection that doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -14473,7 +14475,7 @@ test("can’t subscribe to collection that doesn’t exist", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 });
 
-test("can’t subscribe to collection that you don’t have access to", async () => {
+test("can\u2019t subscribe to collection that you don\u2019t have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -14618,7 +14620,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
         {
             type: "CollectionSubscriptionError",
             id: collectionSubscriptionId,
-            error: new PermissionDeniedError("Actor doesn’t have `View` access level"),
+            error: new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
         },
     ]);
 
@@ -14717,7 +14719,7 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
         {
             type: "CollectionSubscriptionError",
             id: collectionSubscriptionId,
-            error: new PermissionDeniedError("Actor doesn’t have `View` access level"),
+            error: new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
         },
         {
             type: "Update",
@@ -15658,7 +15660,7 @@ test("race condition: extra query task ids includes task from action that happen
     expect(testTakeEvents(connection)).toEqual([]);
 });
 
-test("private collections aren’t visible in task in query", async () => {
+test("private collections aren\u2019t visible in task in query", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
     const server = createWebSocketServer(space);
@@ -15800,7 +15802,7 @@ test("private collections aren’t visible in task in query", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 });
 
-test("private collections aren’t visible in referenced tasks", async () => {
+test("private collections aren\u2019t visible in referenced tasks", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
     const server = createWebSocketServer(space);
@@ -15963,7 +15965,7 @@ test("private collections aren’t visible in referenced tasks", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 });
 
-test("private collections aren’t visible in task subscription", async () => {
+test("private collections aren\u2019t visible in task subscription", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
     const server = createWebSocketServer(space);

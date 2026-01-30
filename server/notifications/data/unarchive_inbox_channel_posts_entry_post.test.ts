@@ -27,7 +27,7 @@ const context = createTestContext({
     notificationsInjection,
 });
 
-test("can’t unarchive post in a fully archived channel posts entry with one post", async () => {
+test("can\u2019t unarchive post in a fully archived channel posts entry with one post", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -72,7 +72,7 @@ test("can’t unarchive post in a fully archived channel posts entry with one po
     ]);
 });
 
-test("can’t unarchive post in a deleted channel posts entry with one post", async () => {
+test("can\u2019t unarchive post in a deleted channel posts entry with one post", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -264,7 +264,7 @@ test("can archive post again after unarchiving", async () => {
     ]);
 });
 
-test("can’t unarchive post in a fully archived channel posts entry where individual post hasn’t been archived", async () => {
+test("can\u2019t unarchive post in a fully archived channel posts entry where individual post hasn\u2019t been archived", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -312,7 +312,7 @@ test("can’t unarchive post in a fully archived channel posts entry where indiv
     ]);
 });
 
-test("can’t unarchive post in a fully archived channel posts entry where individual post has been archived", async () => {
+test("can\u2019t unarchive post in a fully archived channel posts entry where individual post has been archived", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -586,7 +586,7 @@ test("unarchiving single post is idempotent", async () => {
     ]);
 });
 
-test("can’t unarchive individual post without access to space", async () => {
+test("can\u2019t unarchive individual post without access to space", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -615,10 +615,10 @@ test("can’t unarchive individual post without access to space", async () => {
             bucketGeneration: 0,
             postId: post2.id,
         }),
-    ).rejects.toThrow("Account doesn’t have access to space");
+    ).rejects.toThrow("Account doesn\u2019t have access to space");
 });
 
-test("noops when unarchiving individual post in entry that doesn’t exist", async () => {
+test("noops when unarchiving individual post in entry that doesn\u2019t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -634,7 +634,7 @@ test("noops when unarchiving individual post in entry that doesn’t exist", asy
     expect(await testGetInboxEntries(session, {filter: "Archive"})).toEqual([]);
 });
 
-test("can’t unarchive individual post which doesn’t exist in inbox entry", async () => {
+test("can\u2019t unarchive individual post which doesn\u2019t exist in inbox entry", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 

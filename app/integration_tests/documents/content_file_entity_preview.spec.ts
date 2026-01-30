@@ -27,7 +27,7 @@ async function tapNewMessage(page: Page) {
     await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
 }
 
-test("document file entity that doesn’t exist", async ({page, context: browserContext}) => {
+test("document file entity that doesn\u2019t exist", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -53,11 +53,14 @@ test("document file entity that doesn’t exist", async ({page, context: browser
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
-    await expect(page.getByText("Couldn’t find document")).toBeVisible();
+    await expect(page.getByText("Couldn\u2019t find document")).toBeVisible();
     await expect(page.getByText("Private document")).toBeHidden();
 });
 
-test("document file entity we don’t have access to", async ({page, context: browserContext}) => {
+test("document file entity we don\u2019t have access to", async ({
+    page,
+    context: browserContext,
+}) => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -85,7 +88,7 @@ test("document file entity we don’t have access to", async ({page, context: br
 
     await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
     await expect(page.getByText("Private document")).toBeVisible();
-    await expect(page.getByText("Couldn’t find document")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t find document")).toBeHidden();
     await expect(page.getByText("quxbuz")).toBeHidden();
 });
 
@@ -117,11 +120,14 @@ test("document file entity", async ({page, context: browserContext}) => {
 
     await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeVisible();
-    await expect(page.getByText("Couldn’t find document")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t find document")).toBeHidden();
     await expect(page.getByText("Private document")).toBeHidden();
 });
 
-test("task collection file entity that doesn’t exist", async ({page, context: browserContext}) => {
+test("task collection file entity that doesn\u2019t exist", async ({
+    page,
+    context: browserContext,
+}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -147,11 +153,11 @@ test("task collection file entity that doesn’t exist", async ({page, context: 
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
-    await expect(page.getByText("Couldn’t find task collection")).toBeVisible();
+    await expect(page.getByText("Couldn\u2019t find task collection")).toBeVisible();
     await expect(page.getByText("Private task collection")).toBeHidden();
 });
 
-test("task collection file entity we don’t have access to", async ({
+test("task collection file entity we don\u2019t have access to", async ({
     page,
     context: browserContext,
 }) => {
@@ -182,7 +188,7 @@ test("task collection file entity we don’t have access to", async ({
 
     await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
     await expect(page.getByText("Private task collection")).toBeVisible();
-    await expect(page.getByText("Couldn’t find task collection")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t find task collection")).toBeHidden();
     await expect(page.getByText("quxbuz")).toBeHidden();
 });
 
@@ -214,11 +220,11 @@ test("task collection file entity", async ({page, context: browserContext}) => {
 
     await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeVisible();
-    await expect(page.getByText("Couldn’t find task collection")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t find task collection")).toBeHidden();
     await expect(page.getByText("Private task collection")).toBeHidden();
 });
 
-test("channel file entity that doesn’t exist", async ({page, context: browserContext}) => {
+test("channel file entity that doesn\u2019t exist", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -244,11 +250,14 @@ test("channel file entity that doesn’t exist", async ({page, context: browserC
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
-    await expect(page.getByText("Couldn’t find channel")).toBeVisible();
+    await expect(page.getByText("Couldn\u2019t find channel")).toBeVisible();
     await expect(page.getByText("Private channel")).toBeHidden();
 });
 
-test("channel file entity we don’t have access to", async ({page, context: browserContext}) => {
+test("channel file entity we don\u2019t have access to", async ({
+    page,
+    context: browserContext,
+}) => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -278,7 +287,7 @@ test("channel file entity we don’t have access to", async ({page, context: bro
 
     await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
     await expect(page.getByText("Private channel")).toBeVisible();
-    await expect(page.getByText("Couldn’t find channel")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t find channel")).toBeHidden();
     await expect(page.getByText("quxbuz")).toBeHidden();
 });
 
@@ -310,7 +319,7 @@ test("channel file entity", async ({page, context: browserContext}) => {
 
     await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeVisible();
-    await expect(page.getByText("Couldn’t find channel")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t find channel")).toBeHidden();
     await expect(page.getByText("Private channel")).toBeHidden();
 });
 
@@ -346,8 +355,8 @@ test("can render recursive file entity with 1 entity in row", async ({
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "Doc 1"})).toHaveCount(4);
-    await expect(page.getByText("Couldn’t preview document")).toHaveCount(0);
-    await expect(page.getByText("Couldn’t find document")).toHaveCount(0);
+    await expect(page.getByText("Couldn\u2019t preview document")).toHaveCount(0);
+    await expect(page.getByText("Couldn\u2019t find document")).toHaveCount(0);
 });
 
 test("can render recursive file entity with 2 entities in row", async ({
@@ -383,8 +392,8 @@ test("can render recursive file entity with 2 entities in row", async ({
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "Doc 2"})).toHaveCount(15);
-    await expect(page.getByText("Couldn’t preview document")).toHaveCount(0);
-    await expect(page.getByText("Couldn’t find document")).toHaveCount(0);
+    await expect(page.getByText("Couldn\u2019t preview document")).toHaveCount(0);
+    await expect(page.getByText("Couldn\u2019t find document")).toHaveCount(0);
 });
 
 test("can render recursive file entity with 3 entities in row", async ({
@@ -421,8 +430,8 @@ test("can render recursive file entity with 3 entities in row", async ({
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "Doc 3"})).toHaveCount(40);
-    await expect(page.getByText("Couldn’t preview document")).toHaveCount(0);
-    await expect(page.getByText("Couldn’t find document")).toHaveCount(0);
+    await expect(page.getByText("Couldn\u2019t preview document")).toHaveCount(0);
+    await expect(page.getByText("Couldn\u2019t find document")).toHaveCount(0);
 });
 
 test("can paste URL to add file entity to document", async ({

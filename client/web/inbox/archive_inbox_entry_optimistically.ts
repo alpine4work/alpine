@@ -40,7 +40,7 @@ export function useArchiveInboxEntry(): Memo<
             });
 
             promise.catch(error => {
-                reporter.displayError("Couldn’t dismiss notification", error);
+                reporter.displayError("Couldn\u2019t dismiss notification", error);
             });
 
             archiveInboxEntryOptimisticallyEmitter.emit({
@@ -87,7 +87,7 @@ export function useUnarchiveInboxEntry(): Memo<
             });
 
             promise.catch(error => {
-                reporter.displayError("Couldn’t move notification to new", error);
+                reporter.displayError("Couldn\u2019t move notification to new", error);
             });
 
             unarchiveInboxEntryOptimisticallyEmitter.emit({

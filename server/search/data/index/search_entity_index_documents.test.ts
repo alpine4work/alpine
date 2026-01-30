@@ -125,7 +125,7 @@ test("will index a document after a timeout", async () => {
 
     const document = await TestDocument.create(session, {
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -151,7 +151,7 @@ test("will index a document after a timeout", async () => {
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     // Make sure there are no more jobs in the queue.
@@ -171,7 +171,7 @@ test("will only index a document once if update happened within the timeout", as
 
     const document = await TestDocument.create(session, {
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -210,7 +210,7 @@ test("will only index a document once if update happened within the timeout", as
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     // Make sure there are no more jobs in the queue.
@@ -230,7 +230,7 @@ test("will only index a document once if update happened within timeout even acr
 
     const document = await TestDocument.create(session, {
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     import.meta.jest.advanceTimersByTime(10 * 1000);
@@ -239,7 +239,7 @@ test("will only index a document once if update happened within timeout even acr
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     await document.type(session, " This is the title", {cacheOverrideForTest: otherCache});
@@ -249,7 +249,7 @@ test("will only index a document once if update happened within timeout even acr
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     import.meta.jest.advanceTimersByTime(5 * 1000);
@@ -258,7 +258,7 @@ test("will only index a document once if update happened within timeout even acr
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     await document.type(session, " of a game show from BoJack");
@@ -276,7 +276,7 @@ test("will only index a document once if update happened within timeout even acr
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     import.meta.jest.advanceTimersByTime(5 * 1000);
@@ -285,7 +285,7 @@ test("will only index a document once if update happened within timeout even acr
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     // Make sure there are no more jobs in the queue.
@@ -306,7 +306,7 @@ test("will index a document again if update happened after timeout", async () =>
 
     const document = await TestDocument.create(session, {
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     const {getCount: getUpdateTitleDependentsCount} =
@@ -330,7 +330,7 @@ test("will index a document again if update happened after timeout", async () =>
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     await document.type(
@@ -344,7 +344,7 @@ test("will index a document again if update happened after timeout", async () =>
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     import.meta.jest.advanceTimersByTime(10 * 1000);
@@ -354,7 +354,7 @@ test("will index a document again if update happened after timeout", async () =>
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     // Make sure there are no more jobs in the queue.
@@ -374,7 +374,7 @@ test("will index a document again if update happened after timeout with more upd
 
     const document = await TestDocument.create(session, {
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -401,7 +401,7 @@ test("will index a document again if update happened after timeout with more upd
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
@@ -411,7 +411,7 @@ test("will index a document again if update happened after timeout with more upd
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
-                    schema.text("What Do They Know? Do They Know Things? Let’s Find Out."),
+                    schema.text("What Do They Know? Do They Know Things? Let\u2019s Find Out."),
                 ]),
             ]),
             references: emptyDocumentContentReferences,
@@ -426,7 +426,7 @@ test("will index a document again if update happened after timeout with more upd
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
@@ -436,7 +436,7 @@ test("will index a document again if update happened after timeout with more upd
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
-                    schema.text("What Do They Know? Do They Know Things? Let’s Find Out."),
+                    schema.text("What Do They Know? Do They Know Things? Let\u2019s Find Out."),
                 ]),
             ]),
             references: emptyDocumentContentReferences,
@@ -450,7 +450,7 @@ test("will index a document again if update happened after timeout with more upd
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
@@ -460,7 +460,7 @@ test("will index a document again if update happened after timeout with more upd
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
-                    schema.text("What Do They Know? Do They Know Things? Let’s Find Out."),
+                    schema.text("What Do They Know? Do They Know Things? Let\u2019s Find Out."),
                 ]),
             ]),
             references: emptyDocumentContentReferences,
@@ -475,7 +475,7 @@ test("will index a document again if update happened after timeout with more upd
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
@@ -485,7 +485,7 @@ test("will index a document again if update happened after timeout with more upd
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
-                    schema.text("What Do They Know? Do They Know Things? Let’s Find Out."),
+                    schema.text("What Do They Know? Do They Know Things? Let\u2019s Find Out."),
                 ]),
             ]),
             references: emptyDocumentContentReferences,
@@ -499,7 +499,7 @@ test("will index a document again if update happened after timeout with more upd
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
@@ -510,7 +510,7 @@ test("will index a document again if update happened after timeout with more upd
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
                     schema.text(
-                        "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+                        "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
                     ),
                 ]),
             ]),
@@ -535,7 +535,7 @@ test("will not schedule another indexing job if document title is updated after 
 
     const document = await TestDocument.create(session, {
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     const {getCount: getUpdateTitleDependentsCount} =
@@ -582,7 +582,7 @@ test("will not schedule another indexing job if document title is updated after 
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     // Make sure there are no more jobs in the queue.
@@ -601,7 +601,7 @@ test("will schedule another indexing job if document title is updated after cont
 
     const document = await TestDocument.create(session, {
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     const {getCount: getUpdateTitleDependentsCount} =
@@ -625,7 +625,7 @@ test("will schedule another indexing job if document title is updated after cont
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     await document.type(
@@ -639,7 +639,7 @@ test("will schedule another indexing job if document title is updated after cont
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     import.meta.jest.advanceTimersByTime(5 * 1000);
@@ -649,7 +649,7 @@ test("will schedule another indexing job if document title is updated after cont
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     await document.update(session, [
@@ -662,7 +662,7 @@ test("will schedule another indexing job if document title is updated after cont
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     import.meta.jest.advanceTimersByTime(5 * 1000);
@@ -672,7 +672,7 @@ test("will schedule another indexing job if document title is updated after cont
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     import.meta.jest.advanceTimersByTime(5 * 1000);
@@ -682,7 +682,7 @@ test("will schedule another indexing job if document title is updated after cont
     expect(getUpdateTitleDependentsCount()).toEqual(2);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     // Make sure there are no more jobs in the queue.
@@ -702,7 +702,7 @@ test("will not schedule another indexing job if document title is updated twice 
 
     const document = await TestDocument.create(session, {
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     const {getCount: getUpdateTitleDependentsCount} =
@@ -726,7 +726,7 @@ test("will not schedule another indexing job if document title is updated twice 
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     await document.type(
@@ -740,7 +740,7 @@ test("will not schedule another indexing job if document title is updated twice 
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     import.meta.jest.advanceTimersByTime(5 * 1000);
@@ -750,7 +750,7 @@ test("will not schedule another indexing job if document title is updated twice 
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     await document.update(session, [
@@ -763,7 +763,7 @@ test("will not schedule another indexing job if document title is updated twice 
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out.",
     });
 
     import.meta.jest.advanceTimersByTime(5 * 1000);
@@ -773,7 +773,7 @@ test("will not schedule another indexing job if document title is updated twice 
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     import.meta.jest.advanceTimersByTime(2.5 * 1000);
@@ -789,7 +789,7 @@ test("will not schedule another indexing job if document title is updated twice 
     expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     import.meta.jest.advanceTimersByTime(2.5 * 1000);
@@ -799,7 +799,7 @@ test("will not schedule another indexing job if document title is updated twice 
     expect(getUpdateTitleDependentsCount()).toEqual(2);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywooooooood (test) Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     // Make sure there are no more jobs in the queue.
@@ -1475,7 +1475,7 @@ test("newly created documents will be visible in search even before indexing", a
 
     const document = await TestDocument.create(session1, {
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
     await document.access.grantDefault(session1);
 
@@ -1603,7 +1603,7 @@ test("newly created documents will be visible in search even before indexing", a
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+        body: "What Do They Know? Do They Know Things? Let\u2019s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
@@ -1711,7 +1711,7 @@ test("newly created documents will be visible in search even before indexing", a
     import.meta.jest.clearAllTimers();
 });
 
-test("can’t search documents with tables by HTML tags", async () => {
+test("can\u2019t search documents with tables by HTML tags", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1796,7 +1796,7 @@ bar
     ]);
 });
 
-test("can’t search documents with table HTML tags in text", async () => {
+test("can\u2019t search documents with table HTML tags in text", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 

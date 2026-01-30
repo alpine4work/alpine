@@ -64,7 +64,7 @@ export function scheduleDevCronJobs({
                     }),
                 )
                 .catch(error => {
-                    logError("Couldn’t send cron job", error);
+                    logError("Couldn\u2019t send cron job", error);
                 });
         });
     }

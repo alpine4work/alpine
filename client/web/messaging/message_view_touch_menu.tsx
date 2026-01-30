@@ -112,7 +112,7 @@ export function MessageViewTouchMenu<
             label: "Copy text",
             icon: <Copy />,
             iconPlacement: "end",
-            pressErrorTitle: `Couldn’t copy ${messageNoun} text`,
+            pressErrorTitle: `Couldn\u2019t copy ${messageNoun} text`,
             onPress: async () => {
                 assert(message.payload.type === "Content");
                 await writeContentToClipboard(
@@ -132,7 +132,7 @@ export function MessageViewTouchMenu<
         icon: <LinkIcon />,
         iconPlacement: "end",
         isDisabled: message.isOptimistic,
-        pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
+        pressErrorTitle: `Couldn\u2019t copy ${messageNoun} link`,
         onPress: async () => {
             if (message.isOptimistic) return;
             await writeTextToClipboard(getMessageUrl(message.index).toString());

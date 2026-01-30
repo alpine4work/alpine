@@ -225,7 +225,7 @@ export function TaskQueryView({
                 label: "Copy link",
                 icon: <LinkIcon />,
                 iconPlacement: "end",
-                pressErrorTitle: "Couldn’t copy view link",
+                pressErrorTitle: "Couldn\u2019t copy view link",
                 onPress: async () => {
                     const url = new URL(`/s/${space.id}/tasks/view`, window.location.href);
 

@@ -70,7 +70,9 @@ export function DocumentCommentThreadHeader({
                 setIsPending(false);
 
                 reporter.displayError(
-                    isResolved ? "Couldn’t mark as unresolved" : "Couldn’t mark as resolved",
+                    isResolved
+                        ? "Couldn\u2019t mark as unresolved"
+                        : "Couldn\u2019t mark as resolved",
                     error,
                 );
             },
@@ -126,7 +128,7 @@ export function DocumentCommentThreadHeader({
                         height="6"
                         paddingX="2"
                         icon={<Check />}
-                        pressErrorTitle="Can’t mark as done"
+                        pressErrorTitle="Can\u2019t mark as done"
                         onPress={async () => {
                             if (isCommentThreadArchived(commentThread.id)) {
                                 await onUnarchiveCommentThread?.(commentThread.id);

@@ -282,7 +282,7 @@ function SpacePeopleSettingsRouteAccounts({
 
     const handleRemoveAccount = async (accountData: AccountModelData) => {
         // Can't remove the owner
-        assert(!ownerAccount || accountData.id !== ownerAccount.id, "Can’t remove owner");
+        assert(!ownerAccount || accountData.id !== ownerAccount.id, "Can\u2019t remove owner");
         // Only owner and admins can remove members
         assert(hasAdminAccess, "Only the space owner and admins can remove members");
 
@@ -348,13 +348,13 @@ function SpacePeopleSettingsRouteAccounts({
                                                 label: roleOption,
                                                 onPress: async () =>
                                                     await handleRoleChange(account, roleOption),
-                                                pressErrorTitle: "Can’t change role",
+                                                pressErrorTitle: "Can\u2019t change role",
                                             })),
                                             [
                                                 {
                                                     label: "Remove from space",
                                                     onPress: () => handleRemoveAccount(account),
-                                                    pressErrorTitle: "Can’t remove member",
+                                                    pressErrorTitle: "Can\u2019t remove member",
                                                 },
                                             ],
                                         ]}
@@ -406,7 +406,7 @@ function SpacePeopleSettingsRouteAccounts({
                                                 {
                                                     label: "Cancel invite",
                                                     onPress: () => handleRemoveAccount(account),
-                                                    pressErrorTitle: "Couldn’t cancel invite",
+                                                    pressErrorTitle: "Couldn\u2019t cancel invite",
                                                 },
                                             ],
                                         ]}
@@ -505,16 +505,16 @@ function SpacePeopleSettingsRouteAccounts({
                     description={`Are you sure you want to make ${
                         modalState.accountData.name
                     } the new owner of this space?
-                    You won’t be the owner anymore and you won’t be allowed to change who’s the owner again.
+                    You won\u2019t be the owner anymore and you won\u2019t be allowed to change who\u2019s the owner again.
                     Only ${getAccountShortNameWithoutFullNameTooltip(
                         modalState.accountData,
                     )} will be allowed
-                    to change the owner. You’ll still be an admin so you’ll be able to invite people.`}
+                    to change the owner. You\u2019ll still be an admin so you\u2019ll be able to invite people.`}
                     onClose={() => {
                         setModalState(null);
                     }}
                     primaryButtonLabel="I understand, downgrade me from owner to admin"
-                    primaryButtonPressErrorTitle="Couldn’t confirm owner change"
+                    primaryButtonPressErrorTitle="Couldn\u2019t confirm owner change"
                     onPrimaryButtonPress={handleConfirmMoveOwner}
                     cancelButtonLabel="Cancel"
                     onCancelButtonPress={() => {
@@ -531,7 +531,7 @@ function SpacePeopleSettingsRouteAccounts({
                         setModalState(null);
                     }}
                     primaryButtonLabel="Remove"
-                    primaryButtonPressErrorTitle="Couldn’t remove member"
+                    primaryButtonPressErrorTitle="Couldn\u2019t remove member"
                     onPrimaryButtonPress={handleConfirmRemoveAccount}
                     cancelButtonLabel="Cancel"
                     onCancelButtonPress={() => {

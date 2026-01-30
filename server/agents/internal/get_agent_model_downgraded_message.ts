@@ -7,13 +7,13 @@ export function getAgentModelDowngradedMessage(
     timeZone: TimeZone,
 ): string {
     return (
-        "\n\n(To help extend your usage, I’m now using a less intelligent model. I’ll be back to " +
+        "\n\n(To help extend your usage, I\u2019m now using a less intelligent model. I\u2019ll be back to " +
         `using the best available model ${getAgentUsageLocalResetTimeString(
             resetTime,
             currentTime,
             timeZone,
         )}. ` +
-        "If you’d like to continue using the most intelligent models, purchase " +
+        "If you\u2019d like to continue using the most intelligent models, purchase " +
         "[Alpine lifetime access](https://www.alpine.inc#pricing).)"
     );
 }

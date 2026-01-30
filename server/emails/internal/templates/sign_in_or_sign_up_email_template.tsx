@@ -46,13 +46,13 @@ export function SignInOrSignUpEmailTemplate({
             subject: "Sign in to Alpine",
             description: "Sign in to Alpine with your one-time passcode:",
             ignoreFooter:
-                "If you didn’t try to sign in to Alpine, you can ignore this email. Someone else might have typed your email address by mistake.",
+                "If you didn\u2019t try to sign in to Alpine, you can ignore this email. Someone else might have typed your email address by mistake.",
         },
         SignUp: {
             subject: "Sign up for Alpine",
             description: "Sign up for Alpine with your one-time passcode:",
             ignoreFooter:
-                "If you didn’t try to sign up for Alpine, you can ignore this email. Someone else might have typed your email address by mistake.",
+                "If you didn\u2019t try to sign up for Alpine, you can ignore this email. Someone else might have typed your email address by mistake.",
         },
     }[variant];
 

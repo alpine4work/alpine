@@ -63,8 +63,8 @@ export function TryOnDesktopEmailTemplate({
             /* eslint-enable string-quotes */
         >
             <EmailText>
-                Thanks for trying Alpine on your phone. Today, you’ll get the best Alpine has to
-                offer on a desktop computer.
+                Thanks for trying Alpine on your phone. Today, you&#x2019;ll get the best Alpine has
+                to offer on a desktop computer.
             </EmailText>
             <div
                 style={{
@@ -91,7 +91,7 @@ export function TryOnDesktopEmailTemplate({
                     />
                 </div>
             </div>
-            <EmailText>Try Alpine again once you’re back on your computer:</EmailText>
+            <EmailText>Try Alpine again once you&#x2019;re back on your computer:</EmailText>
             <Section style={{paddingTop: emailSpacing["6"], paddingBottom: emailSpacing["2"]}}>
                 <Button
                     style={{

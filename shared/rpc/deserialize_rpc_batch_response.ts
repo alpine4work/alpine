@@ -75,7 +75,7 @@ export async function deserializeRpcBatchResponse(
     for (const call of callBatch) {
         if (!call.outputPromiseResolver.isSettled()) {
             call.outputPromiseResolver.reject(
-                new InternalError("Batch request didn’t include output for call"),
+                new InternalError("Batch request didn\u2019t include output for call"),
             );
         }
     }

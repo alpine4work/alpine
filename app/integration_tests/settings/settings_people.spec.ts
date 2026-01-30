@@ -54,7 +54,7 @@ async function inviteEmailAddressesAndGetResults(
         }
 
         const invalidRegex =
-            /(?:^|\. )(.+?) (?:aren’t valid email addresses|isn’t a valid email address)\b/g;
+            /(?:^|\. )(.+?) (?:aren\u2019t valid email addresses|isn\u2019t a valid email address)\b/g;
         const invalidMatches = errorTextSentences?.flatMap(sentence =>
             Array.from(sentence.matchAll(invalidRegex)),
         );

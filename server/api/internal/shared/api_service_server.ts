@@ -651,7 +651,7 @@ export async function createApiServiceRequestListener(
                         return createApiErrorResponse({
                             status: 403,
                             message:
-                                "Can’t have both an access token and a scoped API key in `Authorization` header.",
+                                "Can\u2019t have both an access token and a scoped API key in `Authorization` header.",
                             isRetryable: false,
                         });
                     } else {
@@ -673,7 +673,7 @@ export async function createApiServiceRequestListener(
                     return createApiErrorResponse({
                         status: 403,
                         message:
-                            "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+                            "Access token bot account isn\u2019t an instantiation of the API key bot in `Authorization` header.",
                         isRetryable: false,
                     });
                 }
@@ -692,7 +692,7 @@ export async function createApiServiceRequestListener(
                     // our API end users. So we always use strong consistency.
                     dynamo: context.dynamo.expectStrongReadConsistencyReturningModule(),
 
-                    // We’ve validated the caller's API key and access token. Let them make a
+                    // We've validated the caller's API key and access token. Let them make a
                     // request with a bot actor!
                     actor: BotActorContextModule.dangerouslyNew(
                         "ApiService",
@@ -817,7 +817,7 @@ export async function createApiServiceRequestListener(
                 if (executeOperation === undefined) {
                     return createApiErrorResponse({
                         status: 405,
-                        message: quote`${findMyWayMethod} method isn’t supported, try ${firstValidFindMyWayMethod}.`,
+                        message: quote`${findMyWayMethod} method isn\u2019t supported, try ${firstValidFindMyWayMethod}.`,
                         isRetryable: false,
                     });
                 }

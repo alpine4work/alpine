@@ -591,7 +591,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     icon: <LinkIcon />,
                     iconPlacement: "end",
                     isDisabled: message.isOptimistic,
-                    pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
+                    pressErrorTitle: `Couldn\u2019t copy ${messageNoun} link`,
                     onPress: async () => {
                         if (message.isOptimistic) return;
                         await writeTextToClipboard(getMessageUrl(message.index).toString());
@@ -1583,7 +1583,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                         // NOTE(calebmer): I think we can use "click" in copy here since the
                                                         // description is part of a tooltip which is fundamentally a mouse/pointer
                                                         // thing. On mobile we need to pop open a modal or alert or something.
-                                                        description={`Couldn’t ${
+                                                        description={`Couldn\u2019t ${
                                                             messageNoun === "message"
                                                                 ? "send"
                                                                 : "create"

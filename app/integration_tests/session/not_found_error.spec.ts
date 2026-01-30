@@ -31,7 +31,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/channels/${generateId()}`);
 
-            await expect(page.getByText("This channel doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This channel doesn\u2019t exist")).toBeVisible();
         });
     },
     "channels.$channelId.files": () => {
@@ -45,7 +45,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/channels/${generateId()}/files`);
 
-            await expect(page.getByText("This channel doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This channel doesn\u2019t exist")).toBeVisible();
         });
     },
     "chat.$chatId._index": () => {
@@ -59,7 +59,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/chat/${generateId()}`);
 
-            await expect(page.getByText("This chat doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This chat doesn\u2019t exist")).toBeVisible();
         });
     },
     "chat.$chatId.messages.$index.reactions": () => {
@@ -73,7 +73,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/chat/${generateId()}/messages/42/reactions`);
 
-            await expect(page.getByText("This chat doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This chat doesn\u2019t exist")).toBeVisible();
         });
     },
     "chat.with.$accountId": () => {
@@ -87,7 +87,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/chat/with/${generateId()}`);
 
-            await expect(page.getByText("This person doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This person doesn\u2019t exist")).toBeVisible();
         });
     },
     "documents.$documentId._index": () => {
@@ -101,7 +101,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/documents/${generateId()}`);
 
-            await expect(page.getByText("This document doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This document doesn\u2019t exist")).toBeVisible();
         });
     },
     "documents.$documentId.comments.$commentThreadId._index": () => {
@@ -117,7 +117,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/documents/${document.id}/comments/${generateId()}`);
 
-            await expect(page.getByText("This comment thread doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This comment thread doesn\u2019t exist")).toBeVisible();
         });
     },
     "documents.$documentId.comments.$commentThreadId.$index.reactions": () => {
@@ -135,7 +135,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
                 `/s/${space.id}/documents/${document.id}/comments/${generateId()}/42/reactions`,
             );
 
-            await expect(page.getByText("This comment thread doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This comment thread doesn\u2019t exist")).toBeVisible();
         });
     },
     "notifications.channel-posts.$channelIdAndBucketGeneration": () => {
@@ -157,7 +157,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/posts/${generateId()}`);
 
-            await expect(page.getByText("This post doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This post doesn\u2019t exist")).toBeVisible();
         });
     },
     "posts.$postId.reactions": () => {
@@ -171,7 +171,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/posts/${generateId()}/reactions`);
 
-            await expect(page.getByText("This post doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This post doesn\u2019t exist")).toBeVisible();
         });
     },
     "posts.$postId.comments.$index.reactions": () => {
@@ -185,7 +185,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/posts/${generateId()}/comments/42/reactions`);
 
-            await expect(page.getByText("This post doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This post doesn\u2019t exist")).toBeVisible();
         });
     },
     "posts.new.$draftId": () => {
@@ -203,7 +203,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/settings/bots/${generateId()}`);
 
-            await expect(page.getByText("This bot doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This bot doesn\u2019t exist")).toBeVisible();
         });
     },
     "tasks.$taskId._index": () => {
@@ -217,7 +217,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/tasks/${generateId()}`);
 
-            await expect(page.getByText("This task doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This task doesn\u2019t exist")).toBeVisible();
         });
     },
     "tasks.$taskId.comments._index": () => {
@@ -231,7 +231,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/tasks/${generateId()}/comments`);
 
-            await expect(page.getByText("This task doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This task doesn\u2019t exist")).toBeVisible();
         });
     },
     "tasks.$taskId.comments.$index.reactions": () => {
@@ -245,7 +245,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/tasks/${generateId()}/comments/42/reactions`);
 
-            await expect(page.getByText("This task doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This task doesn\u2019t exist")).toBeVisible();
         });
     },
     "tasks.collections.$collectionId": () => {
@@ -259,7 +259,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/tasks/collections/${generateId()}`);
 
-            await expect(page.getByText("This task collection doesn’t exist")).toBeVisible();
+            await expect(page.getByText("This task collection doesn\u2019t exist")).toBeVisible();
         });
     },
 };
@@ -275,5 +275,5 @@ test("not found error for root space route", async ({page, context: browserConte
     await services.signIn(browserContext, session);
     await page.goto(`/s/${generateId()}`);
 
-    await expect(page.getByText("You don’t have access to this space")).toBeVisible();
+    await expect(page.getByText("You don\u2019t have access to this space")).toBeVisible();
 });

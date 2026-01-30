@@ -5,7 +5,7 @@ const microtaskPromise = Promise.resolve();
  *
  * Same as `scheduleMicrotask()` but for use with async/await.
  *
- * For more information see “[Event loop: microtasks and macrotasks][1]”.
+ * For more information see "[Event loop: microtasks and macrotasks][1]".
  *
  * [1]: https://javascript.info/event-loop
  */

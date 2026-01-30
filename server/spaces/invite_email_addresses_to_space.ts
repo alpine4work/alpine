@@ -348,7 +348,9 @@ async function validateInviteEmailAddressToSpace(
                     );
 
                     if (!result.ok) {
-                        throw new FailedPreconditionError("Can’t invite email address to space");
+                        throw new FailedPreconditionError(
+                            "Can\u2019t invite email address to space",
+                        );
                     }
 
                     accountId = result.accountId;

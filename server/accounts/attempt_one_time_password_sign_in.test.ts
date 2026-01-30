@@ -224,7 +224,7 @@ test("multiple incorrect password logins will lock the account", async () => {
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 });
 
-test("multiple incorrect password logins will lock the account and even a correct password won’t work", async () => {
+test("multiple incorrect password logins will lock the account and even a correct password won\u2019t work", async () => {
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
@@ -658,7 +658,7 @@ test("login with correct password does not verify account email address if email
         oneTimePassword: null,
     });
 });
-test("can’t login with apple reviewer’s password", async () => {
+test("can\u2019t login with apple reviewer\u2019s password", async () => {
     const account = await createTestAccount();
 
     expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(undefined);

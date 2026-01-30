@@ -26,7 +26,7 @@ export async function scheduleTryOnDesktopEmail(
 
     if (accountEmailAddressItem.accountId !== context.actor.getAccountId()) {
         throw new PermissionDeniedError(
-            "Can’t schedule try on desktop email for a different account",
+            "Can\u2019t schedule try on desktop email for a different account",
         );
     }
 

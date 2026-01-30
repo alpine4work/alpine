@@ -206,30 +206,30 @@ export async function resizeFile(
             }
 
             if (fileData.preview.content === undefined) {
-                throw new FailedPreconditionError("File preview variant doesn’t exist");
+                throw new FailedPreconditionError("File preview variant doesn\u2019t exist");
             }
 
             if (typeof fileData.preview.content === "string") {
                 throw new FailedPreconditionError(
-                    quote`File preview variant isn’t accessible because image preview is in ${fileData.preview.content} state`,
+                    quote`File preview variant isn\u2019t accessible because image preview is in ${fileData.preview.content} state`,
                 );
             }
 
             contentType = fileData.preview.content.contentType;
         } else if (variant === "alternative") {
             if (fileData.alternative === null) {
-                throw new FailedPreconditionError("File alternative variant doesn’t exist");
+                throw new FailedPreconditionError("File alternative variant doesn\u2019t exist");
             }
 
             if (fileData.alternative.isProcessing) {
                 throw new FailedPreconditionError(
-                    "File alternative variant isn’t accessible because it’s processing",
+                    "File alternative variant isn\u2019t accessible because it\u2019s processing",
                 );
             }
 
             if (!fileData.alternative.ok) {
                 throw new FailedPreconditionError(
-                    "File alternative variant isn’t accessible because it failed to process",
+                    "File alternative variant isn\u2019t accessible because it failed to process",
                 );
             }
 
@@ -237,7 +237,7 @@ export async function resizeFile(
             // alternative is backed by image preview content.
             if (fileData.alternative.isImagePreviewContent) {
                 throw new FailedPreconditionError(
-                    "File alternative is stored as the file’s image preview content, you must use a variant of `preview` instead",
+                    "File alternative is stored as the file\u2019s image preview content, you must use a variant of `preview` instead",
                 );
             }
 

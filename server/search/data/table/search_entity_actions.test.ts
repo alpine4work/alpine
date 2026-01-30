@@ -320,7 +320,7 @@ test("can figure out the correct expiration duration with erosion", () => {
     }
 });
 
-test("can’t read affinitive items for the wrong space", async () => {
+test("can\u2019t read affinitive items for the wrong space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSpace = await TestSpace.create(context);
@@ -472,7 +472,7 @@ test("can’t read affinitive items for the wrong space", async () => {
 });
 
 test(
-    "can read affinitive items when there’s a lot of stale points",
+    "can read affinitive items when there\u2019s a lot of stale points",
     async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
@@ -696,7 +696,7 @@ test(
 );
 
 test(
-    "can read affinitive items when there’s some stale points",
+    "can read affinitive items when there\u2019s some stale points",
     async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
@@ -920,7 +920,7 @@ test(
 );
 
 test(
-    "can read affinitive items when there’s no stale points",
+    "can read affinitive items when there\u2019s no stale points",
     async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();

@@ -370,7 +370,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
         // Verifying we have access to messages in the provided messaging room.
         if (messages.length === 0) {
             throw new FailedPreconditionError(
-                "Can’t fetch conversation state for empty messaging room",
+                "Can\u2019t fetch conversation state for empty messaging room",
             );
         }
     }
@@ -980,7 +980,7 @@ async function callChatGptAgentFunction({
         functionCallArguments = JSON.parse(functionCall.arguments);
     } catch {
         throw new InvalidArgumentError("Invalid function call arguments", {
-            displayMessage: errorDisplayMessage`The function call’s arguments aren’t valid JSON.`,
+            displayMessage: errorDisplayMessage`The function call\u2019s arguments aren\u2019t valid JSON.`,
         });
     }
 
@@ -993,7 +993,7 @@ async function callChatGptAgentFunction({
                 typeof functionCallArguments.path !== "string"
             ) {
                 throw new InvalidArgumentError("Missing `path` string in function call arguments", {
-                    displayMessage: errorDisplayMessage`The function call’s arguments must be an object with the \`path\` string.`,
+                    displayMessage: errorDisplayMessage`The function call\u2019s arguments must be an object with the \`path\` string.`,
                 });
             }
 
@@ -1045,7 +1045,7 @@ async function callChatGptAgentFunction({
                 throw new InvalidArgumentError(
                     "Invalid `query` string in function call arguments",
                     {
-                        displayMessage: errorDisplayMessage`The function call’s arguments must be an object with a \`query\` string.`,
+                        displayMessage: errorDisplayMessage`The function call\u2019s arguments must be an object with a \`query\` string.`,
                     },
                 );
             }
@@ -1066,7 +1066,7 @@ async function callChatGptAgentFunction({
         }
         default: {
             throw new InvalidArgumentError("Unrecognized function name", {
-                displayMessage: errorDisplayMessage`\`${functionCall.name}\` isn’t a function name we recognize.`,
+                displayMessage: errorDisplayMessage`\`${functionCall.name}\` isn\u2019t a function name we recognize.`,
             });
         }
     }
@@ -1075,7 +1075,7 @@ async function callChatGptAgentFunction({
 function checkChatGptFunctionCallOutputTokenCount(session: AgentMessageStreamSession) {
     if (session.functionCallOutputTokenCount > agentMaxTokenCountPerWebhookCall) {
         throw new FailedPreconditionError("Function call output token limit exceeded", {
-            displayMessage: errorDisplayMessage`Read limit reached. You (ChatGPT) can’t call the \`read_link\` or \`search_alpine\` tools until the user sends another message. Use the information you have to respond to the user. At the end of your response, if there’s more work you’d like to do then let the user know without mentioning read limits. For example: “I might not have found everything you’re looking for, would you like me to search for XYZ?”`,
+            displayMessage: errorDisplayMessage`Read limit reached. You (ChatGPT) can\u2019t call the \`read_link\` or \`search_alpine\` tools until the user sends another message. Use the information you have to respond to the user. At the end of your response, if there\u2019s more work you\u2019d like to do then let the user know without mentioning read limits. For example: \u201CI might not have found everything you\u2019re looking for, would you like me to search for XYZ?\u201D`,
         });
     }
 }

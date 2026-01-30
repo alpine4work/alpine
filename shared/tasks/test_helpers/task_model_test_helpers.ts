@@ -19,7 +19,7 @@ function getActionReferencedSortableAccountDefault(accountId: AccountId) {
         };
     }
     throw new UnimplementedError(
-        "An implementation of `getActionReferencedSortableAccount()` wasn’t provided",
+        "An implementation of `getActionReferencedSortableAccount()` wasn\u2019t provided",
     );
 }
 

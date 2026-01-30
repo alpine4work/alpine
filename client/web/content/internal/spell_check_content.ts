@@ -246,7 +246,7 @@ export async function actuallySpellCheckContent(
 
             // Make sure our suggestions use the proper quotation marks.
             //
-            // TODO(#spell-check): Test! For example "That s" to "That’s"
+            // TODO(#spell-check): Test! For example "That s" to "That's"
             // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/3t0zbjhx36sscpd46aqzdz1e8c
             for (let i = 0; i < text.length; i++) {
                 const char = text[i]!;
@@ -255,17 +255,17 @@ export async function actuallySpellCheckContent(
                 if (char === "'") {
                     const lastChar = text[i - 1]!;
                     if (/^\p{White_Space}$/u.test(lastChar)) {
-                        text = text.slice(0, i) + "‘" + text.slice(i + 1);
+                        text = text.slice(0, i) + "\u2018" + text.slice(i + 1);
                     } else {
-                        text = text.slice(0, i) + "’" + text.slice(i + 1);
+                        text = text.slice(0, i) + "\u2019" + text.slice(i + 1);
                     }
                     // eslint-disable-next-line string-quotes
                 } else if (char === '"') {
                     const lastChar = text[i - 1]!;
                     if (/^\p{White_Space}$/u.test(lastChar)) {
-                        text = text.slice(0, i) + "“" + text.slice(i + 1);
+                        text = text.slice(0, i) + "\u201C" + text.slice(i + 1);
                     } else {
-                        text = text.slice(0, i) + "”" + text.slice(i + 1);
+                        text = text.slice(0, i) + "\u201D" + text.slice(i + 1);
                     }
                 }
             }

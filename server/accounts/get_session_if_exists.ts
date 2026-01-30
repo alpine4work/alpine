@@ -64,7 +64,7 @@ export async function getSessionIfExists(
         // can sign in via email or some other method. Therefore we shouldn't be
         // reading a bot session account.
         if (accountItem.bot) {
-            throw new DataLossError("Bot accounts can’t have sessions");
+            throw new DataLossError("Bot accounts can\u2019t have sessions");
         }
     }
 

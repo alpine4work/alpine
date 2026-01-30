@@ -27,21 +27,21 @@ export async function redirectToAuthenticatedHome(loaderContext: LoaderContext) 
         case "System": {
             // Allowing a system actor to load our app would be very dangerous! Since
             // system actors have read/write access to everything in the space.
-            throw new PermissionDeniedError("Can’t load the application with a system actor");
+            throw new PermissionDeniedError("Can\u2019t load the application with a system actor");
         }
 
         case "ImpersonatedAccount": {
             // Allowing a system actor to load our app would be dangerous! Since a system
             // actor can pretend to be any arbitrary account in the space.
             throw new PermissionDeniedError(
-                "Can’t load the application with an impersonated account actor",
+                "Can\u2019t load the application with an impersonated account actor",
             );
         }
 
         case "Bot": {
             // Bots aren't allowed to load the app. They must use `ApiService` to interact
             // with Alpine.
-            throw new PermissionDeniedError("Can’t load the application with a bot actor");
+            throw new PermissionDeniedError("Can\u2019t load the application with a bot actor");
         }
 
         case "Anonymous": {

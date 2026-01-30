@@ -284,7 +284,7 @@ export class TestTaskRealtimeServer {
         const getServer = () => {
             if (!server) {
                 throw new InternalError(
-                    "Can’t get `TestTaskRealtimeServer` when no test is running",
+                    "Can\u2019t get `TestTaskRealtimeServer` when no test is running",
                 );
             }
             return server;

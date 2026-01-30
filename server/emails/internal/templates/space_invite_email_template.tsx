@@ -123,7 +123,7 @@ export function SpaceInviteEmailTemplate({
             </Section>
             <EmailFooter>
                 <EmailFooterText>
-                    If you weren’t expecting this invitation, you can{" "}
+                    If you weren&#x2019;t expecting this invitation, you can{" "}
                     <Link
                         href={rejectInviteAndMarkAsSpamUrl}
                         style={{color: "inherit", textDecoration: "underline"}}

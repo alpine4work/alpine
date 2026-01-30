@@ -75,7 +75,7 @@ export async function* processMessagesQuery(
             currentItem.payload.clerical?.type !== "Stream"
         ) {
             if (currentStreamItem !== null || currentStreamPartItems !== null) {
-                throw new DataLossError("Stream items found for message that isn’t a stream");
+                throw new DataLossError("Stream items found for message that isn\u2019t a stream");
             }
         } else {
             if (currentStreamItem === null) {

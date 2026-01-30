@@ -157,7 +157,7 @@ export class ValueStore<Value> extends Store<Value> {
 
         const listenerCount = (this._listeners.get(listener) ?? 0) - 1;
         if (listenerCount < 0) {
-            throw new InternalError("Can’t remove listener that wasn’t added to store");
+            throw new InternalError("Can\u2019t remove listener that wasn\u2019t added to store");
         } else if (listenerCount === 0) {
             this._listeners.delete(listener);
         } else {

@@ -9,8 +9,8 @@
  * installed by Ubuntu's package manager (`apt-get install nodejs`). Make sure
  * to only use JavaScript features and Node.js APIs supported by Node.js 12.
  *
- * How to sign requests to S3 is documented in “[Signing and authenticating
- * REST requests][1].” There's a pretty thorough specification we follow in
+ * How to sign requests to S3 is documented in "[Signing and authenticating
+ * REST requests][1]." There's a pretty thorough specification we follow in
  * this file.
  *
  * [1]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html

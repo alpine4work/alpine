@@ -118,7 +118,9 @@ function validate(specification: JsonValue) {
                         path.push("oneOf");
                         path.push(String(index));
 
-                        addError(quote`\`discriminator\`’s \`oneOf\` schemas must be \`$ref\`s`);
+                        addError(
+                            quote`\`discriminator\`\u2019s \`oneOf\` schemas must be \`$ref\`s`,
+                        );
 
                         path.pop();
                         path.pop();
@@ -129,7 +131,9 @@ function validate(specification: JsonValue) {
                     const refs = new Set(refsArray);
 
                     if (refsArray.length !== refs.size) {
-                        addError(quote`\`discriminator\`’s \`oneOf\` \`$ref\`s aren’t unique`);
+                        addError(
+                            quote`\`discriminator\`\u2019s \`oneOf\` \`$ref\`s aren\u2019t unique`,
+                        );
                     }
 
                     if (typeof value.discriminator.propertyName !== "string") {
@@ -146,13 +150,15 @@ function validate(specification: JsonValue) {
                             try {
                                 if (typeof ref !== "string") {
                                     addError(
-                                        quote`\`discriminator\`’s \`mapping\`s must be strings`,
+                                        quote`\`discriminator\`\u2019s \`mapping\`s must be strings`,
                                     );
                                     continue;
                                 }
 
                                 if (discriminatorRefs.has(ref)) {
-                                    addError(quote`\`discriminator\`’s \`mapping\`s aren’t unique`);
+                                    addError(
+                                        quote`\`discriminator\`\u2019s \`mapping\`s aren\u2019t unique`,
+                                    );
                                     continue;
                                 }
 
@@ -162,7 +168,7 @@ function validate(specification: JsonValue) {
 
                                 if (!isObject(refValue) || refValue.type !== "object") {
                                     addError(
-                                        quote`\`discriminator\`’s \`mapping\` ${ref} doesn’t reference an object schema`,
+                                        quote`\`discriminator\`\u2019s \`mapping\` ${ref} doesn\u2019t reference an object schema`,
                                     );
                                     continue;
                                 }
@@ -172,7 +178,7 @@ function validate(specification: JsonValue) {
                                     !refValue.required.includes(value.discriminator.propertyName)
                                 ) {
                                     addError(
-                                        quote`\`discriminator\`’s \`mapping\` ${ref} doesn’t have a required ${value.discriminator.propertyName} property`,
+                                        quote`\`discriminator\`\u2019s \`mapping\` ${ref} doesn\u2019t have a required ${value.discriminator.propertyName} property`,
                                     );
                                 }
 
@@ -187,7 +193,7 @@ function validate(specification: JsonValue) {
 
                                 if (!hasConstProperty) {
                                     addError(
-                                        quote`\`discriminator\`’s \`mapping\` ${ref} doesn’t have a ${value.discriminator.propertyName} property that’s a \`const\` schema with value ${key}`,
+                                        quote`\`discriminator\`\u2019s \`mapping\` ${ref} doesn\u2019t have a ${value.discriminator.propertyName} property that\u2019s a \`const\` schema with value ${key}`,
                                     );
                                 }
                             } finally {
@@ -199,7 +205,7 @@ function validate(specification: JsonValue) {
 
                         if (!isDeepEqual(refs, discriminatorRefs)) {
                             addError(
-                                quote`\`discriminator\`’s \`oneOf\` \`$ref\`s must match \`discriminator\`’s \`mapping\`s`,
+                                quote`\`discriminator\`\u2019s \`oneOf\` \`$ref\`s must match \`discriminator\`\u2019s \`mapping\`s`,
                             );
                         }
                     }
@@ -217,7 +223,7 @@ function validate(specification: JsonValue) {
                     )) {
                         if (!/^([a-z-]+|\{[a-z][a-zA-Z0-9]*\})$/.test(pathSegment)) {
                             addError(
-                                quote`Path segment ${pathSegment} in path ${key} must be \`kebab-case\` if it’s not a parameter and \`{camelCase}\` if it is a parameter`,
+                                quote`Path segment ${pathSegment} in path ${key} must be \`kebab-case\` if it\u2019s not a parameter and \`{camelCase}\` if it is a parameter`,
                             );
                         }
                     }
@@ -467,24 +473,24 @@ test("can validate invalid specification", () => {
     };
 
     expect(validate(invalidSpecification)).toEqual([
-        "Path segment `Ping1` in path `/Ping1` must be `kebab-case` if it’s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
+        "Path segment `Ping1` in path `/Ping1` must be `kebab-case` if it\u2019s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
         "`additionalProperties` must be set to `false` on all object schemas in the API specification (path: `#/paths/%2FPing1/get/responses/200/content/application%2Fjson/schema`)",
         "Object property `Pong` must be `camelCase` (path: `#/paths/%2FPing1/get/responses/200/content/application%2Fjson/schema`)",
-        "Path segment `ping2` in path `/ping2` must be `kebab-case` if it’s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
+        "Path segment `ping2` in path `/ping2` must be `kebab-case` if it\u2019s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
         "`responses` must have a `default` property with a `$ref` pointing to `#/components/responses/Error` (path: `#/paths/%2Fping2/get/responses`)",
         "`additionalProperties` must be set to `false` on all object schemas in the API specification (path: `#/paths/%2Fping2/get/responses/200/content/application%2Fjson/schema`)",
-        "Path segment `pingAgain` in path `/pingAgain` must be `kebab-case` if it’s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
+        "Path segment `pingAgain` in path `/pingAgain` must be `kebab-case` if it\u2019s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
         "Object property `pong-again` must be `camelCase` (path: `#/paths/%2FpingAgain/get/responses/200/content/application%2Fjson/schema`)",
-        "Path segment `{yo-yo}` in path `/ping/{yo-yo}` must be `kebab-case` if it’s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
+        "Path segment `{yo-yo}` in path `/ping/{yo-yo}` must be `kebab-case` if it\u2019s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
         "Response name `test-error` must be `PascalCase` (path: `#/components/responses`)",
         "Response name `testError` must be `PascalCase` (path: `#/components/responses`)",
         "`discriminator` must be on a `oneOf` schema (path: `#/components/schemas/InvalidBlockElement1`)",
-        "`discriminator`’s `oneOf` schemas must be `$ref`s (path: `#/components/schemas/InvalidBlockElement2/oneOf/2`)",
+        "`discriminator`\u2019s `oneOf` schemas must be `$ref`s (path: `#/components/schemas/InvalidBlockElement2/oneOf/2`)",
         "`discriminator` must have a `mapping` property (path: `#/components/schemas/InvalidBlockElement2`)",
         "`additionalProperties` must be set to `false` on all object schemas in the API specification (path: `#/components/schemas/InvalidBlockElement2/oneOf/2`)",
-        "`discriminator`’s `mapping` `#/components/schemas/ParagraphBlockElement` doesn’t have a `type` property that’s a `const` schema with value `NotParagraph` (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/NotParagraph`)",
-        "`discriminator`’s `mapping`s aren’t unique (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/OtherParagraph`)",
-        "`discriminator`’s `mapping` `#/components/schemas/CodeBlockElement` doesn’t have a required `type` property (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/Code`)",
-        "`discriminator`’s `oneOf` `$ref`s must match `discriminator`’s `mapping`s (path: `#/components/schemas/InvalidBlockElement3`)",
+        "`discriminator`\u2019s `mapping` `#/components/schemas/ParagraphBlockElement` doesn\u2019t have a `type` property that\u2019s a `const` schema with value `NotParagraph` (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/NotParagraph`)",
+        "`discriminator`\u2019s `mapping`s aren\u2019t unique (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/OtherParagraph`)",
+        "`discriminator`\u2019s `mapping` `#/components/schemas/CodeBlockElement` doesn\u2019t have a required `type` property (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/Code`)",
+        "`discriminator`\u2019s `oneOf` `$ref`s must match `discriminator`\u2019s `mapping`s (path: `#/components/schemas/InvalidBlockElement3`)",
     ]);
 });

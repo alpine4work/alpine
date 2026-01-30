@@ -1333,7 +1333,7 @@ test("table HTML in list throws error", () => {
   <table><tr><td>Table in list</td></tr></table>`,
             {spaceId},
         ),
-    ).toThrow("Table HTML isn’t supported in this Markdown block content parent");
+    ).toThrow("Table HTML isn\u2019t supported in this Markdown block content parent");
 });
 
 test("table HTML in blockquote throws error", () => {
@@ -1344,7 +1344,7 @@ test("table HTML in blockquote throws error", () => {
 > <table><tr><td>Table in quote</td></tr></table>`,
             {spaceId},
         ),
-    ).toThrow("Table HTML isn’t supported in this Markdown block content parent");
+    ).toThrow("Table HTML isn\u2019t supported in this Markdown block content parent");
 });
 
 test("table HTML in inline content throws error", () => {
@@ -1353,7 +1353,7 @@ test("table HTML in inline content throws error", () => {
             "Text with <table><tr><td>inline table</td></tr></table> in it",
             {spaceId},
         ),
-    ).toThrow("Table HTML isn’t supported in Markdown phrasing content");
+    ).toThrow("Table HTML isn\u2019t supported in Markdown phrasing content");
 });
 
 // Markdown break edge cases
@@ -2592,7 +2592,7 @@ test("overlapped marks that end oddly (classic tag names)", () => {
     });
 });
 
-test("marks that aren’t closed don’t bleed to next paragraph", () => {
+test("marks that aren\u2019t closed don\u2019t bleed to next paragraph", () => {
     expect(
         parseApiContentFromMarkdown(
             `\
@@ -2746,7 +2746,7 @@ foo</td>bar
 </table>`,
             {spaceId},
         ),
-    ).toThrow("Table HTML isn’t supported in Markdown phrasing content");
+    ).toThrow("Table HTML isn\u2019t supported in Markdown phrasing content");
 });
 
 test("HTML table ended inside block quote", () => {
@@ -2777,7 +2777,7 @@ Cell 2
 </table>`,
             {spaceId},
         ),
-    ).toThrow("Table HTML isn’t supported in this Markdown block content parent");
+    ).toThrow("Table HTML isn\u2019t supported in this Markdown block content parent");
 });
 
 // Tests for link references
@@ -3342,7 +3342,7 @@ test("`parseMarkdownTree()` parses link reference without valid definition when 
     });
 });
 
-test("`parseMarkdownTree()` doesn’t parse link reference without valid definition when `allowUndefinedLinkReferenceIdentifiers` is false (the default)", () => {
+test("`parseMarkdownTree()` doesn\u2019t parse link reference without valid definition when `allowUndefinedLinkReferenceIdentifiers` is false (the default)", () => {
     expect(parseMarkdownTree("This is my [Dinosaur][] document")).toEqual({
         type: "root",
         position: expect.any(Object),
@@ -3407,7 +3407,7 @@ test("`parseMarkdownTree()` parses link reference in quotes without valid defini
 
 test("`parseMarkdownTree()` parses link reference in curly quotes without valid definition when `allowUndefinedLinkReferenceIdentifiers` is true", () => {
     expect(
-        parseMarkdownTree("This is my “[Dinosaur][]” document", {
+        parseMarkdownTree("This is my \u201C[Dinosaur][]\u201D document", {
             allowUndefinedLinkReferenceIdentifiers: true,
         }),
     ).toEqual({
@@ -3421,7 +3421,7 @@ test("`parseMarkdownTree()` parses link reference in curly quotes without valid 
                     {
                         type: "text",
                         position: expect.any(Object),
-                        value: "This is my “",
+                        value: "This is my \u201C",
                     },
                     {
                         type: "linkReference",
@@ -3440,7 +3440,7 @@ test("`parseMarkdownTree()` parses link reference in curly quotes without valid 
                     {
                         type: "text",
                         position: expect.any(Object),
-                        value: "” document",
+                        value: "\u201D document",
                     },
                 ],
             },

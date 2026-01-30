@@ -116,7 +116,7 @@ test("cannot save sign up profile after joining a space", async () => {
         }),
     ).rejects.toThrow(
         new PermissionDeniedError(
-            "Can only finish account sign up when the account hasn’t joined any spaces (the account may have pending invites)",
+            "Can only finish account sign up when the account hasn\u2019t joined any spaces (the account may have pending invites)",
         ),
     );
 });
@@ -218,7 +218,7 @@ test("cannot save sign up profile when account has joined space via invite even 
         }),
     ).rejects.toThrow(
         new PermissionDeniedError(
-            "Can only finish account sign up when the account hasn’t joined any spaces (the account may have pending invites)",
+            "Can only finish account sign up when the account hasn\u2019t joined any spaces (the account may have pending invites)",
         ),
     );
 });

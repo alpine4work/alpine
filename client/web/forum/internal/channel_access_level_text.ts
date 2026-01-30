@@ -3,7 +3,7 @@ import {AccessLevel} from "~/shared/access/access_policy.js";
 
 export const channelAccessLevelText: Record<AccessLevel, string> = {
     Manage: "can post",
-    Edit: "can post (can’t share)",
+    Edit: "can post (can\u2019t share)",
     Comment: defaultAccessLevelText.Comment,
     View: defaultAccessLevelText.View,
 };

@@ -71,7 +71,9 @@ export async function updateChannelAccessPolicyBase(
                 const newAccessPolicy = updateAccessPolicy(oldAccessPolicy);
 
                 if (newAccessPolicy.urlGrant) {
-                    throw new InvalidArgumentError("Channels don’t currently support `urlGrant`s");
+                    throw new InvalidArgumentError(
+                        "Channels don\u2019t currently support `urlGrant`s",
+                    );
                 }
 
                 await validateAccessPolicyUpdateForServer(

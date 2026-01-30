@@ -18,19 +18,19 @@ export type {Reporter};
 const reporterForTest: Reporter | null = import.meta.jest
     ? markMemoIfNotRendering({
           showDialog: () => {
-              throw new UnimplementedError("Can’t present dialog in test");
+              throw new UnimplementedError("Can\u2019t present dialog in test");
           },
           hasDialogWithKey: () => {
               return false;
           },
           displayError: () => {
-              throw new UnimplementedError("Can’t display error in test");
+              throw new UnimplementedError("Can\u2019t display error in test");
           },
           logErrorWithoutDisplaying: () => {
-              throw new UnimplementedError("Can’t log error in test");
+              throw new UnimplementedError("Can\u2019t log error in test");
           },
           showInfoToast: () => {
-              throw new UnimplementedError("Can’t show toast in test");
+              throw new UnimplementedError("Can\u2019t show toast in test");
           },
       })
     : null;

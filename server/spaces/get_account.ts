@@ -119,7 +119,7 @@ export async function getAccountWithoutAvatar(
 }
 
 export function createSpaceAccountNotFoundError() {
-    return new NotFoundError("Can’t find account in space", {
-        displayMessage: errorDisplayMessage`This person doesn’t exist. Try searching “all people” to see who else is here.`,
+    return new NotFoundError("Can\u2019t find account in space", {
+        displayMessage: errorDisplayMessage`This person doesn\u2019t exist. Try searching \u201Call people\u201D to see who else is here.`,
     });
 }

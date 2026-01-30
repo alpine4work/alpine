@@ -292,7 +292,7 @@ These are all of the tasks in the All Tasks collection.
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-There aren’t any Open tasks in the Empty Collection collection.
+There aren\u2019t any Open tasks in the Empty Collection collection.
 `);
     });
 
@@ -325,7 +325,7 @@ There aren’t any Open tasks in the Empty Collection collection.
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(
-            `There aren’t any tasks in the Empty Collection collection.\n`,
+            `There aren\u2019t any tasks in the Empty Collection collection.\n`,
         );
     });
 
@@ -411,7 +411,7 @@ See [here for Closed tasks](/task-collection/sprint-tasks-closed-tasks) in this 
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-There aren’t any Open tasks in the Empty Collection collection.
+There aren\u2019t any Open tasks in the Empty Collection collection.
 `);
     });
 });

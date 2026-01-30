@@ -115,7 +115,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
                 )}
                 <Box fontStyle={!isQuiet ? "truncate-semi-bold" : "truncate"}>
                     {comboBoxState.inputValue.length > 0
-                        ? `Create collection “${comboBoxState.inputValue}”`
+                        ? `Create collection \u201C${comboBoxState.inputValue}\u201D`
                         : "Create collection"}
                 </Box>
             </Box>

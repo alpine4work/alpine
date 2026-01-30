@@ -98,7 +98,7 @@ function IconButton(
          * this title. It is the "what happened" part of an error message according to [Adobe
          * Spectrum's][1] error content guidelines.
          *
-         * So for example it this is a delete comment action say "Couldn’t delete comment".
+         * So for example it this is a delete comment action say "Couldn't delete comment".
          *
          * Optional if the `onPress` event does not return a promise.
          *
@@ -160,7 +160,7 @@ function IconButton(
 
         /**
          * Allow changing the button cursor. You should have a good reason to change
-         * this. See "[Buttons shouldn’t have a hand cursor][1]".
+         * this. See "[Buttons shouldn't have a hand cursor][1]".
          *
          * [1]: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
          */
@@ -296,8 +296,8 @@ function IconButton(
 
         const defaultPressErrorTitle =
             event.pointerType === "touch"
-                ? "The button you tapped didn’t work"
-                : "The button you clicked didn’t work";
+                ? "The button you tapped didn\u2019t work"
+                : "The button you clicked didn\u2019t work";
 
         let promise;
         try {

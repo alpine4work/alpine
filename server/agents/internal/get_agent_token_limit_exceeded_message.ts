@@ -8,7 +8,7 @@ export function getAgentTokenLimitExceededMessage(
     shouldUpsell: boolean,
 ): string {
     let message =
-        "You’ve reached your agent usage limit. " +
+        "You\u2019ve reached your agent usage limit. " +
         `Your limit will reset ${getAgentUsageLocalResetTimeString(
             resetTime,
             currentTime,

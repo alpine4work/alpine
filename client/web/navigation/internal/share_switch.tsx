@@ -43,7 +43,7 @@ export function ShareSwitch({
         addGlobalLoadingIndicator(promise, {type: "Saving"});
 
         promise.catch(error => {
-            reporter.displayError(`Couldn’t share ${entityNoun}`, error);
+            reporter.displayError(`Couldn\u2019t share ${entityNoun}`, error);
         });
     };
 

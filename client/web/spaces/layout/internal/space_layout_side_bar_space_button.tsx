@@ -49,7 +49,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                     icon: <Gear />,
                     size: "lg",
                     label: "Settings",
-                    pressErrorTitle: "Couldn’t open settings",
+                    pressErrorTitle: "Couldn\u2019t open settings",
                     onPress: async () => {
                         await rootNavigate(`/s/${space.id}/settings/general`);
                     },
@@ -58,7 +58,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                     icon: <Users />,
                     size: "lg",
                     label: "People",
-                    pressErrorTitle: "Couldn’t open people settings",
+                    pressErrorTitle: "Couldn\u2019t open people settings",
                     onPress: async () => {
                         await rootNavigate(`/s/${space.id}/settings/people`);
                     },
@@ -67,7 +67,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                     icon: <Robot />,
                     size: "lg",
                     label: "Bots",
-                    pressErrorTitle: "Couldn’t open bot settings",
+                    pressErrorTitle: "Couldn\u2019t open bot settings",
                     onPress: async () => {
                         await rootNavigate(`/s/${space.id}/settings/bots`);
                     },
@@ -105,7 +105,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                                             )}
                                         </Box>
                                     ),
-                                    pressErrorTitle: "Couldn’t switch to space",
+                                    pressErrorTitle: "Couldn\u2019t switch to space",
                                     onPress: async () => {
                                         if (otherSpace.id === space.id) return;
 
@@ -136,7 +136,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                                         </Box>
                                     </Box>
                                 ),
-                                pressErrorTitle: "Couldn’t create space",
+                                pressErrorTitle: "Couldn\u2019t create space",
                                 onPress: async () => {
                                     await rootNavigate(`/create-space`);
                                 },

@@ -735,7 +735,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     elements: [
                                         {
                                             type: "Text",
-                                            text: "Hello!I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                            text: "Hello!I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
                                         },
                                         {
                                             type: "Text",
@@ -1398,7 +1398,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     type: "Paragraph",
                                     elements: [
                                         {
-                                            text: "You’ve reached your agent usage limit. Your limit will reset on Jan 3rd at 7:00pm. You can get higher usage limits by purchasing ",
+                                            text: "You\u2019ve reached your agent usage limit. Your limit will reset on Jan 3rd at 7:00pm. You can get higher usage limits by purchasing ",
                                             type: "Text",
                                         },
                                         {
@@ -1629,7 +1629,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     elements: [
                                         {
                                             type: "Text",
-                                            text: "(To help extend your usage, I’m now using a less intelligent model. I’ll be back to using the best available model today at 2:59pm. If you’d like to continue using the most intelligent models, purchase ",
+                                            text: "(To help extend your usage, I\u2019m now using a less intelligent model. I\u2019ll be back to using the best available model today at 2:59pm. If you\u2019d like to continue using the most intelligent models, purchase ",
                                         },
                                         {
                                             type: "Text",
@@ -2465,7 +2465,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         elements: [
                                             {
                                                 type: "Text",
-                                                text: "I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                                text: "I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
                                             },
                                             {
                                                 type: "Text",
@@ -2617,7 +2617,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         elements: [
                                             {
                                                 type: "Text",
-                                                text: "I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                                text: "I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
                                             },
                                             {
                                                 type: "Text",
@@ -2838,7 +2838,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         elements: [
                                             {
                                                 type: "Text",
-                                                text: "(To help extend your usage, I’m now using a less intelligent model. I’ll be back to using the best available model today at 2:59pm. If you’d like to continue using the most intelligent models, purchase ",
+                                                text: "(To help extend your usage, I\u2019m now using a less intelligent model. I\u2019ll be back to using the best available model today at 2:59pm. If you\u2019d like to continue using the most intelligent models, purchase ",
                                             },
                                             {
                                                 type: "Text",
@@ -2875,7 +2875,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         elements: [
                                             {
                                                 type: "Text",
-                                                text: "(To help extend your usage, I’m now using a less intelligent model. I’ll be back to using the best available model today at 2:59pm. If you’d like to continue using the most intelligent models, purchase ",
+                                                text: "(To help extend your usage, I\u2019m now using a less intelligent model. I\u2019ll be back to using the best available model today at 2:59pm. If you\u2019d like to continue using the most intelligent models, purchase ",
                                             },
                                             {
                                                 type: "Text",
@@ -2892,7 +2892,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                                 // TODO(ifitzsimmons, 2026-01-21): This is a super edge case, where the agent
                                                 // throws an error in the same request where it downgrades the model. We should
                                                 // change this so that there's a break between the two "system" messages.
-                                                text: ".)I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                                text: ".)I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
                                             },
                                             {
                                                 type: "Text",

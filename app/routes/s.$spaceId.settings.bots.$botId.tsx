@@ -173,7 +173,7 @@ export default function SpaceBotSettingsRoute() {
                                     fontSize="75"
                                     height={spaceBotSettingsHeadingHeightInstallButtonHeight}
                                     paddingX="2"
-                                    pressErrorTitle="Couldn’t open chat"
+                                    pressErrorTitle="Couldn\u2019t open chat"
                                     onPress={async () => {
                                         await navigate(
                                             `/s/${space.id}/chat/with/${botAccount.account.id}?focus`,
@@ -192,7 +192,7 @@ export default function SpaceBotSettingsRoute() {
                                             ? "Ask an admin to uninstall this bot."
                                             : undefined
                                     }
-                                    pressErrorTitle="Couldn’t uninstall bot"
+                                    pressErrorTitle="Couldn\u2019t uninstall bot"
                                     onPress={async () => {
                                         const {account: removedAccount} = await removeSpaceAccount(
                                             context,
@@ -221,7 +221,7 @@ export default function SpaceBotSettingsRoute() {
                                             ? "Ask an admin to install this bot."
                                             : undefined
                                     }
-                                    pressErrorTitle="Couldn’t install bot"
+                                    pressErrorTitle="Couldn\u2019t install bot"
                                     onPress={async () => {
                                         switch (botAccount.type) {
                                             case "Exists": {
@@ -471,7 +471,7 @@ function SpaceBotSettingsStringProperty({
                     {value !== null && (
                         <InlineEditorToolbar
                             ref={inlineEditorToolbarRef}
-                            saveErrorTitle={`Couldn’t save “${propertySchema.label}”`}
+                            saveErrorTitle={`Couldn\u2019t save \u201C${propertySchema.label}\u201D`}
                             onSave={handleSave}
                             onCancel={handleCancelEditing}
                         />
@@ -480,17 +480,17 @@ function SpaceBotSettingsStringProperty({
             </Box>
             {shouldShowConfirmSaveDialog && (
                 <ModalDialog
-                    title={`Save “${propertySchema.label}”`}
+                    title={`Save \u201C${propertySchema.label}\u201D`}
                     description="Would you like to save your changes?"
                     onClose={() => {
                         setShouldShowConfirmSaveDialog(false);
                         inputRef.current?.focus();
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle={`Couldn’t save “${propertySchema.label}”`}
+                    primaryButtonPressErrorTitle={`Couldn\u2019t save \u201C${propertySchema.label}\u201D`}
                     onPrimaryButtonPress={handleSave}
                     cancelButtonLabel="Discard changes"
-                    cancelButtonPressErrorTitle="Couldn’t discard changes"
+                    cancelButtonPressErrorTitle="Couldn\u2019t discard changes"
                     onCancelButtonPress={handleCancelEditing}
                 />
             )}

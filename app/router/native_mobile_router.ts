@@ -658,7 +658,7 @@ export class NativeMobileMemoryHistory implements History {
 
         assert(
             currentTab === getLocationStateNativeMobileTab(state, currentTab),
-            "Can’t change tabs with `history.replace()`",
+            "Can\u2019t change tabs with `history.replace()`",
         );
 
         this._currentEntryLocation = createLocation(this._currentEntryLocation.pathname, to, {

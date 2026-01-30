@@ -79,7 +79,7 @@ export async function loadAgentTaskLinkContent({
                             ? [
                                   {
                                       type: "text" as const,
-                                      value: " (they’ve marked this task as active)",
+                                      value: " (they\u2019ve marked this task as active)",
                                   },
                               ]
                             : []),

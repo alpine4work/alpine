@@ -29,10 +29,10 @@ test("can toggle channel sharing on/off with switch", async ({
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
-    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Channel"})).toBeHidden();
     await expect(page2.getByText("Test Channel")).toBeHidden();
@@ -65,7 +65,7 @@ test("can toggle channel sharing on/off with switch", async ({
         });
     }).toPass({timeout: 5000});
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await page2.getByTestId("NavigationBar").getByLabel("More").click();
@@ -99,7 +99,7 @@ test("can toggle channel sharing on/off with switch", async ({
         page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
     ).toHaveAttribute("aria-label", "Icon indicating the channel is private");
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByRole("heading", {name: "Test Channel"})).toBeHidden();
 
@@ -129,10 +129,10 @@ test("can toggle channel sharing on/off with share dialog default grant", async 
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
-    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByText("Test Channel")).toBeHidden();
 
@@ -161,7 +161,7 @@ test("can toggle channel sharing on/off with share dialog default grant", async 
 
     await page1
         .getByTestId("ShareOverlayDefaultGrant")
-        .getByRole("button", {name: "can’t access"})
+        .getByRole("button", {name: "can\u2019t access"})
         .click();
 
     await expect(page1.getByRole("menuitem", {name: "can post"})).toBeVisible();
@@ -191,7 +191,7 @@ test("can toggle channel sharing on/off with share dialog default grant", async 
         });
     }).toPass({timeout: 5000});
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await page2.getByTestId("NavigationBar").getByLabel("More").click();
@@ -217,9 +217,9 @@ test("can toggle channel sharing on/off with share dialog default grant", async 
         .getByRole("button", {name: "can post"})
         .click();
 
-    await expect(page1.getByRole("menuitem", {name: "can’t access"})).toBeVisible();
-    await page1.getByRole("menuitem", {name: "can’t access"}).click();
-    await expect(page1.getByRole("menuitem", {name: "can’t access"})).toBeHidden();
+    await expect(page1.getByRole("menuitem", {name: "can\u2019t access"})).toBeVisible();
+    await page1.getByRole("menuitem", {name: "can\u2019t access"}).click();
+    await expect(page1.getByRole("menuitem", {name: "can\u2019t access"})).toBeHidden();
 
     if (!isMobile) {
         await expect(page1.getByTestId("ShareOverlayDefaultGrant")).toBeVisible();
@@ -233,7 +233,7 @@ test("can toggle channel sharing on/off with share dialog default grant", async 
         page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
     ).toHaveAttribute("aria-label", "Icon indicating the channel is private");
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByText("Test Channel")).toBeHidden();
 
@@ -263,10 +263,10 @@ test("can toggle channel sharing on/off with share dialog account grant", async 
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
-    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByText("Test Channel")).toBeHidden();
 
@@ -319,7 +319,7 @@ test("can toggle channel sharing on/off with share dialog account grant", async 
         });
     }).toPass({timeout: 5000});
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await page2.getByTestId("NavigationBar").getByLabel("More").click();
@@ -355,7 +355,7 @@ test("can toggle channel sharing on/off with share dialog account grant", async 
 
     await expect(page1.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`)).toBeHidden();
 
-    await expect(page2.getByText("Couldn’t open channel")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open channel")).toBeVisible();
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
     await expect(page2.getByText("Test Channel")).toBeHidden();
 
@@ -434,11 +434,11 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await expect(page.getByText("bar")).toBeVisible();
 
             if (!hasAccessLevel(accessLevel, "Comment")) {
-                await expect(page.getByText("Can’t comment on posts")).toBeVisible();
+                await expect(page.getByText("Can\u2019t comment on posts")).toBeVisible();
                 await expect(page.getByLabel("New comment")).toBeHidden();
             } else {
                 await expect(page.getByLabel("New comment")).toBeVisible();
-                await expect(page.getByText("Can’t comment on posts")).toBeHidden();
+                await expect(page.getByText("Can\u2019t comment on posts")).toBeHidden();
 
                 await expect(page.getByLabel("New comment")).toHaveText("");
                 await page.getByLabel("New comment").fill("baz");
@@ -507,7 +507,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
                 page.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`).getByText(
                     {
                         Manage: "can post",
-                        Edit: "can post (can’t share)",
+                        Edit: "can post (can\u2019t share)",
                         Comment: "can comment",
                         View: "can view",
                     }[accessLevel],
@@ -517,7 +517,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await expect(
                 page
                     .getByTestId("ShareOverlayDefaultGrant")
-                    .getByText("can’t access", {exact: true}),
+                    .getByText("can\u2019t access", {exact: true}),
             ).toBeVisible();
 
             if (hasAccessLevel(accessLevel, "Manage")) {
@@ -529,7 +529,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
                 await expect(
                     page
                         .getByTestId("ShareOverlayDefaultGrant")
-                        .getByRole("button", {name: "can’t access"}),
+                        .getByRole("button", {name: "can\u2019t access"}),
                 ).toBeVisible();
 
                 await expect(page.getByPlaceholder("Add people")).toBeVisible();
@@ -542,7 +542,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
                 await expect(
                     page
                         .getByTestId("ShareOverlayDefaultGrant")
-                        .getByRole("button", {name: "can’t access"}),
+                        .getByRole("button", {name: "can\u2019t access"}),
                 ).toBeHidden();
 
                 await expect(page.getByPlaceholder("Add people")).toBeHidden();
@@ -597,7 +597,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
                 await expect(page.getByRole("menuitem", {name: "can comment"})).toBeVisible();
                 await expect(page.getByRole("menuitem", {name: "can view"})).toBeVisible();
                 await expect(
-                    page.getByRole("menuitem", {name: "can post (can’t share)"}),
+                    page.getByRole("menuitem", {name: "can post (can\u2019t share)"}),
                 ).toBeHidden();
             }
         }
@@ -650,7 +650,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
                 await expect(page.getByRole("menuitem", {name: "can comment"})).toBeVisible();
                 await expect(page.getByRole("menuitem", {name: "can view"})).toBeHidden();
                 await expect(
-                    page.getByRole("menuitem", {name: "can post (can’t share)"}),
+                    page.getByRole("menuitem", {name: "can post (can\u2019t share)"}),
                 ).toBeHidden();
             }
         }
@@ -693,7 +693,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             } else {
                 await expect(
                     page.getByTestId("ShareOverlayAccountInput").locator("button"),
-                ).toHaveText("can post (can’t share)");
+                ).toHaveText("can post (can\u2019t share)");
 
                 await page.getByTestId("ShareOverlayAccountInput").locator("button").click();
 
@@ -701,7 +701,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
                     page.getByRole("menuitem", {name: "can post", exact: true}),
                 ).toBeVisible();
                 await expect(
-                    page.getByRole("menuitem", {name: "can post (can’t share)"}),
+                    page.getByRole("menuitem", {name: "can post (can\u2019t share)"}),
                 ).toBeVisible();
                 await expect(page.getByRole("menuitem", {name: "can comment"})).toBeHidden();
                 await expect(page.getByRole("menuitem", {name: "can view"})).toBeHidden();
@@ -777,12 +777,12 @@ test("can switch other account access level between comment and view in realtime
     await expect(page1.getByLabel("New comment")).toBeHidden();
     await page1.getByRole("button", {name: "0 comments"}).click();
     await expect(page1.getByLabel("New comment")).toBeVisible();
-    await expect(page1.getByText("Can’t comment on posts")).toBeHidden();
+    await expect(page1.getByText("Can\u2019t comment on posts")).toBeHidden();
 
     await expect(page2.getByLabel("New comment")).toBeHidden();
     await page2.getByRole("button", {name: "0 comments"}).click();
     await expect(page2.getByLabel("New comment")).toBeVisible();
-    await expect(page2.getByText("Can’t comment on posts")).toBeHidden();
+    await expect(page2.getByText("Can\u2019t comment on posts")).toBeHidden();
 
     if (isMobile) {
         await expect(page2.getByText("About")).toBeHidden();
@@ -801,7 +801,7 @@ test("can switch other account access level between comment and view in realtime
     await expect(page1.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
 
     await expect(page1.getByLabel("New comment")).toBeVisible();
-    await expect(page1.getByText("Can’t comment on posts")).toBeHidden();
+    await expect(page1.getByText("Can\u2019t comment on posts")).toBeHidden();
 
     await page2.getByRole("menuitem", {name: "can view"}).click();
 
@@ -809,7 +809,7 @@ test("can switch other account access level between comment and view in realtime
     if (isMobile) {
         await expect(async () => {
             await page1.reload();
-            await expect(page1.getByText("Can’t comment on posts")).toBeVisible({
+            await expect(page1.getByText("Can\u2019t comment on posts")).toBeVisible({
                 timeout: 250,
             });
         }).toPass({timeout: 5000});
@@ -817,7 +817,7 @@ test("can switch other account access level between comment and view in realtime
 
     await expect(page1.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
 
-    await expect(page1.getByText("Can’t comment on posts")).toBeVisible();
+    await expect(page1.getByText("Can\u2019t comment on posts")).toBeVisible();
     await expect(page1.getByLabel("New comment")).toBeHidden();
 
     await page2
@@ -827,7 +827,7 @@ test("can switch other account access level between comment and view in realtime
 
     await expect(page1.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
 
-    await expect(page1.getByText("Can’t comment on posts")).toBeVisible();
+    await expect(page1.getByText("Can\u2019t comment on posts")).toBeVisible();
     await expect(page1.getByLabel("New comment")).toBeHidden();
 
     await page2.getByRole("menuitem", {name: "can comment"}).click();
@@ -836,14 +836,14 @@ test("can switch other account access level between comment and view in realtime
     if (isMobile) {
         await expect(async () => {
             await page1.reload();
-            await expect(page1.getByText("Can’t comment on posts")).toBeHidden({
+            await expect(page1.getByText("Can\u2019t comment on posts")).toBeHidden({
                 timeout: 250,
             });
         }).toPass({timeout: 5000});
     }
 
     await expect(page1.getByLabel("New comment")).toBeVisible();
-    await expect(page1.getByText("Can’t comment on posts")).toBeHidden();
+    await expect(page1.getByText("Can\u2019t comment on posts")).toBeHidden();
 
     if (isMobile) {
         await page2.getByRole("button", {name: "Close"}).click();
@@ -853,7 +853,7 @@ test("can switch other account access level between comment and view in realtime
     await expect(page2.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
 
     await expect(page2.getByLabel("New comment")).toBeVisible();
-    await expect(page2.getByText("Can’t comment on posts")).toBeHidden();
+    await expect(page2.getByText("Can\u2019t comment on posts")).toBeHidden();
 
     await browserContext1.close();
 });
@@ -880,7 +880,7 @@ test("can switch own account access level between manage and view in realtime", 
     await expect(page.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
     await page.getByRole("button", {name: "0 comments"}).click();
     await expect(page.getByLabel("New comment")).toBeVisible();
-    await expect(page.getByText("Can’t comment on posts")).toBeHidden();
+    await expect(page.getByText("Can\u2019t comment on posts")).toBeHidden();
 
     if (isMobile) {
         await expect(page.getByText("About")).toBeHidden();
@@ -917,11 +917,11 @@ test("can switch own account access level between manage and view in realtime", 
     }
 
     await expect(page.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
-    await expect(page.getByText("Can’t comment on posts")).toBeVisible();
+    await expect(page.getByText("Can\u2019t comment on posts")).toBeVisible();
     await expect(page.getByLabel("New comment")).toBeHidden();
 });
 
-test("can’t change permission level of account who invited you", async ({
+test("can\u2019t change permission level of account who invited you", async ({
     context: browserContext,
     page,
 }) => {
@@ -943,19 +943,19 @@ test("can’t change permission level of account who invited you", async ({
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "remove access"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await expect(
@@ -970,19 +970,19 @@ test("can’t change permission level of account who invited you", async ({
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "can comment"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await expect(
@@ -992,7 +992,7 @@ test("can’t change permission level of account who invited you", async ({
     ).toBeVisible();
 });
 
-test("can’t change permission level of account who invited the account who invited you", async ({
+test("can\u2019t change permission level of account who invited the account who invited you", async ({
     context: browserContext,
     page,
 }) => {
@@ -1015,19 +1015,19 @@ test("can’t change permission level of account who invited the account who inv
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "remove access"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await expect(
@@ -1042,19 +1042,19 @@ test("can’t change permission level of account who invited the account who inv
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "can comment"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t change Test’s permissions"}),
+        page.getByRole("alertdialog", {name: "Can\u2019t change Test\u2019s permissions"}),
     ).toBeHidden();
 
     await expect(
@@ -1132,11 +1132,11 @@ test("will be warned before lowering your own permission level", async ({
     ).toBeHidden();
 
     await expect(page.getByTestId("NavigationBar").getByText("Test Channel")).toBeHidden();
-    await expect(page.getByText("Couldn’t open channel")).toBeVisible();
+    await expect(page.getByText("Couldn\u2019t open channel")).toBeVisible();
     await expect(page.getByRole("img", {name: "Error icon"})).toBeHidden();
 });
 
-test("will be prevented from lowering your own permission level if you’re the last manager", async ({
+test("will be prevented from lowering your own permission level if you\u2019re the last manager", async ({
     context: browserContext,
     page,
 }) => {
@@ -1159,7 +1159,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeHidden();
 
@@ -1167,7 +1167,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeVisible();
 
@@ -1175,7 +1175,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeHidden();
 
@@ -1192,7 +1192,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeHidden();
 
@@ -1200,7 +1200,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeVisible();
 
@@ -1208,7 +1208,7 @@ test("will be prevented from lowering your own permission level if you’re the 
 
     await expect(
         page.getByRole("alertdialog", {
-            name: "Can’t remove everyone who can change permissions",
+            name: "Can\u2019t remove everyone who can change permissions",
         }),
     ).toBeHidden();
 
@@ -1241,7 +1241,7 @@ test("will send a notification when sharing with account", async ({
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
-    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByText("No new notifications")).toBeVisible();
@@ -1287,7 +1287,7 @@ test("can share a public channel with any other account in the space", async ({
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
-    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByText("No new notifications")).toBeVisible();
@@ -1332,7 +1332,7 @@ test("can share a public channel with any other account in the space and upgrade
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
-    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByText("No new notifications")).toBeVisible();
@@ -1380,7 +1380,7 @@ test("can share a private channel with any other account in the space", async ({
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
-    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByText("No new notifications")).toBeVisible();
