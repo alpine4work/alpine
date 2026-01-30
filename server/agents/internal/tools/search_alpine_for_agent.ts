@@ -9,9 +9,10 @@ import {
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {ApiMessageRoomPathObject, printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiMessageRoomPath,
+    ApiMessageRoomTarget,
     ApiSearchChatMessageResult,
     ApiSearchDocumentMessageResult,
     ApiSearchPostMessageResult,
@@ -383,7 +384,7 @@ function intoPhrasingContent(bodyMatch: ApiSearchResultBodyMatch | null): Array<
 
 function intoApiMessageRoomPathFromPathIfPossible(
     apiPath: ApiSearchResult,
-): ApiMessageRoomPathObject | null {
+): ApiMessageRoomTarget | null {
     switch (apiPath.type) {
         case "Account":
         case "Channel":

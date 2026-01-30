@@ -55,15 +55,17 @@ import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {
-    ApiMessageRoomPathObject,
     getApiMentionTargetPathIfExists,
-    isApiMessageRoomPathObject,
+    isApiMessageRoom,
     parseApiBotWebhookEventIntoMessageRoomPath,
     parseApiMentionTarget,
     parseApiMessageRoomPath,
     parseApiPath,
 } from "~/shared/api/parse_api_path.js";
-import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ApiMessageRoomPath,
+    ApiMessageRoomTarget,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     DataLossError,
@@ -315,7 +317,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
 
             const roomPathObject = parseApiPath(roomPath);
 
-            if (!isApiMessageRoomPathObject(roomPathObject))
+            if (!isApiMessageRoom(roomPathObject))
                 throw new InvalidArgumentError("Invalid `roomPath` search param");
 
             await this._authorizeFetchConversationState(span, accessToken, roomPathObject);
@@ -346,7 +348,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
     private async _authorizeFetchConversationState(
         span: TracerBase,
         accessToken: string,
-        roomPathObject: ApiMessageRoomPathObject,
+        room: ApiMessageRoomTarget,
     ): Promise<void> {
         const apiClient = createApiClient({
             baseUrl: assertExists(
@@ -362,7 +364,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
 
         const {
             data: {messages},
-        } = await getApiMessagesFromStart(span, apiClient, roomPathObject, {
+        } = await getApiMessagesFromStart(span, apiClient, room, {
             limit: 1,
             cursor: null,
         });

@@ -3,7 +3,8 @@
 import Mustache from "mustache";
 import OpenAi from "openai";
 import {agentInstructionsMarkdown as markdown} from "~/server/agents/internal/agent_instructions_markdown.js";
-import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
+import {ApiMessageRoomTarget} from "~/shared/api/types/api_specification_convenience_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 
 // NOTE(calebmer, 2025-09-03): I constructed the initial version of this prompt
@@ -238,7 +239,7 @@ export function getChatGptAgentInstructions({
     messageRoomType,
 }: {
     spaceName: string;
-    messageRoomType: ApiMessageRoomPathObject["type"];
+    messageRoomType: ApiMessageRoomTarget["type"];
 }) {
     let conversationSurface: string;
     switch (messageRoomType) {
@@ -254,6 +255,8 @@ export function getChatGptAgentInstructions({
         case "Task":
             conversationSurface = "task comments";
             break;
+        default:
+            throw exhaustive(messageRoomType);
     }
 
     return Mustache.render(chatGptAgentInstructionsTemplate.get(), {

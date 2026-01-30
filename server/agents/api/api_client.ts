@@ -7,11 +7,11 @@ import {
     ResponseObjectMap,
     SuccessResponse,
 } from "openapi-typescript-helpers";
-import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiErrorResponseBody,
     ApiMessageContentPayloadParent,
+    ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
@@ -199,21 +199,21 @@ export function createApiClient({
 export function getApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
-    roomPathObject: ApiMessageRoomPathObject,
+    room: ApiMessageRoomTarget,
     index: number,
 ) {
-    switch (roomPathObject.type) {
+    switch (room.type) {
         case "Chat": {
             return apiClient.get(tracer, "/chats/{id}/messages/{index}", {
-                params: {path: {id: roomPathObject.id, index}},
+                params: {path: {id: room.id, index}},
             });
         }
         case "DocumentCommentThread": {
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages/{index}", {
                 params: {
                     path: {
-                        id: roomPathObject.id,
-                        threadId: roomPathObject.threadId,
+                        id: room.id,
+                        threadId: room.threadId,
                         index,
                     },
                 },
@@ -221,30 +221,30 @@ export function getApiMessage(
         }
         case "Post": {
             return apiClient.get(tracer, "/posts/{id}/messages/{index}", {
-                params: {path: {id: roomPathObject.id, index}},
+                params: {path: {id: room.id, index}},
             });
         }
         case "Task": {
             return apiClient.get(tracer, "/tasks/{id}/messages/{index}", {
-                params: {path: {id: roomPathObject.id, index}},
+                params: {path: {id: room.id, index}},
             });
         }
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 }
 
 export function getApiMessagesFromStart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    roomPathObject: ApiMessageRoomPathObject,
+    room: ApiMessageRoomTarget,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
-    switch (roomPathObject.type) {
+    switch (room.type) {
         case "Chat": {
             return apiClient.get(tracer, "/chats/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.id},
+                    path: {id: room.id},
                     query: {limit, cursor: cursor ?? undefined},
                 },
             });
@@ -253,8 +253,8 @@ export function getApiMessagesFromStart(
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
-                        id: roomPathObject.id,
-                        threadId: roomPathObject.threadId,
+                        id: room.id,
+                        threadId: room.threadId,
                     },
                     query: {limit, cursor: cursor ?? undefined},
                 },
@@ -263,7 +263,7 @@ export function getApiMessagesFromStart(
         case "Post": {
             return apiClient.get(tracer, "/posts/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.id},
+                    path: {id: room.id},
                     query: {limit, cursor: cursor ?? undefined},
                 },
             });
@@ -271,27 +271,27 @@ export function getApiMessagesFromStart(
         case "Task": {
             return apiClient.get(tracer, "/tasks/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.id},
+                    path: {id: room.id},
                     query: {limit, cursor: cursor ?? undefined},
                 },
             });
         }
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 }
 
 export function getApiMessagesFromEnd(
     tracer: TracerBase,
     apiClient: ApiClient,
-    roomPathObject: ApiMessageRoomPathObject,
+    room: ApiMessageRoomTarget,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
-    switch (roomPathObject.type) {
+    switch (room.type) {
         case "Chat": {
             return apiClient.get(tracer, "/chats/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.id},
+                    path: {id: room.id},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
                 },
             });
@@ -300,8 +300,8 @@ export function getApiMessagesFromEnd(
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
-                        id: roomPathObject.id,
-                        threadId: roomPathObject.threadId,
+                        id: room.id,
+                        threadId: room.threadId,
                     },
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
                 },
@@ -310,7 +310,7 @@ export function getApiMessagesFromEnd(
         case "Post": {
             return apiClient.get(tracer, "/posts/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.id},
+                    path: {id: room.id},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
                 },
             });
@@ -318,20 +318,20 @@ export function getApiMessagesFromEnd(
         case "Task": {
             return apiClient.get(tracer, "/tasks/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.id},
+                    path: {id: room.id},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
                 },
             });
         }
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 }
 
 export function createApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
-    roomPathObject: ApiMessageRoomPathObject,
+    room: ApiMessageRoomTarget,
     body: {
         isStream?: boolean;
         parent?: ApiMessageContentPayloadParent;
@@ -339,47 +339,47 @@ export function createApiMessage(
         createdTimeZone?: TimeZone;
     },
 ) {
-    switch (roomPathObject.type) {
+    switch (room.type) {
         case "Chat": {
             return apiClient.post(tracer, "/chats/{id}/messages", {
-                params: {path: {id: roomPathObject.id}},
+                params: {path: {id: room.id}},
                 body,
             });
         }
         case "DocumentCommentThread": {
             return apiClient.post(tracer, "/documents/{id}/threads/{threadId}/messages", {
-                params: {path: {id: roomPathObject.id, threadId: roomPathObject.threadId}},
+                params: {path: {id: room.id, threadId: room.threadId}},
                 body,
             });
         }
         case "Post": {
             return apiClient.post(tracer, "/posts/{id}/messages", {
-                params: {path: {id: roomPathObject.id}},
+                params: {path: {id: room.id}},
                 body,
             });
         }
         case "Task": {
             return apiClient.post(tracer, "/tasks/{id}/messages", {
-                params: {path: {id: roomPathObject.id}},
+                params: {path: {id: room.id}},
                 body,
             });
         }
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 }
 
 export function createApiMessageStreamPart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    roomPathObject: ApiMessageRoomPathObject,
+    room: ApiMessageRoomTarget,
     messageIndex: number,
     body: {payload: ApiMessageStreamPartPayload},
 ) {
-    switch (roomPathObject.type) {
+    switch (room.type) {
         case "Chat": {
             return apiClient.post(tracer, "/chats/{id}/messages/{index}/stream/parts", {
-                params: {path: {id: roomPathObject.id, index: messageIndex}},
+                params: {path: {id: room.id, index: messageIndex}},
                 body,
             });
         }
@@ -390,8 +390,8 @@ export function createApiMessageStreamPart(
                 {
                     params: {
                         path: {
-                            id: roomPathObject.id,
-                            threadId: roomPathObject.threadId,
+                            id: room.id,
+                            threadId: room.threadId,
                             index: messageIndex,
                         },
                     },
@@ -401,33 +401,33 @@ export function createApiMessageStreamPart(
         }
         case "Post": {
             return apiClient.post(tracer, "/posts/{id}/messages/{index}/stream/parts", {
-                params: {path: {id: roomPathObject.id, index: messageIndex}},
+                params: {path: {id: room.id, index: messageIndex}},
                 body,
             });
         }
         case "Task": {
             return apiClient.post(tracer, "/tasks/{id}/messages/{index}/stream/parts", {
-                params: {path: {id: roomPathObject.id, index: messageIndex}},
+                params: {path: {id: room.id, index: messageIndex}},
                 body,
             });
         }
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 }
 
 export function putApiMessageStreamPart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    roomPathObject: ApiMessageRoomPathObject,
+    room: ApiMessageRoomTarget,
     messageIndex: number,
     partIndex: number,
     body: {payload: ApiMessageStreamPartPayload},
 ) {
-    switch (roomPathObject.type) {
+    switch (room.type) {
         case "Chat": {
             return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: roomPathObject.id, index: messageIndex, partIndex}},
+                params: {path: {id: room.id, index: messageIndex, partIndex}},
                 body,
             });
         }
@@ -438,8 +438,8 @@ export function putApiMessageStreamPart(
                 {
                     params: {
                         path: {
-                            id: roomPathObject.id,
-                            threadId: roomPathObject.threadId,
+                            id: room.id,
+                            threadId: room.threadId,
                             index: messageIndex,
                             partIndex,
                         },
@@ -450,31 +450,31 @@ export function putApiMessageStreamPart(
         }
         case "Post": {
             return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: roomPathObject.id, index: messageIndex, partIndex}},
+                params: {path: {id: room.id, index: messageIndex, partIndex}},
                 body,
             });
         }
         case "Task": {
             return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: roomPathObject.id, index: messageIndex, partIndex}},
+                params: {path: {id: room.id, index: messageIndex, partIndex}},
                 body,
             });
         }
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 }
 
 export function completeApiMessageStream(
     tracer: TracerBase,
     apiClient: ApiClient,
-    roomPathObject: ApiMessageRoomPathObject,
+    room: ApiMessageRoomTarget,
     messageIndex: number,
 ) {
-    switch (roomPathObject.type) {
+    switch (room.type) {
         case "Chat": {
             return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/completion", {
-                params: {path: {id: roomPathObject.id, index: messageIndex}},
+                params: {path: {id: room.id, index: messageIndex}},
             });
         }
         case "DocumentCommentThread": {
@@ -484,8 +484,8 @@ export function completeApiMessageStream(
                 {
                     params: {
                         path: {
-                            id: roomPathObject.id,
-                            threadId: roomPathObject.threadId,
+                            id: room.id,
+                            threadId: room.threadId,
                             index: messageIndex,
                         },
                     },
@@ -494,30 +494,30 @@ export function completeApiMessageStream(
         }
         case "Post": {
             return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/completion", {
-                params: {path: {id: roomPathObject.id, index: messageIndex}},
+                params: {path: {id: room.id, index: messageIndex}},
             });
         }
         case "Task": {
             return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/completion", {
-                params: {path: {id: roomPathObject.id, index: messageIndex}},
+                params: {path: {id: room.id, index: messageIndex}},
             });
         }
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 }
 
 export function pingApiMessageStream(
     tracer: TracerBase,
     apiClient: ApiClient,
-    roomPathObject: ApiMessageRoomPathObject,
+    room: ApiMessageRoomTarget,
     messageIndex: number,
 ) {
-    switch (roomPathObject.type) {
+    switch (room.type) {
         case "Chat": {
             return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/ping", {
                 params: {
-                    path: {id: roomPathObject.id, index: messageIndex},
+                    path: {id: room.id, index: messageIndex},
                 },
             });
         }
@@ -528,8 +528,8 @@ export function pingApiMessageStream(
                 {
                     params: {
                         path: {
-                            id: roomPathObject.id,
-                            threadId: roomPathObject.threadId,
+                            id: room.id,
+                            threadId: room.threadId,
                             index: messageIndex,
                         },
                     },
@@ -539,18 +539,18 @@ export function pingApiMessageStream(
         case "Post": {
             return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/ping", {
                 params: {
-                    path: {id: roomPathObject.id, index: messageIndex},
+                    path: {id: room.id, index: messageIndex},
                 },
             });
         }
         case "Task": {
             return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/ping", {
                 params: {
-                    path: {id: roomPathObject.id, index: messageIndex},
+                    path: {id: room.id, index: messageIndex},
                 },
             });
         }
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 }

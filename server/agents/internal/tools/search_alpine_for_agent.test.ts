@@ -4,8 +4,10 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
-import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
-import {ApiSearchResult} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ApiMessageRoomTarget,
+    ApiSearchResult,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -37,7 +39,7 @@ const request = {
     spaceId,
     apiClient,
     // Default room for tests that don't care about filtering
-    room: cast<ApiMessageRoomPathObject>({type: "Chat", id: generateId()}),
+    room: cast<ApiMessageRoomTarget>({type: "Chat", id: generateId()}),
 } as const;
 
 afterEach(async () => {
@@ -327,7 +329,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomPathObject>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -376,7 +378,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomPathObject>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -434,7 +436,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomPathObject>({type: "Post", id: currentPostId}),
+            room: cast<ApiMessageRoomTarget>({type: "Post", id: currentPostId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -492,7 +494,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomPathObject>({type: "Task", id: currentTaskId}),
+            room: cast<ApiMessageRoomTarget>({type: "Task", id: currentTaskId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -554,7 +556,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomPathObject>({
+            room: cast<ApiMessageRoomTarget>({
                 type: "DocumentCommentThread",
                 id: currentDocumentId,
                 threadId: currentThreadId,
@@ -609,7 +611,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomPathObject>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -703,7 +705,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomPathObject>({
+            room: cast<ApiMessageRoomTarget>({
                 type: "DocumentCommentThread",
                 id: currentDocumentId,
                 threadId: currentThreadId,
@@ -763,7 +765,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomPathObject>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>

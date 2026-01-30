@@ -24,6 +24,8 @@ export type ApiTaskCollectionPath = ApiSpecification.components["schemas"]["Task
 
 export type ApiMessageRoomPath = ApiSpecification.components["schemas"]["MessageRoomPath"];
 
+export type ApiMessageRoomTarget = ApiSpecification.components["schemas"]["MessageRoomTarget"];
+
 export type ApiMentionTarget = ApiSpecification.components["schemas"]["MentionTarget"];
 
 export type ApiMentionTargetResponse =

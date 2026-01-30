@@ -15,13 +15,11 @@ import {OpenAiClient, OpenAiClientInterface} from "~/server/agents/internal/open
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
-import {
-    ApiMessageRoomPathObject,
-    parseApiBotWebhookEventIntoMessageRoomPathObject,
-} from "~/shared/api/parse_api_path.js";
+import {parseApiBotWebhookEventIntoMessageRoom} from "~/shared/api/parse_api_path.js";
 import {
     ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
+    ApiMessageRoomTarget,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -56,7 +54,7 @@ export type AgentWebhookRequest = {
     readonly botId: BotId;
     readonly botAccountId: AccountId;
     readonly event: ApiBotWebhookEvent;
-    readonly room: ApiMessageRoomPathObject;
+    readonly room: ApiMessageRoomTarget;
 };
 
 export type ConversationStateRequest = {
@@ -268,7 +266,7 @@ export abstract class AgentDurableObjectBase<
                     botId,
                     botAccountId,
                     event,
-                    room: parseApiBotWebhookEventIntoMessageRoomPathObject(event),
+                    room: parseApiBotWebhookEventIntoMessageRoom(event),
                     apiClient: createApiClient({
                         baseUrl: assertExists(
                             this._env.API_SERVICE_URL,

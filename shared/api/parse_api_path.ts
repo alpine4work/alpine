@@ -1,10 +1,11 @@
 import {
     ApiBotWebhookEvent,
     ApiMentionTarget,
-    ApiMessageRoomPath,
+    ApiMessageRoomTarget,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
@@ -30,10 +31,7 @@ export type ApiPath = ApiPathsType[number]["path"];
  */
 export type ApiPathObject = ApiPathsType[number]["pathObject"];
 
-/**
- * A parsed object representation of `ApiMessageRoomPath`.
- */
-export type ApiMessageRoomPathObject = ApiContentFilteredPathObjectType<ApiMessageRoomPath>;
+export type ApiMessageRoomPath = ApiContentFilteredPathType<ApiMessageRoomTarget>;
 
 export type ApiMessageRoomMessagesListPath = `${ApiMessageRoomPath}/messages`;
 
@@ -77,9 +75,9 @@ const apiMentionTargetTypes = new Set<string>(
     ),
 );
 
-const apiMessageRoomPathObjectTypes = new Set<string>(
+const apiMessageRoomTypes = new Set<string>(
     getObjectKeysWithKeyofType(
-        cast<Record<ApiMessageRoomPathObject["type"], true>>({
+        cast<Record<ApiMessageRoomTarget["type"], true>>({
             Chat: true,
             Post: true,
             DocumentCommentThread: true,
@@ -491,21 +489,19 @@ function parseMessageIndexIfExists(messageIndexString: string): number | null {
 
 export function isApiMessageRoomPath(path: ApiPath): path is ApiMessageRoomPath {
     const pathObject = parseApiPath(path);
-    return isApiMessageRoomPathObject(pathObject);
+    return isApiMessageRoom(pathObject);
 }
 
-export function isApiMessageRoomPathObject(
-    pathObject: ApiPathObject,
-): pathObject is ApiMessageRoomPathObject {
-    return apiMessageRoomPathObjectTypes.has(pathObject.type);
+export function isApiMessageRoom(pathObject: ApiPathObject): pathObject is ApiMessageRoomTarget {
+    return apiMessageRoomTypes.has(pathObject.type);
 }
 
-export function parseApiBotWebhookEventIntoMessageRoomPathObject(
+export function parseApiBotWebhookEventIntoMessageRoom(
     event: ApiBotWebhookEvent,
-): ApiMessageRoomPathObject {
+): ApiMessageRoomTarget {
     switch (event.type) {
         case "NewMessage": {
-            return parseApiMessageRoomPath(event.roomPath);
+            return assertExists(event.room);
         }
         case "NewPost": {
             return {type: "Post", id: event.postId};
@@ -521,7 +517,7 @@ export function parseApiBotWebhookEventIntoMessageRoomPath(
 ): ApiMessageRoomPath {
     switch (event.type) {
         case "NewMessage": {
-            return event.roomPath;
+            return printApiMessageRoomPath(assertExists(event.room));
         }
         case "NewPost": {
             return `/posts/${event.postId}`;
@@ -532,12 +528,12 @@ export function parseApiBotWebhookEventIntoMessageRoomPath(
     }
 }
 
-export function printApiMessageRoomPath(path: ApiMessageRoomPathObject): ApiMessageRoomPath {
+export function printApiMessageRoomPath(path: ApiMessageRoomTarget): ApiMessageRoomPath {
     return printApiPath(path) as ApiMessageRoomPath;
 }
 
-export function parseApiMessageRoomPath(path: ApiMessageRoomPath): ApiMessageRoomPathObject {
-    return parseApiPath(path) as ApiMessageRoomPathObject;
+export function parseApiMessageRoomPath(path: ApiMessageRoomPath): ApiMessageRoomTarget {
+    return parseApiPath(path) as ApiMessageRoomTarget;
 }
 
 export function printApiMentionTarget(path: ApiMentionTarget): ApiMentionTargetPath {

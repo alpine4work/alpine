@@ -46,11 +46,12 @@ import {
 import {TemporaryDurableObjectStorage} from "~/server/agents/internal/temporary_durable_object_storage.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
-import {ApiMessageRoomPathObject, printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContentBlockElement,
     ApiContentTextInlineElement,
     ApiMessageRoomPath,
+    ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
@@ -111,7 +112,7 @@ type CursorCloudAgent = {
     readonly spaceId: SpaceId;
     readonly botId: BotId;
     readonly botAccountId: AccountId;
-    readonly room: ApiMessageRoomPathObject;
+    readonly room: ApiMessageRoomTarget;
     readonly startTime: Date;
     readonly timeZone: TimeZone;
     readonly launchMessageIndex: number;

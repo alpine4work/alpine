@@ -2470,7 +2470,7 @@ components:
 
         BotWebhookNewMessageEvent:
             type: object
-            required: [type, roomPath, index, authorId, createdTimeZone]
+            required: [type, index, authorId, createdTimeZone]
             additionalProperties: false
             properties:
                 type:

@@ -130,7 +130,7 @@ test("if webhook is successful it’s only called once", async () => {
     const event1: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
     };
@@ -140,7 +140,7 @@ test("if webhook is successful it’s only called once", async () => {
     const event2: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 1,
         createdTimeZone: defaultTimeZone,
     };
@@ -220,7 +220,7 @@ test("if webhook is successful it’s only called once even if job is run multip
     const event1: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
     };
@@ -230,7 +230,7 @@ test("if webhook is successful it’s only called once even if job is run multip
     const event2: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 1,
         createdTimeZone: defaultTimeZone,
     };
@@ -361,7 +361,7 @@ test("if job fails it’s scheduled to be run later up to three times", async ()
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
     };
@@ -436,7 +436,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
     };
@@ -503,7 +503,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
     };
@@ -580,7 +580,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
     };
@@ -676,7 +676,7 @@ test("requests which don’t finish promptly are timed out and retried", async (
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
     };
@@ -786,7 +786,7 @@ test("requests which don’t finish promptly are timed out and retried even if t
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
     };
@@ -888,7 +888,7 @@ test("requests which don’t finish promptly and have a simulated process crash 
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
         authorId: generateId<AccountId>(),
-        roomPath: `/chats/${generateId<ChatId>()}`,
+        room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
     };

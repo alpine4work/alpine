@@ -2,7 +2,7 @@ import {ApiClient, getApiMessagesFromStart} from "~/server/agents/api/api_client
 import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {loadApiMessagesForAgentBatchCount} from "~/server/agents/internal/messages/load_api_messages_for_agent_batch_count.js";
-import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
+import {ApiMessageRoomTarget} from "~/shared/api/types/api_specification_convenience_types.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -18,7 +18,7 @@ export async function getAgentMessagesFromStartUntilTokenLimitCount(
     transaction: DurableObjectTransactionInterface,
     apiClient: ApiClient,
     spaceId: SpaceId,
-    roomPathObject: ApiMessageRoomPathObject,
+    room: ApiMessageRoomTarget,
     {startingCursor, limitTokenCount}: {startingCursor: number | null; limitTokenCount: number},
 ): Promise<{
     messages: Array<AgentMessage>;
@@ -33,7 +33,7 @@ export async function getAgentMessagesFromStartUntilTokenLimitCount(
         firstRequest = false;
         const {
             data: {nextCursor, messages: currentMessages},
-        } = await getApiMessagesFromStart(tracer, apiClient, roomPathObject, {
+        } = await getApiMessagesFromStart(tracer, apiClient, room, {
             limit: loadApiMessagesForAgentBatchCount,
             cursor,
         });

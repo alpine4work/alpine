@@ -217,7 +217,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
-                roomPath: `/chats/${chatId}`,
+                room: {type: "Chat", id: chatId},
                 index: 0,
                 authorId,
                 createdTimeZone: defaultTimeZone,
@@ -409,7 +409,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
-                roomPath: `/chats/${chatId}`,
+                room: {type: "Chat", id: chatId},
                 index: 0,
                 authorId,
                 createdTimeZone: defaultTimeZone,
@@ -586,7 +586,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
-                roomPath: `/chats/${chatId}`,
+                room: {type: "Chat", id: chatId},
                 index: 0,
                 authorId,
                 createdTimeZone: defaultTimeZone,
@@ -785,7 +785,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
-                roomPath: `/chats/${chatId}`,
+                room: {type: "Chat", id: chatId},
                 index: 0,
                 authorId,
                 createdTimeZone: defaultTimeZone,
@@ -1029,7 +1029,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
-                roomPath: `/chats/${chatId}`,
+                room: {type: "Chat", id: chatId},
                 index: 0,
                 authorId,
                 createdTimeZone: defaultTimeZone,
@@ -1278,7 +1278,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
-                roomPath: `/chats/${chatId}`,
+                room: {type: "Chat", id: chatId},
                 index: 0,
                 authorId,
                 createdTimeZone: defaultTimeZone,
@@ -1445,7 +1445,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             botAccountId: generateId<AccountId>(),
             event: {
                 type: "NewMessage",
-                roomPath: `/chats/${chatId}`,
+                room: {type: "Chat", id: chatId},
                 index: 0,
                 authorId,
                 createdTimeZone: defaultTimeZone,
@@ -1697,7 +1697,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
-                    roomPath: `/chats/${chatId}`,
+                    room: {type: "Chat", id: chatId},
                     index: 0,
                     authorId,
                     createdTimeZone: defaultTimeZone,
@@ -1854,7 +1854,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
-                    roomPath: `/chats/${chatId}`,
+                    room: {type: "Chat", id: chatId},
                     index: 0,
                     authorId,
                     createdTimeZone: defaultTimeZone,
@@ -2066,7 +2066,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
-                    roomPath: `/chats/${chatId}`,
+                    room: {type: "Chat", id: chatId},
                     index: 0,
                     authorId,
                     createdTimeZone: defaultTimeZone,
@@ -2320,7 +2320,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
-                    roomPath: `/chats/${chatId}`,
+                    room: {type: "Chat", id: chatId},
                     index: 0,
                     authorId,
                     createdTimeZone: defaultTimeZone,
@@ -2490,7 +2490,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
-                    roomPath: `/chats/${chatId}`,
+                    room: {type: "Chat", id: chatId},
                     index: 0,
                     authorId,
                     createdTimeZone: defaultTimeZone,
@@ -2654,7 +2654,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 botAccountId: generateId<AccountId>(),
                 event: {
                     type: "NewMessage",
-                    roomPath: `/chats/${chatId}`,
+                    room: {type: "Chat", id: chatId},
                     index: 0,
                     authorId,
                     createdTimeZone: defaultTimeZone,

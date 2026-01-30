@@ -9,7 +9,7 @@ import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
-import {parseApiBotWebhookEventIntoMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
+import {parseApiBotWebhookEventIntoMessageRoom} from "~/shared/api/parse_api_path.js";
 import {ApiBotWebhookRequestBody} from "~/shared/api/types/api_specification_convenience_types.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, UnknownError} from "~/shared/error/error.js";
@@ -206,7 +206,7 @@ async function actuallyCallBotWebhook(
     const attemptNumber = eventItem.attempt.number;
     const botWebhookUrl = new URL(webhookUrl);
 
-    const roomPathObject = parseApiBotWebhookEventIntoMessageRoomPathObject(job.event);
+    const roomPathObject = parseApiBotWebhookEventIntoMessageRoom(job.event);
 
     let scope: BotTokenPayloadScope;
 
