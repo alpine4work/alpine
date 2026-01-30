@@ -9,6 +9,7 @@ import {
     useState,
 } from "react";
 import {I18nProvider} from "react-aria";
+import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -46,6 +47,11 @@ const clientInfo = new Lazy((): ClientInfo => {
         // We can safely look for `CyberworldsNativeMobile` in the user agent since
         // it's a unique string that should only be used by our native app shells.
         isNativeMobile: /CyberworldsNativeMobile/.test(navigator.userAgent),
+        // Unlike other information in `ClientInfo`, the window spacing scale may
+        // change over time as the user resizes their window. However, this value
+        // stays constant in `ClientInfo` and represents the spacing scale at initial
+        // render.
+        initialWindowSpacingScale: getSpacingScaleWithoutListening(),
     };
 });
 

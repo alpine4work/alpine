@@ -14,6 +14,28 @@ import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 
+/**
+ * Renders an inline script that detects spacing scale mismatches between SSR
+ * and the client. Should be placed in the `<head>` on all pages.
+ *
+ * The script needs to be a synchronously executing script that blocks browser
+ * rendering so that we can detect a mismatch and show a white overlay before
+ * any layout is painted.
+ *
+ * If the spacing scales don't match, we add `data-spacing-mismatch` to `<html>`
+ * which triggers a white overlay. The overlay is removed by
+ * `useSpacingScaleContextProvider` after the client renders with the correct
+ * spacing scale.
+ *
+ * Reads the SSR spacing scale from the `data-spacing` attribute on `<html>`.
+ */
+export function SpacingScaleInitialAppRenderMismatchScript() {
+    // eslint-disable-next-line string-quotes
+    const script = `(function() { var e = document.documentElement; var s1 = e.getAttribute("data-spacing"); var w = window.innerWidth; var s2 = /CyberworldsNativeMobile/.test(navigator.userAgent) ? "large" : w <= ${mobilePlatformMaxWindowWidth} ? "large" : w >= ${mediumSpacingScaleMinWindowWidth} ? "medium" : "small"; if (s1 !== s2) e.setAttribute("data-spacing-mismatch", "") })()`;
+
+    return <script dangerouslySetInnerHTML={{__html: script}} />;
+}
+
 const SpacingScaleContext = createContext<SpacingScale | null>(null);
 
 /**
@@ -37,8 +59,16 @@ export function useSpacingScale(): SpacingScale {
  * `ClientInfo`? The `SpacingScale` is ultimately determined by the window size
  * but during a server render we only have the device's screen size in our
  * `ClientInfo` cookie.
+ *
+ * If `initialWindowSpacingScale` is available in `ClientInfo`, we use that
+ * directly since it's more accurate than computing from screen size. Otherwise,
+ * we fall back to computing from screen size.
  */
 export function getInitialAppRenderSpacingScale(clientInfo: ClientInfo): SpacingScale {
+    // If we have the window spacing scale from a previous load, use that.
+    if (clientInfo.initialWindowSpacingScale) return clientInfo.initialWindowSpacingScale;
+
+    // Otherwise, fall back to computing from screen size.
     if (clientInfo.isNativeMobile) return "large";
     if (clientInfo.screenWidth <= mobilePlatformMaxWindowWidth) return "large";
     if (clientInfo.screenWidth >= mediumSpacingScaleMinWindowWidth) return "medium";
@@ -132,9 +162,12 @@ export function subscribeToSpacingScaleChange(listener: () => void): () => void 
 
 export function useSpacingScaleContextProvider(clientInfo: ClientInfo): {
     spacingScale: SpacingScale;
+    hasSetSpacingScale: boolean;
     render: (children: ReactNode) => ReactElement;
 } {
-    const [spacingScale, setSpacingScale] = useState(getInitialAppRenderSpacingScale(clientInfo));
+    const [spacingScaleFromState, setSpacingScale] = useState<SpacingScale | null>(null);
+    const hasSetSpacingScale = spacingScaleFromState !== null;
+    const spacingScale = spacingScaleFromState ?? getInitialAppRenderSpacingScale(clientInfo);
 
     useEffect(() => {
         const update = () => {
@@ -149,8 +182,21 @@ export function useSpacingScaleContextProvider(clientInfo: ClientInfo): {
         return unsubscribe;
     }, [clientInfo.isNativeMobile]);
 
+    useEffect(() => {
+        if (!hasSetSpacingScale) return;
+
+        // Remove the `data-spacing-mismatch` class from the `<html>` element (if it
+        // exists) after we've initialized the right spacing scale in state.
+        if (document.documentElement.hasAttribute("data-spacing-mismatch")) {
+            // Remove the spacing scale mismatch overlay and update the spacing
+            // scale for React at the same time to avoid any tearing.
+            document.documentElement.removeAttribute("data-spacing-mismatch");
+        }
+    }, [hasSetSpacingScale]);
+
     return {
         spacingScale,
+        hasSetSpacingScale,
         render: (children: ReactNode) => (
             <SpacingScaleContext.Provider value={spacingScale}>
                 {children}

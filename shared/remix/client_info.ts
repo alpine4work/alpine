@@ -83,6 +83,21 @@ export const ClientInfoSchema = Schema.object({
     screenHeight: Schema.integer,
 
     /**
+     * The spacing scale based on the window width (not screen width) at the time
+     * of initial render. This is used for SSR to match the client's actual
+     * window size more accurately than using screen dimensions.
+     *
+     * Unlike other information in `ClientInfo`, the window spacing scale may
+     * change over time as the user resizes their window. However, this value
+     * stays constant in `ClientInfo` and represents the spacing scale at initial
+     * render. It's updated in the cookie after each page load so future SSR can
+     * use the most recent window size.
+     *
+     * When not set, we fall back to computing spacing scale from screenWidth.
+     */
+    initialWindowSpacingScale: Schema.enum(["small", "medium", "large"]).optional(),
+
+    /**
      * The time zone a user is in. Should be an IANA time zone identifier like
      * `America/New_York`.
      */

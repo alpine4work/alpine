@@ -50,7 +50,10 @@ import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_s
 import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {usePlatformContextProvider} from "~/client/web/remix/platform_context.js";
 import {getDefaultRouteLayoutForPlatform} from "~/client/web/remix/route_layout_context.js";
-import {useSpacingScaleContextProvider} from "~/client/web/remix/spacing_scale_context.js";
+import {
+    SpacingScaleInitialAppRenderMismatchScript,
+    useSpacingScaleContextProvider,
+} from "~/client/web/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {NavigationContextProvider} from "~/client/web/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/web/remix/use_update_meta_title.js";
@@ -206,6 +209,7 @@ const constantRootHead = (
         />
 
         <ColorSchemeManager />
+        <SpacingScaleInitialAppRenderMismatchScript />
     </>
 );
 
@@ -342,8 +346,11 @@ export default function Root() {
         cookieNameSuffix: loaderData.cookieNameSuffix,
     });
 
-    const {spacingScale, render: renderSpacingScaleContextProvider} =
-        useSpacingScaleContextProvider(clientInfo);
+    const {
+        spacingScale,
+        hasSetSpacingScale,
+        render: renderSpacingScaleContextProvider,
+    } = useSpacingScaleContextProvider(clientInfo);
 
     const {platform, render: renderPlatformContextProvider} =
         usePlatformContextProvider(clientInfo);
@@ -637,6 +644,17 @@ export default function Root() {
             data-spacing={spacingScale}
             data-color={getColorSchemeWithoutListeningIfBrowser()}
             data-engine={clientInfo.renderingEngine.toLowerCase()}
+            // This property is set by `<SpacingScaleInitialAppRenderMismatchScript>`
+            // before React hydrates and removed after we set the spacing scale. To prevent
+            // hydration warnings, for initial client render check if this property exists
+            // in the DOM and reflect it in React too. When `hasSetSpacingScale` is true
+            // this attribute will be removed either by React or
+            // `spacing_scale_context.tsx`.
+            data-spacing-mismatch={
+                !hasSetSpacingScale && typeof document !== "undefined"
+                    ? (document.documentElement.getAttribute("data-spacing-mismatch") ?? undefined)
+                    : undefined
+            }
         >
             {renderRootHead(loaderData)}
             <body>
@@ -676,8 +694,11 @@ function RootErrorBoundaryWrapper() {
         cookieNameSuffix: loaderData?.cookieNameSuffix ?? "",
     });
 
-    const {spacingScale, render: renderSpacingScaleContextProvider} =
-        useSpacingScaleContextProvider(clientInfo);
+    const {
+        spacingScale,
+        hasSetSpacingScale,
+        render: renderSpacingScaleContextProvider,
+    } = useSpacingScaleContextProvider(clientInfo);
 
     const {platform, render: renderPlatformContextProvider} =
         usePlatformContextProvider(clientInfo);
@@ -720,6 +741,17 @@ function RootErrorBoundaryWrapper() {
             data-spacing={spacingScale}
             data-color={getColorSchemeWithoutListeningIfBrowser()}
             data-engine={clientInfo.renderingEngine.toLowerCase()}
+            // This property is set by `<SpacingScaleInitialAppRenderMismatchScript>`
+            // before React hydrates and removed after we set the spacing scale. To prevent
+            // hydration warnings, for initial client render check if this property exists
+            // in the DOM and reflect it in React too. When `hasSetSpacingScale` is true
+            // this attribute will be removed either by React or
+            // `spacing_scale_context.tsx`.
+            data-spacing-mismatch={
+                !hasSetSpacingScale && typeof document !== "undefined"
+                    ? (document.documentElement.getAttribute("data-spacing-mismatch") ?? undefined)
+                    : undefined
+            }
         >
             {renderRootHead(loaderData)}
             <body>
