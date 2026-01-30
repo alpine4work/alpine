@@ -2225,7 +2225,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "NewMessage";
                 readonly roomPath?: components["schemas"]["MessageRoomPath"];
-                readonly room?: components["schemas"]["MessageRoomTarget"];
+                readonly room: components["schemas"]["MessageRoomTarget"];
                 readonly index: number;
                 readonly authorId: components["schemas"]["AccountId"];
                 readonly createdTimeZone: components["schemas"]["TimeZone"];

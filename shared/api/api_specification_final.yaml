@@ -2554,6 +2554,7 @@ components:
             type: object
             required:
                 - type
+                - room
                 - index
                 - authorId
                 - createdTimeZone

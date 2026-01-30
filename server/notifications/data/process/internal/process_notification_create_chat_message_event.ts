@@ -213,7 +213,6 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
     },
     getBotWebhookEvent: (event, {accountId}) => ({
         type: "NewMessage",
-        roomPath: `/chats/${event.chatId}`,
         room: {
             type: "Chat",
             id: event.chatId,

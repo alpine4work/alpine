@@ -42,7 +42,7 @@ describe("shouldAgentRespondToRequest", () => {
             botAccountId: agentAccountId,
             event: {
                 type: "NewMessage",
-                roomPath: `/chats/${generateId<ChatId>()}`,
+                room: {type: "Chat", id: generateId<ChatId>()},
                 index: 0,
                 authorId: agentAccountId,
                 wasMentioned: true,
@@ -75,7 +75,7 @@ describe("shouldAgentRespondToRequest", () => {
             botAccountId: agentAccountId,
             event: {
                 type: "NewMessage",
-                roomPath: `/chats/${chatId}`,
+                room: {type: "Chat", id: chatId},
                 index: 1,
                 authorId: agentAccountId,
                 createdTimeZone: defaultTimeZone,
@@ -128,7 +128,7 @@ describe("shouldAgentRespondToRequest", () => {
             event: {
                 type: "NewMessage",
                 wasMentioned: false,
-                roomPath: `/chats/${chatId}`,
+                room: {type: "Chat", id: chatId},
                 index: 0,
                 authorId: otherAccountId,
                 createdTimeZone: defaultTimeZone,
@@ -164,7 +164,7 @@ describe("shouldAgentRespondToRequest", () => {
                 botAccountId: agentAccountId,
                 event: {
                     type: "NewMessage",
-                    roomPath: `/posts/${generateId<PostId>()}`,
+                    room: {type: "Post", id: generateId<PostId>()},
                     index: 0,
                     authorId: agentAccountId,
                     createdTimeZone: defaultTimeZone,
@@ -212,7 +212,7 @@ describe("shouldAgentRespondToRequest", () => {
                 event: {
                     type: "NewMessage",
                     wasMentioned: false,
-                    roomPath: `/chats/${chatId}`,
+                    room: {type: "Chat", id: chatId},
                     index: 0,
                     authorId: otherAccountId,
                     createdTimeZone: defaultTimeZone,
@@ -261,7 +261,7 @@ describe("shouldAgentRespondToRequest", () => {
                 event: {
                     type: "NewMessage",
                     wasMentioned: false,
-                    roomPath: `/chats/${chatId}`,
+                    room: {type: "Chat", id: chatId},
                     index: 0,
                     authorId: otherAccountId1,
                     createdTimeZone: defaultTimeZone,

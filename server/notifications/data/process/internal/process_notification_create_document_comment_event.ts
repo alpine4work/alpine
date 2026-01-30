@@ -278,7 +278,6 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
     },
     getBotWebhookEvent: (event, {accountId}) => ({
         type: "NewMessage",
-        roomPath: `/documents/${event.documentId}/threads/${event.commentThreadId}`,
         room: {
             type: "DocumentCommentThread",
             id: event.documentId,

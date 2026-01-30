@@ -206,25 +206,25 @@ async function actuallyCallBotWebhook(
     const attemptNumber = eventItem.attempt.number;
     const botWebhookUrl = new URL(webhookUrl);
 
-    const roomPathObject = parseApiBotWebhookEventIntoMessageRoom(job.event);
+    const room = parseApiBotWebhookEventIntoMessageRoom(job.event);
 
     let scope: BotTokenPayloadScope;
 
-    switch (roomPathObject.type) {
+    switch (room.type) {
         case "Chat":
-            scope = {type: "Chat", chatId: roomPathObject.id};
+            scope = {type: "Chat", chatId: room.id};
             break;
         case "DocumentCommentThread":
-            scope = {type: "Document", documentId: roomPathObject.id};
+            scope = {type: "Document", documentId: room.id};
             break;
         case "Post":
-            scope = {type: "Post", postId: roomPathObject.id};
+            scope = {type: "Post", postId: room.id};
             break;
         case "Task":
-            scope = {type: "Task", taskId: roomPathObject.id};
+            scope = {type: "Task", taskId: room.id};
             break;
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 
     // Signing this token grants the bot access to `roomPath`! We assume whoever

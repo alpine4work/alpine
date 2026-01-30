@@ -3206,7 +3206,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         botAccountId: bot.id,
                         event: expect.objectContaining({
                             type: "NewMessage",
-                            roomPath: `/chats/${chat.id}`,
+                            room: {type: "Chat", id: chat.id},
                             index: message.index,
                         }),
                     }),
@@ -3245,7 +3245,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         botAccountId: bot1.id < bot2.id ? bot1.id : bot2.id,
                         event: expect.objectContaining({
                             type: "NewMessage",
-                            roomPath: `/chats/${chat.id}`,
+                            room: {type: "Chat", id: chat.id},
                             index: message.index,
                         }),
                     }),
@@ -3255,7 +3255,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         botAccountId: bot1.id < bot2.id ? bot2.id : bot1.id,
                         event: expect.objectContaining({
                             type: "NewMessage",
-                            roomPath: `/chats/${chat.id}`,
+                            room: {type: "Chat", id: chat.id},
                             index: message.index,
                         }),
                     }),
@@ -3337,7 +3337,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         botAccountId: bot2.id,
                         event: expect.objectContaining({
                             type: "NewMessage",
-                            roomPath: `/chats/${chat.id}`,
+                            room: {type: "Chat", id: chat.id},
                             index: message.index,
                         }),
                     }),
