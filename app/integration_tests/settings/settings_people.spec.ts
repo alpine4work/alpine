@@ -284,7 +284,6 @@ test("can reject space invites via email link", async ({
     await services.signIn(memberBrowser, memberSession);
     const memberPage = await memberBrowser.newPage();
     await memberPage.goto(`/s/${space.id}/invite/reject-and-mark-as-spam`);
-    // eslint-disable-next-line string-quotes
     await memberPage.waitForSelector(`[data-testid="RejectSpaceAccountInviteAsSpamCompleted"]`, {
         state: "attached",
     });
@@ -339,7 +338,6 @@ test("can reject space invites via redirect", async ({browser, context: browserC
     // Redirect to invite
     await memberPage.waitForURL(`**/s/${space.id}/invite?to=%2Fdocuments%2F${document.id}`);
     await memberPage.getByRole("button", {name: `Report this invitation as spam`}).click();
-    // eslint-disable-next-line string-quotes
     await memberPage.waitForSelector(`[data-testid="RejectSpaceAccountInviteAsSpamCompleted"]`, {
         state: "attached",
     });

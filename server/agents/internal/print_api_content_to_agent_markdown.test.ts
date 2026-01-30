@@ -1,5 +1,3 @@
-/* eslint-disable string-quotes */
-
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {agentMessageFirstPageTokenLimit} from "~/server/agents/internal/agent_limits.js";

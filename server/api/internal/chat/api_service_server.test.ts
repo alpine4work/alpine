@@ -718,8 +718,6 @@ test("responds with pretty HTML if asked", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    /* eslint-disable string-quotes */
-
     expect(
         await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
             headers: {authorization: `bearer ${apiKey}`, accept: "text/html"},
@@ -731,8 +729,6 @@ test("responds with pretty HTML if asked", async () => {
 <span class="tok-punctuation">{</span>
   <span class="tok-propertyName">&quot;spaceId&quot;</span>: <span class="tok-string">&quot;${space.id}&quot;</span>`),
     });
-
-    /* eslint-enable string-quotes */
 });
 
 test("responds with pretty HTML if asked using authorization cookie", async () => {
@@ -745,8 +741,6 @@ test("responds with pretty HTML if asked using authorization cookie", async () =
 
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
-
-    /* eslint-disable string-quotes */
 
     expect(
         await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
@@ -762,8 +756,6 @@ test("responds with pretty HTML if asked using authorization cookie", async () =
 <span class="tok-punctuation">{</span>
   <span class="tok-propertyName">&quot;spaceId&quot;</span>: <span class="tok-string">&quot;${space.id}&quot;</span>`),
     });
-
-    /* eslint-enable string-quotes */
 });
 
 test("responds with pretty HTML with error if authorization header is invalid", async () => {
@@ -776,8 +768,6 @@ test("responds with pretty HTML with error if authorization header is invalid", 
 
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
-
-    /* eslint-disable string-quotes */
 
     expect(
         await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
@@ -793,8 +783,6 @@ test("responds with pretty HTML with error if authorization header is invalid", 
 <span class="tok-punctuation">{</span>
   <span class="tok-propertyName">&quot;error&quot;</span>: <span class="tok-punctuation">{</span>`),
     });
-
-    /* eslint-enable string-quotes */
 });
 
 test("doesn’t use authorization cookie if request isn’t an HTML request", async () => {

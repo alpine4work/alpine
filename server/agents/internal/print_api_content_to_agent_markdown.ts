@@ -102,7 +102,6 @@ export async function printApiContentToAgentMarkdownTree(
             if (childNode.type === "html" && /<a[^a-zA-Z0-9]/.test(childNode.value)) {
                 childNode.value = childNode.value.replaceAll(
                     /href="[^"]*"/g,
-                    // eslint-disable-next-line string-quotes
                     'href="missing-link"',
                 );
             }

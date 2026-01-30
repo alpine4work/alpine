@@ -41,7 +41,6 @@ describe("getTitleFromHtml", () => {
         },
         {
             description: "does not match title tags with attributes",
-            // eslint-disable-next-line string-quotes
             html: '<html><head><title class="test">Title with attributes</title></head></html>',
             expected: "",
         },

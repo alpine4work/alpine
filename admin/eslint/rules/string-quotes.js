@@ -1,9 +1,5 @@
 /* eslint-disable string-quotes */
 
-// TODO(calebmer): Update this lint rule so if it looks like we're in the
-// middle of an HTML string we don't warn if you're using regular quotes for
-// HTML attributes.
-
 "use strict";
 
 module.exports = {
@@ -21,38 +17,66 @@ module.exports = {
 
         return {
             Literal(node) {
-                if (typeof node.value === "string") {
-                    const nodeStart = node.range[0] + 1;
-                    const text = node.raw.slice(1, -1);
-                    const matches = text.matchAll(/["']/g);
+                if (typeof node.value !== "string") return;
 
-                    for (const match of matches) {
-                        const start = nodeStart + match.index;
-                        const end = start + 1;
+                const nodeStart = node.range[0] + 1;
+                const text = node.raw.slice(1, -1);
+                const matches = text.matchAll(/["']/g);
+                let ignoreNextMatch = false;
 
-                        const {properQuote} = parse(text, match.index);
-
-                        context.report({
-                            loc: {
-                                start: sourceCode.getLocFromIndex(start),
-                                end: sourceCode.getLocFromIndex(end),
-                            },
-                            messageId: "useProperQuotes",
-                            fix: fixer => fixer.replaceTextRange([start, end], properQuote),
-                        });
+                for (const match of matches) {
+                    if (ignoreNextMatch) {
+                        ignoreNextMatch = false;
+                        continue;
                     }
+
+                    const start = nodeStart + match.index;
+                    const end = start + 1;
+
+                    const {properQuote, charBefore} = parse(text, match.index);
+
+                    // If the character immediately before the quote is an `=` then we assume the
+                    // developer is writing an HTML attribute (e.g. `<mark class="highlight-red">`).
+                    // Don't warn for this quote or the next quote.
+                    if (charBefore === "=") {
+                        ignoreNextMatch = true;
+                        continue;
+                    }
+
+                    context.report({
+                        loc: {
+                            start: sourceCode.getLocFromIndex(start),
+                            end: sourceCode.getLocFromIndex(end),
+                        },
+                        messageId: "useProperQuotes",
+                        fix: fixer => fixer.replaceTextRange([start, end], properQuote),
+                    });
                 }
             },
             TemplateElement(node) {
                 const nodeStart = node.range[0] + 1;
                 const text = node.value.raw;
                 const matches = text.matchAll(/["']/g);
+                let ignoreNextMatch = false;
 
                 for (const match of matches) {
+                    if (ignoreNextMatch) {
+                        ignoreNextMatch = false;
+                        continue;
+                    }
+
                     const start = nodeStart + match.index;
                     const end = start + 1;
 
-                    const {properQuote} = parse(text, match.index);
+                    const {properQuote, charBefore} = parse(text, match.index);
+
+                    // If the character immediately before the quote is an `=` then we assume the
+                    // developer is writing an HTML attribute (e.g. `<mark class="highlight-red">`).
+                    // Don't warn for this quote or the next quote.
+                    if (charBefore === "=") {
+                        ignoreNextMatch = true;
+                        continue;
+                    }
 
                     context.report({
                         loc: {

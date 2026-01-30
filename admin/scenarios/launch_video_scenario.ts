@@ -1115,7 +1115,6 @@ to auto-straighten.
 
         title: "Receipt Mobile Scanner Brainstorm",
 
-        /* eslint-disable string-quotes */
         body: markdown`
 Our customers run their entire businesses on receipts. We want to antiquate the box of receipts they
 drive to their accountant each year and instead allow them to ingest receipts immediately in the
@@ -1148,7 +1147,6 @@ field when they receive them. Comment on ideas you like!
 | Monthly export: zipped images plus CSV for your accountant                         | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
 | “First-run” guided capture that teaches framing in three screens                   | <mark class="highlight-blue">Low</mark>      | <mark class="highlight-blue">SM</mark>   |
         `,
-        /* eslint-enable string-quotes */
     });
 
     {

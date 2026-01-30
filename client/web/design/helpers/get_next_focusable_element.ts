@@ -16,10 +16,8 @@ const focusableElements = [
 
 export const focusableElementSelector = `${focusableElements.join(",")},[tabindex]`;
 
-// eslint-disable-next-line string-quotes
 const tabbableElements = [...focusableElements, '[tabindex]:not([tabindex="-1"])'];
 
-// eslint-disable-next-line string-quotes
 const tabbableElementSelector = tabbableElements.join(':not([tabindex="-1"]),');
 
 function createFocusableTreeWalker(

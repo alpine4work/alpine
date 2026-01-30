@@ -914,7 +914,6 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
 
         {
             context: "doc//",
-            // eslint-disable-next-line string-quotes
             tag: '[style*="white-space: pre"]',
             // Beat `<div>` rule for paragraphs.
             priority: 200,
@@ -943,7 +942,6 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
         // property we consider `table` elements with `tab-size` set to be code blocks.
         {
             context: "doc//",
-            // eslint-disable-next-line string-quotes
             tag: 'table[style*="tab-size"]',
             getContent,
         },

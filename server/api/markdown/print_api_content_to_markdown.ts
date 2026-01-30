@@ -687,8 +687,6 @@ function* printApiContentTableBlockElementToMarkdown(
                     // recommended][1] to include the `scope` attribute.
                     //
                     // [1]: https://www.w3.org/WAI/tutorials/tables/two-headers/
-                    //
-                    // eslint-disable-next-line string-quotes
                     pendingHtml += '\n<th scope="col">';
                 } else {
                     pendingHtml += "\n<th>";
@@ -699,8 +697,6 @@ function* printApiContentTableBlockElementToMarkdown(
                     // recommended][1] to include the `scope` attribute.
                     //
                     // [1]: https://www.w3.org/WAI/tutorials/tables/two-headers/
-                    //
-                    // eslint-disable-next-line string-quotes
                     pendingHtml += '\n<th scope="row">';
                 } else {
                     pendingHtml += "\n<th>";

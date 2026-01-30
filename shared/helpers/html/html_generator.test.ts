@@ -1,5 +1,3 @@
-/* eslint-disable string-quotes */
-
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
     HtmlElementGenerator,

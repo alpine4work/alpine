@@ -1279,7 +1279,6 @@ export function installScrollbarAuditorInDev() {
         // initialization.
         // eslint-disable-next-line no-console
         console.warn(
-            // eslint-disable-next-line string-quotes
             'Element is scrollable but doesn’t have our custom scrollbar. Either setup our custom scrollbar with `useScrollbar()` or explicitly disable scrollbars with `data-scrollbar="false"`.',
             element,
         );
