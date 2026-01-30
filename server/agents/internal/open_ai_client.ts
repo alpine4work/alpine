@@ -130,6 +130,11 @@ export class OpenAiClient implements OpenAiClientInterface {
 
         const outputItemSpanByIndex = new Map<number, {span: TracerSpan; finishSpan: () => void}>();
 
+        const reasoningSummaryPartSpanById = new Map<
+            string,
+            {span: TracerSpan; finishSpan: () => void}
+        >();
+
         try {
             const responseStream = await retryWithExponentialBackoff(
                 async retry => {
@@ -167,6 +172,11 @@ export class OpenAiClient implements OpenAiClientInterface {
                     span = outputItemSpanByIndex.get(event.output_index)?.span ?? span;
                 }
 
+                // Set the span as the reasoning summary's if one exists.
+                if (hasOwnProperty(event, "item_id")) {
+                    span = reasoningSummaryPartSpanById.get(event.item_id)?.span ?? span;
+                }
+
                 // Set this to finish a span after yielding.
                 let finishSpan: (() => void) | null = null;
 
@@ -179,9 +189,7 @@ export class OpenAiClient implements OpenAiClientInterface {
                     case "response.output_item.added": {
                         assert(!outputItemSpanByIndex.has(event.output_index));
 
-                        const childSpan = parentSpan.startSpan(
-                            `OpenAI output item ${event.item.type}`,
-                        );
+                        const childSpan = span.startSpan(`OpenAI output item ${event.item.type}`);
                         span = childSpan.span;
 
                         outputItemSpanByIndex.set(event.output_index, childSpan);
@@ -192,6 +200,22 @@ export class OpenAiClient implements OpenAiClientInterface {
                             outputItemSpanByIndex.get(event.output_index),
                         ));
                         outputItemSpanByIndex.delete(event.output_index);
+                        break;
+                    }
+                    case "response.reasoning_summary_part.added": {
+                        assert(!reasoningSummaryPartSpanById.has(event.item_id));
+
+                        const childSpan = span.startSpan("OpenAI reasoning summary part");
+                        span = childSpan.span;
+
+                        reasoningSummaryPartSpanById.set(event.item_id, childSpan);
+                        break;
+                    }
+                    case "response.reasoning_summary_part.done": {
+                        ({finishSpan} = assertExists(
+                            reasoningSummaryPartSpanById.get(event.item_id),
+                        ));
+                        reasoningSummaryPartSpanById.delete(event.item_id);
                         break;
                     }
                     case "response.completed": {
