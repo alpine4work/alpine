@@ -154,6 +154,10 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
     getBotWebhookEvent: (event, {accountId}) => ({
         type: "NewMessage",
         roomPath: `/posts/${event.postId}`,
+        room: {
+            type: "Post",
+            id: event.postId,
+        },
         index: event.commentIndex,
         authorId: event.authorId,
         createdTimeZone: event.createdTimeZone,
