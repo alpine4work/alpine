@@ -876,6 +876,24 @@ export function TaskDetailView({
         undoManager,
     ]);
 
+    const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task;
+
+    // Compute the default back button route if we have no previous Alpine location in browser history.
+    const defaultPreviousRoute = useMemo(() => {
+        if (task) {
+            const collections = task.getCollections().getArray();
+
+            // If the task is in at least one collection, use the first collection as the back path
+            if (collections[0]?.collectionId) {
+                const firstCollectionId = collections[0].collectionId;
+                return `/s/${spaceId}/tasks/collections/${firstCollectionId}`;
+            }
+        }
+
+        // Otherwise, use the "my tasks" view as the default back path
+        return `/s/${spaceId}/tasks`;
+    }, [spaceId, task]);
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
         getTitleBoundaryElement: useCallback(() => assertExists(titleInputElementRef.current), []),
@@ -895,6 +913,7 @@ export function TaskDetailView({
                 commitActionTransaction={commitActionTransaction}
             />
         ),
+        defaultPreviousRoute,
     });
 
     return (
