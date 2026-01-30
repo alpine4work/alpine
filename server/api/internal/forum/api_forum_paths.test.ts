@@ -111,6 +111,89 @@ test("can\u2019t read channel information for non-existent channel", async () =>
     });
 });
 
+describe("/channels/{id}/mention", () => {
+    test("can read channel mention", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Test Channel Name",
+            access: "Public",
+        });
+
+        expect(
+            await server.GET(`/channels/${channel.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "Channel",
+                        id: channel.id,
+                    },
+                    title: "Test Channel Name",
+                },
+            },
+        });
+    });
+
+    test("can’t read channel mention without access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const channel = await TestChannel.create(session2, {access: "Private"});
+
+        expect(
+            await server.GET(`/channels/${channel.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 403,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "You aren’t allowed to access this channel. Ask someone with access to share it with you.",
+                    ),
+                }),
+            },
+        });
+    });
+
+    test("can’t read channel mention for non-existent channel", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        expect(
+            await server.GET(`/channels/${generateId<ChannelId>()}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 404,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("This channel doesn’t exist"),
+                }),
+            },
+        });
+    });
+});
+
 test("can read post information", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Post Author", role: "Admin"});
@@ -206,6 +289,107 @@ test("can\u2019t read post information for non-existent post", async () => {
                 message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
+    });
+});
+
+describe("/posts/{id}/mention", () => {
+    test("can read post mention", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Post Author", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Test Channel",
+            access: "Public",
+        });
+        const post = await channel.createPost(session, "This is post content for mention.");
+
+        expect(
+            await server.GET(`/posts/${post.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "Post",
+                        id: post.id,
+                    },
+                    title: "in Test Channel: This is post content for mention",
+                },
+            },
+        });
+    });
+
+    test("can’t read post mention without access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const channel = await TestChannel.create(session2, {access: "Private"});
+        const post = await channel.createPost(session2, "Private post content");
+
+        const response = await server.GET(`/posts/${post.id}/mention`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response.status).toEqual(403);
+        expect(response.body.error.message).toMatch(/You aren.t allowed/);
+    });
+
+    test("can’t read post mention for non-existent post", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.GET(`/posts/${generateId<PostId>()}/mention`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response.status).toEqual(404);
+        expect(response.body.error.message).toMatch(/This post doesn.t exist/);
+    });
+
+    test("can read post mention with post scope", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Post Author", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const channel = await TestChannel.create(session, {
+            name: "Scoped Channel",
+            access: "Private",
+        });
+        const post = await channel.createPost(session, "Scoped post content");
+        const apiKey = await bot.createApiKey({type: "Post", postId: post.id});
+
+        expect(
+            await server.GET(`/posts/${post.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "Post",
+                        id: post.id,
+                    },
+                    title: "in Scoped Channel: Scoped post content",
+                },
+            },
+        });
     });
 });
 

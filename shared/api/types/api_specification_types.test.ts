@@ -1,10 +1,13 @@
 import {
     ApiBotWebhookNewMessageEventParent,
+    ApiContentMentionInlineElement,
     ApiContentTextInlineElement,
     ApiMentionTarget,
     ApiMentionTargetResponse,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
+    ApiSearchMention,
+    ApiSearchMentionTarget,
     ApiSearchResult,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
@@ -13,6 +16,14 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 
 test("all search results are assignable to `ApiTarget`", () => {
     assertAssignableTypes<ApiSearchResult, ApiTarget>();
+});
+
+test("Search mention are assignable to `ApiContentMentionInlineElement`", () => {
+    assertAssignableTypes<ApiSearchMention, Omit<ApiContentMentionInlineElement, "type">>();
+});
+
+test("Search mention targets are assignable to `ApiMentionTarget`", () => {
+    assertAssignableTypes<ApiSearchMentionTarget, ApiMentionTarget>();
 });
 
 test("all mention targets are assignable to `ApiTarget`", () => {

@@ -1,3 +1,4 @@
+import {ApiSearchMentionResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 export type AgentConversationState = {
@@ -22,6 +23,12 @@ export type AgentConversationState = {
      * - `timeZone` = PST & `startTime` = 2025-11-13 12:00:00 PST
      */
     readonly timeZone: TimeZone;
+
+    readonly currentlyViewingTarget: {
+        readonly target: ApiSearchMentionResponse | null;
+        readonly previousTarget: ApiSearchMentionResponse | null;
+        readonly previousInjectTime: Date | null;
+    } | null;
 };
 
 export abstract class AgentConversationStore<

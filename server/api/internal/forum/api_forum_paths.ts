@@ -23,6 +23,7 @@ import {
     pingPostCommentStream,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
+import {getSearchEntityMentionWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {
     PostContentProsemirrorSchema,
@@ -61,6 +62,30 @@ export const apiForumPaths: Pick<
                             channel.spaceId,
                             channel.description,
                         ),
+                    },
+                },
+            };
+        },
+    },
+
+    "/channels/{id}/mention": {
+        get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+                context,
+                spaceId,
+                `Channel:${pathParameters.id}`,
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    mention: {
+                        target: {
+                            type: "Channel",
+                            id: pathParameters.id,
+                        },
+                        title: searchEntity.title,
                     },
                 },
             };
@@ -170,6 +195,30 @@ export const apiForumPaths: Pick<
                                 post.content.references,
                             ),
                         ),
+                    },
+                },
+            };
+        },
+    },
+
+    "/posts/{id}/mention": {
+        get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+                context,
+                spaceId,
+                `Post:${pathParameters.id}`,
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    mention: {
+                        target: {
+                            type: "Post",
+                            id: pathParameters.id,
+                        },
+                        title: searchEntity.title,
                     },
                 },
             };

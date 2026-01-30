@@ -16,6 +16,7 @@ import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SearchMentionEntityIdSchema} from "~/shared/search/search_entity_id.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const getChatMessagesFromStart = defineRpc({
@@ -71,6 +72,7 @@ export const sendChatMessage = defineRpc({
         content: MessageContentSchema,
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
         createdTimeZone: TimeZoneSchema,
+        dangerousCurrentlyViewingSearchEntityId: SearchMentionEntityIdSchema.optional(),
     },
     output: {
         index: Schema.integer,

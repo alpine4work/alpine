@@ -322,6 +322,191 @@ test("can\u2019t read task information for non-existent task", async () => {
     });
 });
 
+describe("/tasks/{id}/mention", () => {
+    test("can read task mention with open status", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const task = await TestTask.create(session, {title: "Test Task Title"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.GET(`/tasks/${task.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "Task",
+                        id: task.id,
+                        status: {type: "Open", isActive: false},
+                    },
+                    title: "Test Task Title",
+                },
+            },
+        });
+    });
+
+    test("can read task mention with closed status", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const task = await TestTask.create(session, {title: "Closed Task"});
+        await task.updateStatus(session, "Closed");
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.GET(`/tasks/${task.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "Task",
+                        id: task.id,
+                        status: {type: "Closed"},
+                    },
+                    title: "Closed Task",
+                },
+            },
+        });
+    });
+
+    test("can read task mention with active status", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const session2 = await space.createSession({name: "Bob Johnson"});
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session2);
+
+        const task = await TestTask.create(session1, {title: "Active Task"});
+        await task.updateAssignee(session1, session2, {assigneeStatus: "Active"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.GET(`/tasks/${task.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "Task",
+                        id: task.id,
+                        status: {type: "Open", isActive: true},
+                    },
+                    title: "Active Task",
+                },
+            },
+        });
+    });
+
+    test("can’t read task mention without access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const task = await TestTask.create(session2);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.GET(`/tasks/${task.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 403,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "You aren’t allowed to access this task. Ask someone with access to share it with you.",
+                    ),
+                }),
+            },
+        });
+    });
+
+    test("can’t read task mention for non-existent task", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.GET(`/tasks/${generateId<TaskId>()}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 404,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("This task doesn’t exist"),
+                }),
+            },
+        });
+    });
+
+    test("can read task mention with task scope", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const task = await TestTask.create(session, {title: "Scoped Task"});
+        const apiKey = await bot.createApiKey({type: "Task", taskId: task.id});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.GET(`/tasks/${task.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "Task",
+                        id: task.id,
+                        status: {type: "Open", isActive: false},
+                    },
+                    title: "Scoped Task",
+                },
+            },
+        });
+    });
+});
+
 test("can read task collection information", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -403,6 +588,97 @@ test("can\u2019t read task collection information for non-existent collection", 
                 message: expect.stringMatching("doesn\u2019t exist"),
             }),
         },
+    });
+});
+
+describe("/task-collections/{id}/mention", () => {
+    test("can read task collection mention", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "My Project Tasks",
+            access: "Public",
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.GET(`/task-collections/${collection.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "TaskCollection",
+                        id: collection.id,
+                    },
+                    title: "My Project Tasks",
+                },
+            },
+        });
+    });
+
+    test("can’t read task collection mention without access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const collection = await TestTaskCollection.create(session2, {
+            access: "Private",
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.GET(`/task-collections/${collection.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 403,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "You aren’t allowed to access this task collection. Ask someone with access to share it with you.",
+                    ),
+                }),
+            },
+        });
+    });
+
+    test("can’t read task collection mention for non-existent collection", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await server.GET(`/task-collections/${generateId<TaskCollectionId>()}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 404,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("This task collection doesn’t exist"),
+                }),
+            },
+        });
     });
 });
 

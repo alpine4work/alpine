@@ -3,6 +3,7 @@ import {useCallback, useEffect, useMemo, useRef} from "react";
 import {AccountAvatarPile} from "~/client/web/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/web/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/web/accounts/account_short_name.js";
+import {getSafeCurrentlyViewedEntityIfPossibleForClient} from "~/client/web/bots/get_safe_current_viewed_entity_if_possible_for_client.js";
 import {chatMessagingViewHeaderItem} from "~/client/web/chat/internal/chat_messaging_view_header_item.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -20,6 +21,7 @@ import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {MessagingView, MessagingViewRef} from "~/client/web/messaging/messaging_view.js";
 import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useCurrentlyViewingSearchEntityId} from "~/client/web/remix/use_currently_viewing_search_entity_id.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -277,6 +279,16 @@ function ChatMessagingView({
 }) {
     const context = useAppContext();
     const messagingRef = useRef<MessagingViewRef<ChatId>>(null);
+    const spaceContext = useSpaceContext();
+    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId(spaceContext.space.id);
+
+    // We only send the currently viewed entity for 1:1 chats with a bot.
+    // We do some validation here and on the server.
+    currentlyViewingSearchEntityId = getSafeCurrentlyViewedEntityIfPossibleForClient(
+        spaceContext,
+        chat,
+        currentlyViewingSearchEntityId,
+    );
 
     const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "ChannelRealtimeService",
@@ -363,6 +375,7 @@ function ChatMessagingView({
                     ),
                 [chat.id, chat.spaceId],
             )}
+            dangerousCurrentlyViewingSearchEntityId={currentlyViewingSearchEntityId}
         />
     );
 }

@@ -22,7 +22,9 @@ ts_project(
         "//client/web/helpers",
         "//shared/design",
         "//shared/helpers",
+        "//shared/messaging",
         "//shared/remix",
         "//shared/schema",
+        "//shared/search",
     ],
 )

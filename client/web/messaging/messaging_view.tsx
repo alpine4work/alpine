@@ -69,6 +69,7 @@ import {
     StopTypingInMessageInputProcedure,
     UpdateMessageContentProcedure,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
@@ -224,6 +225,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         elementRef,
         extraChildren,
         scrollbarInsetTop,
+        dangerousCurrentlyViewingSearchEntityId,
     }: {
         /**
          * What we call messages in UI copy. Defaults to "message". For example
@@ -431,6 +433,13 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * `scrollbarInsetTop` wins.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
+
+        /**
+         * Optional entity that the user is currently viewing. This is passed to bots
+         * when sending messages to provide context about what the user is looking at.
+         * Only used in 1:1 chats with bots.
+         */
+        dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId | null;
     },
     ref: Ref<MessagingViewRef<RoomKey>>,
 ) {
@@ -762,7 +771,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     isMessageCreationDisabled={isMessageCreationDisabled}
                     onUpdateMessages={setMessages}
                     createMessage={async input => {
-                        await createMessage({...input, createdTimeZone: getClientInfo().timeZone});
+                        await createMessage({
+                            ...input,
+                            createdTimeZone: getClientInfo().timeZone,
+                            dangerousCurrentlyViewingSearchEntityId:
+                                dangerousCurrentlyViewingSearchEntityId ?? undefined,
+                        });
                     }}
                     fileAttachmentTarget={fileAttachmentTarget}
                     withAttachFileBeforeCreateMessage={withAttachFileBeforeCreateMessage}

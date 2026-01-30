@@ -2,6 +2,7 @@ import {addDays} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {getSafeCurrentlyViewedEntityIfPossibleForServer} from "~/server/chat/data/get_safe_current_viewed_entity_if_possible_for_server.js";
 import {
     AccountChatsIndex,
     ChatTable,
@@ -127,6 +128,7 @@ import {
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 // Authorizers must be declared next to their respective Tables, so we must
@@ -680,6 +682,7 @@ export function sendChatMessage(
         createdTimeZone,
         isStream,
         consistency,
+        dangerousCurrentlyViewingSearchEntityId,
     }: {
         chatId: ChatId;
         parent: MessageContentPayloadParent | null;
@@ -688,6 +691,7 @@ export function sendChatMessage(
         createdTimeZone: TimeZone;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
+        dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -704,6 +708,7 @@ export function sendChatMessage(
         createdTimeZone,
         clerical: isStream ? {type: "Stream"} : undefined,
         consistency,
+        dangerousCurrentlyViewingSearchEntityId,
     });
 }
 
@@ -722,6 +727,7 @@ function sendChatMessageForAccount(
         clerical,
         consistency,
         clientRequestToken,
+        dangerousCurrentlyViewingSearchEntityId,
     }: {
         chatId: ChatId;
         authorId: AccountId;
@@ -732,6 +738,7 @@ function sendChatMessageForAccount(
         clerical?: MessageContentPayloadClerical;
         consistency?: DynamoCacheReadConsistency;
         clientRequestToken?: string;
+        dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -948,6 +955,18 @@ function sendChatMessageForAccount(
                     isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
                     contentSnippet,
                     clerical,
+                    currentlyViewedSearchEntityId:
+                        await getSafeCurrentlyViewedEntityIfPossibleForServer(
+                            context,
+                            chatAttributesItem.spaceId,
+                            {
+                                // TODO(ifitzsimmons, share-entity-with-agents): This should support a chat
+                                // with one human and multiple agents.
+                                accountIdsInChat: chatAttributesItem.accountIdsForOneOnOne,
+                                dangerousCurrentlyViewingSearchEntityId,
+                                authorId,
+                            },
+                        ),
                 },
             });
         }

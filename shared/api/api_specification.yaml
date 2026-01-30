@@ -306,6 +306,28 @@ paths:
                                     document:
                                         $ref: "#/components/schemas/Document"
 
+    /documents/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
+
     /documents/{id}/threads/{threadId}:
         parameters:
             - name: id
@@ -513,6 +535,28 @@ paths:
                                     channel:
                                         $ref: "#/components/schemas/Channel"
 
+    /channels/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChannelId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
+
     /posts:
         post:
             requestBody:
@@ -550,6 +594,28 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetPost"}
+
+    /posts/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -740,6 +806,28 @@ paths:
                                     task:
                                         $ref: "#/components/schemas/Task"
 
+    /tasks/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
+
     /tasks/{id}/messages/{index}:
         parameters:
             - name: id
@@ -890,6 +978,28 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     taskCollection:
                                         $ref: "#/components/schemas/TaskCollection"
+
+    /task-collections/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskCollectionId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
 
     /task-collections/{id}/tasks:
         parameters:
@@ -1383,6 +1493,47 @@ components:
                     Post: "#/components/schemas/PostMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+
+        SearchMention:
+            type: object
+            required: [target]
+            additionalProperties: false
+            properties:
+                target:
+                    $ref: "#/components/schemas/SearchMentionTarget"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `SearchMention_Response` (which will always have a title).
+                title:
+                    type: string
+
+        SearchMention_Response:
+            type: object
+            required: [target, title]
+            additionalProperties: false
+            properties:
+                target:
+                    $ref: "#/components/schemas/SearchMentionTarget"
+                title:
+                    type: string
+                    minLength: 1
+
+        SearchMentionTarget:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/ChannelMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Channel: "#/components/schemas/ChannelMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
 
         # =========================================================================== #
         #                                   Content                                   #
@@ -2423,6 +2574,8 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 wasMentioned:
                     type: boolean
+                viewingTarget:
+                    $ref: "#/components/schemas/SearchMentionTarget"
                 parent:
                     $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
 

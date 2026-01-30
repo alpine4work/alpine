@@ -49,6 +49,7 @@ import {CurrentTimeContextProvider} from "~/client/web/remix/current_time_contex
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
 import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {usePlatformContextProvider} from "~/client/web/remix/platform_context.js";
+import {RootLocationContext} from "~/client/web/remix/root_location_context.js";
 import {getDefaultRouteLayoutForPlatform} from "~/client/web/remix/route_layout_context.js";
 import {
     SpacingScaleInitialAppRenderMismatchScript,
@@ -562,30 +563,32 @@ export default function Root() {
     const children = renderClientInfoContextProvider(
         renderSpacingScaleContextProvider(
             renderPlatformContextProvider(
-                <NavigationStateProvider>
-                    <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
-                        <AppContextProvider value={context}>
-                            <CurrentTimeContextProvider initialTime={loaderData.initialTime}>
-                                <NavigationContextProvider>
-                                    <GlobalKeyDownRootContextProvider>
-                                        <BottomBarFrameContextProvider>
-                                            <RootOverlayScopeContextProvider>
-                                                <MobileFullScreenModalContextProvider>
-                                                    <TooltipCoordinationContextProvider>
-                                                        <ReporterContextProvider>
-                                                            <BlobsArtProvider />
-                                                            {nodes}
-                                                        </ReporterContextProvider>
-                                                    </TooltipCoordinationContextProvider>
-                                                </MobileFullScreenModalContextProvider>
-                                            </RootOverlayScopeContextProvider>
-                                        </BottomBarFrameContextProvider>
-                                    </GlobalKeyDownRootContextProvider>
-                                </NavigationContextProvider>
-                            </CurrentTimeContextProvider>
-                        </AppContextProvider>
-                    </IconContext.Provider>
-                </NavigationStateProvider>,
+                <RootLocationContext.Provider value={dataRouterStateContext.location}>
+                    <NavigationStateProvider>
+                        <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
+                            <AppContextProvider value={context}>
+                                <CurrentTimeContextProvider initialTime={loaderData.initialTime}>
+                                    <NavigationContextProvider>
+                                        <GlobalKeyDownRootContextProvider>
+                                            <BottomBarFrameContextProvider>
+                                                <RootOverlayScopeContextProvider>
+                                                    <MobileFullScreenModalContextProvider>
+                                                        <TooltipCoordinationContextProvider>
+                                                            <ReporterContextProvider>
+                                                                <BlobsArtProvider />
+                                                                {nodes}
+                                                            </ReporterContextProvider>
+                                                        </TooltipCoordinationContextProvider>
+                                                    </MobileFullScreenModalContextProvider>
+                                                </RootOverlayScopeContextProvider>
+                                            </BottomBarFrameContextProvider>
+                                        </GlobalKeyDownRootContextProvider>
+                                    </NavigationContextProvider>
+                                </CurrentTimeContextProvider>
+                            </AppContextProvider>
+                        </IconContext.Provider>
+                    </NavigationStateProvider>
+                </RootLocationContext.Provider>,
             ),
         ),
     );

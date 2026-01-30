@@ -309,6 +309,31 @@ paths:
                                         $ref: "#/components/schemas/Document_Response"
                 default:
                     $ref: "#/components/responses/Error"
+    /documents/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - mention
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}:
         parameters:
             - name: id
@@ -540,6 +565,31 @@ paths:
                                         $ref: "#/components/schemas/Channel_Response"
                 default:
                     $ref: "#/components/responses/Error"
+    /channels/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/ChannelId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - mention
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /posts:
         post:
             requestBody:
@@ -575,6 +625,31 @@ paths:
             responses:
                 "200":
                     $ref: "#/components/responses/GetPost"
+                default:
+                    $ref: "#/components/responses/Error"
+    /posts/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/PostId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - mention
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /posts/{id}/messages/{index}:
@@ -785,6 +860,31 @@ paths:
                                         $ref: "#/components/schemas/Task_Response"
                 default:
                     $ref: "#/components/responses/Error"
+    /tasks/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - mention
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}/messages/{index}:
         parameters:
             - name: id
@@ -954,6 +1054,31 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     taskCollection:
                                         $ref: "#/components/schemas/TaskCollection"
+                default:
+                    $ref: "#/components/responses/Error"
+    /task-collections/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskCollectionId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - mention
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/SearchMention_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /task-collections/{id}/tasks:
@@ -1410,6 +1535,43 @@ components:
                     Post: "#/components/schemas/PostMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+        SearchMention:
+            type: object
+            required:
+                - target
+            additionalProperties: false
+            properties:
+                target:
+                    $ref: "#/components/schemas/SearchMentionTarget"
+                title:
+                    type: string
+        SearchMention_Response:
+            type: object
+            required:
+                - target
+                - title
+            additionalProperties: false
+            properties:
+                target:
+                    $ref: "#/components/schemas/SearchMentionTarget_Response"
+                title:
+                    type: string
+                    minLength: 1
+        SearchMentionTarget:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/ChannelMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Channel: "#/components/schemas/ChannelMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
         Content:
             type: object
             additionalProperties: false
@@ -2507,6 +2669,8 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 wasMentioned:
                     type: boolean
+                viewingTarget:
+                    $ref: "#/components/schemas/SearchMentionTarget"
                 parent:
                     $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
         BotWebhookNewMessageEventParent:
@@ -2997,6 +3161,21 @@ components:
                     Post: "#/components/schemas/PostMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+        SearchMentionTarget_Response:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/ChannelMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget_Response"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Channel: "#/components/schemas/ChannelMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
         ContentInlineElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentTextInlineElement"
@@ -3072,6 +3251,33 @@ components:
                     const: Read
                 target:
                     $ref: "#/components/schemas/MentionTarget_Response"
+        BotWebhookNewMessageEvent_Response:
+            type: object
+            required:
+                - type
+                - room
+                - index
+                - authorId
+                - createdTimeZone
+            additionalProperties: false
+            properties:
+                type:
+                    const: NewMessage
+                room:
+                    $ref: "#/components/schemas/MessageRoomTarget"
+                index:
+                    type: integer
+                    minimum: 0
+                authorId:
+                    $ref: "#/components/schemas/AccountId"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                wasMentioned:
+                    type: boolean
+                viewingTarget:
+                    $ref: "#/components/schemas/SearchMentionTarget_Response"
+                parent:
+                    $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
         ContentBlockElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
@@ -3174,6 +3380,15 @@ components:
                 mapping:
                     Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
                     Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+        BotWebhookEvent_Response:
+            oneOf:
+                - $ref: "#/components/schemas/BotWebhookNewMessageEvent_Response"
+                - $ref: "#/components/schemas/BotWebhookNewPostEvent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    NewMessage: "#/components/schemas/BotWebhookNewMessageEvent_Response"
+                    NewPost: "#/components/schemas/BotWebhookNewPostEvent"
         Content_Response:
             type: object
             additionalProperties: false

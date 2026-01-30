@@ -13,6 +13,7 @@ import {
     ApiMessageContentPayloadParent,
     ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
+    ApiSearchMentionTarget,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -552,5 +553,41 @@ export function pingApiMessageStream(
         }
         default:
             throw exhaustive(room);
+    }
+}
+
+export function getApiSearchMention(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    target: ApiSearchMentionTarget,
+) {
+    switch (target.type) {
+        case "Document": {
+            return apiClient.get(tracer, "/documents/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        }
+        case "Channel": {
+            return apiClient.get(tracer, "/channels/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        }
+        case "Task":
+            return apiClient.get(tracer, "/tasks/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        case "TaskCollection": {
+            return apiClient.get(tracer, "/task-collections/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        }
+        case "Post": {
+            return apiClient.get(tracer, "/posts/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        }
+        default: {
+            throw exhaustive(target);
+        }
     }
 }

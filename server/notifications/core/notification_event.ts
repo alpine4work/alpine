@@ -19,6 +19,7 @@ import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js
 import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SearchMentionEntityIdSchema} from "~/shared/search/search_entity_id.js";
 
 const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookNewMessageEventMessageParent> =
     Schema.object({
@@ -61,6 +62,7 @@ const NotificationCreateChatMessageEventSchema = Schema.object({
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
     clerical: MessageContentPayloadClericalSchema.optional(),
+    currentlyViewedSearchEntityId: SearchMentionEntityIdSchema.optional(),
 });
 
 export type NotificationCreatePostCommentEvent = SchemaType<

@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/react",
         "//:node_modules/react-aria",
         "//:node_modules/react-stately",
+        "//client/web/bots",
         "//client/web/content",
         "//client/web/helpers",
         "//client/web/messaging",

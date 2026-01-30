@@ -1,8 +1,11 @@
 import {Ref, forwardRef, useCallback, useMemo, useRef} from "react";
+import {getSafeCurrentlyViewedEntityIfPossibleForClient} from "~/client/web/bots/get_safe_current_viewed_entity_if_possible_for_client.js";
 import {chatMessagingViewHeaderItem} from "~/client/web/chat/internal/chat_messaging_view_header_item.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {MessagingView, MessagingViewRef} from "~/client/web/messaging/messaging_view.js";
+import {useCurrentlyViewingSearchEntityId} from "~/client/web/remix/use_currently_viewing_search_entity_id.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
@@ -33,6 +36,16 @@ function NewChatMessagingView(
     ref: Ref<MessagingViewRef<ChatId>>,
 ) {
     const context = useAppContext();
+    const spaceContext = useSpaceContext();
+    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId(spaceContext.space.id);
+
+    // We only send the currently viewed entity for 1:1 chats with a bot.
+    // We do some validation here and on the server.
+    currentlyViewingSearchEntityId = getSafeCurrentlyViewedEntityIfPossibleForClient(
+        spaceContext,
+        selectedChat?.chat,
+        currentlyViewingSearchEntityId,
+    );
 
     const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "ChatRealtimeService",
@@ -148,6 +161,7 @@ function NewChatMessagingView(
                 [selectedChat],
             )}
             inputRestoreStateRef={inputRestoreStateRef}
+            dangerousCurrentlyViewingSearchEntityId={currentlyViewingSearchEntityId}
         />
     );
 }

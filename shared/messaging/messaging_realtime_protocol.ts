@@ -23,6 +23,10 @@ import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
+import {
+    SearchMentionEntityId,
+    SearchMentionEntityIdSchema,
+} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     ServerSynchronizationCheckpoint,
@@ -59,6 +63,19 @@ export type CreateMessageProcedure = (input: {
     content: MessageContent;
     fileIds: ReadonlyArray<FileId | FileEntityId>;
     createdTimeZone: TimeZone;
+    /**
+     * The search entity id that the user is currently viewing while sending
+     * the chat message. We consider this to be dangerous because it enables
+     * other humans in a chat to see what a user is looking at based on the
+     * agent's response.
+     *
+     * We should only set this value if the user is in an "all-bot" chat.
+     *
+     * We don't store this anywhere, but we do pass it along to agents. As an
+     * extra safety measure, we validate that the user is in a bot-only chat
+     * on the server before passing it along.
+     */
+    dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId;
 }) => Promise<{}>;
 
 export type UpdateMessageContentProcedure = (input: {
@@ -152,6 +169,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
                 content: MessageContentSchema,
                 fileIds: Schema.array(FileIdOrFileEntityIdSchema),
                 createdTimeZone: TimeZoneSchema,
+                dangerousCurrentlyViewingSearchEntityId: SearchMentionEntityIdSchema.optional(),
             },
             output: {},
         },

@@ -41,6 +41,7 @@ import {
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -55,6 +56,7 @@ export type CreateMessageFunction<RoomKey extends string> = (
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         createdTimeZone: TimeZone;
+        dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId;
     },
 ) => Promise<{
     index: number;
@@ -534,11 +536,25 @@ export class MessagingRealtimeConnection<
             content,
             createdTimeZone,
             fileIds,
+            dangerousCurrentlyViewingSearchEntityId,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             createdTimeZone: TimeZone;
             fileIds: ReadonlyArray<FileId | FileEntityId>;
+            /**
+             * The search entity id that the user is currently viewing while sending
+             * the chat message. We consider this to be dangerous because it enables
+             * other humans in a chat to see what a user is looking at based on the
+             * agent's response.
+             *
+             * We should only set this value if the user is in an "all-bot" chat.
+             *
+             * We don't store this anywhere, but we do pass it along to agents. As an
+             * extra safety measure, we validate that the user is in a bot-only chat
+             * on the server before passing it along.
+             */
+            dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId;
         },
     ): Promise<{}> {
         assert(this.accountId === context.actor.getAccountId());
@@ -553,6 +569,7 @@ export class MessagingRealtimeConnection<
             content,
             fileIds,
             createdTimeZone,
+            dangerousCurrentlyViewingSearchEntityId,
         });
 
         await messagingRealtimeCreateMessageBeforeSendTestCheckpoint.waitForTest(

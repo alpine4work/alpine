@@ -11,6 +11,35 @@ import {
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
+ * Parses a `SearchMentionEntityId` from a pathname. Returns `null` if
+ * no matching entity pattern is found in the pathname.
+ *
+ * This is a lower-level function that doesn't validate URL or spaceId.
+ * Use `parseSearchEntityIdFromUrl` if you need those validations.
+ *
+ * Matches the following patterns:
+ * - `/s/{spaceId}/documents/{documentId}` → `Document:{documentId}`
+ * - `/s/{spaceId}/tasks/{taskId}` → `Task:{taskId}`
+ * - `/s/{spaceId}/posts/{postId}` → `Post:{postId}`
+ * - `/s/{spaceId}/channels/{channelId}` → `Channel:{channelId}`
+ * - `/s/{spaceId}/tasks/collections/{collectionId}` → `TaskCollection:{collectionId}`
+ */
+export function parseSearchEntityIdFromPathname(
+    spaceId: SpaceId,
+    pathname: string,
+): SearchMentionEntityId | null {
+    // window is undefined in case of SSR. We can default to alpine.inc in that case
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://alpine.inc";
+    const url = new URL(pathname, baseUrl);
+
+    const entityId = parseSearchEntityIdFromUrl(spaceId, url.toString());
+
+    if (!entityId || isAccountEntityId(entityId)) return null;
+
+    return entityId;
+}
+
+/**
  * Parses a `SearchEntityId` from a URL. Currently, we only support
  * `SearchMentionEntityId`s. If the entity is not in the provided
  * `SpaceId` or is not a valid `SearchEntityId`, `null` is returned.
@@ -30,7 +59,8 @@ export function parseSearchEntityIdFromUrl(
     }
 
     // Make sure the URL is from the same host that we're currently on.
-    if (url.host !== window.location.host) return null;
+    // During SSR, window is undefined, so we return null.
+    if (typeof window === "undefined" || url.host !== window.location.host) return null;
 
     {
         const accountMatch = url.pathname.match(/^\/s\/([^/]+)\/chat\/with\/([^/]+)\/?$/);
@@ -81,4 +111,10 @@ export function parseSearchEntityIdFromUrl(
     }
 
     return null;
+}
+
+function isAccountEntityId(
+    entityId: SearchMentionEntityId | `Account:${AccountId}`,
+): entityId is `Account:${AccountId}` {
+    return entityId.startsWith(`Account:`);
 }

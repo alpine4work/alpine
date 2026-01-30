@@ -18,6 +18,7 @@ import {
     pingDocumentCommentStream,
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
+import {getSearchEntityMentionWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -54,6 +55,30 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                             }),
                             document.content,
                         ),
+                    },
+                },
+            };
+        },
+    },
+
+    "/documents/{id}/mention": {
+        get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+                context,
+                spaceId,
+                `Document:${pathParameters.id}`,
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    mention: {
+                        target: {
+                            type: "Document",
+                            id: pathParameters.id,
+                        },
+                        title: searchEntity.title,
                     },
                 },
             };

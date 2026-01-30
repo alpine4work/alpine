@@ -165,7 +165,14 @@ export class ChatRealtimeConnection {
 
 const createMessage: CreateMessageFunction<ChatId> = (
     context,
-    {roomKey: chatId, parent, content, fileIds, createdTimeZone},
+    {
+        roomKey: chatId,
+        parent,
+        content,
+        fileIds,
+        createdTimeZone,
+        dangerousCurrentlyViewingSearchEntityId,
+    },
 ) => {
     return sendChatMessage(context, {
         chatId,
@@ -173,6 +180,7 @@ const createMessage: CreateMessageFunction<ChatId> = (
         content,
         fileIds,
         createdTimeZone,
+        dangerousCurrentlyViewingSearchEntityId,
     });
 };
 

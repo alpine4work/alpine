@@ -1,4 +1,5 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
+import {intoApiTaskStatus} from "~/server/api/content/into_api_task_status.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
@@ -7,6 +8,7 @@ import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_ap
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
 import {getApiTasksWithoutContent} from "~/server/api/internal/tasks/internal/get_api_tasks_without_content.js";
+import {getSearchEntityMentionWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
 import {
     FileTaskAuthorizer,
     completeTaskCommentStream,
@@ -121,6 +123,33 @@ export const apiTasksPaths: Pick<
                         due: dueDate ? {date: dueDate.toString()} : undefined,
                         priority: task.getPriority() ?? undefined,
                         content,
+                    },
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}/mention": {
+        get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+                context,
+                spaceId,
+                `Task:${pathParameters.id}`,
+            );
+
+            assert(searchEntity.media?.type === "TaskDisplayStatus");
+
+            return {
+                content: {
+                    spaceId,
+                    mention: {
+                        target: {
+                            type: "Task",
+                            id: pathParameters.id,
+                            status: intoApiTaskStatus(searchEntity.media?.displayStatus),
+                        },
+                        title: searchEntity.title,
                     },
                 },
             };
@@ -391,6 +420,30 @@ export const apiTasksPaths: Pick<
                     taskCollection: {
                         id: collection.id,
                         name: collection.getName(),
+                    },
+                },
+            };
+        },
+    },
+
+    "/task-collections/{id}/mention": {
+        get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+                context,
+                spaceId,
+                `TaskCollection:${pathParameters.id}`,
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    mention: {
+                        target: {
+                            type: "TaskCollection",
+                            id: pathParameters.id,
+                        },
+                        title: searchEntity.title,
                     },
                 },
             };

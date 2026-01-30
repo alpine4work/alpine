@@ -1,6 +1,12 @@
-import {addHours} from "date-fns";
+import {addHours} from "date-fns/addHours";
+import {differenceInMinutes} from "date-fns/differenceInMinutes";
+import {Link, PhrasingContent} from "mdast";
 import OpenAi from "openai";
-import {createApiClient, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
+import {
+    createApiClient,
+    getApiMessagesFromStart,
+    getApiSearchMention,
+} from "~/server/agents/api/api_client.js";
 import {
     AgentContext,
     AgentDurableObjectBase,
@@ -35,10 +41,19 @@ import {
 } from "~/server/agents/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {getAgentModelDowngradedMessage} from "~/server/agents/internal/get_agent_model_downgraded_message.js";
 import {getAgentTokenLimitExceededMessage} from "~/server/agents/internal/get_agent_token_limit_exceeded_message.js";
-import {getAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
+import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
+import {
+    CreateAgentLinkOptions,
+    createAgentLink,
+    getAgentLink,
+} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {createAgentLinkNotFoundError} from "~/server/agents/internal/link_references/create_agent_link_not_found_error.js";
 import {loadAgentLinkContent} from "~/server/agents/internal/link_references/load_agent_link_content.js";
-import {printApiPathForAgentLink} from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {
+    printAgentLinkPath,
+    printAgentPlainTextLabel,
+    printApiPathForAgentLink,
+} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {initializeMessagesInAgentConversation} from "~/server/agents/internal/messages/initialize_messages_in_agent_conversation.js";
 import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messages/load_new_messages_in_agent_conversation.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
@@ -62,7 +77,10 @@ import {
     parseApiPath,
     printApiMessageRoomPath,
 } from "~/shared/api/parse_api_path.js";
-import {ApiMessageRoomTarget} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ApiMessageRoomTarget,
+    ApiSearchMentionResponse,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     DataLossError,
@@ -81,6 +99,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {
@@ -544,6 +563,11 @@ async function ensureMessagesInChatGptAgentConversation(
             // them to the conversation so they're not missed.
             newMessageIndex - 1,
         );
+
+        // Inject context about what the user is currently viewing, if available.
+        // This helps the agent understand the user's context when they send a message.
+        // Note: currentlyViewingTarget is only available on NewMessage events, not NewPost.
+        await injectCurrentlyViewedEntityIntoContextIfNeeded(tracer, request, transaction, state);
 
         // Set `lastMessageIndex` so we don't load the `ApiContent` for the agent's
         // message into the conversation history. That would be redundant given we'll
@@ -1218,5 +1242,206 @@ async function requestChatGptAgentWithRetry(
         // Error is not retryable or we've exceeded the max retry count, push error and throw
         options.session.pushText(span, defaultAgentErrorDisplayMessage);
         throw error;
+    }
+}
+
+/**
+ * Injects context about what entity the user is currently viewing into the
+ * conversation. This helps the agent understand the user's context when they
+ * send a message.
+ *
+ * Adds a developer message like:
+ * "Context: The user is currently viewing [Document Title](/documents/doc-title).
+ * You can use the read_link tool to learn more about it."
+ */
+async function injectCurrentlyViewedEntityIntoContextIfNeeded(
+    tracer: TracerBase,
+    request: AgentWebhookRequest,
+    transaction: DurableObjectTransaction,
+    conversation: ChatGptAgentConversationStore,
+): Promise<void> {
+    if (request.event.type !== "NewMessage") return;
+
+    const currentlyViewingTargetState = conversation.getState().currentlyViewingTarget;
+
+    let newViewingTarget: ApiSearchMentionResponse | null = null;
+
+    // If the user is looking at a new entity, load the entity mention from the API.
+    if (
+        request.event.viewingTarget &&
+        !isDeepEqual(request.event.viewingTarget, currentlyViewingTargetState?.target)
+    ) {
+        const {data} = await getApiSearchMention(
+            tracer,
+            request.apiClient,
+            request.event.viewingTarget,
+        );
+        newViewingTarget = data.mention;
+    }
+
+    const previousEntity = currentlyViewingTargetState?.target ?? null;
+    const previousInjectTime = currentlyViewingTargetState?.previousInjectTime ?? null;
+
+    // If the user is still not viewing anything, no need to inject.
+    if (newViewingTarget === null && previousEntity === null) return;
+
+    // If the user is looking at same content as before (both non-null) and the last
+    // injection was within the last 10 minutes, no need to inject.
+    if (
+        isDeepEqual(newViewingTarget, previousEntity) &&
+        previousInjectTime !== null &&
+        differenceInMinutes(new Date(), previousInjectTime) <= 10
+    ) {
+        return;
+    }
+
+    const [{data: author}, entityLink, previousEntityLink] = await runAllPromises([
+        request.apiClient.get(tracer, "/accounts/{id}", {
+            params: {path: {id: request.event.authorId}},
+        }),
+        newViewingTarget !== null
+            ? await createAgentLink(transaction, intoCreateAgentLinkOptions(newViewingTarget))
+            : null,
+        previousEntity !== null
+            ? await createAgentLink(transaction, intoCreateAgentLinkOptions(previousEntity))
+            : null,
+    ]);
+
+    const getEntityMarkdownLink = (entityLink: AgentLink): Link => {
+        return {
+            type: "link",
+            url: printAgentLinkPath(entityLink),
+            children: [{type: "text", value: printAgentPlainTextLabel(entityLink)}],
+        };
+    };
+
+    const content: Array<PhrasingContent> = [{type: "text", value: author.account.shortName}];
+
+    if (newViewingTarget === null) {
+        // If the previous entity was also null, we would have returned early, so we
+        // know for sure that the previous entity is not null.s
+        assert(previousEntityLink !== null);
+
+        content.push({type: "text", value: ` is no longer looking at `});
+        content.push(getEntityMarkdownLink(previousEntityLink));
+    }
+    // The previous entity is null, so the user has started looking at Alpine content
+    // after not looking at anything.
+    else if (previousEntity === null) {
+        // If the new entity was also null, we would have returned early, so we
+        // know for sure that the new entity is not null.
+        assert(entityLink !== null);
+
+        content.push({type: "text", value: ` is looking at `});
+        content.push(getEntityMarkdownLink(entityLink));
+    }
+    // The previous entity is the same as the new entity. We know for sure that
+    // 1. Previous and new are non-null
+    // 2. It has been more than 10 minutes since the last injection
+    else if (isDeepEqual(newViewingTarget, previousEntity)) {
+        assert(entityLink !== null);
+        assert(previousEntityLink !== null);
+
+        content.push({type: "text", value: ` is still looking at `});
+        content.push(getEntityMarkdownLink(entityLink));
+    }
+    // The user is looking at a different entity than the one they were viewing
+    // during the last request.
+    else {
+        assert(entityLink !== null);
+        assert(previousEntityLink !== null);
+
+        content.push({type: "text", value: ` is now looking at `});
+        content.push(getEntityMarkdownLink(entityLink));
+    }
+
+    const orderKey = generateOrderKeyBetween(conversation.getState().lastOrderKey, null);
+
+    await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
+        item: {
+            type: "message",
+            role: "system",
+            content: [
+                {
+                    type: "input_text",
+                    text: printAgentContentMarkdownTree({type: "root", children: content}),
+                },
+            ],
+        },
+    });
+
+    await conversation.setState(transaction, {
+        lastOrderKey: orderKey,
+        currentlyViewingTarget: {
+            target: newViewingTarget,
+            previousTarget: previousEntity,
+            previousInjectTime: new Date(),
+        },
+    });
+}
+
+export async function injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+    tracer: TracerBase,
+    request: AgentWebhookRequest,
+    transaction: DurableObjectTransaction,
+    conversation: ChatGptAgentConversationStore,
+): Promise<void> {
+    assert(import.meta.jest);
+    await injectCurrentlyViewedEntityIntoContextIfNeeded(
+        tracer,
+        request,
+        transaction,
+        conversation,
+    );
+}
+
+/**
+ * Converts an `ApiCurrentlyViewedEntity` into options for `createAgentLink`.
+ */
+function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAgentLinkOptions {
+    switch (entity.target.type) {
+        case "Document":
+            return {
+                type: "Document",
+                document: {
+                    id: entity.target.id,
+                    title: entity.title,
+                },
+            };
+        case "Task":
+            return {
+                type: "Task",
+                task: {
+                    id: entity.target.id,
+                    title: entity.title,
+                    status: entity.target.status,
+                },
+            };
+        case "Post":
+            return {
+                type: "Post",
+                post: {
+                    id: entity.target.id,
+                    contentPreview: entity.title,
+                },
+            };
+        case "Channel":
+            return {
+                type: "Channel",
+                channel: {
+                    id: entity.target.id,
+                    name: entity.title,
+                },
+            };
+        case "TaskCollection":
+            return {
+                type: "TaskCollection",
+                taskCollection: {
+                    id: entity.target.id,
+                    name: entity.title,
+                },
+            };
+        default:
+            throw exhaustive(entity.target);
     }
 }

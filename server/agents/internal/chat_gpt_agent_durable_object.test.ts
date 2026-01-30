@@ -10,7 +10,14 @@ import OpenAi from "openai";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
-import {ChatGptAgentDurableObject} from "~/server/agents/internal/chat_gpt_agent_durable_object.js";
+import {
+    ChatGptAgentDurableObject,
+    injectCurrentlyViewedEntityIntoContextIfNeededForTest,
+} from "~/server/agents/internal/chat_gpt_agent_durable_object.js";
+import {
+    ChatGptAgentConversationItemCollection,
+    ChatGptAgentConversationStore,
+} from "~/server/agents/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {AgentUsageDatabaseInterface} from "~/server/agents/internal/d1/agent_usage_database.js";
 import {OpenAiClientInterface} from "~/server/agents/internal/open_ai_client.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -2916,6 +2923,499 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     path: "/chats/{id}/messages/{index}/stream/completion",
                 }),
             ]);
+        });
+    });
+});
+
+describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
+    const apiClient = new ApiClientMock();
+    const spaceId = generateId<SpaceId>();
+    const chatId = generateId<ChatId>();
+    const authorId = generateId<AccountId>();
+    const botId = generateId<BotId>();
+    const documentId = generateId<DocumentId>();
+
+    // Have to cast as any here since Miniflare's DurableObjectStorage type is not
+    // assignable to the global DurableObjectStorage type.
+    let testStorage: any;
+
+    const mockOpenAiClient: jest.Mocked<OpenAiClientInterface> = {
+        createResponse: jest.fn(),
+        createResponseWithStreaming: jest.fn(),
+    };
+
+    const mockAgentUsageDatabase: jest.Mocked<AgentUsageDatabaseInterface> = {
+        createAgentRequest: jest.fn(),
+        getUsedMillicentsByAccountIdSinceTimestamp: jest.fn(),
+        getWindowByAccountIdAndType: jest.fn(),
+        setWindowByAccountIdAndType: jest.fn(),
+        downgradeModelForWindow: jest.fn(),
+        getAccountEntitlements: jest.fn(),
+        setAccountEntitlements: jest.fn(),
+    };
+
+    beforeEach(() => {
+        testStorage = new DurableObjectStorage(new MemoryStorage());
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date("2025-12-30T12:00:00.000Z"));
+    });
+
+    afterEach(async () => {
+        await testStorage.deleteAll();
+        jest.clearAllMocks();
+        jest.useRealTimers();
+    });
+
+    function createBaseRequest(overrides: Partial<AgentWebhookRequest> = {}): AgentWebhookRequest {
+        return {
+            storage: testStorage,
+            apiClient,
+            apiAccessToken: "test-access-token",
+            openAiClient: new Lazy(() => mockOpenAiClient),
+            agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+            origin: "https://agent-service.cyberworlds.workers.dev",
+            spaceId,
+            botId,
+            botAccountId: generateId<AccountId>(),
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+            },
+            room: {type: "Chat", id: chatId},
+            ...overrides,
+        };
+    }
+
+    test("does nothing when event type is not NewMessage", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        const request = createBaseRequest({
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+            },
+        });
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            // Verify no conversation items were added
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(0);
+        });
+    });
+
+    test("does nothing when viewingTarget is null and there is no previous entity", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        const request = createBaseRequest();
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            // Verify no conversation items were added
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(0);
+        });
+    });
+
+    test("injects ‘is looking at’ message when user starts viewing a new entity", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        const request = createBaseRequest({
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+                viewingTarget: {type: "Document", id: documentId},
+            },
+        });
+
+        // Mock the API calls
+        apiClient.mockGet("/documents/{id}/mention", {
+            data: {
+                spaceId,
+                mention: {
+                    target: {type: "Document", id: documentId},
+                    title: "Test Document",
+                },
+            },
+        });
+
+        apiClient.mockGet("/accounts/{id}", {
+            data: {
+                account: createApiAccountMock({name: "Test User"}),
+            },
+        });
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            // Verify a conversation item was added
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(1);
+
+            expect(Array.from(items.values())[0]!.item).toMatchObject({
+                type: "message",
+                role: "system",
+                content: expect.arrayContaining([
+                    expect.objectContaining({
+                        type: "input_text",
+                        text: expect.stringContaining("is looking at"),
+                    }),
+                ]),
+            });
+
+            // Verify state was updated
+            expect(conversation.getState().currentlyViewingTarget).toMatchObject({
+                target: {
+                    target: {type: "Document", id: documentId},
+                    title: "Test Document",
+                },
+                previousTarget: null,
+            });
+        });
+    });
+
+    test("injects ‘is no longer looking at’ message when user stops viewing an entity", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        // First, set up initial state with a previous entity
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await conversation.setState(transaction, {
+                currentlyViewingTarget: {
+                    target: {
+                        target: {type: "Document", id: documentId},
+                        title: "Test Document",
+                    },
+                    previousTarget: null,
+                    previousInjectTime: new Date("2025-12-30T11:00:00.000Z"),
+                },
+            });
+        });
+
+        const request = createBaseRequest({
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+                // No viewingTarget - user is no longer viewing anything
+            },
+        });
+
+        apiClient.mockGet("/accounts/{id}", {
+            data: {
+                account: createApiAccountMock({name: "Test User"}),
+            },
+        });
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            // Verify a conversation item was added
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(1);
+
+            expect(Array.from(items.values())[0]!.item).toMatchObject({
+                type: "message",
+                role: "system",
+                content: expect.arrayContaining([
+                    expect.objectContaining({
+                        type: "input_text",
+                        text: expect.stringContaining("is no longer looking at"),
+                    }),
+                ]),
+            });
+
+            // Verify state was updated - target should now be null
+            expect(conversation.getState().currentlyViewingTarget).toMatchObject({
+                target: null,
+            });
+        });
+    });
+
+    test("does nothing if user is viewing the same entity within 10 minutes", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        const viewingTarget = {
+            target: {type: "Document" as const, id: documentId},
+            title: "Test Document",
+        };
+
+        // First, set up initial state with the same entity viewed 5 minutes ago
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await conversation.setState(transaction, {
+                currentlyViewingTarget: {
+                    target: viewingTarget,
+                    previousTarget: null,
+                    previousInjectTime: new Date("2025-12-30T11:55:00.000Z"), // 5 minutes ago
+                },
+            });
+        });
+
+        const request = createBaseRequest({
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+                viewingTarget: {type: "Document", id: documentId},
+            },
+        });
+
+        // Mock API call for mention (to get the same entity)
+        apiClient.mockGet("/documents/{id}/mention", {
+            data: {
+                spaceId,
+                mention: viewingTarget,
+            },
+        });
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            // Verify no conversation items were added
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(0);
+        });
+    });
+
+    test("injects ‘is still looking at’ message if user is viewing the same entity after 10 minutes", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        const viewingTarget = {
+            target: {type: "Document" as const, id: documentId},
+            title: "Test Document",
+        };
+
+        // First, set up initial state with the same entity viewed 15 minutes ago
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await conversation.setState(transaction, {
+                currentlyViewingTarget: {
+                    target: viewingTarget,
+                    previousTarget: null,
+                    previousInjectTime: new Date("2025-12-30T11:45:00.000Z"), // 15 minutes ago
+                },
+            });
+        });
+
+        const request = createBaseRequest({
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+                viewingTarget: {type: "Document", id: documentId},
+            },
+        });
+
+        // Mock API calls
+        apiClient.mockGet("/documents/{id}/mention", {
+            data: {
+                spaceId,
+                mention: viewingTarget,
+            },
+        });
+
+        apiClient.mockGet("/accounts/{id}", {
+            data: {
+                account: createApiAccountMock({name: "Test User"}),
+            },
+        });
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            // Verify a conversation item was added
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(1);
+
+            expect(Array.from(items.values())[0]!.item).toMatchObject({
+                type: "message",
+                role: "system",
+                content: expect.arrayContaining([
+                    expect.objectContaining({
+                        type: "input_text",
+                        text: expect.stringContaining("is still looking at"),
+                    }),
+                ]),
+            });
+        });
+    });
+
+    test("injects ‘is now looking at’ message when user switches from one entity to another", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        const previousDocumentId = generateId<DocumentId>();
+        const newDocumentId = generateId<DocumentId>();
+
+        const previousTarget = {
+            target: {type: "Document" as const, id: previousDocumentId},
+            title: "Previous Document",
+        };
+
+        // First, set up initial state with a different entity
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await conversation.setState(transaction, {
+                currentlyViewingTarget: {
+                    target: previousTarget,
+                    previousTarget: null,
+                    previousInjectTime: new Date("2025-12-30T11:55:00.000Z"),
+                },
+            });
+        });
+
+        const request = createBaseRequest({
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+                viewingTarget: {type: "Document", id: newDocumentId},
+            },
+        });
+
+        // Mock API calls
+        apiClient.mockGet("/documents/{id}/mention", {
+            data: {
+                spaceId,
+                mention: {
+                    target: {type: "Document", id: newDocumentId},
+                    title: "New Document",
+                },
+            },
+        });
+
+        apiClient.mockGet("/accounts/{id}", {
+            data: {
+                account: createApiAccountMock({name: "Test User"}),
+            },
+        });
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            // Verify a conversation item was added
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(1);
+
+            expect(Array.from(items.values())[0]!.item).toMatchObject({
+                type: "message",
+                role: "system",
+                content: expect.arrayContaining([
+                    expect.objectContaining({
+                        type: "input_text",
+                        text: expect.stringContaining("is now looking at"),
+                    }),
+                ]),
+            });
+
+            // Verify state was updated
+            expect(conversation.getState().currentlyViewingTarget).toMatchObject({
+                target: {
+                    target: {type: "Document", id: newDocumentId},
+                    title: "New Document",
+                },
+                previousTarget: previousTarget,
+            });
         });
     });
 });

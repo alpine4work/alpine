@@ -18,6 +18,7 @@ ts_project(
         "//server/api/internal/shared",
         "//server/api/markdown",
         "//server/tasks/data",
+        "//server/search/data/index",
         "//shared/api",
         "//shared/error",
         "//shared/helpers",

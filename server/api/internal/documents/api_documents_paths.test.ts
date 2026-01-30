@@ -152,6 +152,120 @@ test("can\u2019t read document content for non-existent document", async () => {
     });
 });
 
+describe("/documents/{id}/mention", () => {
+    test("can read document mention", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Test Document Title",
+            access: "Private",
+        });
+
+        expect(
+            await server.GET(`/documents/${document.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "Document",
+                        id: document.id,
+                    },
+                    title: "Test Document Title",
+                },
+            },
+        });
+    });
+
+    test("can’t read document mention without access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const document = await TestDocument.create(session2, {access: "Private"});
+
+        expect(
+            await server.GET(`/documents/${document.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 403,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "You aren’t allowed to access this document. Ask someone with access to share it with you.",
+                    ),
+                }),
+            },
+        });
+    });
+
+    test("can’t read document mention for non-existent document", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        expect(
+            await server.GET(`/documents/${generateId<DocumentId>()}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 404,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("This document doesn’t exist"),
+                }),
+            },
+        });
+    });
+
+    test("can read document mention with document scope", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const document = await TestDocument.create(session, {
+            title: "Scoped Document",
+            access: "Private",
+        });
+        const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
+
+        expect(
+            await server.GET(`/documents/${document.id}/mention`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                mention: {
+                    target: {
+                        type: "Document",
+                        id: document.id,
+                    },
+                    title: "Scoped Document",
+                },
+            },
+        });
+    });
+});
+
 test("can read document content with document scope", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});

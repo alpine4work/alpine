@@ -129,7 +129,12 @@ import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
@@ -167,6 +172,8 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId, isId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
+import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
+import {missingSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {
     SearchAffinityEntityId,
     SearchDynamicEntityId,
@@ -2426,6 +2433,39 @@ const SearchEntityBatcher = new ContextBatcher<
 export const fallbackGetSearchEntityBaseIfPossibleTestCounter =
     new TestCounter<SearchMentionEntityId>();
 
+export async function getSearchEntityMentionWithStrongConsistency(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    entityId: SearchMentionEntityId,
+) {
+    const {type} = parseSearchMentionEntityId(entityId);
+    const entity = await fallbackGetSearchEntityBaseIfPossible(
+        context,
+        spaceId,
+        entityId,
+        new Set(),
+    );
+
+    if (entity === null) {
+        throw new NotFoundError("Search entity not found", {
+            displayMessage: errorDisplayMessage`This ${getSearchEntityNoun(type)} doesn’t exist.`,
+        });
+    }
+
+    if (entity.isPrivate) {
+        throw new PermissionDeniedError("Search entity is private", {
+            displayMessage: errorDisplayMessage`You aren’t allowed to access this ${getSearchEntityNoun(type)}. Ask someone with access to share it with you.`,
+        });
+    }
+
+    return {
+        id: entityId,
+        title: entity.title ?? `${missingSearchEntityTitle} ${getSearchEntityNoun(type)}`,
+        titleVersion: entity.titleVersion,
+        media: entity.media,
+    };
+}
+
 /**
  * If we can't find a search entity in OpenSearch then we run this fallback
  * which tries to load the search entity from its original source. Which is
@@ -2480,6 +2520,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
             const taskResult = await context.tasks.getTaskWithoutDependenciesIfPossible(
                 spaceId,
                 entityIdObject.taskId,
+                {consistency: "StrongWithinCache"},
             );
             if (!taskResult) return null;
             if (!taskResult.ok) return {isPrivate: true};
@@ -2495,6 +2536,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
             const collectionResult = await context.tasks.getCollectionIfPossible(
                 spaceId,
                 entityIdObject.collectionId,
+                {consistency: "StrongWithinCache"},
             );
             if (!collectionResult) return null;
             if (!collectionResult.ok) return {isPrivate: true};

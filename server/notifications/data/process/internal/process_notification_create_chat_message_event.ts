@@ -10,14 +10,20 @@ import {createNotificationEventProcessor} from "~/server/notifications/data/proc
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {ApiSearchMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadClerical} from "~/shared/messaging/message_schema.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
+import {
+    SearchMentionEntityId,
+    parseSearchMentionEntityId,
+} from "~/shared/search/search_entity_id.js";
 
 export const processNotificationCreateChatMessageEvent = createNotificationEventProcessor<
     NotificationCreateChatMessageEvent,
@@ -222,6 +228,9 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         createdTimeZone: event.createdTimeZone,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
         parent: event.parent ?? undefined,
+        viewingTarget: event.currentlyViewedSearchEntityId
+            ? intoApiSearchMentionTarget(event.currentlyViewedSearchEntityId)
+            : undefined,
     }),
     getAlertContent: async (
         context,
@@ -291,3 +300,45 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         return {title, subtitle, body};
     },
 });
+
+function intoApiSearchMentionTarget(
+    searchMentionEntityId: SearchMentionEntityId,
+): ApiSearchMentionTarget {
+    const entityIdObject = parseSearchMentionEntityId(searchMentionEntityId);
+
+    switch (entityIdObject.type) {
+        case "Channel": {
+            return {
+                type: "Channel",
+                id: entityIdObject.channelId,
+            };
+        }
+        case "Document": {
+            return {
+                type: "Document",
+                id: entityIdObject.documentId,
+            };
+        }
+        case "Post": {
+            return {
+                type: "Post",
+                id: entityIdObject.postId,
+            };
+        }
+        case "Task": {
+            return {
+                type: "Task",
+                id: entityIdObject.taskId,
+            };
+        }
+        case "TaskCollection": {
+            return {
+                type: "TaskCollection",
+                id: entityIdObject.collectionId,
+            };
+        }
+        default: {
+            throw exhaustive(entityIdObject);
+        }
+    }
+}
