@@ -18,10 +18,12 @@ import {
     ApiContentBlockElement,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/types/api_specification_convenience_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type AgentMessageStreamPart = {
     readonly index: number;
@@ -40,7 +42,19 @@ export class AgentMessageStream {
     private readonly _spaceId: SpaceId;
     private readonly _getTargetPathIfExists: (linkPath: string) => Promise<ApiPath | null>;
 
-    private _text = "";
+    private _textState: {
+        // When you call `pushText()` you must pass in a `TracerSpan`. This is the
+        // latest span passed into `pushText()`. The `putApiMessageStreamPart()` call
+        // for this content will use this span as its parent.
+        //
+        // Most of the time, `pushText()` is called with the same span (this is the
+        // case for the ChatGPT agent at least). For the ChatGPT agent we want the
+        // content part span to be a child of the "OpenAI output item message" span
+        // created by `open_ai_client.ts`.
+        latestSpan: TracerSpan;
+        text: string;
+    } | null = null;
+
     private _parts: Array<AgentMessageStreamPart> = [];
 
     constructor({
@@ -66,8 +80,16 @@ export class AgentMessageStream {
      * Adds some text to the message. The text will be parsed into content later by
      * `update()` which is called with some throttling.
      */
-    public pushText(text: string) {
-        this._text += text;
+    public pushText(span: TracerSpan, text: string) {
+        if (this._textState === null) {
+            this._textState = {
+                latestSpan: span,
+                text: text,
+            };
+        } else {
+            this._textState.latestSpan = span;
+            this._textState.text += text;
+        }
     }
 
     /**
@@ -84,13 +106,15 @@ export class AgentMessageStream {
      * You may pass in `newParts` to add non-content parts to the stream.
      */
     public async update(
+        updateSpan: TracerSpan,
         newPartPayloads: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>> = [],
-    ): Promise<Array<AgentMessageStreamPart>> {
-        const putParts: Array<AgentMessageStreamPart> = [];
+    ): Promise<Array<{span: TracerSpan; part: AgentMessageStreamPart}>> {
+        const putParts: Array<{span: TracerSpan; part: AgentMessageStreamPart}> = [];
 
         const markdownParts = await this._parseTextIntoMarkdownParts();
         if (markdownParts.length > 0) {
-            const originalText = this._text;
+            assert(this._textState !== null);
+            const {latestSpan: textSpan, text: originalText} = this._textState;
 
             // The first Markdown part updates the last part in `AgentStreamMessage`. Or if
             // there are no parts in `AgentStreamMessage` yet it creates the first part.
@@ -140,7 +164,7 @@ export class AgentMessageStream {
                         payload: {type: "Content", content: getFirstPartContent()},
                     };
 
-                    putParts.push(firstPart);
+                    putParts.push({span: textSpan, part: firstPart});
                     this._parts.push(firstPart);
                 } else {
                     // We're updating the last part, so the previous part is actually the second-to-last
@@ -158,7 +182,7 @@ export class AgentMessageStream {
 
                     // We only need to update the last part if it actually changed.
                     if (!isDeepEqual(this._parts[this._parts.length - 1]!, firstPart)) {
-                        putParts.push(firstPart);
+                        putParts.push({span: textSpan, part: firstPart});
                         this._parts[this._parts.length - 1] = firstPart;
                     }
                 }
@@ -219,7 +243,7 @@ export class AgentMessageStream {
                     payload: {type: "Content", content: partContent},
                 };
 
-                putParts.push(part);
+                putParts.push({span: textSpan, part});
                 this._parts.push(part);
 
                 assert(previousMarkdownPart.length > 0);
@@ -227,7 +251,7 @@ export class AgentMessageStream {
                     previousMarkdownPart[previousMarkdownPart.length - 1]!;
                 assert(previousMarkdownPartLastContent.position?.end.offset !== undefined);
 
-                this._text = originalText.slice(
+                this._textState.text = originalText.slice(
                     previousMarkdownPartLastContent.position.end.offset,
                 );
             }
@@ -236,7 +260,7 @@ export class AgentMessageStream {
         if (newPartPayloads.length > 0) {
             // Reset the text. Any new text won't be replacing previous parts. It'll create
             // new parts.
-            this._text = "";
+            this._textState = null;
 
             for (const newPartPayload of newPartPayloads) {
                 // @ts-expect-error: We excluded `Content` from the TypeScript type. But double
@@ -250,7 +274,7 @@ export class AgentMessageStream {
                     payload: newPartPayload,
                 };
 
-                putParts.push(part);
+                putParts.push({span: updateSpan, part});
                 this._parts.push(part);
             }
         }
@@ -258,10 +282,12 @@ export class AgentMessageStream {
         return putParts;
     }
 
-    private async _parseTextIntoMarkdownParts(): Promise<Array<Array<BlockContent>>> {
-        let text = this._text;
+    private async _parseTextIntoMarkdownParts(): Promise<ReadonlyArray<Array<BlockContent>>> {
+        const textState = this._textState;
+        if (textState === null) return emptyArray;
 
-        if (text.length === 0) return [];
+        let text = textState.text;
+        if (text.length === 0) return emptyArray;
 
         // If the text ends with an incomplete HTML tag then remove it from the text.
         // Expect to get the rest of our HTML tag later from the LLM.

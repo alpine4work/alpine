@@ -4,6 +4,7 @@ import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -23,7 +24,10 @@ export interface OpenAiClientInterface {
         body: OpenAi.Responses.ResponseCreateParamsStreaming & {
             model: SupportedAgentModels["openai"];
         },
-    ): AsyncIterableIterator<OpenAi.Responses.ResponseStreamEvent>;
+    ): AsyncIterableIterator<{
+        span: TracerSpan;
+        event: OpenAi.Responses.ResponseStreamEvent;
+    }>;
 }
 
 export class OpenAiClient implements OpenAiClientInterface {
@@ -106,10 +110,15 @@ export class OpenAiClient implements OpenAiClientInterface {
         body: OpenAi.Responses.ResponseCreateParamsStreaming & {
             model: SupportedAgentModels["openai"];
         },
-    ): AsyncIterableIterator<OpenAi.Responses.ResponseStreamEvent> {
-        const {span, finishSpan} = tracer.startSpan("OpenAI create response (streaming)");
+    ): AsyncIterableIterator<{
+        span: TracerSpan;
+        event: OpenAi.Responses.ResponseStreamEvent;
+    }> {
+        const {span: parentSpan, finishSpan} = tracer.startSpan(
+            "OpenAI create response (streaming)",
+        );
 
-        span.addData({
+        parentSpan.addData({
             openai: {
                 model: body.model,
                 responses: {
@@ -151,6 +160,16 @@ export class OpenAiClient implements OpenAiClientInterface {
             );
 
             for await (const event of responseStream) {
+                let span = parentSpan;
+
+                // Set the span as the output item's if one exists.
+                if (hasOwnProperty(event, "output_index")) {
+                    span = outputItemSpanByIndex.get(event.output_index)?.span ?? span;
+                }
+
+                // Set this to finish a span after yielding.
+                let finishSpan: (() => void) | null = null;
+
                 switch (event.type) {
                     case "error": {
                         throw new UnknownError(`OpenAI \`${event.code}\`: ${event.message}`, {
@@ -160,21 +179,25 @@ export class OpenAiClient implements OpenAiClientInterface {
                     case "response.output_item.added": {
                         assert(!outputItemSpanByIndex.has(event.output_index));
 
-                        outputItemSpanByIndex.set(
-                            event.output_index,
-                            span.startSpan(`OpenAI output item ${event.item.type}`),
+                        const childSpan = parentSpan.startSpan(
+                            `OpenAI output item ${event.item.type}`,
                         );
+                        span = childSpan.span;
+
+                        outputItemSpanByIndex.set(event.output_index, childSpan);
                         break;
                     }
                     case "response.output_item.done": {
-                        assertExists(outputItemSpanByIndex.get(event.output_index)).finishSpan();
+                        ({finishSpan} = assertExists(
+                            outputItemSpanByIndex.get(event.output_index),
+                        ));
                         outputItemSpanByIndex.delete(event.output_index);
                         break;
                     }
                     case "response.completed": {
                         const {response} = event;
 
-                        span.addData({
+                        parentSpan.addData({
                             openai: {
                                 responses: {
                                     id: response.id,
@@ -198,10 +221,14 @@ export class OpenAiClient implements OpenAiClientInterface {
                     }
                 }
 
-                yield event;
+                try {
+                    yield {span, event};
+                } finally {
+                    finishSpan?.();
+                }
             }
         } catch (error) {
-            span.addException(error);
+            parentSpan.addException(error);
             throw error;
         } finally {
             for (const outputItemSpan of outputItemSpanByIndex.values()) {

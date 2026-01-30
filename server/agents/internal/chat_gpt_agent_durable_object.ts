@@ -436,7 +436,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
  *   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/18hyw8ssg62c6az1a04sb82gpc
  */
 function sendLimitErrorMessage(
-    tracer: TracerBase,
+    span: TracerSpan,
     request: AgentWebhookRequest,
     {
         session,
@@ -451,6 +451,7 @@ function sendLimitErrorMessage(
     },
 ): void {
     session.pushText(
+        span,
         getAgentTokenLimitExceededMessage(
             resetTime,
             currentTime,
@@ -467,7 +468,7 @@ function sendLimitErrorMessage(
  *   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/18hyw8ssg62c6az1a04sb82gpc
  */
 function sendDowngradeWarningMessage(
-    tracer: TracerBase,
+    span: TracerSpan,
     request: AgentWebhookRequest,
     {
         session,
@@ -480,6 +481,7 @@ function sendDowngradeWarningMessage(
     },
 ): void {
     session.pushText(
+        span,
         getAgentModelDowngradedMessage(resetTime, currentTime, request.event.createdTimeZone),
     );
 }
@@ -737,7 +739,7 @@ async function createChatGptAgentResponse(
 
     let hasFunctionCallOutputItem = false;
 
-    for await (const event of responseStream) {
+    for await (const {span, event} of responseStream) {
         switch (event.type) {
             case "response.output_item.done": {
                 // TODO(calebmer, #ai): If OpenAI gives us a `reasoning` output item then we
@@ -769,7 +771,7 @@ async function createChatGptAgentResponse(
                 break;
             }
             case "response.output_text.delta": {
-                session.pushText(event.delta);
+                session.pushText(span, event.delta);
                 break;
             }
             // NOTE(ifitzsimmons, 2025-11-13): At some point, we should think about storing response
@@ -785,7 +787,7 @@ async function createChatGptAgentResponse(
             // https://platform.openai.com/docs/api-reference/responses-streaming/response/reasoning_summary_part/done
             // https://platform.openai.com/docs/api-reference/responses-streaming/response/reasoning_summary_text/done
             case "response.reasoning_summary_part.done": {
-                session.pushReasoningSummary(event.part.text);
+                session.pushReasoningSummary(span, event.part.text);
                 break;
             }
             case "response.completed": {
@@ -853,11 +855,11 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
                 return tracer.withSpan(
                     "Call ChatGPT agent function",
                     async (
-                        tracer,
+                        span,
                     ): Promise<OpenAi.Responses.ResponseInputItem.FunctionCallOutput> => {
                         const result = await captureResultPromise(
                             callChatGptAgentFunction({
-                                tracer,
+                                span,
                                 transaction,
                                 request,
                                 session,
@@ -867,7 +869,7 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
                         );
 
                         if (!result.ok) {
-                            tracer.addException(result.error);
+                            span.addException(result.error);
                         }
 
                         // If the call fails then we tell our LLM the error message using
@@ -959,14 +961,14 @@ function renderErrorDisplayMessageForChatGptAgent(displayMessage: ErrorDisplayMe
 }
 
 async function callChatGptAgentFunction({
-    tracer,
+    span,
     transaction,
     request,
     session,
     functionCall,
     conversationState,
 }: {
-    tracer: TracerBase;
+    span: TracerSpan;
     transaction: DurableObjectTransaction;
     request: AgentWebhookRequest;
     session: AgentMessageStreamSession;
@@ -1014,7 +1016,7 @@ async function callChatGptAgentFunction({
             // As it stands right now, we won't stream Chat, ChatMessage, And ChatMessages
             // reads back to the client at all.
             if (mentionApiPath) {
-                session.pushToolCall({
+                session.pushToolCall(span, {
                     type: "Read",
                     target: parseApiMentionTarget(mentionApiPath),
                 });
@@ -1022,7 +1024,7 @@ async function callChatGptAgentFunction({
 
             // Use the class's loadContent method - all logic is encapsulated!
             const markdownTree = await loadAgentLinkContent({
-                tracer,
+                tracer: span,
                 transaction,
                 request,
                 link,
@@ -1048,13 +1050,13 @@ async function callChatGptAgentFunction({
                 );
             }
 
-            session.pushToolCall({
+            session.pushToolCall(span, {
                 type: "Search",
                 query: functionCallArguments.query,
             });
 
             const output = await searchAlpineForAgent(
-                tracer,
+                span,
                 transaction,
                 request,
                 functionCallArguments.query,
@@ -1214,7 +1216,7 @@ async function requestChatGptAgentWithRetry(
         }
 
         // Error is not retryable or we've exceeded the max retry count, push error and throw
-        options.session.pushText(defaultAgentErrorDisplayMessage);
+        options.session.pushText(span, defaultAgentErrorDisplayMessage);
         throw error;
     }
 }

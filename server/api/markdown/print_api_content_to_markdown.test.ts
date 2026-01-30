@@ -23,6 +23,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();
 
@@ -38,7 +39,7 @@ async function testPrintApiContentToMarkdown(content: ApiContent, expectedMarkdo
 
     // Test that `AgentMessageStream` can parse all the content we test in this
     // file exactly the same as the test expects.
-    {
+    await testTracer.withSpan("Test `AgentMessageStream`", async span => {
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
@@ -48,19 +49,19 @@ async function testPrintApiContentToMarkdown(content: ApiContent, expectedMarkdo
         let nextUpdate = randomInteger(1, 5);
 
         for (const markdownToken of markdownTokens) {
-            message.pushText(decodeO200kBase([markdownToken]));
+            message.pushText(span, decodeO200kBase([markdownToken]));
 
             // Update randomly within the message to exercise parse throttling choosing to
             // update at arbitrary times.
             nextUpdate--;
             if (nextUpdate === 0) {
-                await message.update();
+                await message.update(span);
                 nextUpdate = randomInteger(1, 5);
             }
         }
 
         // Always perform one last update.
-        await message.update();
+        await message.update(span);
 
         const elements: Array<ApiContentBlockElement> = [];
 
@@ -73,7 +74,7 @@ async function testPrintApiContentToMarkdown(content: ApiContent, expectedMarkdo
         }
 
         expect(normalizeApiContent({elements})).toEqual(normalizeApiContent(content));
-    }
+    });
 }
 
 test("simple paragraph", async () => {

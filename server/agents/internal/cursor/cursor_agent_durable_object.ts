@@ -1256,9 +1256,9 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
             getTargetPathIfExists: async () => null,
         });
 
-        summaryMessageStream.pushText(summary);
+        summaryMessageStream.pushText(span, summary);
 
-        for (const part of await summaryMessageStream.update()) {
+        for (const {part} of await summaryMessageStream.update(span)) {
             // We only push text so there should be only content parts.
             if (part.payload.type !== "Content") continue;
 

@@ -33,7 +33,7 @@ interface AgentMessageStreamSessionInterface {
      * existing timeout expires, we call the `AgentMessageStream`'s `update()` method
      * which processes all text since the last update.
      */
-    pushText(text: string): void;
+    pushText(span: TracerSpan, text: string): void;
 
     /**
      * Pushes a tool call into the message stream. When a tool call is pushed into the
@@ -41,7 +41,7 @@ interface AgentMessageStreamSessionInterface {
      * to the API along with any text that's been pushed into the session since the last
      * update ran.
      */
-    pushToolCall(call: ApiMessageStreamToolCallPartPayloadCall): void;
+    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall): void;
 
     /**
      * Pushes a reasoning call into the message stream. When a reasoning call is pushed
@@ -49,7 +49,7 @@ interface AgentMessageStreamSessionInterface {
      * reasoning call to the API along with any text that's been pushed into the session
      * since the last update ran.
      */
-    pushReasoningSummary(summary: string): void;
+    pushReasoningSummary(span: TracerSpan, summary: string): void;
 
     /**
      * As the agent responds to the request, it may make many tool calls. We track the
@@ -141,31 +141,31 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
         try {
             return await action(session);
         } finally {
-            await session._completeStream();
+            await session._completeStream(span);
         }
     }
 
-    pushText(text: string) {
-        this._agentMessageStream.pushText(text);
+    pushText(span: TracerSpan, text: string) {
+        this._agentMessageStream.pushText(span, text);
 
         // We throttle updates to once every 100ms instead of once every token
         // OpenAI sends us.
         if (this._updateTimeout === null) {
             this._updateTimeout = createTimeout(() => {
                 this._updateTimeout = null;
-                void this._update();
+                void this._update(span);
             }, this._updateThrottleMs);
         }
     }
 
-    pushToolCall(call: ApiMessageStreamToolCallPartPayloadCall) {
+    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall) {
         this._clearUpdateTimeout();
-        void this._update([{type: "ToolCall", call}]);
+        void this._update(span, [{type: "ToolCall", call}]);
     }
 
-    pushReasoningSummary(summary: string) {
+    pushReasoningSummary(span: TracerSpan, summary: string) {
         this._clearUpdateTimeout();
-        void this._update([
+        void this._update(span, [
             {
                 type: "Reasoning",
                 content: parseApiContentFromMarkdown(summary, {spaceId: this._request.spaceId}),
@@ -178,10 +178,11 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
     }
 
     private _update(
+        updateSpan: TracerSpan,
         newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>>,
     ) {
         return this._mutex.withLock(async () => {
-            const putParts = await this._agentMessageStream.update(newPartPayloads);
+            const putParts = await this._agentMessageStream.update(updateSpan, newPartPayloads);
             if (putParts.length === 0) return;
 
             // Calling `putApiMessageStreamPart()` also pings the message stream. So cancel
@@ -192,7 +193,9 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
                 // TODO(calebmer): We should consider adding a batch `PUT` API. That would be
                 // more efficient than making two separate `PUT` requests when `update()`
                 // returns multiple parts.
-                for (let part of putParts) {
+                for (const {span, part: originalPart} of putParts) {
+                    let part = originalPart;
+
                     if (part.payload.type === "Content" || part.payload.type === "Reasoning") {
                         let content = part.payload.content;
 
@@ -208,7 +211,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
                     }
 
                     await putApiMessageStreamPart(
-                        this._parentSpan,
+                        span,
                         this._request.apiClient,
                         this._request.room,
                         this._newMessageIndex,
@@ -225,7 +228,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
         });
     }
 
-    private async _completeStream() {
+    private async _completeStream(span: TracerSpan) {
         // Let's say a stream part comes in a T0 and the stream is completed at T50 (ms)
         // the `update()` call won't run for another 50ms. When that update call runs
         // we don't want it to restart the interval after sending the last parts to the
@@ -236,7 +239,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
         // `createChatGptAgentResponse()` may call `messageState.pushText()` and set
         // `updateTimeout`.
         this._clearUpdateTimeout();
-        void this._update();
+        void this._update(span);
 
         this._clearPingInterval();
         await this._mutex.waitForUnlock();

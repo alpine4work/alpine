@@ -1,179 +1,260 @@
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();
 
 test("streams plain text message when update is called once at the end", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The");
-    message.pushText(" quick");
-    message.pushText(" brown");
-    message.pushText(" fox");
-    message.pushText(" jumps");
-    message.pushText(" over");
-    message.pushText(" the");
-    message.pushText(" lazy");
-    message.pushText(" dog");
-    message.pushText(".\n\n");
-    message.pushText("Lorem");
-    message.pushText(" ipsum");
-    message.pushText(" dolor");
-    message.pushText(" sit");
-    message.pushText(" amet.");
-    message.pushText(" Praesent");
-    message.pushText(" bib");
-    message.pushText("endum");
-    message.pushText(" vitae");
-    message.pushText(" lectus");
-    message.pushText(" at");
-    message.pushText(" maximus.");
-    message.pushText("\n\nHello,");
-    message.pushText(" world!");
+    message.pushText(span, "The");
+    message.pushText(span, " quick");
+    message.pushText(span, " brown");
+    message.pushText(span, " fox");
+    message.pushText(span, " jumps");
+    message.pushText(span, " over");
+    message.pushText(span, " the");
+    message.pushText(span, " lazy");
+    message.pushText(span, " dog");
+    message.pushText(span, ".\n\n");
+    message.pushText(span, "Lorem");
+    message.pushText(span, " ipsum");
+    message.pushText(span, " dolor");
+    message.pushText(span, " sit");
+    message.pushText(span, " amet.");
+    message.pushText(span, " Praesent");
+    message.pushText(span, " bib");
+    message.pushText(span, "endum");
+    message.pushText(span, " vitae");
+    message.pushText(span, " lectus");
+    message.pushText(span, " at");
+    message.pushText(span, " maximus.");
+    message.pushText(span, "\n\nHello,");
+    message.pushText(span, " world!");
 
-    expect(await message.update()).toMatchSnapshot();
-    expect(await message.update()).toMatchSnapshot();
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
 
-    message.pushText("\n\nThe");
-    message.pushText(" quick");
-    message.pushText(" brown");
-    message.pushText(" fox");
-    message.pushText(" jumps");
-    message.pushText(" over");
-    message.pushText(" the");
-    message.pushText(" lazy");
-    message.pushText(" dog");
-    message.pushText(".\n\n");
-    message.pushText("Lorem");
-    message.pushText(" ipsum");
-    message.pushText(" dolor");
-    message.pushText(" sit");
-    message.pushText(" amet.");
-    message.pushText(" Praesent");
-    message.pushText(" bib");
-    message.pushText("endum");
-    message.pushText(" vitae");
-    message.pushText(" lectus");
-    message.pushText(" at");
-    message.pushText(" maximus.");
-    message.pushText("\n\nHello,");
-    message.pushText(" world!");
+    message.pushText(span, "\n\nThe");
+    message.pushText(span, " quick");
+    message.pushText(span, " brown");
+    message.pushText(span, " fox");
+    message.pushText(span, " jumps");
+    message.pushText(span, " over");
+    message.pushText(span, " the");
+    message.pushText(span, " lazy");
+    message.pushText(span, " dog");
+    message.pushText(span, ".\n\n");
+    message.pushText(span, "Lorem");
+    message.pushText(span, " ipsum");
+    message.pushText(span, " dolor");
+    message.pushText(span, " sit");
+    message.pushText(span, " amet.");
+    message.pushText(span, " Praesent");
+    message.pushText(span, " bib");
+    message.pushText(span, "endum");
+    message.pushText(span, " vitae");
+    message.pushText(span, " lectus");
+    message.pushText(span, " at");
+    message.pushText(span, " maximus.");
+    message.pushText(span, "\n\nHello,");
+    message.pushText(span, " world!");
 
-    expect(await message.update()).toMatchSnapshot();
-    expect(await message.update()).toMatchSnapshot();
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
 });
 
 test("streams plan text message when update is called once every token", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" quick");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" brown");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" fox");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" jumps");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" over");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" the");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" lazy");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" dog");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(".\n\n");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText("Lorem");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" ipsum");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" dolor");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" sit");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" amet.");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" Praesent");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" bib");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText("endum");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" vitae");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" lectus");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" at");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" maximus.");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText("\n\nHello,");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" world!");
-    expect(await message.update()).toMatchSnapshot();
+    message.pushText(span, "The");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " quick");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " brown");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " fox");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " jumps");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " over");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " the");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " lazy");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " dog");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, ".\n\n");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, "Lorem");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " ipsum");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " dolor");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " sit");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " amet.");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " Praesent");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " bib");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, "endum");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " vitae");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " lectus");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " at");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " maximus.");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, "\n\nHello,");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " world!");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
 
-    expect(await message.update()).toMatchSnapshot();
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
 });
 
 test("streams plan text message when update is called once every few tokens", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The");
-    message.pushText(" quick");
-    message.pushText(" brown");
-    message.pushText(" fox");
-    message.pushText(" jumps");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" over");
-    message.pushText(" the");
-    message.pushText(" lazy");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" dog");
-    message.pushText(".\n\n");
-    message.pushText("Lorem");
-    message.pushText(" ipsum");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" dolor");
-    message.pushText(" sit");
-    message.pushText(" amet.");
-    message.pushText(" Praesent");
-    message.pushText(" bib");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText("endum");
-    message.pushText(" vitae");
-    message.pushText(" lectus");
-    message.pushText(" at");
-    expect(await message.update()).toMatchSnapshot();
-    message.pushText(" maximus.");
-    message.pushText("\n\nHello,");
-    message.pushText(" world!");
-    expect(await message.update()).toMatchSnapshot();
+    message.pushText(span, "The");
+    message.pushText(span, " quick");
+    message.pushText(span, " brown");
+    message.pushText(span, " fox");
+    message.pushText(span, " jumps");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " over");
+    message.pushText(span, " the");
+    message.pushText(span, " lazy");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " dog");
+    message.pushText(span, ".\n\n");
+    message.pushText(span, "Lorem");
+    message.pushText(span, " ipsum");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " dolor");
+    message.pushText(span, " sit");
+    message.pushText(span, " amet.");
+    message.pushText(span, " Praesent");
+    message.pushText(span, " bib");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, "endum");
+    message.pushText(span, " vitae");
+    message.pushText(span, " lectus");
+    message.pushText(span, " at");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
+    message.pushText(span, " maximus.");
+    message.pushText(span, "\n\nHello,");
+    message.pushText(span, " world!");
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
 
-    expect(await message.update()).toMatchSnapshot();
+    expect(
+        await message.update(span).then(items => items.map(item => item.part)),
+    ).toMatchSnapshot();
 });
 
 test("streams bold inline formatting correctly", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -195,9 +276,9 @@ test("streams bold inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" **brown");
+    message.pushText(span, " **brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -224,9 +305,9 @@ test("streams bold inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -253,9 +334,9 @@ test("streams bold inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" over the**");
+    message.pushText(span, " over the**");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -282,9 +363,9 @@ test("streams bold inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -317,14 +398,16 @@ test("streams bold inline formatting correctly", async () => {
 });
 
 test("streams italic formatting correctly", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -346,9 +429,9 @@ test("streams italic formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" *brown");
+    message.pushText(span, " *brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -375,9 +458,9 @@ test("streams italic formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -404,9 +487,9 @@ test("streams italic formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" over the*");
+    message.pushText(span, " over the*");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -433,9 +516,9 @@ test("streams italic formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -468,14 +551,16 @@ test("streams italic formatting correctly", async () => {
 });
 
 test("streams italic formatting correctly (with underscores)", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -497,9 +582,9 @@ test("streams italic formatting correctly (with underscores)", async () => {
         },
     ]);
 
-    message.pushText(" _brown");
+    message.pushText(span, " _brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -526,9 +611,9 @@ test("streams italic formatting correctly (with underscores)", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -555,9 +640,9 @@ test("streams italic formatting correctly (with underscores)", async () => {
         },
     ]);
 
-    message.pushText(" over the_");
+    message.pushText(span, " over the_");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -584,9 +669,9 @@ test("streams italic formatting correctly (with underscores)", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -619,14 +704,16 @@ test("streams italic formatting correctly (with underscores)", async () => {
 });
 
 test("streams bold + italic inline formatting correctly", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -648,9 +735,9 @@ test("streams bold + italic inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" ***brown");
+    message.pushText(span, " ***brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -677,9 +764,9 @@ test("streams bold + italic inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -706,9 +793,9 @@ test("streams bold + italic inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" over the***");
+    message.pushText(span, " over the***");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -735,9 +822,9 @@ test("streams bold + italic inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -770,14 +857,16 @@ test("streams bold + italic inline formatting correctly", async () => {
 });
 
 test("streams bold + italic inline formatting correctly with extra asterisk", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -799,9 +888,9 @@ test("streams bold + italic inline formatting correctly with extra asterisk", as
         },
     ]);
 
-    message.pushText(" ****brown");
+    message.pushText(span, " ****brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -828,9 +917,9 @@ test("streams bold + italic inline formatting correctly with extra asterisk", as
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -857,9 +946,9 @@ test("streams bold + italic inline formatting correctly with extra asterisk", as
         },
     ]);
 
-    message.pushText(" over the****");
+    message.pushText(span, " over the****");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -886,9 +975,9 @@ test("streams bold + italic inline formatting correctly with extra asterisk", as
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -921,14 +1010,16 @@ test("streams bold + italic inline formatting correctly with extra asterisk", as
 });
 
 test("streams bold + italic inline formatting correctly with two extra asterisks", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -950,9 +1041,9 @@ test("streams bold + italic inline formatting correctly with two extra asterisks
         },
     ]);
 
-    message.pushText(" *****brown");
+    message.pushText(span, " *****brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -979,9 +1070,9 @@ test("streams bold + italic inline formatting correctly with two extra asterisks
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1008,9 +1099,9 @@ test("streams bold + italic inline formatting correctly with two extra asterisks
         },
     ]);
 
-    message.pushText(" over the*****");
+    message.pushText(span, " over the*****");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1037,9 +1128,9 @@ test("streams bold + italic inline formatting correctly with two extra asterisks
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1072,14 +1163,16 @@ test("streams bold + italic inline formatting correctly with two extra asterisks
 });
 
 test("streams bold inline formatting with newline before termination", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1101,9 +1194,9 @@ test("streams bold inline formatting with newline before termination", async () 
         },
     ]);
 
-    message.pushText(" **brown");
+    message.pushText(span, " **brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1130,9 +1223,9 @@ test("streams bold inline formatting with newline before termination", async () 
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1159,9 +1252,9 @@ test("streams bold inline formatting with newline before termination", async () 
         },
     ]);
 
-    message.pushText("\n\nover the**");
+    message.pushText(span, "\n\nover the**");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 1,
             payload: {
@@ -1183,9 +1276,9 @@ test("streams bold inline formatting with newline before termination", async () 
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 1,
             payload: {
@@ -1209,14 +1302,16 @@ test("streams bold inline formatting with newline before termination", async () 
 });
 
 test("streams lone asterisk correctly (that looks like caveat)", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1238,9 +1333,9 @@ test("streams lone asterisk correctly (that looks like caveat)", async () => {
         },
     ]);
 
-    message.pushText(" brown*");
+    message.pushText(span, " brown*");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1262,9 +1357,9 @@ test("streams lone asterisk correctly (that looks like caveat)", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1286,9 +1381,9 @@ test("streams lone asterisk correctly (that looks like caveat)", async () => {
         },
     ]);
 
-    message.pushText(" over the");
+    message.pushText(span, " over the");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1310,9 +1405,9 @@ test("streams lone asterisk correctly (that looks like caveat)", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1336,14 +1431,16 @@ test("streams lone asterisk correctly (that looks like caveat)", async () => {
 });
 
 test("streams bold HTML inline formatting correctly", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1365,9 +1462,9 @@ test("streams bold HTML inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" <strong>brown");
+    message.pushText(span, " <strong>brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1394,9 +1491,9 @@ test("streams bold HTML inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1423,9 +1520,9 @@ test("streams bold HTML inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" over the</strong>");
+    message.pushText(span, " over the</strong>");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1452,9 +1549,9 @@ test("streams bold HTML inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1487,14 +1584,16 @@ test("streams bold HTML inline formatting correctly", async () => {
 });
 
 test("streams bold HTML inline formatting with newline before termination", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1516,9 +1615,9 @@ test("streams bold HTML inline formatting with newline before termination", asyn
         },
     ]);
 
-    message.pushText(" <strong>brown");
+    message.pushText(span, " <strong>brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1545,9 +1644,9 @@ test("streams bold HTML inline formatting with newline before termination", asyn
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1574,9 +1673,9 @@ test("streams bold HTML inline formatting with newline before termination", asyn
         },
     ]);
 
-    message.pushText("\n\nover the</strong>");
+    message.pushText(span, "\n\nover the</strong>");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 1,
             payload: {
@@ -1598,9 +1697,9 @@ test("streams bold HTML inline formatting with newline before termination", asyn
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 1,
             payload: {
@@ -1624,14 +1723,16 @@ test("streams bold HTML inline formatting with newline before termination", asyn
 });
 
 test("streams partial bold HTML inline formatting correctly", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1653,13 +1754,13 @@ test("streams partial bold HTML inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" <str");
+    message.pushText(span, " <str");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("ong>");
+    message.pushText(span, "ong>");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1681,9 +1782,9 @@ test("streams partial bold HTML inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText("brown");
+    message.pushText(span, "brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1710,9 +1811,9 @@ test("streams partial bold HTML inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1739,9 +1840,9 @@ test("streams partial bold HTML inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" over the</strong>");
+    message.pushText(span, " over the</strong>");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1768,9 +1869,9 @@ test("streams partial bold HTML inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1803,28 +1904,30 @@ test("streams partial bold HTML inline formatting correctly", async () => {
 });
 
 test("empty paragraphs with updates in weird places", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("<p");
-    message.pushText("></");
-    message.pushText("p");
-    message.pushText(">\n\n");
-    await message.update();
-    message.pushText("<p");
-    message.pushText("></");
-    message.pushText("p");
-    await message.update();
-    message.pushText(">\n\n");
-    await message.update();
-    message.pushText("<p");
-    message.pushText("></");
-    message.pushText("p");
-    await message.update();
-    message.pushText(">\n\n");
-    await message.update();
+    message.pushText(span, "<p");
+    message.pushText(span, "></");
+    message.pushText(span, "p");
+    message.pushText(span, ">\n\n");
+    await message.update(span);
+    message.pushText(span, "<p");
+    message.pushText(span, "></");
+    message.pushText(span, "p");
+    await message.update(span);
+    message.pushText(span, ">\n\n");
+    await message.update(span);
+    message.pushText(span, "<p");
+    message.pushText(span, "></");
+    message.pushText(span, "p");
+    await message.update(span);
+    message.pushText(span, ">\n\n");
+    await message.update(span);
 
     expect(message.getParts()).toEqual([
         {
@@ -1852,31 +1955,33 @@ test("empty paragraphs with updates in weird places", async () => {
 });
 
 test("can stream simple unordered list", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("-");
-    await message.update();
-    message.pushText(" First");
-    message.pushText(" item");
-    await message.update();
-    message.pushText("\n\n");
-    await message.update();
-    message.pushText("-");
-    await message.update();
-    message.pushText(" Second");
-    await message.update();
-    message.pushText(" item");
-    message.pushText("\n\n");
-    message.pushText("-");
-    await message.update();
-    message.pushText(" Third");
-    message.pushText(" item");
-    await message.update();
-    message.pushText("\n");
-    await message.update();
+    message.pushText(span, "-");
+    await message.update(span);
+    message.pushText(span, " First");
+    message.pushText(span, " item");
+    await message.update(span);
+    message.pushText(span, "\n\n");
+    await message.update(span);
+    message.pushText(span, "-");
+    await message.update(span);
+    message.pushText(span, " Second");
+    await message.update(span);
+    message.pushText(span, " item");
+    message.pushText(span, "\n\n");
+    message.pushText(span, "-");
+    await message.update(span);
+    message.pushText(span, " Third");
+    message.pushText(span, " item");
+    await message.update(span);
+    message.pushText(span, "\n");
+    await message.update(span);
 
     expect(message.getParts()).toEqual([
         {
@@ -1952,14 +2057,16 @@ test("can stream simple unordered list", async () => {
 });
 
 test("streams strike inline formatting correctly", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -1981,9 +2088,9 @@ test("streams strike inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" ~~brown");
+    message.pushText(span, " ~~brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2010,9 +2117,9 @@ test("streams strike inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2039,9 +2146,9 @@ test("streams strike inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" over the~~");
+    message.pushText(span, " over the~~");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2068,9 +2175,9 @@ test("streams strike inline formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2103,14 +2210,16 @@ test("streams strike inline formatting correctly", async () => {
 });
 
 test("does not apply strikethrough with single tilde", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2132,9 +2241,9 @@ test("does not apply strikethrough with single tilde", async () => {
         },
     ]);
 
-    message.pushText(" ~brown");
+    message.pushText(span, " ~brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2156,9 +2265,9 @@ test("does not apply strikethrough with single tilde", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2180,9 +2289,9 @@ test("does not apply strikethrough with single tilde", async () => {
         },
     ]);
 
-    message.pushText(" over the~");
+    message.pushText(span, " over the~");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2204,9 +2313,9 @@ test("does not apply strikethrough with single tilde", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2230,14 +2339,16 @@ test("does not apply strikethrough with single tilde", async () => {
 });
 
 test("does not apply strikethrough to statistics with tilde", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("Did you know that");
+    message.pushText(span, "Did you know that");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2259,9 +2370,9 @@ test("does not apply strikethrough to statistics with tilde", async () => {
         },
     ]);
 
-    message.pushText(" ~30%");
+    message.pushText(span, " ~30%");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2283,9 +2394,9 @@ test("does not apply strikethrough to statistics with tilde", async () => {
         },
     ]);
 
-    message.pushText(" of statistics");
+    message.pushText(span, " of statistics");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2307,9 +2418,9 @@ test("does not apply strikethrough to statistics with tilde", async () => {
         },
     ]);
 
-    message.pushText(" are made up?");
+    message.pushText(span, " are made up?");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2333,14 +2444,16 @@ test("does not apply strikethrough to statistics with tilde", async () => {
 });
 
 test("does not apply strikethrough with multiple single tildes", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("Values range from");
+    message.pushText(span, "Values range from");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2362,9 +2475,9 @@ test("does not apply strikethrough with multiple single tildes", async () => {
         },
     ]);
 
-    message.pushText(" ~100");
+    message.pushText(span, " ~100");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2386,9 +2499,9 @@ test("does not apply strikethrough with multiple single tildes", async () => {
         },
     ]);
 
-    message.pushText(" to ~500");
+    message.pushText(span, " to ~500");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2410,9 +2523,9 @@ test("does not apply strikethrough with multiple single tildes", async () => {
         },
     ]);
 
-    message.pushText(" units.");
+    message.pushText(span, " units.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2436,14 +2549,16 @@ test("does not apply strikethrough with multiple single tildes", async () => {
 });
 
 test("streams inline code formatting correctly", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2465,9 +2580,9 @@ test("streams inline code formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" `brown");
+    message.pushText(span, " `brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2494,9 +2609,9 @@ test("streams inline code formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2523,9 +2638,9 @@ test("streams inline code formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" over the`");
+    message.pushText(span, " over the`");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2552,9 +2667,9 @@ test("streams inline code formatting correctly", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2587,6 +2702,8 @@ test("streams inline code formatting correctly", async () => {
 });
 
 test("streams link formatting correctly (without mentionable reference)", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const postId = generateId<PostId>();
 
     const message = new AgentMessageStream({
@@ -2594,9 +2711,9 @@ test("streams link formatting correctly (without mentionable reference)", async 
         getTargetPathIfExists: async () => `/posts/${postId}/messages/1`,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2618,9 +2735,9 @@ test("streams link formatting correctly (without mentionable reference)", async 
         },
     ]);
 
-    message.pushText(" [brown");
+    message.pushText(span, " [brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2642,9 +2759,9 @@ test("streams link formatting correctly (without mentionable reference)", async 
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2666,9 +2783,9 @@ test("streams link formatting correctly (without mentionable reference)", async 
         },
     ]);
 
-    message.pushText(" over the](/post-comment/message-text)");
+    message.pushText(span, " over the](/post-comment/message-text)");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2700,9 +2817,9 @@ test("streams link formatting correctly (without mentionable reference)", async 
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2740,6 +2857,8 @@ test("streams link formatting correctly (without mentionable reference)", async 
 });
 
 test("streams link formatting correctly (with reference)", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const documentId = generateId<DocumentId>();
 
     const message = new AgentMessageStream({
@@ -2751,9 +2870,9 @@ test("streams link formatting correctly (with reference)", async () => {
         },
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2775,9 +2894,9 @@ test("streams link formatting correctly (with reference)", async () => {
         },
     ]);
 
-    message.pushText(" [brown");
+    message.pushText(span, " [brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2799,9 +2918,9 @@ test("streams link formatting correctly (with reference)", async () => {
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2823,9 +2942,9 @@ test("streams link formatting correctly (with reference)", async () => {
         },
     ]);
 
-    message.pushText(" over the](/document/brown-fox-jumps-over-the)");
+    message.pushText(span, " over the](/document/brown-fox-jumps-over-the)");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2851,9 +2970,9 @@ test("streams link formatting correctly (with reference)", async () => {
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2885,14 +3004,16 @@ test("streams link formatting correctly (with reference)", async () => {
 });
 
 test("streams link formatting correctly character by character (without reference)", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2914,9 +3035,9 @@ test("streams link formatting correctly character by character (without referenc
         },
     ]);
 
-    message.pushText(" [brown");
+    message.pushText(span, " [brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2938,9 +3059,9 @@ test("streams link formatting correctly character by character (without referenc
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2962,9 +3083,9 @@ test("streams link formatting correctly character by character (without referenc
         },
     ]);
 
-    message.pushText(" over the");
+    message.pushText(span, " over the");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -2986,21 +3107,21 @@ test("streams link formatting correctly character by character (without referenc
         },
     ]);
 
-    message.pushText("]");
+    message.pushText(span, "]");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("[");
+    message.pushText(span, "[");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("]");
+    message.pushText(span, "]");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3024,6 +3145,8 @@ test("streams link formatting correctly character by character (without referenc
 });
 
 test("streams link formatting correctly character by character (with reference)", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const documentId = generateId<DocumentId>();
 
     const message = new AgentMessageStream({
@@ -3035,9 +3158,9 @@ test("streams link formatting correctly character by character (with reference)"
         },
     });
 
-    message.pushText("The quick");
+    message.pushText(span, "The quick");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3059,9 +3182,9 @@ test("streams link formatting correctly character by character (with reference)"
         },
     ]);
 
-    message.pushText(" [brown");
+    message.pushText(span, " [brown");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3083,9 +3206,9 @@ test("streams link formatting correctly character by character (with reference)"
         },
     ]);
 
-    message.pushText(" fox jumps");
+    message.pushText(span, " fox jumps");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3107,9 +3230,9 @@ test("streams link formatting correctly character by character (with reference)"
         },
     ]);
 
-    message.pushText(" over the");
+    message.pushText(span, " over the");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3131,21 +3254,21 @@ test("streams link formatting correctly character by character (with reference)"
         },
     ]);
 
-    message.pushText("]");
+    message.pushText(span, "]");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("(");
+    message.pushText(span, "(");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("/document/brown-fox-jumps-over-the");
+    message.pushText(span, "/document/brown-fox-jumps-over-the");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText(")");
+    message.pushText(span, ")");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3171,9 +3294,9 @@ test("streams link formatting correctly character by character (with reference)"
         },
     ]);
 
-    message.pushText(" lazy dog.");
+    message.pushText(span, " lazy dog.");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3205,14 +3328,16 @@ test("streams link formatting correctly character by character (with reference)"
 });
 
 test("streams missing link reference formatting correctly (without reference)", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("test: ");
+    message.pushText(span, "test: ");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3224,9 +3349,9 @@ test("streams missing link reference formatting correctly (without reference)", 
         },
     ]);
 
-    message.pushText("[");
+    message.pushText(span, "[");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3238,9 +3363,9 @@ test("streams missing link reference formatting correctly (without reference)", 
         },
     ]);
 
-    message.pushText("li");
+    message.pushText(span, "li");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3252,9 +3377,9 @@ test("streams missing link reference formatting correctly (without reference)", 
         },
     ]);
 
-    message.pushText("nk");
+    message.pushText(span, "nk");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3266,19 +3391,19 @@ test("streams missing link reference formatting correctly (without reference)", 
         },
     ]);
 
-    message.pushText("]");
+    message.pushText(span, "]");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("[");
+    message.pushText(span, "[");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("miss");
+    message.pushText(span, "miss");
 
     // TODO(calebmer): This is a bug! The output should still be `test: link`. But
     // I'm running out of time so not fixing this edge case.
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3292,11 +3417,11 @@ test("streams missing link reference formatting correctly (without reference)", 
         },
     ]);
 
-    message.pushText("ing-link");
+    message.pushText(span, "ing-link");
 
     // TODO(calebmer): This is a bug! The output should still be `test: link`. But
     // I'm running out of time so not fixing this edge case.
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3313,9 +3438,9 @@ test("streams missing link reference formatting correctly (without reference)", 
         },
     ]);
 
-    message.pushText("]");
+    message.pushText(span, "]");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3327,9 +3452,9 @@ test("streams missing link reference formatting correctly (without reference)", 
         },
     ]);
 
-    message.pushText(".");
+    message.pushText(span, ".");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3345,14 +3470,16 @@ test("streams missing link reference formatting correctly (without reference)", 
 });
 
 test("streams missing link URL formatting correctly (without reference)", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("test: ");
+    message.pushText(span, "test: ");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3364,9 +3491,9 @@ test("streams missing link URL formatting correctly (without reference)", async 
         },
     ]);
 
-    message.pushText("[");
+    message.pushText(span, "[");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3378,9 +3505,9 @@ test("streams missing link URL formatting correctly (without reference)", async 
         },
     ]);
 
-    message.pushText("li");
+    message.pushText(span, "li");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3392,9 +3519,9 @@ test("streams missing link URL formatting correctly (without reference)", async 
         },
     ]);
 
-    message.pushText("nk");
+    message.pushText(span, "nk");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3406,25 +3533,25 @@ test("streams missing link URL formatting correctly (without reference)", async 
         },
     ]);
 
-    message.pushText("]");
+    message.pushText(span, "]");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("(");
+    message.pushText(span, "(");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("http");
+    message.pushText(span, "http");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("s://example.com");
+    message.pushText(span, "s://example.com");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText(")");
+    message.pushText(span, ")");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3448,9 +3575,9 @@ test("streams missing link URL formatting correctly (without reference)", async 
         },
     ]);
 
-    message.pushText(".");
+    message.pushText(span, ".");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3477,14 +3604,16 @@ test("streams missing link URL formatting correctly (without reference)", async 
 });
 
 test("streams code block correctly", async () => {
+    const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
     const message = new AgentMessageStream({
         spaceId,
         getTargetPathIfExists: async () => null,
     });
 
-    message.pushText("foo\n\n");
+    message.pushText(span, "foo\n\n");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
             payload: {
@@ -3496,9 +3625,9 @@ test("streams code block correctly", async () => {
         },
     ]);
 
-    message.pushText("```\n");
+    message.pushText(span, "```\n");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 1,
             payload: {
@@ -3510,9 +3639,9 @@ test("streams code block correctly", async () => {
         },
     ]);
 
-    message.pushText("let a = 1;\n");
+    message.pushText(span, "let a = 1;\n");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 1,
             payload: {
@@ -3530,9 +3659,9 @@ test("streams code block correctly", async () => {
         },
     ]);
 
-    message.pushText("let b =");
+    message.pushText(span, "let b =");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 1,
             payload: {
@@ -3553,9 +3682,9 @@ test("streams code block correctly", async () => {
         },
     ]);
 
-    message.pushText(" 2;\n");
+    message.pushText(span, " 2;\n");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 1,
             payload: {
@@ -3576,13 +3705,13 @@ test("streams code block correctly", async () => {
         },
     ]);
 
-    message.pushText("```\n\n");
+    message.pushText(span, "```\n\n");
 
-    expect(await message.update()).toEqual([]);
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-    message.pushText("bar");
+    message.pushText(span, "bar");
 
-    expect(await message.update()).toEqual([
+    expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 2,
             payload: {
@@ -3597,14 +3726,16 @@ test("streams code block correctly", async () => {
 
 describe("headers", () => {
     test("streams headers correctly", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("foo\n\n");
+        message.pushText(span, "foo\n\n");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -3616,9 +3747,9 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText("bar\n\n");
+        message.pushText(span, "bar\n\n");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -3630,9 +3761,9 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText("# Heading 1");
+        message.pushText(span, "# Heading 1");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -3650,9 +3781,9 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText(" is cool");
+        message.pushText(span, " is cool");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -3670,13 +3801,13 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText("\n\n");
+        message.pushText(span, "\n\n");
 
-        expect(await message.update()).toEqual([]);
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-        message.pushText("## heading 2 is cooler");
+        message.pushText(span, "## heading 2 is cooler");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 3,
                 payload: {
@@ -3694,9 +3825,9 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText("\n\n### But heading 3 is the coolest");
+        message.pushText(span, "\n\n### But heading 3 is the coolest");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 4,
                 payload: {
@@ -3716,14 +3847,16 @@ describe("headers", () => {
     });
 
     test("doesn’t add header if no space after #", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("foo\n\n");
+        message.pushText(span, "foo\n\n");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -3735,9 +3868,9 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText("#bar\n\n");
+        message.pushText(span, "#bar\n\n");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -3749,9 +3882,9 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText("##baz\n\n");
+        message.pushText(span, "##baz\n\n");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -3763,9 +3896,9 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText("###qux\n\n");
+        message.pushText(span, "###qux\n\n");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 3,
                 payload: {
@@ -3779,14 +3912,16 @@ describe("headers", () => {
     });
 
     test("doesn’t add header to inline #", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("foo\n\n");
+        message.pushText(span, "foo\n\n");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -3798,9 +3933,9 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText("My favorite number is #4\n\n");
+        message.pushText(span, "My favorite number is #4\n\n");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -3817,9 +3952,9 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText("my least favorite number is # 3 - yuck!");
+        message.pushText(span, "my least favorite number is # 3 - yuck!");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -3840,14 +3975,16 @@ describe("headers", () => {
     });
 
     test("streams header when a chunk is just a single #", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("#");
+        message.pushText(span, "#");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -3859,13 +3996,13 @@ describe("headers", () => {
             },
         ]);
 
-        message.pushText(" ");
+        message.pushText(span, " ");
 
-        expect(await message.update()).toEqual([]);
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-        message.pushText("foo");
+        message.pushText(span, "foo");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -3883,13 +4020,15 @@ describe("headers", () => {
 
 describe("ordered list continuation", () => {
     test("simple ordered list", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. First item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -3915,8 +4054,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("2. Second item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "2. Second item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -3942,8 +4081,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("3.");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "3.");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -3960,8 +4099,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText(" Third item");
-        expect(await message.update()).toEqual([
+        message.pushText(span, " Third item");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -3989,13 +4128,15 @@ describe("ordered list continuation", () => {
     });
 
     test("streams ordered list items that continue from previous items without explicit start", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. First item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -4021,8 +4162,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("2");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "2");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -4034,8 +4175,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText(". ");
-        expect(await message.update()).toEqual([
+        message.pushText(span, ". ");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -4052,8 +4193,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("Second");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "Second");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -4079,11 +4220,11 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText(" ");
-        expect(await message.update()).toEqual([]);
+        message.pushText(span, " ");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-        message.pushText("item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -4109,8 +4250,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("3. Third item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "3. Third item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -4136,13 +4277,16 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText(`\
+        message.pushText(
+            span,
+            `\
 4. fourth and
 
 5. fifth item
-`);
+`,
+        );
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 3,
                 payload: {
@@ -4193,13 +4337,15 @@ describe("ordered list continuation", () => {
     });
 
     test("streams ordered list with explicit start number when restarting numbering", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. First item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -4225,8 +4371,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("2. Second item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "2. Second item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -4253,8 +4399,8 @@ describe("ordered list continuation", () => {
         ]);
 
         // Restart numbering at 1
-        message.pushText("5");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "5");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -4271,8 +4417,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText(")");
-        expect(await message.update()).toEqual([
+        message.pushText(span, ")");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -4290,8 +4436,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText(" Skip to fifth item");
-        expect(await message.update()).toEqual([
+        message.pushText(span, " Skip to fifth item");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -4320,11 +4466,11 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("\n\n");
-        expect(await message.update()).toEqual([]);
+        message.pushText(span, "\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([]);
 
-        message.pushText("1. Restart first item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. Restart first item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 3,
                 payload: {
@@ -4355,13 +4501,15 @@ describe("ordered list continuation", () => {
     });
 
     test("streams ordered list with explicit start number when skipping numbers", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. First item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -4387,8 +4535,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("2. Second item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "2. Second item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -4415,8 +4563,8 @@ describe("ordered list continuation", () => {
         ]);
 
         // Skip to 5
-        message.pushText("5. Fifth item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "5. Fifth item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -4444,16 +4592,18 @@ describe("ordered list continuation", () => {
     });
 
     test("streams ordered list starting at non-1 value with explicit start", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("5. Fifth item\n\n");
-        await message.update();
+        message.pushText(span, "5. Fifth item\n\n");
+        await message.update(span);
 
-        message.pushText("6. Sixth item\n\n");
-        await message.update();
+        message.pushText(span, "6. Sixth item\n\n");
+        await message.update(span);
 
         const parts = message.getParts();
 
@@ -4505,13 +4655,15 @@ describe("ordered list continuation", () => {
     });
 
     test("streams ordered list after non-list content", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. First item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -4537,8 +4689,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("Some paragraph text\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "Some paragraph text\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -4556,8 +4708,8 @@ describe("ordered list continuation", () => {
         ]);
 
         // Start new list after paragraph
-        message.pushText("1. New list first item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. New list first item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -4587,13 +4739,15 @@ describe("ordered list continuation", () => {
     });
 
     test("sets orderStart to explicit value if the list is not contiguous", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. First item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -4619,8 +4773,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("Some paragraph text\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "Some paragraph text\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -4638,8 +4792,8 @@ describe("ordered list continuation", () => {
         ]);
 
         // Start new list after paragraph
-        message.pushText("2. Second item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "2. Second item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 2,
                 payload: {
@@ -4666,8 +4820,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("3. Third item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "3. Third item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 3,
                 payload: {
@@ -4693,9 +4847,9 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("Another paragraph break\n\n");
+        message.pushText(span, "Another paragraph break\n\n");
 
-        expect(await message.update()).toEqual([
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 4,
                 payload: {
@@ -4712,8 +4866,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("4. Fourth item\n\n5. Fifth item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "4. Fourth item\n\n5. Fifth item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 5,
                 payload: {
@@ -4765,16 +4919,18 @@ describe("ordered list continuation", () => {
     });
 
     test("streams ordered list after unordered list", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("- Unordered item\n\n");
-        await message.update();
+        message.pushText(span, "- Unordered item\n\n");
+        await message.update(span);
 
-        message.pushText("1. Ordered item\n\n");
-        await message.update();
+        message.pushText(span, "1. Ordered item\n\n");
+        await message.update(span);
 
         const parts = message.getParts();
 
@@ -4810,20 +4966,22 @@ describe("ordered list continuation", () => {
     });
 
     test("streams ordered list that restarts at non-1 value after previous list", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First item\n\n");
-        await message.update();
+        message.pushText(span, "1. First item\n\n");
+        await message.update(span);
 
-        message.pushText("2. Second item\n\n");
-        await message.update();
+        message.pushText(span, "2. Second item\n\n");
+        await message.update(span);
 
         // Restart at 3 (should have explicit start since it's not continuing)
-        message.pushText("3. Third item (new list)\n\n");
-        await message.update();
+        message.pushText(span, "3. Third item (new list)\n\n");
+        await message.update(span);
 
         const parts = message.getParts();
 
@@ -4852,14 +5010,16 @@ describe("ordered list continuation", () => {
     });
 
     test("streams multiple consecutive ordered list items in single update", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First item\n\n2. Second item\n\n3. Third item\n\n");
+        message.pushText(span, "1. First item\n\n2. Second item\n\n3. Third item\n\n");
 
-        const updates = await message.update();
+        const updates = await message.update(span).then(items => items.map(item => item.part));
 
         // Should create 3 separate parts
         expect(updates.length).toBe(3);
@@ -4941,13 +5101,15 @@ describe("ordered list continuation", () => {
     });
 
     test("streams simple nested ordered list", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First level\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. First level\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -4973,8 +5135,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("   1. Nested item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "   1. Nested item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -5020,8 +5182,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("2. Back to first level\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "2. Back to first level\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 1,
                 payload: {
@@ -5051,19 +5213,21 @@ describe("ordered list continuation", () => {
     });
 
     test("streams nested ordered list with multiple nested items", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. Parent item\n\n");
-        await message.update();
+        message.pushText(span, "1. Parent item\n\n");
+        await message.update(span);
 
-        message.pushText("   1. First nested\n\n");
-        await message.update();
+        message.pushText(span, "   1. First nested\n\n");
+        await message.update(span);
 
-        message.pushText("   2. Second nested\n\n");
-        await message.update();
+        message.pushText(span, "   2. Second nested\n\n");
+        await message.update(span);
 
         const parts = message.getParts();
 
@@ -5117,19 +5281,21 @@ describe("ordered list continuation", () => {
     });
 
     test("streams deeply nested ordered lists", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. Level 1\n\n");
-        await message.update();
+        message.pushText(span, "1. Level 1\n\n");
+        await message.update(span);
 
-        message.pushText("   1. Level 2\n\n");
-        await message.update();
+        message.pushText(span, "   1. Level 2\n\n");
+        await message.update(span);
 
-        message.pushText("      1. Level 3\n\n");
-        await message.update();
+        message.pushText(span, "      1. Level 3\n\n");
+        await message.update(span);
 
         const parts = message.getParts();
 
@@ -5191,19 +5357,21 @@ describe("ordered list continuation", () => {
     });
 
     test("streams nested ordered list with non-1 start", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. Parent item\n\n");
-        await message.update();
+        message.pushText(span, "1. Parent item\n\n");
+        await message.update(span);
 
-        message.pushText("   5. Nested starting at 5\n\n");
-        await message.update();
+        message.pushText(span, "   5. Nested starting at 5\n\n");
+        await message.update(span);
 
-        message.pushText("   6. Nested item 6\n\n");
-        await message.update();
+        message.pushText(span, "   6. Nested item 6\n\n");
+        await message.update(span);
 
         const parts = message.getParts();
 
@@ -5261,13 +5429,15 @@ describe("ordered list continuation", () => {
     });
 
     test("streams nested ordered list incrementally", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. Parent\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "1. Parent\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -5293,8 +5463,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("   1");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "   1");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -5324,8 +5494,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText(". ");
-        expect(await message.update()).toEqual([
+        message.pushText(span, ". ");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -5357,8 +5527,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText("Nested");
-        expect(await message.update()).toEqual([
+        message.pushText(span, "Nested");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -5401,8 +5571,8 @@ describe("ordered list continuation", () => {
             },
         ]);
 
-        message.pushText(" item\n\n");
-        expect(await message.update()).toEqual([
+        message.pushText(span, " item\n\n");
+        expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
             {
                 index: 0,
                 payload: {
@@ -5450,22 +5620,24 @@ describe("ordered list continuation", () => {
     });
 
     test("streams mixed parent and nested ordered list items", async () => {
+        const {span} = testTracer.startSpan("Test `AgentMessageStream`");
+
         const message = new AgentMessageStream({
             spaceId,
             getTargetPathIfExists: async () => null,
         });
 
-        message.pushText("1. First parent\n\n");
-        await message.update();
+        message.pushText(span, "1. First parent\n\n");
+        await message.update(span);
 
-        message.pushText("   1. First nested\n\n");
-        await message.update();
+        message.pushText(span, "   1. First nested\n\n");
+        await message.update(span);
 
-        message.pushText("2. Second parent\n\n");
-        await message.update();
+        message.pushText(span, "2. Second parent\n\n");
+        await message.update(span);
 
-        message.pushText("   1. Second nested\n\n");
-        await message.update();
+        message.pushText(span, "   1. Second nested\n\n");
+        await message.update(span);
 
         const parts = message.getParts();
 

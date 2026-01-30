@@ -21,6 +21,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // Have to case as any here since Miniflare's DurableObjectStorage type is not
 // assignable to the global DurableObjectStorage type we use in the
@@ -117,49 +118,75 @@ function mockOpenAiStreamingResponse(
     >,
 ) {
     mockOpenAiClient.createResponseWithStreaming.mockImplementationOnce(
-        async function* (): AsyncIterableIterator<OpenAi.Responses.ResponseStreamEvent> {
-            for (const event of events) {
-                switch (event.type) {
-                    case "Wait":
-                        await jest.advanceTimersByTimeAsync(event.delayMs);
-                        break;
-                    case "response.completed":
-                        yield {
-                            type: "response.completed",
-                            response: event.response ?? {
-                                usage: {
-                                    input_tokens: 100,
-                                    output_tokens: 50,
-                                    total_tokens: 150,
-                                    input_tokens_details: {cached_tokens: 0},
-                                    output_tokens_details: {reasoning_tokens: 0},
-                                },
-                            },
-                        } as OpenAi.Responses.ResponseCompletedEvent;
-                        break;
-                    case "response.reasoning_summary_part.done":
-                        yield {
-                            type: "response.reasoning_summary_part.done",
-                            part: event.part,
-                        } as OpenAi.Responses.ResponseReasoningSummaryPartDoneEvent;
-                        break;
-                    case "response.output_text.delta":
-                        yield {
-                            type: "response.output_text.delta",
-                            delta: event.delta,
-                        } as OpenAi.Responses.ResponseTextDeltaEvent;
-                        break;
-                    case "response.output_item.done":
-                        yield {
-                            type: "response.output_item.done",
-                            item: event.item,
-                        } as OpenAi.Responses.ResponseOutputItemDoneEvent;
-                        break;
-                    case "Error":
-                        throw event.error;
-                    default:
-                        throw exhaustive(event);
+        async function* (): AsyncIterableIterator<{
+            span: TracerSpan;
+            event: OpenAi.Responses.ResponseStreamEvent;
+        }> {
+            const {span: parentSpan, finishSpan} = testTracer.startSpan(
+                "Mock OpenAI create response (streaming)",
+            );
+
+            try {
+                for (const event of events) {
+                    switch (event.type) {
+                        case "Wait":
+                            await jest.advanceTimersByTimeAsync(event.delayMs);
+                            break;
+                        case "response.completed":
+                            yield {
+                                span: parentSpan,
+                                event: {
+                                    type: "response.completed",
+                                    response: event.response ?? {
+                                        usage: {
+                                            input_tokens: 100,
+                                            output_tokens: 50,
+                                            total_tokens: 150,
+                                            input_tokens_details: {cached_tokens: 0},
+                                            output_tokens_details: {reasoning_tokens: 0},
+                                        },
+                                    },
+                                } as OpenAi.Responses.ResponseCompletedEvent,
+                            };
+                            break;
+                        case "response.reasoning_summary_part.done":
+                            yield {
+                                span: parentSpan,
+                                event: {
+                                    type: "response.reasoning_summary_part.done",
+                                    part: event.part,
+                                } as OpenAi.Responses.ResponseReasoningSummaryPartDoneEvent,
+                            };
+                            break;
+                        case "response.output_text.delta":
+                            yield {
+                                span: parentSpan,
+                                event: {
+                                    type: "response.output_text.delta",
+                                    delta: event.delta,
+                                } as OpenAi.Responses.ResponseTextDeltaEvent,
+                            };
+                            break;
+                        case "response.output_item.done":
+                            yield {
+                                span: parentSpan,
+                                event: {
+                                    type: "response.output_item.done",
+                                    item: event.item,
+                                } as OpenAi.Responses.ResponseOutputItemDoneEvent,
+                            };
+                            break;
+                        case "Error":
+                            throw event.error;
+                        default:
+                            throw exhaustive(event);
+                    }
                 }
+            } catch (error) {
+                parentSpan.addException(error);
+                throw error;
+            } finally {
+                finishSpan();
             }
         },
     );
