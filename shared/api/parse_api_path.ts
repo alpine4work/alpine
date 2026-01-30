@@ -5,7 +5,6 @@ import {
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
@@ -501,7 +500,7 @@ export function parseApiBotWebhookEventIntoMessageRoom(
 ): ApiMessageRoomTarget {
     switch (event.type) {
         case "NewMessage": {
-            return assertExists(event.room);
+            return event.room;
         }
         case "NewPost": {
             return {type: "Post", id: event.postId};
@@ -517,7 +516,7 @@ export function parseApiBotWebhookEventIntoMessageRoomPath(
 ): ApiMessageRoomPath {
     switch (event.type) {
         case "NewMessage": {
-            return printApiMessageRoomPath(assertExists(event.room));
+            return printApiMessageRoomPath(event.room);
         }
         case "NewPost": {
             return `/posts/${event.postId}`;

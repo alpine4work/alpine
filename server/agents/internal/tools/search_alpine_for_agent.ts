@@ -9,9 +9,7 @@ import {
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {
-    ApiMessageRoomPath,
     ApiMessageRoomTarget,
     ApiSearchChatMessageResult,
     ApiSearchDocumentMessageResult,
@@ -23,6 +21,7 @@ import {
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 type ApiSearchMessageResult =
@@ -46,8 +45,7 @@ export async function searchAlpineForAgent(
     if (!data || data.results.length === 0) return "No results found";
 
     const results = data.results.filter(
-        result =>
-            !isApiSearchResultInConversationState(printApiMessageRoomPath(request.room), result),
+        result => !isApiSearchResultInConversationState(request.room, result),
     );
     if (results.length === 0) return "No results found";
 
@@ -360,7 +358,7 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): Li
 //
 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w11jwcrp2asdf79nre611p48fr
 function isApiSearchResultInConversationState(
-    currentMessageRoomPath: ApiMessageRoomPath,
+    currentMessageRoom: ApiMessageRoomTarget,
     result: ApiSearchResult,
 ): boolean {
     const resultMessageRoomPath = intoApiMessageRoomPathFromPathIfPossible(result);
@@ -368,7 +366,7 @@ function isApiSearchResultInConversationState(
     if (resultMessageRoomPath === null) {
         return false;
     } else {
-        return printApiMessageRoomPath(resultMessageRoomPath) === currentMessageRoomPath;
+        return isDeepEqual(resultMessageRoomPath, currentMessageRoom);
     }
 }
 

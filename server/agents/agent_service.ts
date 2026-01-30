@@ -7,7 +7,6 @@ import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {ApiBotWebhookRequestBody} from "~/shared/api/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -287,7 +286,7 @@ function fetchFromDurableObjectWithId(
 function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {
     switch (request.event.type) {
         case "NewMessage":
-            return `${request.botAccountId}:${printApiMessageRoomPath(assertExists(request.event.room))}`;
+            return `${request.botAccountId}:${printApiMessageRoomPath(request.event.room)}`;
         case "NewPost":
             return `${request.botAccountId}:${request.event.postId}`;
     }

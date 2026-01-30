@@ -7,7 +7,7 @@ import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messag
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";

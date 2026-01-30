@@ -57,15 +57,12 @@ import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_err
 import {
     getApiMentionTargetPathIfExists,
     isApiMessageRoom,
-    parseApiBotWebhookEventIntoMessageRoomPath,
+    parseApiBotWebhookEventIntoMessageRoom,
     parseApiMentionTarget,
-    parseApiMessageRoomPath,
     parseApiPath,
+    printApiMessageRoomPath,
 } from "~/shared/api/parse_api_path.js";
-import {
-    ApiMessageRoomPath,
-    ApiMessageRoomTarget,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMessageRoomTarget} from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     DataLossError,
@@ -703,7 +700,7 @@ async function createChatGptAgentResponse(
         // https://platform.openai.com/docs/guides/prompt-caching
         prompt_cache_key: getRoomPathForPromptCacheKey(
             request.spaceId,
-            parseApiBotWebhookEventIntoMessageRoomPath(request.event),
+            parseApiBotWebhookEventIntoMessageRoom(request.event),
         ),
         safety_identifier: request.event.authorId,
         // NOTE(ifitzsimmons, 2026-01-10): We had originally planned to add the web search [1] tool to
@@ -1085,19 +1082,17 @@ function checkChatGptFunctionCallOutputTokenCount(session: AgentMessageStreamSes
 // IDs are 26 characters long, so we can't fit more than two IDs in a prompt_cache_key.
 // Document comment threads are uniquely identified by their DocumentId x ThreadId combination,
 // so we can drop the Space ID.
-function getRoomPathForPromptCacheKey(spaceId: SpaceId, roomPath: ApiMessageRoomPath): string {
-    const roomPathObject = parseApiMessageRoomPath(roomPath);
-
-    switch (roomPathObject.type) {
+function getRoomPathForPromptCacheKey(spaceId: SpaceId, room: ApiMessageRoomTarget): string {
+    switch (room.type) {
         case "Chat":
         case "Post":
         case "Task":
-            return `${spaceId}:${roomPath}`;
+            return `${spaceId}:${printApiMessageRoomPath(room)}`;
         case "DocumentCommentThread":
             // "thread/" (7 characters) + ID * 2 (52 characters + "-" (1 character)) = 60 characters
-            return `thread/${roomPathObject.id}-${roomPathObject.threadId}`;
+            return `thread/${room.id}-${room.threadId}`;
         default:
-            throw exhaustive(roomPathObject);
+            throw exhaustive(room);
     }
 }
 

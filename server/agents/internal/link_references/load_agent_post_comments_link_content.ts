@@ -16,9 +16,8 @@ import {printMessagesListContentToMarkdownRoot} from "~/server/agents/internal/l
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
-import {parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {
-    ApiMessageRoomPath,
+    ApiMessageRoomTarget,
     ApiPostResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -179,7 +178,7 @@ async function getMarkdownContentForPageFromStart({
             transaction,
             request.apiClient,
             request.spaceId,
-            parseApiMessageRoomPath(getMessageRoomPath(link)),
+            getMessageRoom(link),
             {
                 startingCursor: cursorOptions.cursor,
                 limitTokenCount: Math.floor(link.tokenLimitForPage * tokenLimitFactor),
@@ -243,7 +242,7 @@ async function getMarkdownContentForPageFromEnd({
         transaction,
         request.apiClient,
         request.spaceId,
-        parseApiMessageRoomPath(getMessageRoomPath(link)),
+        getMessageRoom(link),
         {
             startingCursor: cursorOptions.cursor,
             limitTokenCount: Math.floor(link.tokenLimitForPage * tokenLimitFactor),
@@ -316,7 +315,7 @@ async function getMarkdownContentForPageFromMiddle({
             transaction,
             request.apiClient,
             request.spaceId,
-            parseApiMessageRoomPath(getMessageRoomPath(link)),
+            getMessageRoom(link),
             {
                 // get everything before current index
                 startingCursor: cursorOptions.index,
@@ -328,7 +327,7 @@ async function getMarkdownContentForPageFromMiddle({
             transaction,
             request.apiClient,
             request.spaceId,
-            parseApiMessageRoomPath(getMessageRoomPath(link)),
+            getMessageRoom(link),
             {
                 // get everything after and including current index
                 startingCursor: cursorOptions.index - 1,
@@ -375,8 +374,8 @@ async function getMarkdownContentForPageFromMiddle({
     };
 }
 
-function getMessageRoomPath(link: AgentPostCommentsLink): ApiMessageRoomPath {
-    return `/posts/${link.postId}`;
+function getMessageRoom(link: AgentPostCommentsLink): ApiMessageRoomTarget {
+    return {type: "Post", id: link.postId};
 }
 
 async function getPreambleForPostComments({

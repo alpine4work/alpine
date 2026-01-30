@@ -1307,72 +1307,6 @@ components:
         TaskMessagesListPath:
             type: string
             pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
-        MessageRoomPath:
-            oneOf:
-                - $ref: "#/components/schemas/ChatPath"
-                - $ref: "#/components/schemas/DocumentThreadPath"
-                - $ref: "#/components/schemas/PostPath"
-                - $ref: "#/components/schemas/TaskPath"
-        MessageRoomTarget:
-            oneOf:
-                - $ref: "#/components/schemas/ChatMessageRoom"
-                - $ref: "#/components/schemas/DocumentCommentRoom"
-                - $ref: "#/components/schemas/PostCommentRoom"
-                - $ref: "#/components/schemas/TaskCommentRoom"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Chat: "#/components/schemas/ChatMessageRoom"
-                    DocumentCommentThread: "#/components/schemas/DocumentCommentRoom"
-                    Post: "#/components/schemas/PostCommentRoom"
-                    Task: "#/components/schemas/TaskCommentRoom"
-        ChatMessageRoom:
-            type: object
-            required:
-                - type
-                - id
-            additionalProperties: false
-            properties:
-                type:
-                    const: Chat
-                id:
-                    $ref: "#/components/schemas/ChatId"
-        DocumentCommentRoom:
-            type: object
-            required:
-                - type
-                - id
-                - threadId
-            additionalProperties: false
-            properties:
-                type:
-                    const: DocumentCommentThread
-                id:
-                    $ref: "#/components/schemas/DocumentId"
-                threadId:
-                    $ref: "#/components/schemas/DocumentThreadId"
-        PostCommentRoom:
-            type: object
-            required:
-                - type
-                - id
-            additionalProperties: false
-            properties:
-                type:
-                    const: Post
-                id:
-                    $ref: "#/components/schemas/PostId"
-        TaskCommentRoom:
-            type: object
-            required:
-                - type
-                - id
-            additionalProperties: false
-            properties:
-                type:
-                    const: Task
-                id:
-                    $ref: "#/components/schemas/TaskId"
         MessagesListPath:
             oneOf:
                 - $ref: "#/components/schemas/ChatMessagesListPath"
@@ -2562,8 +2496,6 @@ components:
             properties:
                 type:
                     const: NewMessage
-                roomPath:
-                    $ref: "#/components/schemas/MessageRoomPath"
                 room:
                     $ref: "#/components/schemas/MessageRoomTarget"
                 index:
@@ -2681,6 +2613,66 @@ components:
                 mapping:
                     Strike: "#/components/schemas/ContentInlineElementStrikeMark"
                     Code: "#/components/schemas/ContentInlineElementCodeMark"
+        MessageRoomTarget:
+            oneOf:
+                - $ref: "#/components/schemas/ChatMessageRoom"
+                - $ref: "#/components/schemas/DocumentCommentRoom"
+                - $ref: "#/components/schemas/PostCommentRoom"
+                - $ref: "#/components/schemas/TaskCommentRoom"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Chat: "#/components/schemas/ChatMessageRoom"
+                    DocumentCommentThread: "#/components/schemas/DocumentCommentRoom"
+                    Post: "#/components/schemas/PostCommentRoom"
+                    Task: "#/components/schemas/TaskCommentRoom"
+        ChatMessageRoom:
+            type: object
+            required:
+                - type
+                - id
+            additionalProperties: false
+            properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
+        DocumentCommentRoom:
+            type: object
+            required:
+                - type
+                - id
+                - threadId
+            additionalProperties: false
+            properties:
+                type:
+                    const: DocumentCommentThread
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                threadId:
+                    $ref: "#/components/schemas/DocumentThreadId"
+        PostCommentRoom:
+            type: object
+            required:
+                - type
+                - id
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+        TaskCommentRoom:
+            type: object
+            required:
+                - type
+                - id
+            additionalProperties: false
+            properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
         SearchResult:
             oneOf:
                 - $ref: "#/components/schemas/SearchAccountResult"

@@ -1575,49 +1575,6 @@ export namespace ApiSpecification {
             readonly TaskCollectionPath: `/task-collections/${IdTypes.TaskCollectionId}`;
             readonly TaskMessagePath: `/tasks/${IdTypes.TaskId}/messages/${number}`;
             readonly TaskMessagesListPath: `/tasks/${IdTypes.TaskId}/messages`;
-            readonly MessageRoomPath:
-                | components["schemas"]["ChatPath"]
-                | components["schemas"]["DocumentThreadPath"]
-                | components["schemas"]["PostPath"]
-                | components["schemas"]["TaskPath"];
-            readonly MessageRoomTarget:
-                | components["schemas"]["ChatMessageRoom"]
-                | components["schemas"]["DocumentCommentRoom"]
-                | components["schemas"]["PostCommentRoom"]
-                | components["schemas"]["TaskCommentRoom"];
-            readonly ChatMessageRoom: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
-                 */
-                readonly type: "Chat";
-                readonly id: components["schemas"]["ChatId"];
-            };
-            readonly DocumentCommentRoom: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
-                 */
-                readonly type: "DocumentCommentThread";
-                readonly id: components["schemas"]["DocumentId"];
-                readonly threadId: components["schemas"]["DocumentThreadId"];
-            };
-            readonly PostCommentRoom: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
-                 */
-                readonly type: "Post";
-                readonly id: components["schemas"]["PostId"];
-            };
-            readonly TaskCommentRoom: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
-                 */
-                readonly type: "Task";
-                readonly id: components["schemas"]["TaskId"];
-            };
             readonly MessagesListPath:
                 | components["schemas"]["ChatMessagesListPath"]
                 | components["schemas"]["DocumentThreadMessagesListPath"]
@@ -2224,7 +2181,6 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "NewMessage";
-                readonly roomPath?: components["schemas"]["MessageRoomPath"];
                 readonly room: components["schemas"]["MessageRoomTarget"];
                 readonly index: number;
                 readonly authorId: components["schemas"]["AccountId"];
@@ -2280,6 +2236,44 @@ export namespace ApiSpecification {
             readonly MessageContentPayloadParentContentSnippetInlineElementMark:
                 | components["schemas"]["ContentInlineElementStrikeMark"]
                 | components["schemas"]["ContentInlineElementCodeMark"];
+            readonly MessageRoomTarget:
+                | components["schemas"]["ChatMessageRoom"]
+                | components["schemas"]["DocumentCommentRoom"]
+                | components["schemas"]["PostCommentRoom"]
+                | components["schemas"]["TaskCommentRoom"];
+            readonly ChatMessageRoom: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Chat";
+                readonly id: components["schemas"]["ChatId"];
+            };
+            readonly DocumentCommentRoom: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "DocumentCommentThread";
+                readonly id: components["schemas"]["DocumentId"];
+                readonly threadId: components["schemas"]["DocumentThreadId"];
+            };
+            readonly PostCommentRoom: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Post";
+                readonly id: components["schemas"]["PostId"];
+            };
+            readonly TaskCommentRoom: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Task";
+                readonly id: components["schemas"]["TaskId"];
+            };
             readonly SearchResult:
                 | components["schemas"]["SearchAccountResult"]
                 | components["schemas"]["SearchChannelResult"]
