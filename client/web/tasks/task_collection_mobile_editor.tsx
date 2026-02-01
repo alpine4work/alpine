@@ -103,7 +103,7 @@ export function TaskCollectionMobileEditor({
                     <Button
                         paddingX="2"
                         fontSize="100"
-                        pressErrorTitle="Couldn\u2019t go back"
+                        pressErrorTitle="Couldn&#x2019;t go back"
                         onPress={() => onCloseWithAnimation({hasSaved: false})}
                     >
                         Cancel
@@ -125,7 +125,7 @@ export function TaskCollectionMobileEditor({
                         isDisabled={
                             (!hasNameChanged && !hasColorChanged) || name.trim().length === 0
                         }
-                        pressErrorTitle="Couldn\u2019t save collection"
+                        pressErrorTitle="Couldn&#x2019;t save collection"
                         onPress={save}
                     >
                         Save

@@ -62,7 +62,7 @@ export function AuthenticationSignUpProfileView({
 
     return (
         <Form
-            submitErrorTitle="Couldn\u2019t sign up"
+            submitErrorTitle="Couldn&#x2019;t sign up"
             onSubmit={async () => {
                 await saveAccountSignUpProfile(context, {
                     accountId: state.accountId,

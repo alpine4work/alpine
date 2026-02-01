@@ -144,7 +144,7 @@ export default function SpaceGeneralSettingsRoute() {
                         {name !== null && (
                             <InlineEditorToolbar
                                 ref={nameInlineEditorToolbarRef}
-                                saveErrorTitle="Couldn\u2019t save space name"
+                                saveErrorTitle="Couldn&#x2019;t save space name"
                                 onSave={handleSaveName}
                                 onCancel={handleCancelNameEditing}
                             />
@@ -232,10 +232,10 @@ export default function SpaceGeneralSettingsRoute() {
                         inputRef.current?.focus();
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Couldn\u2019t save space name"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t save space name"
                     onPrimaryButtonPress={handleSaveName}
                     cancelButtonLabel="Discard changes"
-                    cancelButtonPressErrorTitle="Couldn\u2019t discard changes"
+                    cancelButtonPressErrorTitle="Couldn&#x2019;t discard changes"
                     onCancelButtonPress={handleCancelNameEditing}
                 />
             )}

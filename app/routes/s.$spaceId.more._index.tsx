@@ -111,7 +111,7 @@ export default function MoreRoute() {
                     withBorderTop
                     icon={<Gear />}
                     label="Settings"
-                    pressErrorTitle="Couldn\u2019t open space settings"
+                    pressErrorTitle="Couldn&#x2019;t open space settings"
                     onPress={async () => {
                         await rootNavigate(`/s/${space.id}/more/settings`);
                     }}
@@ -119,7 +119,7 @@ export default function MoreRoute() {
                 <MobileSettingsRow
                     icon={<SignOut />}
                     label="Sign out"
-                    pressErrorTitle="Couldn\u2019t sign out"
+                    pressErrorTitle="Couldn&#x2019;t sign out"
                     onPress={async () => {
                         if (NativeMobileBridge) {
                             NativeMobileBridge.session.signOut();
@@ -136,7 +136,7 @@ export default function MoreRoute() {
                     <MobileSettingsRow
                         icon={<Recycle />}
                         label="[Debug] Unresponsive crash"
-                        pressErrorTitle="Couldn\u2019t crash"
+                        pressErrorTitle="Couldn&#x2019;t crash"
                         onPress={async () => {
                             while (true) {
                                 // Intentionally crash the main thread.

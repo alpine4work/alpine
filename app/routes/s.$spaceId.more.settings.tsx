@@ -46,7 +46,7 @@ export default function MobileSpaceSettingsRoute() {
                         withBorderTop
                         icon={<User />}
                         label="Profile"
-                        pressErrorTitle="Couldn\u2019t open profile settings"
+                        pressErrorTitle="Couldn&#x2019;t open profile settings"
                         onPress={async () => {
                             await rootNavigate(`/s/${space.id}/settings/profile`);
                         }}
@@ -54,7 +54,7 @@ export default function MobileSpaceSettingsRoute() {
                     <MobileSettingsRow
                         icon={<Bell />}
                         label="Notifications"
-                        pressErrorTitle="Couldn\u2019t open notification settings"
+                        pressErrorTitle="Couldn&#x2019;t open notification settings"
                         onPress={async () => {
                             await rootNavigate(`/s/${space.id}/settings/notifications`);
                         }}
@@ -68,7 +68,7 @@ export default function MobileSpaceSettingsRoute() {
                         withBorderTop
                         icon={<BuildingsIcon />}
                         label="General"
-                        pressErrorTitle="Couldn\u2019t open general settings"
+                        pressErrorTitle="Couldn&#x2019;t open general settings"
                         onPress={async () => {
                             await rootNavigate(`/s/${space.id}/settings/general`);
                         }}
@@ -76,7 +76,7 @@ export default function MobileSpaceSettingsRoute() {
                     <MobileSettingsRow
                         icon={<Users />}
                         label="People"
-                        pressErrorTitle="Couldn\u2019t open people settings"
+                        pressErrorTitle="Couldn&#x2019;t open people settings"
                         onPress={async () => {
                             await rootNavigate(`/s/${space.id}/settings/people`);
                         }}
@@ -84,7 +84,7 @@ export default function MobileSpaceSettingsRoute() {
                     <MobileSettingsRow
                         icon={<Robot />}
                         label="Bots"
-                        pressErrorTitle="Couldn\u2019t open bot settings"
+                        pressErrorTitle="Couldn&#x2019;t open bot settings"
                         onPress={async () => {
                             await rootNavigate(`/s/${space.id}/settings/bots`);
                         }}

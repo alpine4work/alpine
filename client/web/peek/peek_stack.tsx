@@ -1625,7 +1625,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                             description="Expand"
                             keyboardShortcutHint={isAppleDevice ? "⌘+E" : "Ctrl+E"}
                             tooltipPlacement="top"
-                            pressErrorTitle="Couldn\u2019t expand"
+                            pressErrorTitle="Couldn&#x2019;t expand"
                             onPress={async event => {
                                 const spacePath = convertPeekPathToSpacePath(
                                     entry.history.location,

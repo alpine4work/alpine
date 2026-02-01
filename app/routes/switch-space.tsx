@@ -89,7 +89,7 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
                                 {otherSpace.name}
                             </Box>
                         }
-                        pressErrorTitle="Couldn\u2019t switch to space"
+                        pressErrorTitle="Couldn&#x2019;t switch to space"
                         onPress={async () => {
                             if (otherSpace.id === selectedSpace?.id) return;
 
@@ -131,7 +131,7 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
                             Create space
                         </Box>
                     }
-                    pressErrorTitle="Couldn\u2019t create space"
+                    pressErrorTitle="Couldn&#x2019;t create space"
                     onPress={async () => {
                         await rootNavigate(`/create-space`);
                     }}

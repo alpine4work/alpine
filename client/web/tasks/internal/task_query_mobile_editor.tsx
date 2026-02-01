@@ -63,7 +63,7 @@ export function TaskQueryMobileEditor({
                     <Button
                         paddingX="2"
                         fontSize="100"
-                        pressErrorTitle="Couldn\u2019t go back"
+                        pressErrorTitle="Couldn&#x2019;t go back"
                         onPress={onCloseWithAnimation}
                     >
                         Cancel

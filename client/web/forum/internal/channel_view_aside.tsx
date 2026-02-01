@@ -354,7 +354,7 @@ function ChannelViewAsideDescriptionEditor({
                     />
                     <InlineEditorToolbar
                         isSaving={isSaving}
-                        saveErrorTitle="Couldn\u2019t save description"
+                        saveErrorTitle="Couldn&#x2019;t save description"
                         onSave={save}
                         onCancel={onCancel}
                     />
@@ -371,10 +371,10 @@ function ChannelViewAsideDescriptionEditor({
                         setShouldShowConfirmSaveDialog(false);
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Couldn\u2019t save description"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t save description"
                     onPrimaryButtonPress={save}
                     cancelButtonLabel="Discard description"
-                    cancelButtonPressErrorTitle="Couldn\u2019t discard description"
+                    cancelButtonPressErrorTitle="Couldn&#x2019;t discard description"
                     onCancelButtonPress={onCancel}
                 />
             )}

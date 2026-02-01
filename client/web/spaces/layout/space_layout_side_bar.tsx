@@ -88,7 +88,7 @@ export function SpaceLayoutSideBar({
                             size="lg"
                             description="Home"
                             tooltipPlacement="right"
-                            pressErrorTitle="Couldn\u2019t open home"
+                            pressErrorTitle="Couldn&#x2019;t open home"
                             onPress={async () => {
                                 await rootNavigate(`/s/${space.id}`);
                             }}
@@ -182,7 +182,7 @@ function SpaceLayoutSideBarNavigationButtons() {
                     keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+[" : "Ctrl+["}
                     tooltipPlacement="top"
                     isDisabled={!navigationState.hasPreviousLocation}
-                    pressErrorTitle="Couldn\u2019t go back"
+                    pressErrorTitle="Couldn&#x2019;t go back"
                     onPress={() => navigate(-1)}
                 >
                     <ArrowLeft />
@@ -193,7 +193,7 @@ function SpaceLayoutSideBarNavigationButtons() {
                     keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+]" : "Ctrl+]"}
                     tooltipPlacement="top"
                     isDisabled={!navigationState.hasNextLocation}
-                    pressErrorTitle="Couldn\u2019t go forwards"
+                    pressErrorTitle="Couldn&#x2019;t go forwards"
                     onPress={() => navigate(1)}
                 >
                     <ArrowRight />

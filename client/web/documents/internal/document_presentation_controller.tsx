@@ -452,7 +452,7 @@ function DocumentPresentationInstructionalConfirmationModal({
             aria-describedby={descriptionId}
             onClose={onClose}
             primaryButtonLabel="Present"
-            primaryButtonPressErrorTitle="Couldn\u2019t present document"
+            primaryButtonPressErrorTitle="Couldn&#x2019;t present document"
             onPrimaryButtonPress={onPresent}
             maxWidth="44rem"
             buttonsPaddingX="7"

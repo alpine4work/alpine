@@ -63,7 +63,7 @@ export function SpaceRouteErrorBoundary() {
                                 size="base"
                                 description="Go back"
                                 withoutTooltip={true}
-                                pressErrorTitle="Couldn\u2019t go back"
+                                pressErrorTitle="Couldn&#x2019;t go back"
                                 onPress={() => navigate(-1)}
                             >
                                 <ArrowLeft />

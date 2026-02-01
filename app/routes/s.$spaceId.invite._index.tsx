@@ -128,7 +128,7 @@ export default function HomeRoute() {
                             height="8"
                             paddingX="3"
                             fullWidth
-                            pressErrorTitle="Couldn\u2019t accept invite"
+                            pressErrorTitle="Couldn&#x2019;t accept invite"
                             onPress={onAcceptInvite}
                         >
                             Join {context.space.name}
@@ -139,7 +139,7 @@ export default function HomeRoute() {
                     variant="quieter"
                     height="6"
                     paddingX="2"
-                    pressErrorTitle="Couldn\u2019t reject invite"
+                    pressErrorTitle="Couldn&#x2019;t reject invite"
                     onPress={onRejectInviteAndMarkAsSpam}
                     fontSize="50"
                 >

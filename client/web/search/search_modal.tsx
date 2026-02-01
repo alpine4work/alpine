@@ -443,7 +443,7 @@ export function SearchModal({
                                             paddingBottom="8"
                                         >
                                             <ErrorBodyRenderer
-                                                title="Couldn\u2019t get search results"
+                                                title="Couldn&#x2019;t get search results"
                                                 error={output.error}
                                             />
                                         </Box>
@@ -1201,7 +1201,7 @@ function SearchModalPeekContent({
                         // documentation, marketing, and other copy in the product align with this name.
                         // If we decide to call it something else publicly, this needs to be renamed.
                         tooltipContentOverride="Shift-click to open in peek"
-                        pressErrorTitle="Couldn\u2019t expand"
+                        pressErrorTitle="Couldn&#x2019;t expand"
                         // We check `event.shiftKey`because this determines whether we open in a peek
                         // or navigate to full screen. Therefore we want the route not to open in a
                         // peek if `event.shiftKey` is pressed.
@@ -1234,7 +1234,7 @@ function SearchModalPeekContent({
                         size="xs"
                         description="Dismiss"
                         withoutTooltip={true}
-                        pressErrorTitle="Couldn\u2019t dismiss"
+                        pressErrorTitle="Couldn&#x2019;t dismiss"
                         onPress={() => switchPeek(null)}
                     >
                         <X />

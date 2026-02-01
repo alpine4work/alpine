@@ -173,7 +173,7 @@ export default function SpaceBotSettingsRoute() {
                                     fontSize="75"
                                     height={spaceBotSettingsHeadingHeightInstallButtonHeight}
                                     paddingX="2"
-                                    pressErrorTitle="Couldn\u2019t open chat"
+                                    pressErrorTitle="Couldn&#x2019;t open chat"
                                     onPress={async () => {
                                         await navigate(
                                             `/s/${space.id}/chat/with/${botAccount.account.id}?focus`,
@@ -192,7 +192,7 @@ export default function SpaceBotSettingsRoute() {
                                             ? "Ask an admin to uninstall this bot."
                                             : undefined
                                     }
-                                    pressErrorTitle="Couldn\u2019t uninstall bot"
+                                    pressErrorTitle="Couldn&#x2019;t uninstall bot"
                                     onPress={async () => {
                                         const {account: removedAccount} = await removeSpaceAccount(
                                             context,
@@ -221,7 +221,7 @@ export default function SpaceBotSettingsRoute() {
                                             ? "Ask an admin to install this bot."
                                             : undefined
                                     }
-                                    pressErrorTitle="Couldn\u2019t install bot"
+                                    pressErrorTitle="Couldn&#x2019;t install bot"
                                     onPress={async () => {
                                         switch (botAccount.type) {
                                             case "Exists": {
@@ -490,7 +490,7 @@ function SpaceBotSettingsStringProperty({
                     primaryButtonPressErrorTitle={`Couldn\u2019t save \u201C${propertySchema.label}\u201D`}
                     onPrimaryButtonPress={handleSave}
                     cancelButtonLabel="Discard changes"
-                    cancelButtonPressErrorTitle="Couldn\u2019t discard changes"
+                    cancelButtonPressErrorTitle="Couldn&#x2019;t discard changes"
                     onCancelButtonPress={handleCancelEditing}
                 />
             )}

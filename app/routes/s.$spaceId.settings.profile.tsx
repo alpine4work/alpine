@@ -160,7 +160,7 @@ export default function SpaceProfileSettingsRoute() {
                         {name !== null && (
                             <InlineEditorToolbar
                                 ref={nameInlineEditorToolbarRef}
-                                saveErrorTitle="Couldn\u2019t save user name"
+                                saveErrorTitle="Couldn&#x2019;t save user name"
                                 onSave={handleSaveName}
                                 onCancel={handleCancelNameEditing}
                             />
@@ -282,7 +282,7 @@ export default function SpaceProfileSettingsRoute() {
                         <Button
                             variant="accent"
                             isDisabled={hasLifetimeAccess}
-                            pressErrorTitle="Couldn\u2019t purchase lifetime access"
+                            pressErrorTitle="Couldn&#x2019;t purchase lifetime access"
                             onPress={async () => {
                                 const {result} = await createLifetimeAccessCheckoutSessionUrl(
                                     context,
@@ -320,10 +320,10 @@ export default function SpaceProfileSettingsRoute() {
                         inputRef.current?.focus();
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Couldn\u2019t save user name"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t save user name"
                     onPrimaryButtonPress={handleSaveName}
                     cancelButtonLabel="Discard changes"
-                    cancelButtonPressErrorTitle="Couldn\u2019t discard changes"
+                    cancelButtonPressErrorTitle="Couldn&#x2019;t discard changes"
                     onCancelButtonPress={handleCancelNameEditing}
                 />
             )}

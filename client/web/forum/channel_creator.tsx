@@ -136,7 +136,7 @@ export function ChannelCreator({
                     isDisabled={
                         (!hasNameChanged && !hasDescriptionChanged) || name.trim().length === 0
                     }
-                    pressErrorTitle="Couldn\u2019t save channel"
+                    pressErrorTitle="Couldn&#x2019;t save channel"
                     onPress={async () => {
                         if (isContentEmpty(descriptionState.getDoc()) && isPublic) {
                             await navigate(

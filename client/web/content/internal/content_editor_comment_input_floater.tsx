@@ -702,7 +702,7 @@ function ContentEditorCommentInput({
                             size={messageInputEditorIconButtonSize}
                             variant="accent"
                             description="Save comment"
-                            pressErrorTitle="Can\u2019t save comment"
+                            pressErrorTitle="Can&#x2019;t save comment"
                             onPress={sendComment}
                             isDisabled={isSendButtonDisabled}
                             // The send icon button is not focusable. That's because we don't want to
@@ -837,7 +837,7 @@ function ContentEditorCommentInput({
                         setShouldShowConfirmCloseDialog(false);
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Can\u2019t save comment"
+                    primaryButtonPressErrorTitle="Can&#x2019;t save comment"
                     onPrimaryButtonPress={sendComment}
                     cancelButtonLabel="Discard comment"
                     onCancelButtonPress={onCloseWithoutAnimation}

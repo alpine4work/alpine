@@ -1631,7 +1631,7 @@ export function DocumentContentEditor({
                 iconPlacement="end"
                 height="6"
                 paddingX="2"
-                pressErrorTitle="Couldn\u2019t present document"
+                pressErrorTitle="Couldn&#x2019;t present document"
                 onPress={async () => {
                     await assertExists(
                         presentationControllerRef.current,
@@ -2502,7 +2502,7 @@ function DocumentContentEditorSidebar({
                         description="Previous thread"
                         keyboardShortcutHint={isAppleDevice ? "⌘+Shift+," : "Ctrl+Shift+,"}
                         isDisabled={!previousCommentThreadId}
-                        pressErrorTitle="Can\u2019t go to previous thread"
+                        pressErrorTitle="Can&#x2019;t go to previous thread"
                         onPress={async () => {
                             if (!previousCommentThreadId) return;
                             await openCommentThread(previousCommentThreadId);
@@ -2531,7 +2531,7 @@ function DocumentContentEditorSidebar({
                         description="Next thread"
                         keyboardShortcutHint={isAppleDevice ? "⌘+Shift+." : "Ctrl+Shift+."}
                         isDisabled={!nextCommentThreadId}
-                        pressErrorTitle="Can\u2019t go to next thread"
+                        pressErrorTitle="Can&#x2019;t go to next thread"
                         onPress={async () => {
                             if (!nextCommentThreadId) return;
                             await openCommentThread(nextCommentThreadId);

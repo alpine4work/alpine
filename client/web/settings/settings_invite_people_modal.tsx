@@ -140,7 +140,7 @@ export function SettingsInvitePeopleModal({
             onClose={onCloseAndCheckSuccess}
             primaryButtonLabel="Send"
             isPrimaryButtonDisabled={emailAddresses.length === 0}
-            primaryButtonPressErrorTitle="Couldn\u2019t send invites"
+            primaryButtonPressErrorTitle="Couldn&#x2019;t send invites"
             onPrimaryButtonPress={handleSendInvites}
             onCancelButtonPress={onCloseAndCheckSuccess}
             withoutCloseButton={true}

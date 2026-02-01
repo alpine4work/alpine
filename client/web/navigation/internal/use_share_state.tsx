@@ -317,7 +317,7 @@ export function useShareState(
                     primaryButtonLabel="Cancel"
                     onPrimaryButtonPress={() => setWarningDialogState(null)}
                     cancelButtonLabel="I understand, make this change"
-                    cancelButtonPressErrorTitle="Couldn\u2019t make this change"
+                    cancelButtonPressErrorTitle="Couldn&#x2019;t make this change"
                     onCancelButtonPress={() => {
                         if (!props) return;
 

@@ -382,7 +382,7 @@ function DocumentNewCommentThreadsRouteInner2({
                         size="md"
                         description="Previous thread"
                         isDisabled={mobileCommentThreadIndex === 0}
-                        pressErrorTitle="Can\u2019t go to previous thread"
+                        pressErrorTitle="Can&#x2019;t go to previous thread"
                         onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex - 1)}
                     >
                         <CaretLeft />
@@ -400,7 +400,7 @@ function DocumentNewCommentThreadsRouteInner2({
                         size="md"
                         description="Next thread"
                         isDisabled={mobileCommentThreadIndex === commentThreadCount - 1}
-                        pressErrorTitle="Can\u2019t go to next thread"
+                        pressErrorTitle="Can&#x2019;t go to next thread"
                         onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex + 1)}
                     >
                         <CaretRight />

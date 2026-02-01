@@ -279,7 +279,7 @@ export function usePostEditing({
                             });
                         }}
                         primaryButtonLabel="Save"
-                        primaryButtonPressErrorTitle="Couldn\u2019t save post"
+                        primaryButtonPressErrorTitle="Couldn&#x2019;t save post"
                         onPrimaryButtonPress={() => {
                             const savePromiseResolver = createPromiseResolver();
 

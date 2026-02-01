@@ -109,7 +109,7 @@ export function AuthenticationAfterSignUpMobileInterstitialView({
                 <Checkbox
                     color="grey-60"
                     isChecked={isOptedInToTryOnDesktopEmail}
-                    changeErrorTitle="Couldn\u2019t change your reminder preference"
+                    changeErrorTitle="Couldn&#x2019;t change your reminder preference"
                     onChange={async () => {
                         if (isOptedInToTryOnDesktopEmail) {
                             await optOutOfTryOnDesktopEmail(context, {});
@@ -128,7 +128,7 @@ export function AuthenticationAfterSignUpMobileInterstitialView({
                     fullWidth={true}
                     fontSize="100"
                     height="9"
-                    pressErrorTitle="Couldn\u2019t continue"
+                    pressErrorTitle="Couldn&#x2019;t continue"
                     onPress={async () => {
                         await navigateAfterSignInOrSignUp({
                             navigate,

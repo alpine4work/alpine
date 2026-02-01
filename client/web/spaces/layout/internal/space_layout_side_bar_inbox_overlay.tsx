@@ -193,7 +193,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
                     }}
                 />
             }
-            pressErrorTitle="Couldn\u2019t open inbox"
+            pressErrorTitle="Couldn&#x2019;t open inbox"
             onPress={async () => {
                 const searchParams = new URLSearchParams();
 

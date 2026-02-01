@@ -425,7 +425,7 @@ export function PostContentView({
                                 height="6"
                                 paddingX="2"
                                 icon={<Check />}
-                                pressErrorTitle="Can\u2019t mark as done"
+                                pressErrorTitle="Can&#x2019;t mark as done"
                                 onPress={async () => {
                                     if (isPostArchived(post.id)) {
                                         await onUnarchivePost?.(post.id);
@@ -712,7 +712,7 @@ function PostContentViewFooter({
                             )
                         }
                         iconPlacement="start"
-                        pressErrorTitle="Couldn\u2019t open comments"
+                        pressErrorTitle="Couldn&#x2019;t open comments"
                         onPress={async () => {
                             if (routeLayout === "narrow") {
                                 await navigate(`/s/${post.spaceId}/posts/${post.id}`);

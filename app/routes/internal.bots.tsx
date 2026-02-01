@@ -219,7 +219,7 @@ function BotRow({
                                         height="8"
                                         paddingX="3"
                                         onPress={() => writeTextToClipboard(bot.webhookUrl!)}
-                                        pressErrorTitle="Couldn\u2019t copy webhook URL"
+                                        pressErrorTitle="Couldn&#x2019;t copy webhook URL"
                                     >
                                         <Copy color={iconColor} />
                                     </Button>
@@ -298,7 +298,7 @@ function BotRow({
                                             height="6"
                                             paddingX="1.5"
                                             onPress={() => writeTextToClipboard(apiKey)}
-                                            pressErrorTitle="Couldn\u2019t copy API key"
+                                            pressErrorTitle="Couldn&#x2019;t copy API key"
                                         >
                                             <Copy color={iconColor} />
                                         </Button>

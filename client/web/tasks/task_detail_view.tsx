@@ -1745,7 +1745,7 @@ function TaskDetailViewParentBreadcrumbs({
                     parentNodes.push(
                         <Tooltip
                             key={parentTaskEntry.task?.id ?? "Private"}
-                            content="You don\u2019t have access to the task this is a subtask of"
+                            content="You don&#x2019;t have access to the task this is a subtask of"
                         >
                             <Box
                                 color="grey-60"
@@ -1773,7 +1773,7 @@ function TaskDetailViewParentBreadcrumbs({
                         height="5"
                         paddingX="1.5"
                         flexShrink="1"
-                        pressErrorTitle="Couldn\u2019t open task"
+                        pressErrorTitle="Couldn&#x2019;t open task"
                         onPress={() =>
                             navigate(
                                 `/s/${parentTaskEntry.task.getSpaceId()}/tasks/${

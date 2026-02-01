@@ -491,7 +491,7 @@ function TaskGridViewMobileKeyboardToolbarContent({
                 isActive={false}
                 flexGrow={1.1}
                 isDisabled={!onOpenPress}
-                pressErrorTitle="Couldn\u2019t open task"
+                pressErrorTitle="Couldn&#x2019;t open task"
                 onPress={onOpenPress ?? noop}
             >
                 <Box

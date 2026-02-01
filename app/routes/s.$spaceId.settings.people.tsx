@@ -514,7 +514,7 @@ function SpacePeopleSettingsRouteAccounts({
                         setModalState(null);
                     }}
                     primaryButtonLabel="I understand, downgrade me from owner to admin"
-                    primaryButtonPressErrorTitle="Couldn\u2019t confirm owner change"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t confirm owner change"
                     onPrimaryButtonPress={handleConfirmMoveOwner}
                     cancelButtonLabel="Cancel"
                     onCancelButtonPress={() => {
@@ -531,7 +531,7 @@ function SpacePeopleSettingsRouteAccounts({
                         setModalState(null);
                     }}
                     primaryButtonLabel="Remove"
-                    primaryButtonPressErrorTitle="Couldn\u2019t remove member"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t remove member"
                     onPrimaryButtonPress={handleConfirmRemoveAccount}
                     cancelButtonLabel="Cancel"
                     onCancelButtonPress={() => {

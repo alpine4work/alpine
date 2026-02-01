@@ -245,7 +245,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                       size="base"
                                       description="Close"
                                       withoutTooltip={true}
-                                      pressErrorTitle="Couldn\u2019t close"
+                                      pressErrorTitle="Couldn&#x2019;t close"
                                       onPress={onMobileClose}
                                   >
                                       <X />
@@ -261,7 +261,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                       <Button
                                           paddingX="2"
                                           fontSize="100"
-                                          pressErrorTitle="Couldn\u2019t cancel"
+                                          pressErrorTitle="Couldn&#x2019;t cancel"
                                           onPress={onMobileCancel}
                                       >
                                           Cancel
@@ -281,7 +281,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                           size="base"
                                           description="Go back"
                                           withoutTooltip={true}
-                                          pressErrorTitle="Couldn\u2019t go back"
+                                          pressErrorTitle="Couldn&#x2019;t go back"
                                           onPress={handleBackButtonPress}
                                       >
                                           <ArrowLeft />

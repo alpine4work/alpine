@@ -94,7 +94,7 @@ export function PostMobileEditor({
             variant="neutral"
             withoutMinWidth={true}
             isDisabled={!hasContentChanged || isContentEmpty(state.getDoc())}
-            pressErrorTitle="Couldn\u2019t save post"
+            pressErrorTitle="Couldn&#x2019;t save post"
             onPress={onSave}
         >
             Save

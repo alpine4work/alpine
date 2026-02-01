@@ -83,7 +83,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 <SpaceLayoutSideBarCreateButtonItem
                                     icon={<DocumentBrandBigIcon />}
                                     label="Document"
-                                    description="Write what\u2019s on your mind"
+                                    description="Write what&#x2019;s on your mind"
                                     isPressed={isPressed}
                                     shouldShowPendingSpinner={shouldShowPendingSpinner}
                                 />

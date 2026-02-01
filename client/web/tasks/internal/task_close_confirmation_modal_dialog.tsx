@@ -33,7 +33,7 @@ export function TaskCloseConfirmationModalDialog({
             title="Mark task as closed?"
             description={`This task has ${childTaskCountPrettyNumber} that will stay open if this task is closed.`}
             primaryButtonLabel="Mark closed"
-            primaryButtonPressErrorTitle="Couldn\u2019t mark task as closed"
+            primaryButtonPressErrorTitle="Couldn&#x2019;t mark task as closed"
             onPrimaryButtonPress={() => {
                 onConfirm?.();
             }}

@@ -178,10 +178,10 @@ export function ChannelViewNameEditor({
                         setShouldShowConfirmSaveDialog(false);
                     }}
                     primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Couldn\u2019t save name"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t save name"
                     onPrimaryButtonPress={() => onSave(name)}
                     cancelButtonLabel="Discard name"
-                    cancelButtonPressErrorTitle="Couldn\u2019t discard name"
+                    cancelButtonPressErrorTitle="Couldn&#x2019;t discard name"
                     onCancelButtonPress={onCancel}
                 />
             )}

@@ -1661,7 +1661,7 @@ function TaskRowView(
                                 isTooltipVisibleWhenFocused={false}
                                 size="xs"
                                 description="Open"
-                                pressErrorTitle="Couldn\u2019t open task"
+                                pressErrorTitle="Couldn&#x2019;t open task"
                                 onPress={async () => {
                                     await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
 

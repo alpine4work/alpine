@@ -867,7 +867,7 @@ export function InboxEntryView({
                                 keyboardShortcutHint={
                                     isSelected ? (isAppleDevice ? "⌘+D" : "Ctrl+D") : undefined
                                 }
-                                pressErrorTitle="Couldn\u2019t mark as done"
+                                pressErrorTitle="Couldn&#x2019;t mark as done"
                                 onPress={() => onArchive({withAnimation: false})}
                             >
                                 <Check />

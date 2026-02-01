@@ -464,7 +464,7 @@ export function InboxBannerOutletContainer({
                                     // The inbox will show a loading shimmer when it opens. We don't need to
                                     // also show a loading indicator here.
                                     withoutLoadingIndicator
-                                    pressErrorTitle="Couldn\u2019t open in inbox"
+                                    pressErrorTitle="Couldn&#x2019;t open in inbox"
                                     onPress={async () => {
                                         // base64 encode the initial path to hide the fact that it's a URL.
                                         const textEncoder = new TextEncoder();
@@ -511,7 +511,7 @@ export function InboxBannerOutletContainer({
                                         description="Previous notification"
                                         keyboardShortcutHint="↑"
                                         isDisabled={!navigation.previousEntry}
-                                        pressErrorTitle="Can\u2019t go to previous notification"
+                                        pressErrorTitle="Can&#x2019;t go to previous notification"
                                         onPress={async () => {
                                             if (!navigation.previousEntry) return;
                                             await navigation.selectEntry(navigation.previousEntry);
@@ -524,7 +524,7 @@ export function InboxBannerOutletContainer({
                                         description="Next notification"
                                         keyboardShortcutHint="↓"
                                         isDisabled={!navigation.nextEntry}
-                                        pressErrorTitle="Can\u2019t go to next notification"
+                                        pressErrorTitle="Can&#x2019;t go to next notification"
                                         onPress={async () => {
                                             if (!navigation.nextEntry) return;
                                             await navigation.selectEntry(navigation.nextEntry);
@@ -556,7 +556,7 @@ export function InboxBannerOutletContainer({
                                                 : "Ctrl+D"
                                             : undefined
                                     }
-                                    pressErrorTitle="Can\u2019t mark as done"
+                                    pressErrorTitle="Can&#x2019;t mark as done"
                                     onPress={handleDoneButtonPress}
                                 >
                                     Done

@@ -128,7 +128,7 @@ export function DocumentCommentThreadHeader({
                         height="6"
                         paddingX="2"
                         icon={<Check />}
-                        pressErrorTitle="Can\u2019t mark as done"
+                        pressErrorTitle="Can&#x2019;t mark as done"
                         onPress={async () => {
                             if (isCommentThreadArchived(commentThread.id)) {
                                 await onUnarchiveCommentThread?.(commentThread.id);

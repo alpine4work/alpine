@@ -34,7 +34,7 @@ export default function CreateMoreRoute() {
                     withBorderTop
                     icon={<ChannelBrandIcon />}
                     label="Channel"
-                    pressErrorTitle="Couldn\u2019t create channel"
+                    pressErrorTitle="Couldn&#x2019;t create channel"
                     onPress={async () => {
                         await rootNavigate(`/s/${space.id}/channels/new`);
                     }}
@@ -42,7 +42,7 @@ export default function CreateMoreRoute() {
                 <MobileSettingsRow
                     icon={<TaskCollectionBrandIcon />}
                     label="Task collection"
-                    pressErrorTitle="Couldn\u2019t create task collection"
+                    pressErrorTitle="Couldn&#x2019;t create task collection"
                     onPress={async () => {
                         const collectionId = generateId();
 
@@ -54,7 +54,7 @@ export default function CreateMoreRoute() {
                 <MobileSettingsRow
                     icon={<TaskQueryBrandIcon />}
                     label="Task view"
-                    pressErrorTitle="Couldn\u2019t create task view"
+                    pressErrorTitle="Couldn&#x2019;t create task view"
                     onPress={async () => {
                         await rootNavigate(`/s/${space.id}/tasks/view`);
                     }}

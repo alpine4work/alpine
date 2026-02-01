@@ -339,7 +339,7 @@ function ShareOverlay(
                                             height="8"
                                             fullWidth={true}
                                             icon={<LinkIcon size={spacing["4"]} />}
-                                            pressErrorTitle="Couldn\u2019t copy link"
+                                            pressErrorTitle="Couldn&#x2019;t copy link"
                                             onPress={async () => {
                                                 await onCopyLink();
 
@@ -356,7 +356,7 @@ function ShareOverlay(
                                             height="8"
                                             fullWidth={true}
                                             iconGap="1.5"
-                                            pressErrorTitle="Couldn\u2019t copy link"
+                                            pressErrorTitle="Couldn&#x2019;t copy link"
                                             onPress={async () => {
                                                 const draftId =
                                                     generateChronologicalId<PostDraftId>();

@@ -137,7 +137,7 @@ export function ShareOverlayAccountBody({
                                 height="7"
                                 variant="neutral"
                                 isDisabled={selectedAccounts.length === 0}
-                                pressErrorTitle="Couldn\u2019t share"
+                                pressErrorTitle="Couldn&#x2019;t share"
                                 onPress={async () => {
                                     await onShare(
                                         willNotifyPeople
@@ -247,7 +247,7 @@ export function ShareOverlayAccountBody({
                             borderRadius={willAlwaysNotifyPeople ? "1.5" : undefined}
                             variant="neutral"
                             isDisabled={selectedAccounts.length === 0}
-                            pressErrorTitle="Couldn\u2019t share"
+                            pressErrorTitle="Couldn&#x2019;t share"
                             onPress={async () => {
                                 await onShare(
                                     willNotifyPeople
