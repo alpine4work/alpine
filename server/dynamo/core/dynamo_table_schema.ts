@@ -2161,6 +2161,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         options: {
             initialItem: Types["Item"] & Key;
             withNoopUpdateLockVersionConditionCheck?: boolean;
+            consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>>;
     public updateItem<Key extends Types["ItemKey"]>(
@@ -2172,6 +2173,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         options: {
             initialItem: Types["Item"] & Key;
             withNoopUpdateLockVersionConditionCheck?: boolean;
+            consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null>;
     public updateItem<Key extends Types["ItemKey"]>(
@@ -2183,6 +2185,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         options?: {
             initialItem?: Types["Item"] & Key;
             withNoopUpdateLockVersionConditionCheck?: boolean;
+            consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null>;
     public updateItem<Key extends Types["ItemKey"]>(
@@ -2194,9 +2197,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         {
             initialItem,
             withNoopUpdateLockVersionConditionCheck = false,
+            consistency = "Eventual",
         }: {
             initialItem?: Types["Item"] & Key;
             withNoopUpdateLockVersionConditionCheck?: boolean;
+            consistency?: DynamoCacheReadConsistency;
         } = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         let hasAttempted = false;
@@ -2208,7 +2213,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             const item =
                 isInitialAttempt && initialItem
                     ? initialItem
-                    : await this.getItemIfExists(context, key);
+                    : await this.getItemIfExists(context, key, {consistency});
 
             const newItem: Extract<Types["Item"], Key> | null = await (update as any)(item);
 

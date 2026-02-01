@@ -13,6 +13,8 @@ import {
     Step,
 } from "prosemirror-transform";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {
     DocumentContentCacheForUpdate,
     FileDocumentAuthorizer,
@@ -123,6 +125,7 @@ afterEach(() => {
 });
 
 const context = createTestContext({
+    chatInjection,
     processJob: async (context, job) => {
         if (job.type === "SendShareNotification") {
             sendShareNotificationJobs.push(job);
@@ -252,6 +255,79 @@ test("can not idempotently create a document twice if the content is different",
             content: otherContent,
         });
     }).rejects.toThrow(FailedPreconditionError);
+});
+
+test("bot can create document on behalf of another account", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+
+    const botAccount = await TestBot.createAndInstantiate(adminSession);
+    const chat = await TestChat.get(adminSession, botAccount);
+    const botAction = botAccount.action({type: "Chat", chatId: chat.id});
+
+    const result = await createDocument(botAction, {
+        spaceId: space.id,
+        creatorId: adminSession.account.id,
+    });
+
+    expect(result.creator).toEqual({
+        id: adminSession.account.id,
+        fromBotAccountId: botAccount.id,
+    });
+});
+
+test("non-bot cannot create document on behalf of another account", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    await expect(
+        createDocument(session1.action(), {
+            spaceId: space.id,
+            creatorId: session2.account.id,
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError("Only bots can create documents on behalf of other accounts"),
+    );
+});
+
+test("non-bot can create document with own creatorId", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const result = await createDocument(session.action(), {
+        spaceId: space.id,
+        creatorId: session.account.id,
+    });
+
+    expect(result.creator).toEqual({
+        id: session.account.id,
+        fromBotAccountId: null,
+    });
+});
+
+test("bot-created document has correct access policy for humans in scope", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    const session2 = await space.createSession();
+
+    const botAccount = await TestBot.createAndInstantiate(adminSession);
+
+    // Create a chat with both sessions and the bot
+    const chat = await TestChat.get(adminSession, botAccount, session2);
+
+    const botAction = botAccount.action({type: "Chat", chatId: chat.id});
+
+    const {id: documentId} = await createDocument(botAction, {
+        spaceId: space.id,
+    });
+
+    // Both adminSession and session2 should be able to access the document
+    const doc1 = await getDocumentContent(adminSession.action(), documentId);
+    expect(doc1).toBeDefined();
+
+    const doc2 = await getDocumentContent(session2.action(), documentId);
+    expect(doc2).toBeDefined();
 });
 
 test("can read a created document", async () => {

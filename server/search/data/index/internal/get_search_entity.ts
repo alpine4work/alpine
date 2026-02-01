@@ -398,7 +398,7 @@ class SearchEntityReadState {
         createdTime: Date;
         version: number;
         content: DocumentContent;
-        creatorId: AccountId | null;
+        creator: {id: AccountId | null; fromBotAccountId: AccountId | null};
         stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
         updateContentPreview: (context: ServerActionContext) => Promise<void>;
     }> {
@@ -1301,7 +1301,7 @@ async function getDocumentSearchEntity(
         createdTime,
         version,
         content,
-        creatorId,
+        creator,
         stepCountByNonCreatorAccountId,
         updateContentPreview,
     } = await state.getDocumentContent(documentId);
@@ -1340,13 +1340,17 @@ async function getDocumentSearchEntity(
         );
     }
 
-    if (creatorId !== null) {
-        contributorIds.set(
-            creatorId,
+    if (creator.id !== null) {
+        const contributorType =
             (version - stepCountByNonCreatorAccounts) / version > searchEntityMajorContributorCutOff
                 ? "Major"
-                : "Minor",
-        );
+                : "Minor";
+
+        contributorIds.set(creator.id, contributorType);
+
+        if (creator.fromBotAccountId !== null && creator.fromBotAccountId !== creator.id) {
+            contributorIds.set(creator.fromBotAccountId, contributorType);
+        }
     }
 
     return {
@@ -1359,7 +1363,7 @@ async function getDocumentSearchEntity(
         tags: emptyArray,
         media: null,
         embeddingChunks: getEmbeddingChunks(),
-        creatorId,
+        creatorId: creator.id,
         contributorIds,
         dueDate: null,
         assigneeId: null,

@@ -2840,6 +2840,99 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "optional": false
                                                                                     }
                                                                                 }
+                                                                            },
+                                                                            "Create": {
+                                                                                "type": "Object",
+                                                                                "propertySchemaByKey": {
+                                                                                    "type": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Value",
+                                                                                            "value": "Create"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    },
+                                                                                    "target": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Union",
+                                                                                            "typeKey": "type",
+                                                                                            "variantSchemaByTypeValue": {
+                                                                                                "Document": {
+                                                                                                    "type": "Object",
+                                                                                                    "propertySchemaByKey": {
+                                                                                                        "type": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Value",
+                                                                                                                "value": "Document"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        },
+                                                                                                        "id": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Id"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        }
+                                                                                                    }
+                                                                                                },
+                                                                                                "Post": {
+                                                                                                    "type": "Object",
+                                                                                                    "propertySchemaByKey": {
+                                                                                                        "type": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Value",
+                                                                                                                "value": "Post"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        },
+                                                                                                        "id": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Id"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        }
+                                                                                                    }
+                                                                                                },
+                                                                                                "Task": {
+                                                                                                    "type": "Object",
+                                                                                                    "propertySchemaByKey": {
+                                                                                                        "type": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Value",
+                                                                                                                "value": "Task"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        },
+                                                                                                        "id": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Id"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        }
+                                                                                                    }
+                                                                                                },
+                                                                                                "TaskCollection": {
+                                                                                                    "type": "Object",
+                                                                                                    "propertySchemaByKey": {
+                                                                                                        "type": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Value",
+                                                                                                                "value": "TaskCollection"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        },
+                                                                                                        "id": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Id"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    }
+                                                                                }
                                                                             }
                                                                         }
                                                                     },
@@ -4227,6 +4320,23 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "creator": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "fromBotAccountId": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Id"
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                }
                                             }
                                         },
                                         "optional": true
@@ -6652,6 +6762,23 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "creator": {
+                                                            "valueSchema": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "fromBotAccountId": {
+                                                                        "valueSchema": {
+                                                                            "type": "Nullable",
+                                                                            "schema": {
+                                                                                "type": "Id"
+                                                                            }
+                                                                        },
+                                                                        "optional": false
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         },
                                                         "event": {
                                                             "valueSchema": {

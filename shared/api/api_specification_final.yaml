@@ -284,6 +284,45 @@ paths:
                     $ref: "#/components/responses/GetMessageStreamPart"
                 default:
                     $ref: "#/components/responses/Error"
+    /documents:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - spaceId
+                                - document
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                document:
+                                    type: object
+                                    required:
+                                        - title
+                                        - content
+                                    additionalProperties: false
+                                    properties:
+                                        title:
+                                            type: string
+                                        creator:
+                                            type: object
+                                            required:
+                                                - id
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetDocument"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}:
         parameters:
             - name: id
@@ -294,19 +333,7 @@ paths:
         get:
             responses:
                 "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required:
-                                    - spaceId
-                                    - document
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    document:
-                                        $ref: "#/components/schemas/Document_Response"
+                    $ref: "#/components/responses/GetDocument"
                 default:
                     $ref: "#/components/responses/Error"
     /documents/{id}/mention:
@@ -1206,6 +1233,20 @@ components:
                                                 type: boolean
                                                 description: If true, it indicates that the request should succeed if tried
                                                     again.
+        GetDocument:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - document
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            document:
+                                $ref: "#/components/schemas/Document_Response"
         GetMessage:
             content:
                 application/json:
@@ -2207,6 +2248,14 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/DocumentId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
                 content:
@@ -2610,11 +2659,13 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
             discriminator:
                 propertyName: type
                 mapping:
                     Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
                     Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                    Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
         MessageStreamToolCallPartPayloadReadCall:
             type: object
             required:
@@ -2637,6 +2688,30 @@ components:
                     const: Search
                 query:
                     type: string
+        MessageStreamToolCallPartPayloadCreateCall:
+            type: object
+            required:
+                - type
+                - target
+            additionalProperties: false
+            properties:
+                type:
+                    const: Create
+                target:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallTarget"
+        MessageStreamToolCallPartCreateCallTarget:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         BotWebhookEvent:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
@@ -3196,6 +3271,19 @@ components:
                 mapping:
                     Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
                     Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
+        MessageStreamToolCallPartCreateCallTarget_Response:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget_Response"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         ContentParagraphBlockElement_Response:
             type: object
             required:
@@ -3251,6 +3339,17 @@ components:
                     const: Read
                 target:
                     $ref: "#/components/schemas/MentionTarget_Response"
+        MessageStreamToolCallPartPayloadCreateCall_Response:
+            type: object
+            required:
+                - type
+                - target
+            additionalProperties: false
+            properties:
+                type:
+                    const: Create
+                target:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallTarget_Response"
         BotWebhookNewMessageEvent_Response:
             type: object
             required:
@@ -3375,11 +3474,14 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall_Response"
             discriminator:
                 propertyName: type
                 mapping:
                     Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
                     Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                    Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall_Respon\
+                        se"
         BotWebhookEvent_Response:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookNewMessageEvent_Response"
@@ -3532,6 +3634,14 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/DocumentId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
                 content:

@@ -233,11 +233,12 @@ export const DocumentsTable = DynamoTableSchema.new({
 
                         /**
                          * The creator of the document. They're automatically subscribed to new comment
-                         * thread notifications.
                          */
-                        creatorId: Schema.id<AccountId>()
-                            .nullable()
-                            .default(null)
+                        creator: Schema.object({
+                            id: Schema.id<AccountId>().nullable().default(null),
+                            fromBotAccountId: Schema.id<AccountId>().nullable().default(null),
+                        })
+                            .wrapOriginalPropertyInObject("id", {fromBotAccountId: null})
                             .originalPropertyKey("ownerId"),
 
                         /**

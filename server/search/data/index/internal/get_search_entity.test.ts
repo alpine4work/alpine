@@ -1,4 +1,7 @@
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -14,7 +17,9 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
-const context = createTestContext();
+const context = createTestContext({
+    chatInjection,
+});
 
 // We should have at least one `getSearchEntity()` test for every search entity
 // type. This object will have a TypeScript error whenever a new search entity
@@ -123,6 +128,34 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     dueDate: null,
                 },
             });
+        });
+
+        test("bot-created document includes bot as contributor", async () => {
+            const space = await TestSpace.create(context);
+            const adminSession = await space.createSession({role: "Admin"});
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const botAccount = await TestBot.createAndInstantiate(adminSession);
+            const chat = await TestChat.get(adminSession, botAccount);
+            const botAction = botAccount.action({type: "Chat", chatId: chat.id});
+
+            const {id: documentId} = await createDocument(botAction, {
+                spaceId: space.id,
+                creatorId: adminSession.account.id,
+            });
+
+            const result = await getSearchEntity(
+                space.systemAction(),
+                {type: "Document", documentId},
+                {tokenizer, registerAdditionalWrite: noop},
+            );
+
+            expect(result.entity?.contributorIds).toEqual(
+                new Map([
+                    [adminSession.account.id, "Minor"],
+                    [botAccount.id, "Minor"],
+                ]),
+            );
         });
     },
     DocumentComment: () => {

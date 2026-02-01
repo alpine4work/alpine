@@ -1,5 +1,6 @@
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {AccessPolicy, validateAccessPolicyUpdate} from "~/shared/access/access_policy.js";
 import {
@@ -8,6 +9,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -18,18 +20,29 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * optimistically when the access policy changes to show the user an error.
  */
 export async function validateAccessPolicyUpdateForServer(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     spaceId: SpaceId,
     oldAccessPolicy: AccessPolicy | null,
     newAccessPolicy: AccessPolicy,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ) {
+    if (context.actor.type === "Bot" && oldAccessPolicy !== null) {
+        // NOTE(ifitzsimmons, #ai): There's no system limitation that prevents bots from
+        // updating access policies – we simply just haven't built this capability yet.
+        // As of writing (2026-01-29) bots cannot update content (aside from stream parts
+        // in a message).
+        throw new PermissionDeniedError("Bots can’t update access policies");
+    }
+
     if (oldAccessPolicy === null) {
-        if (!(await evaluateAccessPolicy(context, spaceId, newAccessPolicy, "Manage"))) {
+        if (!(await evaluateAccessPolicy(context, spaceId, newAccessPolicy, "Manage", options))) {
             throw new InvalidArgumentError(
                 "Account actor must have `Manage` access level on anything they create",
             );
         }
     } else {
+        assert(context.actor.type !== "Bot");
+
         const result = validateAccessPolicyUpdate(
             context.actor.getAccountId(),
             oldAccessPolicy,

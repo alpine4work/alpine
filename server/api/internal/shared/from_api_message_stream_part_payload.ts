@@ -38,6 +38,15 @@ export function fromApiMessageStreamPartPayload(
                         },
                     };
                 }
+                case "Create": {
+                    return {
+                        type: "ToolCall",
+                        call: {
+                            type: "Create",
+                            target: payload.call.target,
+                        },
+                    };
+                }
                 default:
                     throw exhaustive(payload.call);
             }

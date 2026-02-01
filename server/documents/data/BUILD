@@ -4,6 +4,8 @@ ts_project(
     name = "data",
     test_deps = [
         "//server/bots/test_helpers",
+        "//server/chat/data",
+        "//server/chat/test_helpers",
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",

@@ -4,6 +4,7 @@ import {parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
 import {
     ApiMentionTargetResponse,
     ApiMessageStreamPartPayloadResponse,
+    ApiMessageStreamToolCallPartCreateCallTargetResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -40,6 +41,20 @@ export async function intoApiMessageStreamPartPayload(
                         call: {
                             type: "Search",
                             query: payload.call.query,
+                        },
+                    };
+                }
+                case "Create": {
+                    return {
+                        type: "ToolCall",
+                        call: {
+                            type: "Create",
+                            // TODO(ifitzsimmons, 2026-01-26): This is not type safe. For example,
+                            // tasks require the task status in the response, but that's not
+                            // available on the target I would expect this to break any time
+                            // we try to return this response via the API.
+                            target: payload.call
+                                .target as ApiMessageStreamToolCallPartCreateCallTargetResponse,
                         },
                     };
                 }

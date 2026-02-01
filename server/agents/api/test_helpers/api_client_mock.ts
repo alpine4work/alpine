@@ -17,6 +17,7 @@ import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {
+    AccountId,
     ChatId,
     DocumentCommentThreadId,
     DocumentId,
@@ -393,7 +394,7 @@ export class ApiClientMock implements ApiClient {
     mockGetDocument(
         spaceId: SpaceId,
         documentId: DocumentId,
-        responseData: Partial<{title: string; content: ApiContentResponse}>,
+        responseData: Partial<{creatorId: AccountId; title: string; content: ApiContentResponse}>,
     ): void {
         documentId ??= generateId<DocumentId>();
         spaceId ??= generateId<SpaceId>();

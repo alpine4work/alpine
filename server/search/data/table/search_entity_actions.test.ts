@@ -1,5 +1,7 @@
 import {addDays} from "date-fns";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getSearchEntityTableForTest} from "~/server/search/data/table/internal/search_entity_table.js";
@@ -37,7 +39,9 @@ import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
-const context = createTestContext();
+const context = createTestContext({
+    chatInjection,
+});
 
 const SearchEntityTable = getSearchEntityTableForTest();
 
@@ -1387,6 +1391,7 @@ test("marking create document interaction adds erosion to affinity item", async 
     await markSearchAffinityCreateDocumentEntityInteraction(session.action(), {
         spaceId: space.id,
         documentId,
+        creatorId: session.account.id,
     });
 
     expect(
@@ -2216,4 +2221,31 @@ test("adding and removing search affinity points is a noop for bot account", asy
     });
 
     expect(await getTaskSearchAffinityPoints()).toEqual(null);
+});
+
+test("bot can add affinity points on behalf of another account via markSearchAffinityCreateDocumentEntityInteraction", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+
+    const botAccount = await TestBot.createAndInstantiate(adminSession);
+    const chat = await TestChat.get(adminSession, botAccount);
+    const botAction = botAccount.action({type: "Chat", chatId: chat.id});
+
+    const documentId = generateId<DocumentId>();
+
+    // Bot adds affinity points on behalf of the human account
+    await markSearchAffinityCreateDocumentEntityInteraction(botAction, {
+        spaceId: space.id,
+        documentId,
+        creatorId: adminSession.account.id,
+    });
+
+    // The affinity points should be attributed to the human account, not the bot
+    const entities = await internalGetSearchAffinityEntities(adminSession.action(), {
+        spaceId: space.id,
+        limit: 10,
+    });
+
+    const documentEntity = entities.find(e => e.entityId === `Document:${documentId}`);
+    expect(documentEntity).toBeDefined();
 });

@@ -913,18 +913,20 @@ export function markSearchAffinityEntityInteractionForAccount(
  * as it adds a lot of points we don't want the client to be able to add.
  */
 export function markSearchAffinityCreateDocumentEntityInteraction(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {
         spaceId,
         documentId,
+        creatorId,
     }: {
         spaceId: SpaceId;
         documentId: DocumentId;
+        creatorId: AccountId;
     },
 ) {
     return addSearchAffinityEntityPoints(context, {
         spaceId,
-        accountId: context.actor.getAccountId(),
+        accountId: creatorId,
         entityId: `Document:${documentId}`,
         points: searchAffinityEntityDocumentCreatorPoints,
         erosion: searchAffinityEntityDocumentCreatorErosion,
@@ -958,7 +960,16 @@ async function addSearchAffinityEntityPoints(
 
     const [, , isBot] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
-        authorizeOwnSpaceAccountAccess(context, accountId),
+        (async () => {
+            const isActorBot = context.actor.type === "Bot";
+
+            // Bots can add affinity points on behalf of other accounts. See discussion:
+            // https://app.graphite.com/github/pr/cyberworlds/cyberworlds/1025/%5BSKIP-CI%5D%5BWIP%5D-create-documents-for-bot#comment-PRRC_kwDOH2ktg86jh9GT
+            if (isActorBot) return;
+
+            // If the actor is not a bot, assert that they have access to the account.
+            return authorizeOwnSpaceAccountAccess(context, accountId);
+        })(),
         isBotSpaceAccount(context, spaceId, accountId),
     ]);
 

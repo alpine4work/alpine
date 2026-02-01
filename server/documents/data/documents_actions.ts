@@ -7,6 +7,7 @@ import {
     RemoveNodeMarkStep,
     Step,
 } from "prosemirror-transform";
+import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
@@ -20,6 +21,7 @@ import {
 import {
     ServerAccountActionContext,
     ServerActionContext,
+    ServerBotActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {
@@ -90,6 +92,7 @@ import {
 } from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
+    DocumentContentProsemirrorSchema,
     DocumentWithOptionalTitleContentProsemirrorSchema,
     assertDocumentContent,
     assertDocumentWithOptionalTitleContent,
@@ -347,30 +350,63 @@ function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
     return documentIndexSearchEntityJobRegularDelaySeconds;
 }
 
-/**
+/*
  * Creates a new document with no history using the initial content provided.
  */
 export async function createDocument(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         id: documentId = generateId<DocumentId>(),
         spaceId,
-        content = createEmptyDocumentContent(context.actor.getAccountId()),
+        creatorId,
+        content,
+        consistency,
     }: {
         id?: DocumentId;
         spaceId: SpaceId;
+        creatorId?: AccountId;
         content?: DocumentContent;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     id: DocumentId;
     createdTime: Date;
     version: number;
+    creator: {id: AccountId; fromBotAccountId: AccountId | null};
 }> {
+    if (
+        creatorId &&
+        context.actor.type !== "Bot" &&
+        creatorId !== context.actor.getPossiblyBotAccountId()
+    ) {
+        throw new PermissionDeniedError(
+            "Only bots can create documents on behalf of other accounts",
+        );
+    }
+
+    creatorId ??= context.actor.getPossiblyBotAccountId();
+
+    if (!content && context.actor.type === "Bot") {
+        // We need a special function for creating documents that were created by
+        // bots. A document created by a non-bot always gives manage access to the
+        // human that created the document. Bots are different. If we gave access
+        // only to account that created the document (the bot) no other users would
+        // be able to read the document.
+        content = await createEmptyDocumentContentForBot(
+            context as ServerBotActionContext,
+            spaceId,
+        );
+    }
+
+    content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId());
+
     await authorizeSpaceAccess(context, spaceId);
 
     const accessPolicy: AccessPolicy = content.attrs.accessPolicy;
 
-    await validateAccessPolicyUpdateForServer(context, spaceId, null, accessPolicy);
+    await validateAccessPolicyUpdateForServer(context, spaceId, null, accessPolicy, {
+        consistency,
+    });
 
     const createdTime = new Date();
     const version = 0;
@@ -382,9 +418,12 @@ export async function createDocument(
         updatedTraits: {type: "Any"},
     };
 
-    const creatorId = context.actor.getAccountId();
-
     const hasAddedFeedCandidateEntry = !!accessPolicy.defaultGrant;
+
+    const creator = {
+        id: creatorId,
+        fromBotAccountId: context.actor.type === "Bot" ? context.actor.getBotAccountId() : null,
+    };
 
     await DynamoTableSchema.executeTransaction(context, [
         DocumentsTable.transactionCreateItem({
@@ -393,7 +432,7 @@ export async function createDocument(
             createdTime,
             spaceId,
             documentId,
-            creatorId,
+            creator,
             version,
             titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
             accessPolicy,
@@ -416,7 +455,7 @@ export async function createDocument(
             documentId,
             sharedTime: createdTime,
             sharerId: creatorId,
-            creatorId,
+            creator,
             event: "Created",
         };
 
@@ -470,16 +509,24 @@ export async function createDocument(
         // Special interaction that adds a bunch more points then normal interactions.
         // So newly created documents are always easily accessible in the search
         // affinity list.
-        markSearchAffinityCreateDocumentEntityInteraction(context, {
-            spaceId,
-            documentId,
-        }),
+        markSearchAffinityCreateDocumentEntityInteraction(
+            // NOTE(ifitzsimmons, #2026-01-30): This is an `async` job that runs after
+            // `createDocument()` returns. We don't need to expect strong read consistency
+            // here.
+            context.dynamo.unexpectStrongReadConsistency(),
+            {
+                spaceId,
+                documentId,
+                creatorId,
+            },
+        ),
     );
 
     return {
         id: documentId,
         createdTime,
         version,
+        creator,
     };
 }
 
@@ -577,7 +624,7 @@ export async function authorizeDocumentAccess(
 
     return {
         spaceId: documentItem.spaceId,
-        creatorId: documentItem.creatorId,
+        creatorId: documentItem.creator.id,
         accessPolicy: documentItem.accessPolicy,
     };
 }
@@ -608,7 +655,7 @@ export async function authorizeDocumentAccessIfPossible(
         ok: true,
         value: {
             spaceId: documentItem.spaceId,
-            creatorId: documentItem.creatorId,
+            creatorId: documentItem.creator.id,
             accessPolicy: documentItem.accessPolicy,
         },
     };
@@ -1308,7 +1355,7 @@ export async function getDocumentContent(
     createdTime: Date;
     version: number;
     content: DocumentContent;
-    creatorId: AccountId | null;
+    creator: {id: AccountId | null; fromBotAccountId: AccountId | null};
     stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
     updateContentPreview: (context: ServerActionContext) => Promise<void>;
 }> {
@@ -1320,7 +1367,10 @@ export async function getDocumentContent(
         createdTime: internalDocument.attributes.createdTime,
         version: internalDocument.version,
         content: internalDocument.content,
-        creatorId: internalDocument.attributes.creatorId,
+        creator: {
+            id: internalDocument.attributes.creator.id,
+            fromBotAccountId: internalDocument.attributes.creator.fromBotAccountId,
+        },
         // It doesn't violate our permission policy for documents to return this. Since
         // commenters can call `getDocumentContentSteps()` and manually compute for
         // themselves how many steps each account left.
@@ -1617,7 +1667,7 @@ export async function getDocumentContentWithOptionalComments(
         createdTime: internalDocument.attributes.createdTime,
         version: internalDocument.version,
         content: internalDocument.content,
-        creatorId: internalDocument.attributes.creatorId,
+        creatorId: internalDocument.attributes.creator.id,
     };
 }
 
@@ -1652,7 +1702,7 @@ export async function getDocumentContentForCollaborationServiceInitialization(
         createdTime: internalDocument.attributes.createdTime,
         version: internalDocument.version,
         content: internalDocument.content,
-        creatorId: internalDocument.attributes.creatorId,
+        creatorId: internalDocument.attributes.creator.id,
     };
 }
 
@@ -1950,7 +2000,10 @@ export class DocumentContentCacheForUpdate {
     ): Promise<{
         readonly createdTime: Date;
         readonly spaceId: SpaceId;
-        readonly creatorId: AccountId | null;
+        readonly creator: {
+            readonly id: AccountId | null;
+            readonly fromBotAccountId: AccountId | null;
+        };
         readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
         readonly stepCountByAccountId: DocumentStepCountByAccountId;
         readonly hasAddedFeedCandidateEntry: boolean;
@@ -1997,7 +2050,7 @@ export class DocumentContentCacheForUpdate {
                 return {
                     createdTime: internalDocument.attributes.createdTime,
                     spaceId: internalDocument.attributes.spaceId,
-                    creatorId: internalDocument.attributes.creatorId,
+                    creator: internalDocument.attributes.creator,
                     lastIndexSearchEntityJob: internalDocument.attributes.lastIndexSearchEntityJob,
                     stepCountByAccountId: internalDocument.attributes.stepCountByAccountId,
                     hasAddedFeedCandidateEntry:
@@ -2101,7 +2154,7 @@ export class DocumentContentCacheForUpdate {
                         return {
                             createdTime: entry.createdTime,
                             spaceId: entry.spaceId,
-                            creatorId: entry.creatorId,
+                            creator: entry.creator,
                             lastIndexSearchEntityJob: attributes.lastIndexSearchEntityJob,
                             stepCountByAccountId: attributes.stepCountByAccountId,
                             hasAddedFeedCandidateEntry: attributes.hasAddedFeedCandidateEntry,
@@ -2119,7 +2172,7 @@ export class DocumentContentCacheForUpdate {
             return {
                 createdTime: entry.createdTime,
                 spaceId: entry.spaceId,
-                creatorId: entry.creatorId,
+                creator: entry.creator,
                 lastIndexSearchEntityJob: entry.lastIndexSearchEntityJob,
                 stepCountByAccountId: entry.stepCountByAccountId,
                 hasAddedFeedCandidateEntry: entry.hasAddedFeedCandidateEntry,
@@ -2157,7 +2210,7 @@ export class DocumentContentCacheForUpdate {
                         return {
                             createdTime: entry.createdTime,
                             spaceId: entry.spaceId,
-                            creatorId: entry.creatorId,
+                            creator: entry.creator,
                             lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                             stepCountByAccountId: newStepCountByAccountId,
                             hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
@@ -2179,7 +2232,10 @@ export class DocumentContentCacheForUpdate {
 type DocumentContentCacheForUpdateEntry = {
     readonly createdTime: Date;
     readonly spaceId: SpaceId;
-    readonly creatorId: AccountId | null;
+    readonly creator: {
+        readonly id: AccountId | null;
+        readonly fromBotAccountId: AccountId | null;
+    };
     readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
     readonly stepCountByAccountId: DocumentStepCountByAccountId;
     readonly hasAddedFeedCandidateEntry: boolean;
@@ -2989,7 +3045,7 @@ export async function updateDocumentContent(
             }
 
             // Keep track of how much each account contributed to the document.
-            if (context.actor.getAccountId() !== internalDocument.creatorId) {
+            if (context.actor.getAccountId() !== internalDocument.creator.id) {
                 const actualNewStepCountByAccountId = new Map(newStepCountByAccountId.get());
 
                 const stepCount =
@@ -3013,7 +3069,7 @@ export async function updateDocumentContent(
                         documentId: documentId,
                         createdTime: internalDocument.createdTime,
                         spaceId: internalDocument.spaceId,
-                        creatorId: internalDocument.creatorId,
+                        creator: internalDocument.creator,
                         version: internalDocument.version + steps.length,
                         titleWithoutFallback: newTitleWithoutFallback,
                         accessPolicy: newContent.attrs.accessPolicy,
@@ -3121,7 +3177,7 @@ export async function updateDocumentContent(
                                     documentId,
                                     sharedTime: currentTime,
                                     sharerId: context.actor.getAccountId(),
-                                    creatorId: internalDocument.creatorId,
+                                    creator: internalDocument.creator,
                                     event: "SharedWithAccessPolicyDefaultGrant",
                                 };
 
@@ -7188,4 +7244,24 @@ export async function getDocumentCommentParentContent(
         default:
             throw exhaustive(parent);
     }
+}
+
+/**
+ * We need a special function for creating documents that were created by
+ * bots. A document created by a non-bot always gives manage access to the
+ * human that created the document. Bots are different. If we gave access
+ * only to account that created the document (the bot) no other users would
+ * be able to read the document.
+ */
+async function createEmptyDocumentContentForBot(context: ServerBotActionContext, spaceId: SpaceId) {
+    const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
+        consistency: "StrongWithinCache",
+    });
+
+    return assertDocumentContent(
+        DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
+            DocumentContentProsemirrorSchema.node("title"),
+            DocumentContentProsemirrorSchema.node("paragraph"),
+        ]),
+    );
 }

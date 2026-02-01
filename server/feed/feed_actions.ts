@@ -587,6 +587,20 @@ async function updateFeedEntries(
 
     let mergedCandidateEntries: Array<FeedEntry> = [];
 
+    const getCreatorIdForEntry = (
+        entry: FeedEntry & {type: "Document" | "TaskCollection" | "Channel"},
+    ): AccountId | null => {
+        switch (entry.type) {
+            case "Document":
+                return entry.creator.id ?? null;
+            case "Channel":
+            case "TaskCollection":
+                return entry.creatorId ?? null;
+            default:
+                throw exhaustive(entry);
+        }
+    };
+
     for (const entry of candidateEntries) {
         if (entry.isUnauthorized) continue;
 
@@ -597,7 +611,7 @@ async function updateFeedEntries(
         if (
             entry.entry.type !== "Post" && // `type` is e.g. `Document`, `TaskCollection`, or `Channel`
             entry.entry.event !== "Created" && // `event` is e.g. `SharedWithAccessPolicyDefaultGrant`
-            entry.entry.creatorId === context.actor.getAccountId()
+            getCreatorIdForEntry(entry.entry) === context.actor.getAccountId()
         ) {
             continue;
         }

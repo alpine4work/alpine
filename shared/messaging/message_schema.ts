@@ -3,6 +3,7 @@ import {FileIdOrFileEntityIdSchema, getFileEntityTypes} from "~/shared/files/fil
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {DocumentId, PostId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -271,6 +272,27 @@ const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
     Search: Schema.object({
         type: Schema.value("Search"),
         query: Schema.string,
+    }),
+    Create: Schema.object({
+        type: Schema.value("Create"),
+        target: Schema.union({
+            Document: Schema.object({
+                type: Schema.value("Document"),
+                id: Schema.id<DocumentId>(),
+            }),
+            Post: Schema.object({
+                type: Schema.value("Post"),
+                id: Schema.id<PostId>(),
+            }),
+            Task: Schema.object({
+                type: Schema.value("Task"),
+                id: Schema.id<TaskId>(),
+            }),
+            TaskCollection: Schema.object({
+                type: Schema.value("TaskCollection"),
+                id: Schema.id<TaskCollectionId>(),
+            }),
+        }),
     }),
 });
 

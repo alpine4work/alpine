@@ -48,7 +48,12 @@ export const FeedEntrySchema = Schema.union({
         documentId: Schema.id<DocumentId>(),
         sharedTime: Schema.date,
         sharerId: Schema.id<AccountId>(),
-        creatorId: Schema.id<AccountId>().nullable(),
+        creator: Schema.object({
+            id: Schema.id<AccountId>().nullable(),
+            fromBotAccountId: Schema.id<AccountId>().nullable(),
+        })
+            .wrapOriginalPropertyInObject("id", {fromBotAccountId: null})
+            .originalPropertyKey("creatorId"),
         event: FeedEntryEventSchema,
     }),
 

@@ -17,6 +17,7 @@ import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_re
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {ApiMentionTargetPath, parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
+import {ApiMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -113,6 +114,27 @@ function renderMessageStreamNonContentPart(
                     );
                     return html;
                 }
+                case "Create": {
+                    const html = new HtmlElementGenerator("span");
+
+                    html.appendChild(new HtmlTextGenerator("Created "));
+
+                    html.appendChild(
+                        renderContentMentionToHtml(get, {
+                            accountRegistry,
+                            searchEntityRegistry,
+                            spacingScale,
+                            routeLayout,
+                            spaceId,
+                            currentAccount,
+                            references,
+                            mention: getApiMentionContentMention(part.call.target),
+                            isInert: false,
+                        }),
+                    );
+
+                    return html;
+                }
                 default:
                     throw exhaustive(part.call);
             }
@@ -125,47 +147,50 @@ function renderMessageStreamNonContentPart(
 
 function getApiMentionPathContentMention(targetPath: ApiMentionTargetPath): ContentMention {
     const mentionTarget = parseApiMentionTarget(targetPath);
+    return getApiMentionContentMention(mentionTarget);
+}
 
-    switch (mentionTarget.type) {
+function getApiMentionContentMention(target: ApiMentionTarget): ContentMention {
+    switch (target.type) {
         case "Account": {
             return {
                 type: "Account",
-                accountId: mentionTarget.id,
+                accountId: target.id,
                 isShort: false,
             };
         }
         case "Channel": {
             return {
                 type: "SearchEntity",
-                entityId: `Channel:${mentionTarget.id}`,
+                entityId: `Channel:${target.id}`,
             };
         }
         case "Document": {
             return {
                 type: "SearchEntity",
-                entityId: `Document:${mentionTarget.id}`,
+                entityId: `Document:${target.id}`,
             };
         }
         case "Post": {
             return {
                 type: "SearchEntity",
-                entityId: `Post:${mentionTarget.id}`,
+                entityId: `Post:${target.id}`,
             };
         }
         case "Task": {
             return {
                 type: "SearchEntity",
-                entityId: `Task:${mentionTarget.id}`,
+                entityId: `Task:${target.id}`,
             };
         }
         case "TaskCollection": {
             return {
                 type: "SearchEntity",
-                entityId: `TaskCollection:${mentionTarget.id}`,
+                entityId: `TaskCollection:${target.id}`,
             };
         }
         default:
-            throw exhaustive(mentionTarget);
+            throw exhaustive(target);
     }
 }
 

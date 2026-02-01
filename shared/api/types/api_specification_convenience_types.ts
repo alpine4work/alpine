@@ -265,3 +265,15 @@ export type ApiTaskWithoutContent = ApiSpecification.components["schemas"]["Task
 export type ApiTaskStatus = ApiSpecification.components["schemas"]["TaskStatus"];
 
 export type ApiTaskCollection = ApiSpecification.components["schemas"]["TaskCollection"];
+
+export type ApiMessageStreamToolCallPartCreateCallTarget =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallTarget"];
+
+export type ApiMessageStreamToolCallPartCreateCallTargetResponse =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallTarget_Response"];
+
+export type ApiGetDocumentResponse =
+    ApiSpecification.components["responses"]["GetDocument"]["content"]["application/json"];
+
+export type ApiCreateDocumentRequestBody =
+    ApiSpecification.paths["/documents"]["post"]["requestBody"]["content"]["application/json"];

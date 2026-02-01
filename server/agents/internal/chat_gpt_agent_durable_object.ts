@@ -30,6 +30,7 @@ import {
     shouldDowngradeModelForAgentUsageLimit,
 } from "~/server/agents/internal/agent_usage_limits.js";
 import {
+    chatGptAgentCreateDocumentTool,
     chatGptAgentReadLinkTool,
     chatGptAgentSearchAlpineTool,
     getChatGptAgentInstructions,
@@ -78,6 +79,7 @@ import {
     printApiMessageRoomPath,
 } from "~/shared/api/parse_api_path.js";
 import {
+    ApiContentBlockElement,
     ApiMessageRoomTarget,
     ApiSearchMentionResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
@@ -751,7 +753,11 @@ async function createChatGptAgentResponse(
         // [1]: https://platform.openai.com/docs/guides/tools-web-search
         // [2]: https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
         // [3]: https://platform.openai.com/docs/pricing#built-in-tools
-        tools: [chatGptAgentReadLinkTool.get(), chatGptAgentSearchAlpineTool.get()],
+        tools: [
+            chatGptAgentReadLinkTool.get(),
+            chatGptAgentSearchAlpineTool.get(),
+            chatGptAgentCreateDocumentTool.get(),
+        ],
         reasoning: {
             // Default reasoning effort is "medium", so we're just being explicit here.
             effort: "medium",
@@ -1088,6 +1094,25 @@ async function callChatGptAgentFunction({
             session.updateFunctionCallOutputTokenCount(output);
             return output;
         }
+        case "create_document": {
+            if (
+                !isObject(functionCallArguments) ||
+                typeof functionCallArguments.title !== "string" ||
+                typeof functionCallArguments.content !== "string"
+            ) {
+                throw new InvalidArgumentError(
+                    "Missing required `title` and `content` in function call arguments",
+                    {
+                        displayMessage: errorDisplayMessage`The function call’s arguments must include \`title\` and \`content\` strings.`,
+                    },
+                );
+            }
+
+            return handleCreateDocumentFunctionCall(span, request, session, {
+                title: functionCallArguments.title,
+                content: functionCallArguments.content,
+            });
+        }
         default: {
             throw new InvalidArgumentError("Unrecognized function name", {
                 displayMessage: errorDisplayMessage`\`${functionCall.name}\` isn\u2019t a function name we recognize.`,
@@ -1243,6 +1268,77 @@ async function requestChatGptAgentWithRetry(
         options.session.pushText(span, defaultAgentErrorDisplayMessage);
         throw error;
     }
+}
+
+async function handleCreateDocumentFunctionCall(
+    span: TracerSpan,
+    request: AgentWebhookRequest,
+    session: AgentMessageStreamSession,
+    functionCallArguments: {
+        title: string;
+        content: string;
+    },
+): Promise<string> {
+    const {title, content} = functionCallArguments;
+
+    const elements: Array<ApiContentBlockElement> = [];
+
+    // We use `AgentMessageStream` even though there's no streaming so we parse
+    // content from LLMs consistently across all our agents.
+    const documentContentMessageStream = new AgentMessageStream({
+        spaceId: request.spaceId,
+        getTargetPathIfExists: async linkPath => {
+            const agentLink = await getAgentLink(request.storage, linkPath);
+
+            if (!agentLink) return null;
+
+            return printApiPathForAgentLink(agentLink);
+        },
+    });
+
+    documentContentMessageStream.pushText(span, content);
+
+    for (const {part} of await documentContentMessageStream.update(span)) {
+        // We only push text so there should be only content parts.
+        if (part.payload.type !== "Content") continue;
+
+        for (const element of part.payload.content.elements) {
+            elements.push(element);
+        }
+    }
+
+    const {
+        data: {document},
+    } = await request.apiClient.post(span, "/documents", {
+        body: {
+            spaceId: request.spaceId,
+            document: {
+                title,
+                creator: {
+                    id: request.event.authorId,
+                },
+                content: {elements},
+            },
+        },
+    });
+
+    session.pushToolCall(span, {
+        type: "Create",
+        target: {
+            type: "Document",
+            id: document.id,
+        },
+    });
+
+    const link = await createAgentLink(request.storage, {
+        type: "Document",
+        document: {
+            id: document.id,
+            title,
+        },
+    });
+
+    return `Created document: [${title}](${printAgentLinkPath(link)})`;
 }
 
 /**

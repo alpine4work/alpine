@@ -1,3 +1,4 @@
+import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
@@ -9,6 +10,7 @@ import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
     FileDocumentAuthorizer,
     completeDocumentCommentStream,
+    createDocument,
     createDocumentComment,
     getDocumentCommentPayload,
     getDocumentCommentPayloadsFromEnd,
@@ -20,11 +22,17 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {getSearchEntityMentionWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
+import {
+    DocumentContentProsemirrorSchema,
+    assertDocumentContent,
+} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {generateId} from "~/shared/id/id.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -33,7 +41,72 @@ import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 
-export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${string}`> = {
+export const apiDocumentsPaths: Pick<
+    ApiPaths,
+    (keyof ApiPaths & `/documents/${string}`) | "/documents"
+> = {
+    "/documents": {
+        post: async (context, {requestBody}) => {
+            const {
+                spaceId,
+                document: {creator, title, content: apiContent},
+            } = requestBody;
+
+            const documentId = generateId<DocumentId>();
+            const consistency = "StrongWithinCache" as const;
+
+            const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
+                consistency,
+            });
+
+            const content = apiContent
+                ? fromApiContent(DocumentContentProsemirrorSchema, apiContent)
+                : undefined;
+
+            const documentContent = assertDocumentContent(
+                DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
+                    DocumentContentProsemirrorSchema.node("title", {}, [
+                        DocumentContentProsemirrorSchema.text(title),
+                    ]),
+                    ...(content
+                        ? [...content.children]
+                        : [DocumentContentProsemirrorSchema.node("paragraph")]),
+                ]),
+            );
+
+            const [document, apiContentResponse] = await runAllPromises([
+                createDocument(context, {
+                    spaceId,
+                    id: documentId,
+                    content: documentContent,
+                    creatorId: creator?.id,
+                    consistency,
+                }),
+                intoApiContentWithReferences(
+                    context.dynamo.unexpectStrongReadConsistency(),
+                    spaceId,
+                    FileDocumentAuthorizer.bind({
+                        type: "Document",
+                        documentId,
+                    }),
+                    documentContent,
+                ),
+            ]);
+
+            return {
+                content: {
+                    spaceId,
+                    document: {
+                        id: documentId,
+                        creator: {id: document.creator.id},
+                        title,
+                        content: apiContentResponse,
+                    },
+                },
+            };
+        },
+    },
+
     "/documents/{id}": {
         get: async (context, {pathParameters}) => {
             const document = await getDocumentContent(context, pathParameters.id, {
@@ -46,6 +119,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                     document: {
                         id: pathParameters.id,
                         title: getDocumentContentTitleWithoutFallback(document.content),
+                        creator: document.creator.id ? {id: document.creator.id} : undefined,
                         content: await intoApiContentWithReferences(
                             context,
                             document.spaceId,

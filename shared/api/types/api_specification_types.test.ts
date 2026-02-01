@@ -2,10 +2,13 @@ import {
     ApiBotWebhookNewMessageEventParent,
     ApiContentMentionInlineElement,
     ApiContentTextInlineElement,
+    ApiCreateDocumentRequestBody,
+    ApiGetDocumentResponse,
     ApiMentionTarget,
     ApiMentionTargetResponse,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
+    ApiMessageStreamToolCallPartCreateCallTarget,
     ApiSearchMention,
     ApiSearchMentionTarget,
     ApiSearchResult,
@@ -16,6 +19,10 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 
 test("all search results are assignable to `ApiTarget`", () => {
     assertAssignableTypes<ApiSearchResult, ApiTarget>();
+});
+
+test("Create tool call target is assignable to ApiMentionTarget", () => {
+    assertAssignableTypes<ApiMessageStreamToolCallPartCreateCallTarget, ApiMentionTarget>();
 });
 
 test("Search mention are assignable to `ApiContentMentionInlineElement`", () => {
@@ -32,6 +39,10 @@ test("all mention targets are assignable to `ApiTarget`", () => {
 
 test("`ApiMentionTargetResponse` is assignable to `ApiMentionTarget`", () => {
     assertAssignableTypes<ApiMentionTargetResponse, ApiMentionTarget>();
+});
+
+test("ApiGetDocumentResponse is assignable to ApiCreateDocumentRequestBody", () => {
+    assertAssignableTypes<ApiGetDocumentResponse, ApiCreateDocumentRequestBody>();
 });
 
 test("`MessageContentPayloadParentContentSnippetTextInlineElement` is assignable to `ContentTextInlineElement`", () => {

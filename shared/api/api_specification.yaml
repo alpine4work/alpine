@@ -284,6 +284,39 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamPart"}
 
+    /documents:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, document]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                document:
+                                    type: object
+                                    required: [title, content]
+                                    additionalProperties: false
+                                    properties:
+                                        title:
+                                            type: string
+                                        creator:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetDocument"}
+
     /documents/{id}:
         parameters:
             - name: id
@@ -293,18 +326,7 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, document]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    document:
-                                        $ref: "#/components/schemas/Document"
+                "200": {$ref: "#/components/responses/GetDocument"}
 
     /documents/{id}/mention:
         parameters:
@@ -573,6 +595,9 @@ paths:
                             # a backwards compatible change when the time comes.
                             required: [channelId, content]
                             additionalProperties: false
+                            # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
+                            # bodies for objects of the same type. So `GetPost` should be
+                            # assignable to this request body.
                             properties:
                                 channelId:
                                     $ref: "#/components/schemas/ChannelId"
@@ -1116,6 +1141,19 @@ components:
                                                     If true, it indicates that the request should
                                                     succeed if tried again.
 
+        GetDocument:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, document]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            document:
+                                $ref: "#/components/schemas/Document"
+
         GetMessage:
             content:
                 application/json:
@@ -1224,6 +1262,9 @@ components:
                                 $ref: "#/components/schemas/Post"
 
     requestBodies:
+        # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
+        # bodies for objects of the same type. So `GetMessage` should be
+        # assignable to `CreateMessage`.
         CreateMessage:
             required: true
             content:
@@ -1242,6 +1283,9 @@ components:
                             content:
                                 $ref: "#/components/schemas/Content"
 
+        # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
+        # bodies for objects of the same type. So `GetMessageStreamPart` should be
+        # assignable to `PutMessageStreamPart`.
         PutMessageStreamPart:
             required: true
             content:
@@ -2130,6 +2174,13 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/DocumentId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
                 content:
@@ -2516,11 +2567,13 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
             discriminator:
                 propertyName: type
                 mapping:
                     Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
                     Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                    Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
 
         MessageStreamToolCallPartPayloadReadCall:
             type: object
@@ -2541,6 +2594,30 @@ components:
                     const: Search
                 query:
                     type: string
+
+        MessageStreamToolCallPartPayloadCreateCall:
+            type: object
+            required: [type, target]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Create
+                target:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallTarget"
+
+        MessageStreamToolCallPartCreateCallTarget:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
 
         # =========================================================================== #
         #                                  Webhooks                                   #

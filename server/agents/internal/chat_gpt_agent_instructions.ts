@@ -232,6 +232,42 @@ export const chatGptAgentSearchAlpineTool: Lazy<OpenAi.Responses.FunctionTool> =
     },
 }));
 
+const chatGptAgentCreateDocumentToolDescription = markdown`
+Create a new Alpine document.
+
+Use this tool when a user asks you to create, draft, or write a new document. The created content
+will be shared with everyone in the current conversation.
+
+The \`content\` parameter accepts Markdown formatting including paragraphs, lists, headings, code
+blocks, tables, etc. The created document will be returned as a link you can share with the user.
+
+Don't create content unless the user explicitly asks for it—prefer responding directly in chat for
+quick answers.
+`;
+
+export const chatGptAgentCreateDocumentTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({
+    type: "function",
+    name: "create_document",
+    description: chatGptAgentCreateDocumentToolDescription.get(),
+    strict: false,
+    parameters: {
+        type: "object",
+        required: ["title", "content"],
+        additionalProperties: true,
+        properties: {
+            title: {
+                type: "string",
+                description: "The title of the content.",
+            },
+            content: {
+                type: "string",
+                description:
+                    "The body content in Markdown format. Supports paragraphs, lists, headings, code blocks, tables, etc.",
+            },
+        },
+    },
+}));
+
 /**
  * Get ChatGPT developer instructions.
  */

@@ -19,6 +19,7 @@ import {
     MessagePayload,
     MessageStream,
     MessageStreamPartPayload,
+    MessageStreamToolCallPartPayloadCall,
 } from "~/shared/messaging/message_schema.js";
 import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -119,35 +120,50 @@ function collectContentReferencedIdsForStreamPartInto(
             collectContentReferencedIdsInto(referencedIds, visitor => {
                 visitProsemirrorNode(part.content, visitor);
             });
-            break;
+            return;
         }
         case "ToolCall": {
-            switch (part.call.type) {
-                case "Read": {
-                    const targetObject = parseApiMentionTarget(part.call.targetPath);
-                    if (targetObject.type === "Account") {
-                        referencedIds.accountIds.add(targetObject.id);
-                    } else {
-                        referencedIds.searchEntityIds.add(
-                            intoSearchEntityIdFromApiMentionPathObject(targetObject),
-                        );
-                    }
-                    break;
-                }
-                case "Search": {
-                    // Search tool calls are plain text for now.
-                    break;
-                }
-                default:
-            }
-            break;
+            collectContentReferencesForToolCall(referencedIds, part.call);
+            return;
         }
         default:
             throw exhaustive(part);
     }
 }
 
-function intoSearchEntityIdFromApiMentionPathObject(
+function collectContentReferencesForToolCall(
+    referencedIds: MutableContentReferencedIds,
+    toolCall: MessageStreamToolCallPartPayloadCall,
+) {
+    switch (toolCall.type) {
+        case "Read": {
+            const targetObject = parseApiMentionTarget(toolCall.targetPath);
+            if (targetObject.type === "Account") {
+                referencedIds.accountIds.add(targetObject.id);
+            } else {
+                referencedIds.searchEntityIds.add(
+                    intoSearchEntityIdFromApiMentionTarget(targetObject),
+                );
+            }
+            return;
+        }
+        case "Create": {
+            referencedIds.searchEntityIds.add(
+                intoSearchEntityIdFromApiMentionTarget(toolCall.target),
+            );
+            return;
+        }
+        case "Search": {
+            // Search tool calls are plain text for now.
+            return;
+        }
+        default: {
+            throw exhaustive(toolCall);
+        }
+    }
+}
+
+function intoSearchEntityIdFromApiMentionTarget(
     target: Exclude<ApiMentionTarget, {readonly type: "Account"}>,
 ): SearchMentionEntityId {
     switch (target.type) {
