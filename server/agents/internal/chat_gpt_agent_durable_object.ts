@@ -108,6 +108,7 @@ import {
     generateOrderKeyBetween,
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -690,6 +691,8 @@ function convertChatGptUsageToMillicents(
     );
 }
 
+export const createChatGptAgentResponseAfterPushTextTestCheckpoint = new TestCheckpoint<number>();
+
 async function createChatGptAgentResponse(
     span: TracerSpan,
     env: AgentServiceEnv,
@@ -802,6 +805,17 @@ async function createChatGptAgentResponse(
             }
             case "response.output_text.delta": {
                 session.pushText(span, event.delta);
+
+                // Micro-optimization, `waitForTest()` is noops if `!import.meta.jest` anyway
+                // but `response.output_text.delta` is a hot code path in production. So add an
+                // extra `import.meta.jest` check here to make sure we don't pay the microtask
+                // price in production (an `await` schedules a microtask even when immediately
+                // resolved).
+                if (import.meta.jest) {
+                    await createChatGptAgentResponseAfterPushTextTestCheckpoint.waitForTest(
+                        session.newMessageIndex,
+                    );
+                }
                 break;
             }
             // NOTE(ifitzsimmons, 2025-11-13): At some point, we should think about storing response

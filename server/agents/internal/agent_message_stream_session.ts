@@ -25,29 +25,65 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 interface AgentMessageStreamSessionInterface {
     /**
-     * Pushes text into the message stream. The `AgentMessageStream` class is
-     * responsible for "chunking" incoming text into API Content parts.
+     * Buffer incoming text deltas and coalesce them. We do NOT immediately mutate
+     * AgentMessageStream here; instead we batch text for up to `_updateThrottleMs`
+     * milliseconds. When the throttle fires we push the coalesced text into the
+     * AgentMessageStream while holding the session mutex and schedule an `_update`.
      *
-     * API updates are throttled to once every 100ms via a timeout. When text is
-     * pushed, we set the 100ms timeout if it doesn't already exist. When the new or
-     * existing timeout expires, we call the `AgentMessageStream`'s `update()` method
-     * which processes all text since the last update.
+     * Rationale / ordering guarantees:
+     * - Buffering avoids creating an API update for every token/event from OpenAI.
+     * - When the timeout fires, the buffered text is pushed into AgentMessageStream
+     *   under the mutex using `_pushTextIntoAgentMessageStream`. Because _push_ and
+     *   the later `_update()` calls are both enqueued on the same mutex, any
+     *   previously queued updates (e.g. pending reasoning/tool updates) run before
+     *   this text push. This prevents late-arriving text from appearing before
+     *   already-queued non-content parts.
+     *
+     * Example: (OpenAI order: reasoning(a), reasoning(b), output_text.delta)
+     * - reasoning(a) → calls _update(a) and acquires mutex (U_a)
+     * - reasoning(b) → queued _update(b) (U_b)
+     * - output_text.delta → pushText buffers text and schedules timeout
+     * - timeout fires → pushes text under mutex (queued after U_b), schedules _update
+     * - mutex executes U_a → U_b → pushText → _update(text)
+     * -> persisted order: reasoning(a), reasoning(b), content(text)
      */
     pushText(span: TracerSpan, text: string): void;
 
     /**
-     * Pushes a tool call into the message stream. When a tool call is pushed into the
-     * message stream, we clear whatever update timeout exists and send the tool call
-     * to the API along with any text that's been pushed into the session since the last
-     * update ran.
+     * These are non-content (semantic) parts that must be persisted with correct
+     * ordering relative to buffered text. Before creating their `_update(...)`
+     * request we flush any buffered text we currently hold via `_flushUpdateTextState`.
+     *
+     * Behavior:
+     * - _flushUpdateTextState clears the throttle timeout, grabs the buffered text,
+     *   and pushes it into the AgentMessageStream using `_pushTextIntoAgentMessageStream`.
+     * - Then we call `_update(span, newPartPayloads)` which is serialized by the mutex.
+     *
+     * Example: (OpenAI order: output_text.delta, reasoning(b))
+     * - output_text.delta → pushText buffers text
+     * - reasoning(b) arrives → pushReasoningSummary will call _flushUpdateTextState()
+     *   (forcing the buffered text into the AgentMessageStream), then enqueue the
+     *   reasoning update. When the next `_update()` runs, content will be persisted
+     *   then reasoning, preserving the original ordering.
      */
     pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall): void;
 
     /**
-     * Pushes a reasoning call into the message stream. When a reasoning call is pushed
-     * into the message stream, we clear whatever update timeout exists and send the
-     * reasoning call to the API along with any text that's been pushed into the session
-     * since the last update ran.
+     * These are non-content (semantic) parts that must be persisted with correct
+     * ordering relative to buffered text. Before creating their `_update(...)`
+     * request we flush any buffered text we currently hold via `_flushUpdateTextState`.
+     *
+     * Behavior:
+     * - _flushUpdateTextState clears the throttle timeout, grabs the buffered text,
+     *   and pushes it into the AgentMessageStream using `_pushTextIntoAgentMessageStream`.
+     * - Then we call `_update(span, newPartPayloads)` which is serialized by the mutex.
+     *
+     * Example: (OpenAI order: output_text.delta, reasoning(b))
+     * - output_text.delta → pushText buffers text
+     * - reasoning(b) arrives → pushReasoningSummary will call _flushUpdateTextState()
+     *   (forcing the buffered text into the AgentMessageStream), then enqueue the
+     *   reasoning update. When the next `_update()` runs, content will be persisted
+     *   then reasoning, preserving the original ordering.
      */
     pushReasoningSummary(span: TracerSpan, summary: string): void;
 
@@ -77,7 +113,33 @@ interface AgentMessageStreamSessionInterface {
     functionCallOutputTokenCount: number;
 }
 
+/**
+ * Coordinates streaming updates for a single agent response message.
+ *
+ * Responsibilities / invariants:
+ * - Provide a single logical ordering for all changes that mutate the AgentMessageStream
+ *   and for all calls that persist stream parts to the API.
+ * - Ensure that non-content parts (Reasoning, ToolCall, etc.) never end up visually
+ *   interrupting content that logically arrived earlier (and vice versa).
+ * - Throttle rapid text deltas into content parts (100ms) while ensuring that
+ *   when a non-content part is processed we first persist any text that arrived
+ *   before it.
+ *
+ * Key idea:
+ * - Text deltas are buffered in `_updateTextState`. They are only pushed into
+ *   `AgentMessageStream` while holding the session mutex. All calls that persist
+ *   parts to the API (`_update(...)`) also run under the same mutex. This makes
+ *   the mutex the single serialization point for both (a) text entering the
+ *   message stream and (b) persisting parts to the API, preventing ordering races.
+ *
+ * Important assumptions:
+ * - Mutex.withLock is FIFO (ordering of queued lock requests is preserved).
+ * - AgentMessageStream.update() parses a snapshot of the text state and leaves any
+ *   concurrent appends in the leftover `_textState` for the next update.
+ */
 export class AgentMessageStreamSession implements AgentMessageStreamSessionInterface {
+    private _isCompleted = false;
+
     private _pingInterval: Interval | null = null;
 
     private _mutex = new Mutex();
@@ -91,7 +153,11 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
     private _agentMessageStream: AgentMessageStream;
 
     private _updateThrottleMs = 100;
-    private _updateTimeout: Timeout | null = null;
+    private _updateTextState: {
+        text: string;
+        updateTimeout: Timeout;
+        span: TracerSpan;
+    } | null = null;
 
     private _functionCallOutputTokenCount = 0;
 
@@ -146,25 +212,66 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
     }
 
     pushText(span: TracerSpan, text: string) {
-        this._agentMessageStream.pushText(span, text);
+        assert(!this._isCompleted);
 
         // We throttle updates to once every 100ms instead of once every token
         // OpenAI sends us.
-        if (this._updateTimeout === null) {
-            this._updateTimeout = createTimeout(() => {
-                this._updateTimeout = null;
+        if (this._updateTextState === null) {
+            const updateTimeout = createTimeout(() => {
+                assert(this._updateTextState !== null);
+
+                const {span, text} = this._updateTextState;
+                this._updateTextState = null;
+
+                this._pushTextIntoAgentMessageStream(span, text);
                 void this._update(span);
             }, this._updateThrottleMs);
+
+            this._updateTextState = {text: text, updateTimeout, span};
+        } else {
+            this._updateTextState.span = span;
+            this._updateTextState.text += text;
         }
     }
 
     pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall) {
-        this._clearUpdateTimeout();
+        assert(!this._isCompleted);
+        this._flushUpdateTextState();
         void this._update(span, [{type: "ToolCall", call}]);
     }
 
     pushReasoningSummary(span: TracerSpan, summary: string) {
-        this._clearUpdateTimeout();
+        assert(!this._isCompleted);
+
+        // If we have streamed text into the session, flush it to the API before pushing
+        // the reasoning summary. Doing this here ensures proper ordering of events.
+        // For exmaple
+        // 1. pushReasoningSummary(response.reasoning_summary_part.done (a))
+        // 2. pushReasoningSummary(response.reasoning_summary_part.done (b))
+        // 3. pushText(response.output_text.delta (a))
+        //
+        // Since we place a mutex on updating the API, we want to make sure that these
+        // updates are sent to the API in the correct order. So let's say that
+        // response.reasoning_summary_part.done (b) is waiting on part (a) to finish.
+        // Well, since we flush the update text *before* waiting for the mutex to unlock
+        // there shouldn't be any unexpected text in between parts (a) and (b).
+        //
+        // In the past, we pushed all text to the `AgentMessageStream` as soon as we
+        // received it. So in the above scenario, what actually happens is
+        // 1. `AgentMessageStreamSession` receives reaonsing summary (a) and submits
+        //    the API request
+        // 2. `AgentMessageStreamSession` receives reasoning summary (b) and waits
+        //    for the mutex to unlock
+        // 3. `AgentMessageStreamSession` receives text (a) and pushes it to the
+        //    `AgentMessageStream`.
+        // 4. The mutex unlocks, the API call for reasoning summary (b) is made, but
+        //    now text (a) is already in the stream.
+        //
+        // So the general pattern here is that we "merge" adjacent text calls and send
+        // them to the API once every 100ms. However, if a non-content part is sent
+        // while "merging" adjacent text parts, we send whatever text parts we have
+        // buffered to the API and then we send the non-content part.
+        this._flushUpdateTextState();
         void this._update(span, [
             {
                 type: "Reasoning",
@@ -174,9 +281,43 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
     }
 
     updateFunctionCallOutputTokenCount(functionCallOutput: string) {
+        assert(!this._isCompleted);
         this._functionCallOutputTokenCount += countO200kBaseTokens(functionCallOutput);
     }
 
+    /**
+     * If there is buffered text in `_updateTextState`, cancel its timeout and push
+     * it into the `AgentMessageStream`. This method does not itself await the mutex;
+     * it uses `_pushTextIntoAgentMessageStream` which schedules the push under the
+     * mutex. After flushing, the buffered text is cleared.
+     *
+     * Important note:
+     * - We avoid pushing buffered text into AgentMessageStream directly without the
+     *   mutex because that could allow asynchronous `_update` calls (already queued)
+     *   to observe the text at the wrong time and violate ordering.
+     */
+    private _flushUpdateTextState() {
+        if (this._updateTextState === null) return;
+
+        const {span, text, updateTimeout} = this._updateTextState;
+        updateTimeout.clear();
+        this._updateTextState = null;
+
+        this._pushTextIntoAgentMessageStream(span, text);
+    }
+
+    /**
+     * Acquire the mutex and call `AgentMessageStream.update`. `update()` returns
+     * parts that need to be PUT to the API. All actual PUTs are performed while
+     * still within the mutex boundary (the API calls themselves are awaited, but
+     * they run while the session still logically holds ordering via the mutex).
+     *
+     * Notes:
+     * - AgentMessageStream.update() expects that `_textState` has been populated
+     *   by `_pushTextIntoAgentMessageStream()` when appropriate. The update call
+     *   will parse a snapshot of the text state and build content parts (if any),
+     *   then append any non-content `newPartPayloads` provided.
+     */
     private _update(
         updateSpan: TracerSpan,
         newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>>,
@@ -229,6 +370,9 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
     }
 
     private async _completeStream(span: TracerSpan) {
+        assert(!this._isCompleted);
+        this._isCompleted = true;
+
         // Let's say a stream part comes in a T0 and the stream is completed at T50 (ms)
         // the `update()` call won't run for another 50ms. When that update call runs
         // we don't want it to restart the interval after sending the last parts to the
@@ -238,7 +382,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
 
         // `createChatGptAgentResponse()` may call `messageState.pushText()` and set
         // `updateTimeout`.
-        this._clearUpdateTimeout();
+        this._flushUpdateTextState();
         void this._update(span);
 
         this._clearPingInterval();
@@ -267,14 +411,30 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
         }, agentMessageStreamPingIntervalMs);
     }
 
-    private _clearUpdateTimeout() {
-        this._updateTimeout?.clear();
-        this._updateTimeout = null;
-    }
-
     private _clearPingInterval() {
         this._pingInterval?.clear();
         this._pingInterval = null;
+    }
+
+    /**
+     * Pushes text into the AgentMessageStream while holding the session mutex.
+     * This ensures that all text pushes and all `_update` operations are serialized
+     * by the same mutex, giving us a single ordering surface.
+     *
+     * This helper purposely uses `this._mutex.withLock(...)` so the actual mutation
+     * of `AgentMessageStream` occurs as a queued operation and cannot race with
+     * other queued `_update(...)` calls.
+     *
+     * Example ordering (queued lock order matters):
+     * - queued: _update(b) (reasoning), queued: _pushTextIntoAgentMessageStream(text)
+     *   Because the mutex is FIFO, _update(b) runs before the text push, which
+     *   prevents the text from appearing before reasoning(b) when text logically
+     *   arrived later.
+     */
+    private _pushTextIntoAgentMessageStream(span: TracerSpan, text: string) {
+        void this._mutex.withLock(async () => {
+            this._agentMessageStream.pushText(span, text);
+        });
     }
 }
 

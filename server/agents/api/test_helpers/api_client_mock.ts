@@ -281,6 +281,7 @@ export class ApiClientMock implements ApiClient {
             return true;
         });
     }
+
     private formatAvailableMocks(): string {
         if (this.mockConfigs.length === 0) {
             return "  (none)";

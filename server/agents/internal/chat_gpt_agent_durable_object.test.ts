@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+
 import {jest} from "@jest/globals";
 import {
     DurableObjectId,
@@ -7,11 +8,13 @@ import {
 } from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import OpenAi from "openai";
+import {putApiMessageStreamPartBeforeFetchTestCheckpoint} from "~/server/agents/api/api_client.js";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {
     ChatGptAgentDurableObject,
+    createChatGptAgentResponseAfterPushTextTestCheckpoint,
     injectCurrentlyViewedEntityIntoContextIfNeededForTest,
 } from "~/server/agents/internal/chat_gpt_agent_durable_object.js";
 import {
@@ -25,6 +28,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -2924,6 +2928,246 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 }),
             ]);
         });
+    });
+
+    test("race condition: `putApiMessageStreamPart()` resolves AFTER we get some output text from OpenAI", async () => {
+        mockOpenAiStreamingResponse([
+            {
+                type: "response.reasoning_summary_part.done",
+                part: {
+                    type: "summary_text",
+                    text: "Reasoning summary part 1.",
+                },
+            },
+            {
+                type: "response.reasoning_summary_part.done",
+                part: {
+                    type: "summary_text",
+                    text: "Reasoning summary part 2.",
+                },
+            },
+            {
+                type: "response.output_text.delta",
+                delta: "Output text delta 1.",
+            },
+            {
+                type: "response.output_text.delta",
+                delta: " Output text delta 2.",
+            },
+            {
+                type: "response.output_text.delta",
+                delta: " Output text delta 3.",
+            },
+        ]);
+
+        // ----- Create the webhook request -----
+        const request: AgentWebhookRequest = {
+            storage,
+            apiClient,
+            apiAccessToken: "test-access-token",
+            openAiClient: new Lazy(() => mockOpenAiClient),
+            agentUsageDatabase: new Lazy(() => mockAgentUsageDatabase),
+            origin: "https://agent-service.cyberworlds.workers.dev",
+            spaceId,
+            botId,
+            botAccountId: generateId<AccountId>(),
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+            },
+            room: {type: "Chat", id: chatId},
+        };
+
+        const durableObject = createChatGptAgentDurableObject();
+        mockAgentUsageForAccount(authorId);
+
+        const messageIndex = 1;
+
+        // create the bot's response message, needs to be mocked because we
+        // need the index
+        apiClient.mockPost("/chats/{id}/messages", {
+            data: {
+                spaceId,
+                message: {
+                    index: messageIndex,
+                    author: createApiAccountMock({name: "Bot", botId}),
+                    createdTime: assertDateString(new Date().toISOString()),
+                    createdTimeZone: defaultTimeZone,
+                    payload: {type: "Content", content: {elements: []}},
+                },
+            },
+        });
+
+        // get space info for system prompt
+        apiClient.mockGet("/spaces/{id}", {
+            data: {
+                space: {
+                    id: spaceId,
+                    name: "Test Space",
+                },
+            },
+        });
+
+        // fetch conversation history for context
+        apiClient.mockGet("/chats/{id}/messages", {
+            data: {
+                spaceId,
+                totalMessageCount: 1,
+                nextCursor: null,
+                messages: [
+                    {
+                        index: 0,
+                        author: createApiAccountMock({name: "User"}),
+                        createdTime: assertDateString(new Date().toISOString()),
+                        createdTimeZone: defaultTimeZone,
+                        payload: {
+                            type: "Content",
+                            content: {
+                                elements: [
+                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
+                                ],
+                            },
+                        },
+                    },
+                ],
+            },
+        });
+
+        // Pause right before we put "Reasoning summary part 1."
+        const pause1Promise = putApiMessageStreamPartBeforeFetchTestCheckpoint.pauseForTest([
+            messageIndex,
+            0,
+        ]);
+
+        // Pause right after we call `pushText()` for "Output text delta 1."
+        const pause2Promise =
+            createChatGptAgentResponseAfterPushTextTestCheckpoint.pauseForTest(messageIndex);
+
+        const webhookPromise = durableObject.webhook(span, request);
+
+        const {unpause: unpause1} = await pause1Promise;
+        const {unpause: unpause2} = await pause2Promise;
+
+        // Simulate `putApiMessageStreamPart()` resolving AFTER we get the first output
+        // text from OpenAI.
+        unpause1();
+
+        unpause2();
+        await webhookPromise;
+
+        // ===== ASSERT =====
+
+        expect(
+            apiClient
+                .getRequestHistory()
+                .map(request => pickObject(request, ["method", "path", "params", "body"])),
+        ).toEqual([
+            {
+                method: "POST",
+                path: "/chats/{id}/messages",
+                params: {path: {id: chatId}},
+                body: expect.objectContaining({
+                    content: {
+                        elements: [],
+                    },
+                    isStream: true,
+                }),
+            },
+            {
+                method: "GET",
+                path: "/spaces/{id}",
+                params: {path: {id: spaceId}},
+                body: undefined,
+            },
+            {
+                method: "GET",
+                path: "/chats/{id}/messages",
+                params: {path: {id: chatId}, query: {limit: 30, cursor: 1, from: "end"}},
+                body: undefined,
+            },
+            {
+                method: "PUT",
+                path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                params: {path: {id: chatId, index: 1, partIndex: 0}},
+                body: {
+                    payload: {
+                        type: "Reasoning",
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Reasoning summary part 1.",
+                                            marks: undefined,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+            {
+                method: "PUT",
+                path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                params: {path: {id: chatId, index: 1, partIndex: 1}},
+                body: {
+                    payload: {
+                        type: "Reasoning",
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Reasoning summary part 2.",
+                                            marks: undefined,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+            {
+                method: "PUT",
+                path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                params: {path: {id: chatId, index: 1, partIndex: 2}},
+                body: {
+                    payload: {
+                        type: "Content",
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Output text delta 1. Output text delta 2. Output text delta 3.",
+                                            marks: undefined,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+            {
+                method: "PUT",
+                path: "/chats/{id}/messages/{index}/stream/completion",
+                params: {path: {id: chatId, index: 1}},
+                body: undefined,
+            },
+        ]);
     });
 });
 

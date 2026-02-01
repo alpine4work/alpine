@@ -26,6 +26,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -181,10 +182,7 @@ export function createApiClient({
         return (tracer: any, path: any, options: any) => {
             currentTracer = tracer;
 
-            return (apiClient as any)[method](path, {
-                ...options,
-                tracer,
-            });
+            return (apiClient as any)[method](path, options);
         };
     }
 
@@ -417,7 +415,11 @@ export function createApiMessageStreamPart(
     }
 }
 
-export function putApiMessageStreamPart(
+export const putApiMessageStreamPartBeforeFetchTestCheckpoint = new TestCheckpoint<
+    [number, number]
+>();
+
+export async function putApiMessageStreamPart(
     tracer: TracerBase,
     apiClient: ApiClient,
     room: ApiMessageRoomTarget,
@@ -425,6 +427,18 @@ export function putApiMessageStreamPart(
     partIndex: number,
     body: {payload: ApiMessageStreamPartPayload},
 ) {
+    // Micro-optimization, `waitForTest()` is noops if `!import.meta.jest` anyway
+    // but `response.output_text.delta` is a hot code path in production. So add an
+    // extra `import.meta.jest` check here to make sure we don't pay the microtask
+    // price in production (an `await` schedules a microtask even when immediately
+    // resolved).
+    if (import.meta.jest) {
+        await putApiMessageStreamPartBeforeFetchTestCheckpoint.waitForTest([
+            messageIndex,
+            partIndex,
+        ]);
+    }
+
     switch (room.type) {
         case "Chat": {
             return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/parts/{partIndex}", {
