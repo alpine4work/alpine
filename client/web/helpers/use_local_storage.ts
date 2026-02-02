@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {useStateWithDependencies} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -18,7 +18,7 @@ export function useLocalStorage<Value>(
     key: string,
     schema: Schema<Value>,
     defaultValue: Value | (() => Value),
-): [Value, (value: Value) => void] {
+): [value: Value, setValue: (value: Value) => void, isLoading: boolean] {
     return useStorageBase(
         typeof window !== "undefined" ? localStorage : null,
         key,
@@ -43,7 +43,7 @@ export function useSessionStorage<Value>(
     key: string,
     schema: Schema<Value>,
     defaultValue: Value | (() => Value),
-): [Value, (value: Value) => void] {
+): [value: Value, setValue: (value: Value) => void, isLoading: boolean] {
     return useStorageBase(
         typeof window !== "undefined" ? sessionStorage : null,
         key,
@@ -57,11 +57,12 @@ function useStorageBase<Value>(
     key: string,
     schema: Schema<Value>,
     defaultValue: Value | (() => Value),
-): [Value, (value: Value) => void] {
+): [value: Value, setValue: (value: Value) => void, isLoading: boolean] {
     const [value, actuallySetValue] = useStateWithDependencies(
         (): Value => (typeof defaultValue === "function" ? (defaultValue as any)() : defaultValue),
         [key, schema],
     );
+    const [isLoading, setIsLoading] = useState(true);
     const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
     const reloadFromStorage = useCallback(() => {
@@ -94,6 +95,10 @@ function useStorageBase<Value>(
         // Load any changes we missed while our `BroadcastChannel` was offline.
         reloadFromStorage();
 
+        // While waiting for the initial value to load from storage `isLoading` is
+        // true. Then once we get the first value it's updated to false.
+        setIsLoading(false);
+
         return () => {
             broadcastChannelRef.current = null;
             broadcastChannel.removeEventListener("message", handleMessage);
@@ -119,5 +124,5 @@ function useStorageBase<Value>(
         actuallySetValue(newValue);
     };
 
-    return [value, setValue];
+    return [value, setValue, isLoading];
 }

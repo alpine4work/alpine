@@ -17,6 +17,7 @@ import {
 import {usePreloadSearchByAffinity} from "~/client/web/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
+import {SpaceLayoutSideBarSearchHint} from "~/client/web/spaces/layout/internal/space_layout_side_bar_search_hint.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_space_button.js";
 import {useSpaceSideBarSpacing} from "~/client/web/spaces/route_metadata.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
@@ -32,11 +33,13 @@ export function SpaceLayoutSideBar({
     space,
     currentAccount,
     initialInbox,
+    isSearchModalOpen,
     onSearchPress,
 }: {
     space: SpaceModel;
     currentAccount: AccountModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    isSearchModalOpen: boolean;
     onSearchPress: () => void;
 }) {
     const rootNavigate = useRootNavigate();
@@ -95,15 +98,17 @@ export function SpaceLayoutSideBar({
                         >
                             <House />
                         </IconButton>
-                        <IconButton
-                            size="lg"
-                            description="Search"
-                            tooltipPlacement="right"
-                            keyboardShortcutHint={isAppleDevice ? "⌘+P" : "Ctrl+P"}
-                            onPress={onSearchPress}
-                        >
-                            <MagnifyingGlass />
-                        </IconButton>
+                        <SpaceLayoutSideBarSearchHint isSearchModalOpen={isSearchModalOpen}>
+                            <IconButton
+                                size="lg"
+                                description="Search"
+                                tooltipPlacement="right"
+                                keyboardShortcutHint={isAppleDevice ? "⌘+P" : "Ctrl+P"}
+                                onPress={onSearchPress}
+                            >
+                                <MagnifyingGlass />
+                            </IconButton>
+                        </SpaceLayoutSideBarSearchHint>
                         <SpaceLayoutSideBarInboxButton initialInbox={initialInbox} />
                         <SpaceLayoutSideBarCreateButton />
                     </Box>

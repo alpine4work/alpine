@@ -907,6 +907,7 @@ export default function SpaceLayoutRoute() {
                                         <SpaceLayoutRouteOutlet
                                             dataRouterStateContext={dataRouterStateContext}
                                             loaderData={loaderData}
+                                            isSearchModalOpen={hasAddedSearchModal}
                                             setSearchQueryText={setSearchQueryText}
                                             globalLoadingIndicator={globalLoadingIndicator}
                                         />
@@ -937,11 +938,13 @@ export default function SpaceLayoutRoute() {
 function SpaceLayoutRouteOutlet({
     dataRouterStateContext,
     loaderData,
+    isSearchModalOpen,
     setSearchQueryText,
     globalLoadingIndicator,
 }: {
     dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>;
     loaderData: SchemaType<typeof LoaderSchema>;
+    isSearchModalOpen: boolean;
     setSearchQueryText: (queryText: string) => void;
     globalLoadingIndicator: GlobalLoadingIndicator | null;
 }) {
@@ -1079,6 +1082,7 @@ function SpaceLayoutRouteOutlet({
                                     space={space}
                                     currentAccount={loaderData.currentAccount}
                                     initialInbox={loaderData.inbox}
+                                    isSearchModalOpen={isSearchModalOpen}
                                     onSearchPress={() => setSearchQueryText("")}
                                 />
                             )}
@@ -1212,17 +1216,18 @@ function SpaceLayoutRouteOutlet({
 
         return nodes;
     }, [
-        context.tracer,
-        globalLoadingIndicatorForMobile,
-        isInert,
-        loaderData,
-        space,
         nativeMobileRouterState,
-        outletContainerHeight,
-        params.spaceId,
+        loaderData,
         platform,
+        outletContainerHeight,
+        isInert,
+        space,
+        isSearchModalOpen,
+        globalLoadingIndicatorForMobile,
         setSearchQueryText,
+        context.tracer,
         updateMetaTitle,
+        params.spaceId,
     ]);
 
     // React supports rendering an array as children but TypeScript gets confused.
