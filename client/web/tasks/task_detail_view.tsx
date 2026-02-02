@@ -112,7 +112,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
+import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -126,6 +126,7 @@ import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskTitleUpdateModel,
     addFallbackToTaskTitle,
@@ -319,6 +320,13 @@ export function TaskDetailView({
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
+            const actualPosition: TaskPosition =
+                position.type !== "Position"
+                    ? childrenQuery
+                        ? getNewTaskPositionForQuerySortedByPosition(time2, childrenQuery, position)
+                        : {orderTime: time2, orderKey: initialOrderKey}
+                    : position.position;
+
             const actions: Array<TaskActionModel> = [
                 {
                     type: "UpdateTask",
@@ -329,25 +337,21 @@ export function TaskDetailView({
                         parentTaskId: taskId,
                     },
                 },
-            ];
-
-            if (childrenQuery) {
-                actions.push({
+                {
                     type: "UpdateTask",
                     time: time2,
                     taskId: childTaskId,
                     taskAction: {
                         type: "UpdateParentPosition",
-                        parentPosition: getNewTaskPositionForQuerySortedByPosition(
-                            time2,
-                            childrenQuery,
-                            position,
-                        ),
+                        parentPosition: actualPosition,
                     },
-                });
-            }
+                },
+            ];
 
-            return actions;
+            return {
+                actions,
+                position: actualPosition,
+            };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
             {

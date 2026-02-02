@@ -71,6 +71,7 @@ import {buildTaskTitleInputKeymapPlugin} from "~/client/web/tasks/internal/build
 import {createTaskEntryAccessStore} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/web/tasks/internal/task_grid_view_task_key.js";
+import {getTaskQueryManuallySortedDirection} from "~/client/web/tasks/internal/task_grid_view_virtualized_list.js";
 import {
     TaskRowTitleChildTasksButton,
     TaskRowTitleChildTasksButtonRef,
@@ -95,18 +96,21 @@ import {
 import {UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
+import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {
     TaskTitleModel,
@@ -327,16 +331,16 @@ function TaskRowTitleInput(
                 | {type: "Start"}
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
-                | {type: "Below"; taskId: TaskId},
-        ) => Array<TaskActionModel>;
+                | {type: "Below"; taskId: TaskId}
+                | {type: "Position"; position: TaskPosition},
+        ) => {
+            actions: Array<TaskActionModel>;
+            position: TaskPosition;
+        } | null;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
         commitActionTransaction: (
-            getActions:
-                | ((taskId: TaskId) => Iterable<TaskActionModel>)
-                | {
-                      getBeforeMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
-                      getAfterMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
-                  },
+            getActions: (taskId: TaskId) => Iterable<TaskActionModel>,
+            options?: {withoutMoveGhostTaskToQuery?: boolean},
         ) => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
@@ -878,6 +882,7 @@ function TaskRowTitleInput(
                         paste: (view, event) => {
                             handleTaskRowTitleInputPaste(event, {
                                 store: propsRef.current.store,
+                                query: propsRef.current.query,
                                 spaceId: spaceIdRef.current,
                                 currentAccountId: assertExists(currentAccountIdRef.current),
                                 timeZone: timeZoneRef.current,
@@ -1940,6 +1945,7 @@ function handleTaskRowTitleInputPaste(
     event: ClipboardEvent,
     {
         store,
+        query,
         spaceId,
         currentAccountId,
         timeZone,
@@ -1955,6 +1961,7 @@ function handleTaskRowTitleInputPaste(
         commitActionTransaction,
     }: {
         store: TaskClientReadonlyStore;
+        query: TaskClientQuery | null;
         spaceId: SpaceId;
         currentAccountId: AccountId;
         timeZone: TimeZone;
@@ -1974,16 +1981,16 @@ function handleTaskRowTitleInputPaste(
                 | {type: "Start"}
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
-                | {type: "Below"; taskId: TaskId},
-        ) => Array<TaskActionModel>;
+                | {type: "Below"; taskId: TaskId}
+                | {type: "Position"; position: TaskPosition},
+        ) => {
+            actions: Array<TaskActionModel>;
+            position: TaskPosition;
+        } | null;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
         commitActionTransaction: (
-            getActions:
-                | ((taskId: TaskId) => Iterable<TaskActionModel>)
-                | {
-                      getBeforeMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
-                      getAfterMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
-                  },
+            getActions: (taskId: TaskId) => Iterable<TaskActionModel>,
+            options?: {withoutMoveGhostTaskToQuery?: boolean},
         ) => void;
     },
 ) {
@@ -2154,6 +2161,21 @@ function handleTaskRowTitleInputPaste(
         selection: Selection;
     } | null = null;
 
+    // Extract text before cursor from the current title.
+    // Text before cursor goes to the first root task, text after cursor stays
+    // in place on the last pasted task.
+    const textBeforeCursor = titleState.doc.textBetween(0, titleState.selection.from);
+
+    // Check if there's only a single pasted task (first and last are the same).
+    // In this case, the task gets both text before and after cursor.
+    const isFirstAndLastPastedTaskSame =
+        pastedTasks.length === 1 && pastedTasks[0]!.childTasks.length === 0;
+
+    // This function takes responsibility for moving ghost tasks into the query.
+    // That way we can make sure we correctly set the right `TaskPosition` for the
+    // ghost task relative to other tasks.
+    const withoutMoveGhostTaskToQuery = true;
+
     const getActions = (lastPastedTaskId: TaskId) => {
         const actions: Array<TaskActionModel> = [];
 
@@ -2163,6 +2185,11 @@ function handleTaskRowTitleInputPaste(
             isParentLastPastedTask: boolean,
             pastedTasks: Array<PastedTask>,
         ) => {
+            let overrideGhostTaskPosition: {
+                orderTime: HybridLogicalTime;
+                orderKeys: Array<OrderKey>;
+            } | null = null;
+
             for (let i = 0; i < pastedTasks.length; i++) {
                 const pastedTask = pastedTasks[i]!;
                 const isLastPastedTask =
@@ -2183,18 +2210,81 @@ function handleTaskRowTitleInputPaste(
                             creatorTimeZone: timeZone,
                         },
                     });
+                }
 
-                    // If this task doesn't have a parent then we need to add it to the query so
-                    // it'll show up right where the user pasted.
-                    if (pastedParentTaskId === null) {
-                        for (const action of getMoveTaskToQueryActions(
-                            pastedTaskId,
-                            isGhostTask
-                                ? {type: isFirstRow ? "Start" : "End"}
-                                : {type: "Above", taskId: lastPastedTaskId},
-                        )) {
-                            actions.push(action);
+                // If this task doesn't have a parent then we need to add it to the query so
+                // it'll show up right where the user pasted.
+                if (pastedParentTaskId === null) {
+                    let moveTaskToQueryActions: ReadonlyArray<TaskActionModel>;
+
+                    if (!isGhostTask) {
+                        if (isLastPastedTask) {
+                            moveTaskToQueryActions = [];
+                        } else {
+                            moveTaskToQueryActions =
+                                getMoveTaskToQueryActions(pastedTaskId, {
+                                    type: "Above",
+                                    taskId: lastPastedTaskId,
+                                })?.actions ?? [];
                         }
+                    } else {
+                        // When pasting into a ghost task, each call to `getMoveTaskToQueryActions`
+                        // generates a new `orderTime` which causes reverse ordering with descending
+                        // sorts (e.g. in `<TaskPersonalView>`). Fix this by using same `orderTime`
+                        // with sequential `OrderKey`s.
+                        //
+                        // The first task we paste will hit this branch then initialize
+                        // `overrideGhostTaskPosition` and subsequent tasks will use the generated
+                        // `orderTime` + `orderKey`s.
+                        if (!overrideGhostTaskPosition) {
+                            const result = getMoveTaskToQueryActions(pastedTaskId, {
+                                type: isFirstRow ? "Start" : "End",
+                            });
+
+                            if (!result) {
+                                moveTaskToQueryActions = [];
+                            } else {
+                                moveTaskToQueryActions = result.actions;
+
+                                if (
+                                    getTaskQueryManuallySortedDirection(query?.sorts ?? []) !==
+                                    "Descending"
+                                ) {
+                                    overrideGhostTaskPosition = {
+                                        orderTime: result.position.orderTime,
+                                        orderKeys: generateOrderKeysBetween(
+                                            result.position.orderKey,
+                                            null,
+                                            pastedTasks.length - 1,
+                                        ),
+                                    };
+                                } else {
+                                    overrideGhostTaskPosition = {
+                                        orderTime: result.position.orderTime,
+                                        orderKeys: generateOrderKeysBetween(
+                                            null,
+                                            result.position.orderKey,
+                                            pastedTasks.length - 1,
+                                        ).reverse(),
+                                    };
+                                }
+                            }
+                        } else {
+                            moveTaskToQueryActions =
+                                getMoveTaskToQueryActions(pastedTaskId, {
+                                    type: "Position",
+                                    position: {
+                                        orderTime: overrideGhostTaskPosition.orderTime,
+                                        orderKey: assertExists(
+                                            overrideGhostTaskPosition.orderKeys[i - 1],
+                                        ),
+                                    },
+                                })?.actions ?? [];
+                        }
+                    }
+
+                    for (const action of moveTaskToQueryActions) {
+                        actions.push(action);
                     }
                 }
 
@@ -2202,7 +2292,11 @@ function handleTaskRowTitleInputPaste(
                     // If this is the last pasted task and it's being made the child of another
                     // pasted task then let's remove it from the query so it doesn't show up as both
                     // a child and a task in the query.
-                    if (isLastPastedTask) {
+                    //
+                    // If this is a ghost task then we don't need to commit these actions since
+                    // `withoutMoveGhostTaskToQuery` will be true and the ghost task won't be added
+                    // to the query in the first place.
+                    if (isLastPastedTask && !isGhostTask) {
                         for (const action of getMaybeRemoveTaskFromQueryActions(pastedTaskId)) {
                             actions.push(action);
                         }
@@ -2225,13 +2319,21 @@ function handleTaskRowTitleInputPaste(
                 const withoutUndoMerge = true;
 
                 if (!isLastPastedTask) {
+                    // If this is the first root task and there are multiple pasted tasks,
+                    // prepend the text before cursor to this task's title.
+                    const isFirstRootTask = pastedParentTaskId === null && i === 0;
+                    let taskTitle = pastedTask.title;
+                    if (isFirstRootTask && !isFirstAndLastPastedTaskSame) {
+                        taskTitle = textBeforeCursor + taskTitle;
+                    }
+
                     actions.push({
                         type: "UpdateTask",
                         time: store.clock.now(),
                         taskId: pastedTaskId,
                         taskAction: {
                             type: "UpdateTitle",
-                            titleUpdate: emptyTaskTitleModel.get().replace(0, 0, pastedTask.title),
+                            titleUpdate: emptyTaskTitleModel.get().replace(0, 0, taskTitle),
                             withoutUndoMerge,
                         },
                     });
@@ -2239,40 +2341,67 @@ function handleTaskRowTitleInputPaste(
                 // If this is the last pasted task then generate a `titleUpdate` that replaces
                 // text in the last task at the current selection.
                 else {
+                    // When pasting a single task, keep existing behavior: insert pasted title
+                    // at cursor position, preserving text before and after.
+                    // When pasting multiple tasks, the first root task gets text before cursor
+                    // and this last task gets only the pasted title + text after cursor.
+                    let replacementText: string;
+                    let replaceFrom: number;
+                    let replaceTo: number;
+
+                    if (isFirstAndLastPastedTaskSame) {
+                        // Single task - insert at selection, keep text before and after
+                        replacementText = pastedTask.title;
+                        replaceFrom = titleState.selection.from;
+                        replaceTo = titleState.selection.to;
+                    } else {
+                        // Multiple tasks - replace from start to selection with just the pasted
+                        // title, leaving text after cursor in place. This is better for
+                        // collaborative editing than replacing the entire content.
+                        replacementText = pastedTask.title;
+                        replaceFrom = 0;
+                        replaceTo = titleState.selection.to;
+                    }
+
                     const {update: titleUpdate, truncatedCharacterCount: truncatedCharacters} =
                         assertExists(
                             taskTitlePluginKey.getState(titleState),
                         ).replaceManyWithStepWithTruncatedCharacterCount([
                             {
-                                from: titleState.selection.from,
-                                to: titleState.selection.to,
-                                text: pastedTask.title,
+                                from: replaceFrom,
+                                to: replaceTo,
+                                text: replacementText,
                             },
                         ]);
 
-                    const pastedTaskTitle = pastedTask.title.substring(
+                    const actualReplacementText = replacementText.substring(
                         0,
-                        pastedTask.title.length - truncatedCharacters,
+                        replacementText.length - truncatedCharacters,
                     );
 
-                    if (pastedTaskTitle.length > 0) {
+                    if (actualReplacementText.length > 0) {
                         const transaction = titleState.tr.replace(
-                            titleState.selection.from,
-                            titleState.selection.to,
+                            replaceFrom,
+                            replaceTo,
                             new Slice(
-                                Fragment.from(TaskTitleProsemirrorSchema.text(pastedTaskTitle)),
+                                Fragment.from(
+                                    TaskTitleProsemirrorSchema.text(actualReplacementText),
+                                ),
                                 0,
                                 0,
                             ),
                         );
 
                         // Set the selection to the end of the pasted content.
+                        // For single task: after the pasted title
+                        // For multiple tasks: after the pasted title (before textAfterCursor)
+                        const cursorPosition = isFirstAndLastPastedTaskSame
+                            ? replaceFrom +
+                              Math.min(pastedTask.title.length, actualReplacementText.length)
+                            : Math.min(pastedTask.title.length, actualReplacementText.length);
+
                         transaction.setSelection(
-                            TextSelection.near(
-                                transaction.doc.resolve(
-                                    titleState.selection.from + pastedTaskTitle.length,
-                                ),
-                            ),
+                            TextSelection.near(transaction.doc.resolve(cursorPosition)),
                         );
 
                         const newTitleState = titleState.apply(transaction);
@@ -2322,10 +2451,7 @@ function handleTaskRowTitleInputPaste(
     // Synchronous flush to make sure `updateTitleStateRef` is used before it's
     // reset to null at the end of this function.
     flushSync(() => {
-        commitActionTransaction({
-            getBeforeMoveTaskActions: getActions,
-            getAfterMoveTaskActions: () => emptyArray,
-        });
+        commitActionTransaction(getActions, {withoutMoveGhostTaskToQuery});
     });
 
     updateTitleStateRef.current = null;

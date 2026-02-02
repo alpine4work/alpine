@@ -118,12 +118,12 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
@@ -376,8 +376,12 @@ function TaskRowView(
                 | {type: "Start"}
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
-                | {type: "Below"; taskId: TaskId},
-        ) => Array<TaskActionModel>;
+                | {type: "Below"; taskId: TaskId}
+                | {type: "Position"; position: TaskPosition},
+        ) => {
+            actions: Array<TaskActionModel>;
+            position: TaskPosition;
+        } | null;
         getMoveTaskToRootQueryActions: (
             taskId: TaskId,
             position:
@@ -385,7 +389,10 @@ function TaskRowView(
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
                 | {type: "Below"; taskId: TaskId},
-        ) => Array<TaskActionModel>;
+        ) => {
+            actions: Array<TaskActionModel>;
+            position: TaskPosition;
+        } | null;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
@@ -1151,30 +1158,13 @@ function TaskRowView(
         // Commit an action transaction against our task. If this is a ghost task then
         // we'll create a new task before applying the update.
         commitActionTransaction: (
-            getActions:
-                | ((taskId: TaskId) => Iterable<TaskActionModel>)
-                | {
-                      getBeforeMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
-                      getAfterMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
-                  },
+            getActions: (taskId: TaskId) => Iterable<TaskActionModel>,
+            options?: {withoutMoveGhostTaskToQuery?: boolean},
         ): {
             finally: (callback: () => void) => void;
         } => {
             if (taskId) {
-                return commitActionTransactionFromProps(
-                    () => {
-                        const actions =
-                            typeof getActions === "function"
-                                ? getActions(taskId)
-                                : concatIterables(
-                                      getActions.getBeforeMoveTaskActions(taskId),
-                                      getActions.getAfterMoveTaskActions(taskId),
-                                  );
-
-                        return actions;
-                    },
-                    {undoManager},
-                );
+                return commitActionTransactionFromProps(() => getActions(taskId), {undoManager});
             }
 
             assert(ghostTaskId);
@@ -1211,26 +1201,16 @@ function TaskRowView(
                             },
                         ];
 
-                        if (typeof getActions !== "function") {
-                            for (const action of getActions.getBeforeMoveTaskActions(ghostTaskId)) {
+                        if (!options?.withoutMoveGhostTaskToQuery) {
+                            for (const action of getMoveTaskToQueryActions(ghostTaskId, {
+                                type: isFirstRow ? "Start" : "End",
+                            })?.actions ?? []) {
                                 actions.push(action);
                             }
                         }
 
-                        for (const action of getMoveTaskToQueryActions(ghostTaskId, {
-                            type: isFirstRow ? "Start" : "End",
-                        })) {
+                        for (const action of getActions(ghostTaskId)) {
                             actions.push(action);
-                        }
-
-                        if (typeof getActions !== "function") {
-                            for (const action of getActions.getAfterMoveTaskActions(ghostTaskId)) {
-                                actions.push(action);
-                            }
-                        } else {
-                            for (const action of getActions(ghostTaskId)) {
-                                actions.push(action);
-                            }
                         }
 
                         return actions;
@@ -1542,7 +1522,7 @@ function TaskRowView(
                     getMoveTaskToRootQueryActions(taskId, {
                         type: "Above",
                         taskId: getTaskQuerySortCursorTaskId(cursor),
-                    })
+                    })?.actions ?? []
                 }
                 setRowZIndex={setRowZIndex}
             />

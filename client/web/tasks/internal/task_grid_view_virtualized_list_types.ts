@@ -10,6 +10,7 @@ import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scr
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 
 export type TaskGridViewVirtualizedListViewRef = {
     getHeight: () => number;
@@ -42,8 +43,12 @@ export type TaskGridViewVirtualizedListEvents = MemoObject<{
             | {type: "Start"}
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
-            | {type: "Below"; taskId: TaskId},
-    ) => Array<TaskActionModel>;
+            | {type: "Below"; taskId: TaskId}
+            | {type: "Position"; position: TaskPosition},
+    ) => {
+        actions: Array<TaskActionModel>;
+        position: TaskPosition;
+    } | null;
     readonly getMaybeRemoveTaskFromRootQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
     readonly getItemCount: () => number;
     readonly getState: () => TaskGridViewVirtualizedListState;

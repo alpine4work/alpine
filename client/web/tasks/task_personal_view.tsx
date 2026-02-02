@@ -581,12 +581,17 @@ export function TaskPersonalView({
             runningItemCount,
             events.getActiveItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+        getMoveTaskToQueryActions: (taskId, position) => {
             const time1 = store.clock.now();
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            return [
+            const actualPosition =
+                position.type !== "Position"
+                    ? getNewTaskPositionForQuerySortedByPosition(time3, activeQuery.query, position)
+                    : position.position;
+
+            const actions: Array<TaskActionModel> = [
                 {
                     type: "UpdateTask",
                     time: time1,
@@ -625,14 +630,15 @@ export function TaskPersonalView({
                     taskAction: {
                         type: "UpdateAssigneePosition",
                         accountId: currentAccount.id,
-                        position: getNewTaskPositionForQuerySortedByPosition(
-                            time3,
-                            activeQuery.query,
-                            position,
-                        ),
+                        position: actualPosition,
                     },
                 },
             ];
+
+            return {
+                actions,
+                position: actualPosition,
+            };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
             {
@@ -744,7 +750,7 @@ export function TaskPersonalView({
             runningItemCount,
             events.getOverdueItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+        getMoveTaskToQueryActions: (taskId, position) => {
             assert(
                 overdueQuery.query.filters.dueDateFilter?.type === "Range" &&
                     overdueQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate,
@@ -760,7 +766,16 @@ export function TaskPersonalView({
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            return [
+            const actualPosition =
+                position.type !== "Position"
+                    ? getNewTaskPositionForQuerySortedByPosition(
+                          time3,
+                          overdueQuery.query,
+                          position,
+                      )
+                    : position.position;
+
+            const actions: Array<TaskActionModel> = [
                 {
                     type: "UpdateTask",
                     time: time1,
@@ -793,14 +808,15 @@ export function TaskPersonalView({
                     taskAction: {
                         type: "UpdateAssigneePosition",
                         accountId: currentAccount.id,
-                        position: getNewTaskPositionForQuerySortedByPosition(
-                            time3,
-                            overdueQuery.query,
-                            position,
-                        ),
+                        position: actualPosition,
                     },
                 },
             ];
+
+            return {
+                actions,
+                position: actualPosition,
+            };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
             {
@@ -933,7 +949,7 @@ export function TaskPersonalView({
             runningItemCount,
             events.getDueTodayItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+        getMoveTaskToQueryActions: (taskId, position) => {
             assert(
                 dueTodayQuery.query.filters.dueDateFilter?.type === "Range" &&
                     dueTodayQuery.query.filters.dueDateFilter.exclusiveLowerBoundDate,
@@ -945,7 +961,16 @@ export function TaskPersonalView({
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            return [
+            const actualPosition =
+                position.type !== "Position"
+                    ? getNewTaskPositionForQuerySortedByPosition(
+                          time3,
+                          dueTodayQuery.query,
+                          position,
+                      )
+                    : position.position;
+
+            const actions: Array<TaskActionModel> = [
                 {
                     type: "UpdateTask",
                     time: time1,
@@ -978,14 +1003,15 @@ export function TaskPersonalView({
                     taskAction: {
                         type: "UpdateAssigneePosition",
                         accountId: currentAccount.id,
-                        position: getNewTaskPositionForQuerySortedByPosition(
-                            time3,
-                            dueTodayQuery.query,
-                            position,
-                        ),
+                        position: actualPosition,
                     },
                 },
             ];
+
+            return {
+                actions,
+                position: actualPosition,
+            };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
             {
@@ -1116,7 +1142,7 @@ export function TaskPersonalView({
             runningItemCount,
             events.getDueSoonItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+        getMoveTaskToQueryActions: (taskId, position) => {
             assert(
                 dueSoonQuery.query.filters.dueDateFilter?.type === "Range" &&
                     dueSoonQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate,
@@ -1133,7 +1159,16 @@ export function TaskPersonalView({
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            return [
+            const actualPosition =
+                position.type !== "Position"
+                    ? getNewTaskPositionForQuerySortedByPosition(
+                          time3,
+                          dueSoonQuery.query,
+                          position,
+                      )
+                    : position.position;
+
+            const actions: Array<TaskActionModel> = [
                 {
                     type: "UpdateTask",
                     time: time1,
@@ -1166,14 +1201,15 @@ export function TaskPersonalView({
                     taskAction: {
                         type: "UpdateAssigneePosition",
                         accountId: currentAccount.id,
-                        position: getNewTaskPositionForQuerySortedByPosition(
-                            time3,
-                            dueSoonQuery.query,
-                            position,
-                        ),
+                        position: actualPosition,
                     },
                 },
             ];
+
+            return {
+                actions,
+                position: actualPosition,
+            };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
             {
@@ -1316,11 +1352,20 @@ export function TaskPersonalView({
             runningItemCount,
             events.getRemainingItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+        getMoveTaskToQueryActions: (taskId, position) => {
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
-            return [
+            const actualPosition =
+                position.type !== "Position"
+                    ? getNewTaskPositionForQuerySortedByPosition(
+                          time2,
+                          remainingQuery.query,
+                          position,
+                      )
+                    : position.position;
+
+            const actions: Array<TaskActionModel> = [
                 {
                     type: "UpdateTask",
                     time: time1,
@@ -1344,14 +1389,15 @@ export function TaskPersonalView({
                     taskAction: {
                         type: "UpdateAssigneePosition",
                         accountId: currentAccount.id,
-                        position: getNewTaskPositionForQuerySortedByPosition(
-                            time2,
-                            remainingQuery.query,
-                            position,
-                        ),
+                        position: actualPosition,
                     },
                 },
             ];
+
+            return {
+                actions,
+                position: actualPosition,
+            };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
             {

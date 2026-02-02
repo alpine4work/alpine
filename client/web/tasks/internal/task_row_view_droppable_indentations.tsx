@@ -7,6 +7,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
@@ -45,7 +46,10 @@ export function renderTaskRowViewDroppableIndentations({
     getMoveTaskToRootQueryActions: (
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
-    ) => Array<TaskActionModel>;
+    ) => {
+        actions: Array<TaskActionModel>;
+        position: TaskPosition;
+    } | null;
     setRowZIndex: Memo<(zIndex: number) => () => void>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
@@ -152,10 +156,12 @@ export function renderTaskRowViewDroppableIndentations({
                                 : parents[droppableIndentation]!;
 
                         if (droppableIndentation === 0) {
-                            return getMoveTaskToRootQueryActions(taskId, {
-                                type: "Below",
-                                taskId: getTaskQuerySortCursorTaskId(parentCursor),
-                            });
+                            return (
+                                getMoveTaskToRootQueryActions(taskId, {
+                                    type: "Below",
+                                    taskId: getTaskQuerySortCursorTaskId(parentCursor),
+                                })?.actions ?? []
+                            );
                         }
 
                         const {cursor: grandParentCursor} = parents[droppableIndentation - 1]!;

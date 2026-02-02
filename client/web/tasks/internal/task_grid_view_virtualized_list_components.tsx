@@ -579,8 +579,12 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             | {type: "Start"}
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
-            | {type: "Below"; taskId: TaskId},
-    ) => Array<TaskActionModel> =
+            | {type: "Below"; taskId: TaskId}
+            | {type: "Position"; position: TaskPosition},
+    ) => {
+        actions: Array<TaskActionModel>;
+        position: TaskPosition;
+    } | null =
         query === rootQuery
             ? events.getMoveTaskToRootQueryActions
             : (newTaskId, position) => {
@@ -590,7 +594,12 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                   // `query` can only be null if `rootQuery` is null.
                   assert(query !== null);
 
-                  return [
+                  const actualPosition =
+                      position.type !== "Position"
+                          ? getNewTaskPositionForQuerySortedByPosition(time2, query, position)
+                          : position.position;
+
+                  const actions: Array<TaskActionModel> = [
                       {
                           type: "UpdateTask",
                           time: time1,
@@ -608,14 +617,15 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                           taskId: newTaskId,
                           taskAction: {
                               type: "UpdateParentPosition",
-                              parentPosition: getNewTaskPositionForQuerySortedByPosition(
-                                  time2,
-                                  query,
-                                  position,
-                              ),
+                              parentPosition: actualPosition,
                           },
                       },
                   ];
+
+                  return {
+                      actions,
+                      position: actualPosition,
+                  };
               };
 
     const getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel> =
@@ -659,10 +669,10 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         creatorTimeZone: timeZone,
                     },
                 },
-                ...getMoveTaskToQueryActions(
+                ...(getMoveTaskToQueryActions(
                     newTaskId,
                     taskId ? {type: "Above", taskId} : {type: "End"},
-                ),
+                )?.actions ?? []),
             ],
             {undoManager},
         );
@@ -695,7 +705,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                             creatorTimeZone: timeZone,
                         },
                     },
-                    ...getMoveTaskToQueryActions(newTaskId, {type: "Start"}),
+                    ...(getMoveTaskToQueryActions(newTaskId, {type: "Start"})?.actions ?? []),
                 ],
                 {undoManager},
             );
@@ -837,7 +847,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         creatorTimeZone: timeZone,
                     },
                 },
-                ...getMoveTaskToQueryActions(newTaskId, {type: "Below", taskId}),
+                ...(getMoveTaskToQueryActions(newTaskId, {type: "Below", taskId})?.actions ?? []),
             ],
             {undoManager},
         );
@@ -1007,10 +1017,10 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
             events.commitActionTransaction(
                 () => [
-                    ...events.getMoveTaskToRootQueryActions(taskId, {
+                    ...(events.getMoveTaskToRootQueryActions(taskId, {
                         type: "Below",
                         taskId: oldParentTaskId,
-                    }),
+                    })?.actions ?? []),
 
                     // Order is important! Removing the task from its parent may remove our access
                     // to the task resulting in an authorization error. Perform our update that puts

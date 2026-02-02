@@ -624,7 +624,7 @@ export function TaskCollectionView({
         query: queryState.activeQuery.query,
         affinityManager,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow",
-        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+        getMoveTaskToQueryActions: (taskId, position) => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 
             const query = queryState.activeQuery.query.query;
@@ -634,14 +634,19 @@ export function TaskCollectionView({
             // task. We may want to re-enable some of these someday in auto-sorted queries.
             // See the comment on `getMoveTaskToQueryActions` in `<TaskQueryView>` for more
             // discussion.
-            if (!isTaskQueryManuallySorted(query.sorts)) return [];
+            if (!isTaskQueryManuallySorted(query.sorts)) return null;
 
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
+            const actualPosition =
+                position.type !== "Position"
+                    ? getNewTaskPositionForQuerySortedByPosition(time2, query, position)
+                    : position.position;
+
             const taskCollections = store.getTaskEntrySnapshot(taskId)?.task?.getCollections();
 
-            return [
+            const actions: Array<TaskActionModel> = [
                 {
                     type: "UpdateTask",
                     time: time1,
@@ -662,14 +667,15 @@ export function TaskCollectionView({
                     taskAction: {
                         type: "UpdateCollectionPosition",
                         collectionId: collectionSubscription.collectionId,
-                        position: getNewTaskPositionForQuerySortedByPosition(
-                            time2,
-                            query,
-                            position,
-                        ),
+                        position: actualPosition,
                     },
                 },
             ];
+
+            return {
+                actions,
+                position: actualPosition,
+            };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);

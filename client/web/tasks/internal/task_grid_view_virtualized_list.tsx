@@ -121,6 +121,7 @@ import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
     TaskQuerySortCursor,
@@ -140,13 +141,28 @@ const taskGridViewMoreUnloadedTasksSpinnerHeight = addRemLengths(
  * Do these sorts represent a manually sorted query?
  */
 export function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormalizedSort>): boolean {
-    if (sorts.length === 0) return false;
+    return getTaskQueryManuallySortedDirection(sorts) !== null;
+}
+
+/**
+ * Do these sorts represent a manually sorted query? And what is the direction of
+ * the sort?
+ */
+export function getTaskQueryManuallySortedDirection(
+    sorts: ReadonlyArray<TaskQueryNormalizedSort>,
+): "Ascending" | "Descending" | null {
+    if (sorts.length === 0) return null;
+
     const firstSort = sorts[0]!;
-    return (
+    if (
         firstSort.type === "ParentPosition" ||
         firstSort.type === "CollectionPosition" ||
         firstSort.type === "AssigneePosition"
-    );
+    ) {
+        return firstSort.direction;
+    }
+
+    return null;
 }
 
 const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, Id>();
@@ -209,8 +225,12 @@ export type TaskGridViewVirtualizedListProps = {
             | {type: "Start"}
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
-            | {type: "Below"; taskId: TaskId},
-    ) => Array<TaskActionModel>;
+            | {type: "Below"; taskId: TaskId}
+            | {type: "Position"; position: TaskPosition},
+    ) => {
+        actions: Array<TaskActionModel>;
+        position: TaskPosition;
+    } | null;
 
     /**
      * Should return a list of actions that remove the task from the query's

@@ -517,7 +517,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
     await expectTaskGridView(page, [
         [true, "BEFORE"],
         [
-            [true, "Task 1"],
+            [true, "[[Task 1"],
             [
                 [true, "Task 1.1"],
                 [
@@ -532,7 +532,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         ],
         [true, "Task 2"],
         [[true, "Task 3"], [[true, "Task 3.1"]]],
-        [true, "[[Task 4]]"],
+        [true, "Task 4]]"],
         [true, "AFTER"],
     ]);
 
@@ -542,7 +542,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
     await expectTaskGridView(page, [
         [true, "BEFORE"],
         [
-            [true, "Task 1"],
+            [true, "[[Task 1"],
             [
                 [true, "Task 1.1"],
                 [
@@ -557,7 +557,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         ],
         [true, "Task 2"],
         [[true, "Task 3"], [[true, "Task 3.1"]]],
-        [true, "[[Task X]]"],
+        [true, "Task X]]"],
         [true, "AFTER"],
     ]);
 
@@ -582,7 +582,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
     await expectTaskGridView(page, [
         [true, "BEFORE"],
         [
-            [true, "Task 1"],
+            [true, "[[Task 1"],
             [
                 [true, "Task 1.1"],
                 [
@@ -597,7 +597,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         ],
         [true, "Task 2"],
         [[true, "Task 3"], [[true, "Task 3.1"]]],
-        [true, "[[Task 4]]"],
+        [true, "Task 4]]"],
         [true, "AFTER"],
     ]);
 });
@@ -1258,6 +1258,549 @@ test("can paste a formatted list and it will create tasks in a detail view\u2019
             [true, "Task 2"],
             [[true, "Task 3"], [[true, "Task 3.1"]]],
             [true, "Task 4"],
+        ],
+        {withoutColumns: true},
+    );
+});
+
+test("can paste a formatted list and it will create tasks in a detail view’s subtasks when the last pasted task is a child", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const task = await TestTask.create(session);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+
+    await expectTaskGridView(page, []);
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .click();
+
+    await page.evaluate(async () => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/html": new Blob(
+                    [
+                        `\
+<ul>
+    <li>
+        Task 1
+        <ul>
+            <li>Task 1.1</li>
+            <li>
+                Task 1.2
+                <ul>
+                    <li>Task 1.2.1</li>
+                    <li>Task 1.2.2</li>
+                </ul>
+            </li>
+            <li>Task 1.3</li>
+        </ul>
+    </li>
+    <li>Task 2</li>
+    <li>
+        Task 3
+        <ul>
+            <li>Task 3.1</li>
+        </ul>
+    </li>
+</ul>
+`,
+                    ],
+                    {type: "text/html"},
+                ),
+            }),
+        ]);
+    });
+
+    await page.keyboard.press("ControlOrMeta+v");
+
+    await expectTaskGridView(
+        page,
+        [
+            [
+                [true, "Task 1"],
+                [
+                    [true, "Task 1.1"],
+                    [
+                        [true, "Task 1.2"],
+                        [
+                            [true, "Task 1.2.1"],
+                            [true, "Task 1.2.2"],
+                        ],
+                    ],
+                    [true, "Task 1.3"],
+                ],
+            ],
+            [true, "Task 2"],
+            [[true, "Task 3"], [[true, "Task 3.1"]]],
+        ],
+        {withoutColumns: true},
+    );
+
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("X");
+
+    await expectTaskGridView(
+        page,
+        [
+            [
+                [true, "Task 1"],
+                [
+                    [true, "Task 1.1"],
+                    [
+                        [true, "Task 1.2"],
+                        [
+                            [true, "Task 1.2.1"],
+                            [true, "Task 1.2.2"],
+                        ],
+                    ],
+                    [true, "Task 1.3"],
+                ],
+            ],
+            [true, "Task 2"],
+            [[true, "Task 3"], [[true, "Task 3.X"]]],
+        ],
+        {withoutColumns: true},
+    );
+
+    await expect(page.getByText("Task 3.X")).toBeVisible();
+    await expect(page.getByText("Task 3.1")).toBeHidden();
+
+    await page.keyboard.press("ControlOrMeta+z");
+
+    await expect(page.getByText("Task 3.1")).toBeVisible();
+    await expect(page.getByText("Task 3.X")).toBeHidden();
+
+    await page.keyboard.press("ControlOrMeta+z");
+
+    await expectTaskGridView(page, []);
+
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+
+    await expectTaskGridView(
+        page,
+        [
+            [
+                [true, "Task 1"],
+                [
+                    [true, "Task 1.1"],
+                    [
+                        [true, "Task 1.2"],
+                        [
+                            [true, "Task 1.2.1"],
+                            [true, "Task 1.2.2"],
+                        ],
+                    ],
+                    [true, "Task 1.3"],
+                ],
+            ],
+            [true, "Task 2"],
+            [[true, "Task 3"], [[true, "Task 3.1"]]],
+        ],
+        {withoutColumns: true},
+    );
+});
+
+test("can paste a formatted list and it will create tasks in personal task view", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/tasks`);
+
+    await expectTaskGridView(page, []);
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .click();
+
+    await page.evaluate(async () => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/html": new Blob(
+                    [
+                        `\
+<ul>
+    <li>
+        Task 1
+        <ul>
+            <li>Task 1.1</li>
+            <li>
+                Task 1.2
+                <ul>
+                    <li>Task 1.2.1</li>
+                    <li>Task 1.2.2</li>
+                </ul>
+            </li>
+            <li>Task 1.3</li>
+        </ul>
+    </li>
+    <li>Task 2</li>
+    <li>
+        Task 3
+        <ul>
+            <li>Task 3.1</li>
+        </ul>
+    </li>
+    <li>Task 4</li>
+</ul>
+`,
+                    ],
+                    {type: "text/html"},
+                ),
+            }),
+        ]);
+    });
+
+    await page.keyboard.press("ControlOrMeta+v");
+
+    await expectTaskGridView(
+        page,
+        [
+            [
+                [true, "Task 1"],
+                [
+                    [true, "Task 1.1"],
+                    [
+                        [true, "Task 1.2"],
+                        [
+                            [true, "Task 1.2.1"],
+                            [true, "Task 1.2.2"],
+                        ],
+                    ],
+                    [true, "Task 1.3"],
+                ],
+            ],
+            [true, "Task 2"],
+            [[true, "Task 3"], [[true, "Task 3.1"]]],
+            [true, "Task 4"],
+        ],
+        {withoutColumns: true},
+    );
+
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("X");
+
+    await expectTaskGridView(
+        page,
+        [
+            [
+                [true, "Task 1"],
+                [
+                    [true, "Task 1.1"],
+                    [
+                        [true, "Task 1.2"],
+                        [
+                            [true, "Task 1.2.1"],
+                            [true, "Task 1.2.2"],
+                        ],
+                    ],
+                    [true, "Task 1.3"],
+                ],
+            ],
+            [true, "Task 2"],
+            [[true, "Task 3"], [[true, "Task 3.1"]]],
+            [true, "Task X"],
+        ],
+        {withoutColumns: true},
+    );
+
+    await expect(page.getByText("Task X")).toBeVisible();
+    await expect(page.getByText("Task 4")).toBeHidden();
+
+    await page.keyboard.press("ControlOrMeta+z");
+
+    await expect(page.getByText("Task 4")).toBeVisible();
+    await expect(page.getByText("Task X")).toBeHidden();
+
+    await page.keyboard.press("ControlOrMeta+z");
+
+    await expectTaskGridView(page, []);
+
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+
+    await expectTaskGridView(
+        page,
+        [
+            [
+                [true, "Task 1"],
+                [
+                    [true, "Task 1.1"],
+                    [
+                        [true, "Task 1.2"],
+                        [
+                            [true, "Task 1.2.1"],
+                            [true, "Task 1.2.2"],
+                        ],
+                    ],
+                    [true, "Task 1.3"],
+                ],
+            ],
+            [true, "Task 2"],
+            [[true, "Task 3"], [[true, "Task 3.1"]]],
+            [true, "Task 4"],
+        ],
+        {withoutColumns: true},
+    );
+});
+
+test("can paste a formatted list and it will create tasks in personal task view when the last pasted task is a child", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/tasks`);
+
+    await expectTaskGridView(page, []);
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .click();
+
+    await page.evaluate(async () => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/html": new Blob(
+                    [
+                        `\
+<ul>
+    <li>
+        Task 1
+        <ul>
+            <li>Task 1.1</li>
+            <li>
+                Task 1.2
+                <ul>
+                    <li>Task 1.2.1</li>
+                    <li>Task 1.2.2</li>
+                </ul>
+            </li>
+            <li>Task 1.3</li>
+        </ul>
+    </li>
+    <li>Task 2</li>
+    <li>
+        Task 3
+        <ul>
+            <li>Task 3.1</li>
+        </ul>
+    </li>
+</ul>
+`,
+                    ],
+                    {type: "text/html"},
+                ),
+            }),
+        ]);
+    });
+
+    await page.keyboard.press("ControlOrMeta+v");
+
+    await expectTaskGridView(
+        page,
+        [
+            [
+                [true, "Task 1"],
+                [
+                    [true, "Task 1.1"],
+                    [
+                        [true, "Task 1.2"],
+                        [
+                            [true, "Task 1.2.1"],
+                            [true, "Task 1.2.2"],
+                        ],
+                    ],
+                    [true, "Task 1.3"],
+                ],
+            ],
+            [true, "Task 2"],
+            [[true, "Task 3"], [[true, "Task 3.1"]]],
+        ],
+        {withoutColumns: true},
+    );
+
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("X");
+
+    await expectTaskGridView(
+        page,
+        [
+            [
+                [true, "Task 1"],
+                [
+                    [true, "Task 1.1"],
+                    [
+                        [true, "Task 1.2"],
+                        [
+                            [true, "Task 1.2.1"],
+                            [true, "Task 1.2.2"],
+                        ],
+                    ],
+                    [true, "Task 1.3"],
+                ],
+            ],
+            [true, "Task 2"],
+            [[true, "Task 3"], [[true, "Task 3.X"]]],
+        ],
+        {withoutColumns: true},
+    );
+
+    await expect(page.getByText("Task 3.X")).toBeVisible();
+    await expect(page.getByText("Task 3.1")).toBeHidden();
+
+    await page.keyboard.press("ControlOrMeta+z");
+
+    await expect(page.getByText("Task 3.1")).toBeVisible();
+    await expect(page.getByText("Task 3.X")).toBeHidden();
+
+    await page.keyboard.press("ControlOrMeta+z");
+
+    await expectTaskGridView(page, []);
+
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+
+    await expectTaskGridView(
+        page,
+        [
+            [
+                [true, "Task 1"],
+                [
+                    [true, "Task 1.1"],
+                    [
+                        [true, "Task 1.2"],
+                        [
+                            [true, "Task 1.2.1"],
+                            [true, "Task 1.2.2"],
+                        ],
+                    ],
+                    [true, "Task 1.3"],
+                ],
+            ],
+            [true, "Task 2"],
+            [[true, "Task 3"], [[true, "Task 3.1"]]],
+        ],
+        {withoutColumns: true},
+    );
+});
+
+test("can paste a formatted list in the middle of existing task text in personal task view", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/tasks`);
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .click();
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .fill("aaabbb");
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .nth(0)
+        .press("ArrowLeft");
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .nth(0)
+        .press("ArrowLeft");
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .nth(0)
+        .press("ArrowLeft");
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .nth(0)
+        .press("x");
+
+    await expectTaskGridView(page, [[true, "aaaxbbb"]], {withoutColumns: true});
+
+    await page.evaluate(async () => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/html": new Blob(
+                    [
+                        `\
+<ul>
+    <li>Task 1</li>
+    <li>
+        Task 2
+        <ul>
+            <li>Task 2.1</li>
+            <li>Task 2.2</li>
+            <li>Task 2.3</li>
+        </ul>
+    </li>
+    <li>
+        Task 3
+        <ul>
+            <li>Task 3.1</li>
+        </ul>
+    </li>
+</ul>
+`,
+                    ],
+                    {type: "text/html"},
+                ),
+            }),
+        ]);
+    });
+
+    await page.keyboard.press("ControlOrMeta+v");
+
+    await expectTaskGridView(
+        page,
+        [
+            [true, "aaaxTask 1"],
+            [
+                [true, "Task 2"],
+                [
+                    [true, "Task 2.1"],
+                    [true, "Task 2.2"],
+                    [true, "Task 2.3"],
+                ],
+            ],
+            [[true, "Task 3"], [[true, "Task 3.1bbb"]]],
         ],
         {withoutColumns: true},
     );
