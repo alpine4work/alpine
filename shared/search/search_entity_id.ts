@@ -477,12 +477,25 @@ const searchAffinityEntityIdTestMap: GetSearchEntityIdTestMapType<SearchAffinity
     TaskPersonal: true,
 };
 
+export type SearchAffinityEntityType = keyof typeof searchAffinityEntityIdTestMap;
+
 /**
  * Is the provided `SearchEntityId` a valid `SearchAffinityEntityId`?
  */
 export function isSearchAffinityEntityId(id: SearchEntityId): id is SearchAffinityEntityId {
     const [idType = ""] = id.split(":", 2);
     return cast<{[key: string]: true}>(searchAffinityEntityIdTestMap)[idType] === true;
+}
+
+/**
+ * Parse a `SearchAffinityEntityId` into a more convenient to use object format.
+ */
+export function parseSearchAffinityEntityId(
+    id: SearchAffinityEntityId & SearchDynamicEntityId,
+): SearchDynamicEntityIdObject & {readonly type: SearchAffinityEntityType} {
+    return parseSearchDynamicEntityId(id) as SearchDynamicEntityIdObject & {
+        readonly type: SearchAffinityEntityType;
+    };
 }
 
 type GetSearchMentionEntityIdTestMapUnionType<Id extends string> =

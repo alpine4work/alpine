@@ -35,6 +35,7 @@ import {
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -48,6 +49,7 @@ import {
 } from "~/shared/rpc/search_rpc_definitions.js";
 import {
     isSearchDynamicEntityId,
+    parseSearchAffinityEntityId,
     parseSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
@@ -351,15 +353,18 @@ function FeedSearchAffinityView({
 
             setIsPendingNavigation(true);
 
-            void navigate(path, {
-                // When clicking on a path from the feed sidebar, fully navigate the app to
-                // that thing. Don't open it in a peek. The home page is your entrypoint into
-                // the rest of the product. You won't be doing much work on the home page so we
-                // don't need to open a peek that keeps you in context.
-                //
-                // If the user is holding shift then open in a peek.
-                stopPropagation: !event.shiftKey,
-            }).then(() => {
+            // When clicking on a path from the feed sidebar, fully navigate the app to
+            // that thing. Don't open it in a peek. The home page is your entrypoint into
+            // the rest of the product. You won't be doing much work on the home page so we
+            // don't need to open a peek that keeps you in context.
+            //
+            // If the user is holding shift then open in a peek.
+            //
+            // Chats and tasks always open in a peek. Because they're small and don't use
+            // the fullscreen space effectively, so better to keep them in a peek.
+            const shouldOpenInPeek = event.shiftKey || shouldOpenSearchAffinityResultInPeek(result);
+
+            void navigate(path, {stopPropagation: !shouldOpenInPeek}).then(() => {
                 // If user spam clicks an item, only mark affinity interaction once.
                 if (hasMarkedAffinityInteractionRef.current) return;
                 hasMarkedAffinityInteractionRef.current = true;
@@ -517,4 +522,23 @@ function isSearchAffinityResultChatOrAccount(result: SearchAffinityEntityResultM
     const {type: entityType} = parseSearchDynamicEntityId(result.id);
 
     return entityType === "Chat" || entityType === "Account";
+}
+
+function shouldOpenSearchAffinityResultInPeek(result: SearchAffinityEntityResultModel): boolean {
+    if (!isSearchDynamicEntityId(result.id)) return false;
+
+    const {type: entityType} = parseSearchAffinityEntityId(result.id);
+
+    switch (entityType) {
+        case "Chat":
+        case "Account":
+        case "Task":
+            return true;
+        case "Document":
+        case "Channel":
+        case "TaskCollection":
+            return false;
+        default:
+            throw exhaustive(entityType);
+    }
 }
