@@ -30,7 +30,7 @@ export function SpaceLayoutSideBarSearchHint({
     children,
 }: {
     isSearchModalOpen: boolean;
-    children: ReactElement;
+    children: (isHintVisible: boolean) => ReactElement;
 }) {
     const location = useLocation();
     const {space} = useSpaceContext();
@@ -68,11 +68,11 @@ export function SpaceLayoutSideBarSearchHint({
         }
     }, [hintState, isSearchModalOpen, setHintState, shouldShowHint]);
 
-    if (!shouldShowHint) return children;
+    if (!shouldShowHint) return children(false);
 
     return (
         <SpaceLayoutSideBarSearchActualHint setHintState={setHintState}>
-            {children}
+            {children(true)}
         </SpaceLayoutSideBarSearchActualHint>
     );
 }
@@ -134,9 +134,7 @@ function SpaceLayoutSideBarSearchActualHint({
                 </Box>
             }
         >
-            <FocusRing offset="0" isVisible>
-                {children}
-            </FocusRing>
+            {children}
         </Overlay>
     );
 }

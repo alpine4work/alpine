@@ -99,15 +99,18 @@ export function SpaceLayoutSideBar({
                             <House />
                         </IconButton>
                         <SpaceLayoutSideBarSearchHint isSearchModalOpen={isSearchModalOpen}>
-                            <IconButton
-                                size="lg"
-                                description="Search"
-                                tooltipPlacement="right"
-                                keyboardShortcutHint={isAppleDevice ? "⌘+P" : "Ctrl+P"}
-                                onPress={onSearchPress}
-                            >
-                                <MagnifyingGlass />
-                            </IconButton>
+                            {isHintVisible => (
+                                <IconButton
+                                    size="lg"
+                                    description="Search"
+                                    tooltipPlacement="right"
+                                    keyboardShortcutHint={isAppleDevice ? "⌘+P" : "Ctrl+P"}
+                                    isHovered={isHintVisible}
+                                    onPress={onSearchPress}
+                                >
+                                    <MagnifyingGlass />
+                                </IconButton>
+                            )}
                         </SpaceLayoutSideBarSearchHint>
                         <SpaceLayoutSideBarInboxButton initialInbox={initialInbox} />
                         <SpaceLayoutSideBarCreateButton />

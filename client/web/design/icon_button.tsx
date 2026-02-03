@@ -149,6 +149,12 @@ function IconButton(
         isPressed?: boolean;
 
         /**
+         * Should we show the hovered style even if the button isn't currently hovered?
+         * Useful if there's some secondary hover target for this icon button.
+         */
+        isHovered?: boolean;
+
+        /**
          * The border radius of the icon button. Defaults to `full`.
          */
         borderRadius?: "full" | "0.5" | "1";
@@ -267,6 +273,7 @@ function IconButton(
         withoutLoadingIndicator = false,
         withoutFocusOnPress = false,
         isPressed: isPressedFromProps = false,
+        isHovered: isHoveredFromProps = false,
         borderRadius = "full",
         backgroundColor: backgroundColorFromProps,
         cursor = "default",
@@ -360,10 +367,12 @@ function IconButton(
 
     const isPressed = isPressedFromButton || isPressedFromProps;
 
-    const {hoverProps, isHovered} = useHover({
+    const {hoverProps, isHovered: isHoveredFromState} = useHover({
         onHoverStart,
         onHoverEnd,
     });
+
+    const isHovered = isHoveredFromProps || isHoveredFromState;
 
     // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our
     // hover styles even though we aren't receiving pointer events since there's a
