@@ -1,6 +1,6 @@
 import {apiSpacesPaths} from "~/server/api/internal/spaces/api_spaces_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
-// eslint-disable-next-line no-internal-imports
+// eslint-disable-next-line cyberworlds/no-internal-imports
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {updateBotSpaceSettingsPropertyValue} from "~/server/bots/with_spaces/update_bot_space_settings_property_value.js";

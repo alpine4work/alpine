@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";

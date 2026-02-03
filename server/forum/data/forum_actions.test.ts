@@ -814,7 +814,7 @@ test("can\u2019t update a channel\u2019s description without manage access", asy
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1"))');
 
     await expect(
@@ -826,7 +826,7 @@ test("can\u2019t update a channel\u2019s description without manage access", asy
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1"))');
 
     await channel.access.grantDefault(session1, "View");
@@ -840,7 +840,7 @@ test("can\u2019t update a channel\u2019s description without manage access", asy
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1"))');
 
     await channel.access.grantDefault(session1, "Comment");
@@ -854,7 +854,7 @@ test("can\u2019t update a channel\u2019s description without manage access", asy
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1"))');
 
     await channel.access.grantDefault(session1, "Edit");
@@ -868,7 +868,7 @@ test("can\u2019t update a channel\u2019s description without manage access", asy
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1"))');
 
     await channel.access.grantDefault(session1, "Manage");
@@ -880,7 +880,7 @@ test("can\u2019t update a channel\u2019s description without manage access", asy
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 6"))');
 });
 
@@ -955,7 +955,7 @@ test("can\u2019t update a channel\u2019s name and description without manage acc
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1b"))');
 
     await expect(
@@ -969,7 +969,7 @@ test("can\u2019t update a channel\u2019s name and description without manage acc
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1b"))');
 
     await channel.access.grantDefault(session1, "View");
@@ -985,7 +985,7 @@ test("can\u2019t update a channel\u2019s name and description without manage acc
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1b"))');
 
     await channel.access.grantDefault(session1, "Comment");
@@ -1001,7 +1001,7 @@ test("can\u2019t update a channel\u2019s name and description without manage acc
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1b"))');
 
     await channel.access.grantDefault(session1, "Edit");
@@ -1017,7 +1017,7 @@ test("can\u2019t update a channel\u2019s name and description without manage acc
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 1b"))');
 
     await channel.access.grantDefault(session1, "Manage");
@@ -1031,7 +1031,7 @@ test("can\u2019t update a channel\u2019s name and description without manage acc
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 6a");
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual('doc(paragraph("Test 6b"))');
 });
 
@@ -8209,7 +8209,7 @@ test("creating a post with files adds to the channel\u2019s post files", async (
     });
 });
 
-// eslint-disable-next-line string-quotes
+// eslint-disable-next-line cyberworlds/string-quotes
 test("updating a post with files changes the channel's post files", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();

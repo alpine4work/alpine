@@ -773,7 +773,7 @@ async function loadCursorCloudAgentPromptAttachmentsContent({
             });
 
             return (
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 `<attachment path="${escapeHtml(linkUrl)}">\n` +
                 printAgentContentMarkdownTree(markdownTree).trim() +
                 "\n</attachment>"

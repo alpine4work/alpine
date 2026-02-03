@@ -6,7 +6,7 @@ import {BottomBarFrameContextProvider} from "~/client/web/design/bottom_bar_fram
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {PeekRemixEmbedRouter} from "~/client/web/peek/peek_remix_embed_router.js";
-// eslint-disable-next-line no-internal-imports
+// eslint-disable-next-line cyberworlds/no-internal-imports
 import {PeekContextDefinition} from "~/client/web/remix/internal/peek_context_definition.js";
 import {UpdateMetaTitleContextProvider} from "~/client/web/remix/use_update_meta_title.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";

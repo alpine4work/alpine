@@ -137,6 +137,7 @@ module.exports = {
     extends: ["@remix-run/eslint-config", "@remix-run/eslint-config/node"],
     plugins: [
         "@typescript-eslint",
+        "cyberworlds",
         "jest",
         "jest-dom",
         "testing-library",
@@ -149,16 +150,13 @@ module.exports = {
         "jest/globals": true,
     },
     rules: {
-        // Custom eslint rules from `admin/eslint/rules`:
-        //
-        // TODO(calebmer): Consider putting these in a plugin instead of a custom
-        // rules directory to simplify things.
-        "no-global-error": "error",
-        "no-global-fetch": "error",
-        "sort-imports-by-source": "warn",
-        "no-internal-imports": "error",
-        "no-commit-blockers": "warn",
-        "string-quotes": "warn",
+        // Custom eslint rules from `eslint-plugin-cyberworlds` (admin/eslint/rules):
+        "cyberworlds/no-global-error": "error",
+        "cyberworlds/no-global-fetch": "error",
+        "cyberworlds/sort-imports-by-source": "warn",
+        "cyberworlds/no-internal-imports": "error",
+        "cyberworlds/no-commit-blockers": "warn",
+        "cyberworlds/string-quotes": "warn",
 
         // TODO(calebmer): Write eslint rule that detects when you have `await`s that
         // could be parallelized with `Promise.all()`.
@@ -412,7 +410,7 @@ module.exports = {
                 "import/no-commonjs": "off",
 
                 // Can't import our TypeScript helpers from a JS file.
-                "no-global-error": "off",
+                "cyberworlds/no-global-error": "off",
             },
         },
         // Rules for all Jest test and helper files. Excludes Playwright test files or
@@ -463,7 +461,7 @@ module.exports = {
             rules: {
                 // It's fine to use `fetch()` in unit tests. We don't care about tracing in
                 // unit tests.
-                "no-global-fetch": "off",
+                "cyberworlds/no-global-fetch": "off",
 
                 // You should not export anything from test files.
                 "jest/no-export": "error",
@@ -484,16 +482,14 @@ module.exports = {
             rules: {
                 // Only TypeScript types may go in `shared/types`. We have this restriction to
                 // force any code in that directory to not contribute to bundle size.
-                //
-                // This is a custom eslint rules from `admin/eslint/rules`.
-                "only-erasable-types": "error",
+                "cyberworlds/only-erasable-types": "error",
             },
         },
         {
             files: ["**/types/**/*.test.*"],
             rules: {
                 // Tests in `types` directories may have executable code.
-                "only-erasable-types": "off",
+                "cyberworlds/only-erasable-types": "off",
             },
         },
         {
@@ -563,7 +559,7 @@ module.exports = {
             rules: {
                 // `.css.ts` files need to use quotes in strings a lot for CSS selectors and we
                 // don't really create UI strings in CSS files.
-                "string-quotes": "off",
+                "cyberworlds/string-quotes": "off",
             },
         },
     ],

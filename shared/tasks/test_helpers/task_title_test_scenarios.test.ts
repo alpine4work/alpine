@@ -112,7 +112,7 @@ test("`sentenceTaskTitleTestScenario` is correct", () => {
     const title9 = Y.encodeStateAsUpdateV2(doc) as TaskTitle;
 
     expect(view.state.doc.toString()).toEqual(
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         'doc("The quick (\u201Cbrown\u201D) fox can\u2019t jump 32.3 feet, right?")',
     );
 

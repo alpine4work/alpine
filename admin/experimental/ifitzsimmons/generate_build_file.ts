@@ -76,7 +76,7 @@ function buildFileToTargetCache(): Map<string, string> {
 
     try {
         // Get all ts_project targets using bazel query
-        // eslint-disable-next-line string-quotes, no-useless-escape
+        // eslint-disable-next-line cyberworlds/string-quotes, no-useless-escape
         const tsProjectTargetsOutput = execSync(`bazel query 'kind(\"ts_project rule\", //...)'`, {
             encoding: "utf-8",
             stdio: ["ignore", "pipe", "ignore"],
@@ -90,7 +90,7 @@ function buildFileToTargetCache(): Map<string, string> {
         // For each target, get its source files
         for (const target of targets) {
             try {
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 const sourceFilesOutput = execSync(`bazel query "labels(srcs, ${target})"`, {
                     encoding: "utf-8",
                     stdio: ["ignore", "pipe", "ignore"],
@@ -480,13 +480,13 @@ function parseBuildFile(buildFilePath: string, preferredName?: string): BuildFil
  */
 function generateTsProjectContent(config: BuildFileConfig): string {
     let content = `ts_project(\n`;
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     content += `    name = "${config.name}",\n`;
 
     if (config.testDeps.length > 0) {
         content += `    test_deps = [\n`;
         for (const dep of config.testDeps.sort()) {
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             content += `        "${dep}",\n`;
         }
         content += `    ],\n`;
@@ -504,7 +504,7 @@ function generateTsProjectContent(config: BuildFileConfig): string {
     if (config.deps.length > 0) {
         content += `    deps = [\n`;
         for (const dep of config.deps.sort()) {
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             content += `        "${dep}",\n`;
         }
         content += `    ],\n`;
@@ -519,7 +519,7 @@ function generateTsProjectContent(config: BuildFileConfig): string {
  * Generates a complete BUILD file content from configuration (for new files)
  */
 function generateBuildFileContent(config: BuildFileConfig): string {
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     let content = `load("//admin/typescript:typescript.bzl", "ts_project")\n\n`;
     content += generateTsProjectContent(config);
     content += `\n`;
@@ -777,7 +777,7 @@ function createBuildFile(dirPath: string) {
         name: path.basename(dirPath),
         deps: finalDeps,
         testDeps: finalTestDeps,
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         visibilityRaw: `"//app:__subpackages__",\n        "//client/web:__subpackages__",`,
     };
 

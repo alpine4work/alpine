@@ -97,7 +97,7 @@ export function approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterG
         // https://github.com/apache/lucene/blob/5d6086e1994d766a3dd39a47b14a8cd80a7280e6/lucene/analysis/common/src/java/org/apache/lucene/analysis/en/EnglishPossessiveFilter.java#L32-L50
         if (
             text.length >= 2 &&
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             (text[text.length - 2] === "'" ||
                 text[text.length - 2] === "\u2019" ||
                 text[text.length - 2] === "\uFF07") &&

@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {createContentCodeBlockNodeInput} from "~/shared/content/code/create_content_code_block_node_input.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";

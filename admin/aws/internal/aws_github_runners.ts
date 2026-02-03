@@ -291,7 +291,7 @@ export class AwsGithubRunners extends Construct {
             // environment variable. We add this option to
             // `@cloudsnorkel/cdk-github-runners` through a patch.
             //
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             userDataExtra: Fn.join("", ['{"jobQueueUrl":"', sqs.getJobQueueUrl(), '"}']),
         });
 
@@ -379,7 +379,7 @@ export class AwsGithubRunners extends Construct {
 
             imageBuilder: deployImageBuilder,
 
-            /* eslint-disable string-quotes */
+            /* eslint-disable cyberworlds/string-quotes */
 
             // Pass parameters to the AWS GitHub workflow through the `USER_DATA_EXTRA`
             // environment variable. We add this option to
@@ -396,7 +396,7 @@ export class AwsGithubRunners extends Construct {
                 '"}',
             ]),
 
-            /* eslint-enable string-quotes */
+            /* eslint-enable cyberworlds/string-quotes */
         });
 
         const deployRunnerProviderRole: unknown = (deployRunnerProvider as any).role;

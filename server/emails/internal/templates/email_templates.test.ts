@@ -117,7 +117,7 @@ describe("getTitleFromHtml", () => {
         {
             description: "handles title with complex HTML entity combinations",
             html: "<html><head><title>A&amp;B &lt; C&gt;D &quot;E&quot; &#39;F&#39;</title></head></html>",
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             expected: `A&B < C>D "E" 'F'`,
         },
         {

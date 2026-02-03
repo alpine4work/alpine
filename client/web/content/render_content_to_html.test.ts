@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {CalendarDate} from "@internationalized/date";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";

@@ -16,12 +16,12 @@ export function normalizeContentEditorCodeText(
         switch (text[index]) {
             case "\u201C":
             case "\u201D":
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 replacements.push({from: index, to: index + 1, text: '"'});
                 break;
             case "\u2018":
             case "\u2019":
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 replacements.push({from: index, to: index + 1, text: "'"});
                 break;
             case "\u2014":

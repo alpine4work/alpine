@@ -6,7 +6,7 @@ import {
 } from "~/shared/error/error.js";
 
 test("can create an error of a specific code using the from method", () => {
-    // eslint-disable-next-line no-global-error
+    // eslint-disable-next-line cyberworlds/no-global-error
     const error1 = new Error("test");
     const error2 = new FailedPreconditionError("test");
     const error3 = {a: 1, b: 2, c: 3};

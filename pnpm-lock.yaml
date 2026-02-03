@@ -765,6 +765,9 @@ importers:
       eslint-config-react:
         specifier: ^1.1.7
         version: 1.1.7
+      eslint-plugin-cyberworlds:
+        specifier: file:admin/eslint/rules
+        version: file:admin/eslint/rules
       eslint-plugin-import:
         specifier: ^2.27.5
         version: 2.27.5(@typescript-eslint/parser@8.44.0(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i))(typescript@5.9.2))(eslint-import-resolver-typescript@3.5.5(@typescript-eslint/parser@8.44.0(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i))(typescript@5.9.2))(eslint-import-resolver-node@0.3.7)(eslint-plugin-import@2.27.5(@typescript-eslint/parser@8.44.0(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i))(typescript@5.9.2))(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i)))(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i)))(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i))
@@ -5719,6 +5722,9 @@ packages:
         optional: true
       eslint-import-resolver-webpack:
         optional: true
+
+  eslint-plugin-cyberworlds@file:admin/eslint/rules:
+    resolution: {directory: admin/eslint/rules, type: directory}
 
   eslint-plugin-es@3.0.1:
     resolution: {integrity: sha512-GUmAsJaN4Fc7Gbtl8uOBlayo2DqhwWvEzykMHSCZHU3XdJ+NSzzZcVhXh3VxX5icqQ+oQdIEawXX8xkR3mIFmQ==}
@@ -15864,6 +15870,8 @@ snapshots:
       eslint-import-resolver-typescript: 3.5.5(@typescript-eslint/parser@8.44.0(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i))(typescript@5.9.2))(eslint-import-resolver-node@0.3.7)(eslint-plugin-import@2.27.5(@typescript-eslint/parser@8.44.0(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i))(typescript@5.9.2))(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i)))(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i))
     transitivePeerDependencies:
       - supports-color
+
+  eslint-plugin-cyberworlds@file:admin/eslint/rules: {}
 
   eslint-plugin-es@3.0.1(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i)):
     dependencies:

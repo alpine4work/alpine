@@ -1,1 +1,6 @@
-{}
+{
+    "private": true,
+    "name": "eslint-plugin-cyberworlds",
+    "version": "0.0.0",
+    "main": "index.js"
+}

@@ -134,7 +134,7 @@ export async function searchAlpineForAgent(
                         type: "text",
                         value:
                             matchFilterSuperset !== null
-                                ? // eslint-disable-next-line string-quotes
+                                ? // eslint-disable-next-line cyberworlds/string-quotes
                                   `The following search results are _not_ ${matchFilterSuperset} but Alpine thought might be relevant anyway. Use your best judgement when determining if they're actually useful for responding to the user's request.`
                                 : "The following search results matched the keyword search but did not match any specific filters.",
                     },

@@ -140,14 +140,14 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                     if (process.env.AWS_EXECUTION_ENV === "AWS_ECS_FARGATE") return;
 
                     // IMDSv2 requires a token first
-                    // eslint-disable-next-line no-global-fetch
+                    // eslint-disable-next-line cyberworlds/no-global-fetch
                     const tokenResponse = await fetch("http://169.254.169.254/latest/api/token", {
                         method: "PUT",
                         headers: {"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
                     });
                     const token = await tokenResponse.text();
 
-                    // eslint-disable-next-line no-global-fetch
+                    // eslint-disable-next-line cyberworlds/no-global-fetch
                     const response = await fetch(
                         "http://169.254.169.254/latest/meta-data/instance-id",
                         {headers: {"X-aws-ec2-metadata-token": token}},
@@ -163,7 +163,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                     // directly on EC2 instances.
                     if (!metadataUri) return;
 
-                    // eslint-disable-next-line no-global-fetch
+                    // eslint-disable-next-line cyberworlds/no-global-fetch
                     const response = await fetch(`${metadataUri}/task`);
                     const metadata = await response.json();
 

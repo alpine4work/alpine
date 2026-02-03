@@ -451,7 +451,7 @@ export function testFileProcessorContentTypes(
                                         item.type === "Newline"
                                             ? "\n"
                                             : item.classes
-                                              ? // eslint-disable-next-line string-quotes
+                                              ? // eslint-disable-next-line cyberworlds/string-quotes
                                                 `<span class="${item.classes}">${escapeHtml(
                                                     item.string,
                                                 )}</span>`

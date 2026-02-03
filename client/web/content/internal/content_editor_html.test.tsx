@@ -310,7 +310,7 @@ const inlineTestCases: Array<{
     {
         name: "link (XSS vulnerability)",
         disableClipboardTests: true,
-        build: () => schema.mark("link", {url: "javascript:alert('XSS')"}), // eslint-disable-line no-script-url, string-quotes
+        build: () => schema.mark("link", {url: "javascript:alert('XSS')"}), // eslint-disable-line no-script-url, cyberworlds/string-quotes
     },
 ];
 
@@ -701,7 +701,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
             );
         });
 
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         expect(pasteEditor.state.doc.toString()).toEqual('doc(paragraph("test"), paragraph)');
         expect(pasteEditor.state.selection.anchor).toEqual(3);
         expect(pasteEditor.state.selection.head).toEqual(3);
@@ -760,7 +760,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
             await waitMacrotask();
         });
 
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         expect(pasteEditor.state.doc.toString()).not.toEqual('doc(paragraph("test"), paragraph)');
         expect(pasteEditor.state.doc.toString()).toMatch(/^doc\(paragraph\("test"\),/);
 
@@ -948,7 +948,7 @@ describe("links", () => {
     const formattedLinks = ["example.com", "calendar.example.com"];
 
     const invalidLinks = [
-        // eslint-disable-next-line no-script-url, string-quotes
+        // eslint-disable-next-line no-script-url, cyberworlds/string-quotes
         "javascript:alert('XSS')",
         "file:///Users/calebmer/cyberworlds/package.json",
         "tel:+123456789",

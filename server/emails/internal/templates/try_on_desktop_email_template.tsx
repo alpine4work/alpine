@@ -28,7 +28,7 @@ export function TryOnDesktopEmailTemplate({
         <BaseEmailTemplate
             subject={subject}
             resourceServiceUrl={resourceServiceUrl}
-            /* eslint-disable string-quotes */
+            /* eslint-disable cyberworlds/string-quotes */
             globalStyles={`
                 @media (prefers-color-scheme: dark) {
                     #brand-icons {
@@ -60,7 +60,7 @@ export function TryOnDesktopEmailTemplate({
                     }
                 }
             `}
-            /* eslint-enable string-quotes */
+            /* eslint-enable cyberworlds/string-quotes */
         >
             <EmailText>
                 Thanks for trying Alpine on your phone. Today, you&#x2019;ll get the best Alpine has

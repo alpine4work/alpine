@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {Body, Container, Head, Html, Img, Preview, Section} from "@react-email/components";
 import {EmailFont} from "~/server/emails/internal/components/email_font.js";

@@ -211,7 +211,7 @@ export async function fetchWithTracer<ResponseData>(
 
         const fetchStartTime = span.clock.now();
 
-        // eslint-disable-next-line no-global-fetch
+        // eslint-disable-next-line cyberworlds/no-global-fetch
         const response = await fetch(request).catch(error => {
             // Classify network errors as the `Unavailable` status code.
             //

@@ -57,13 +57,13 @@ describe("parseUserInputSafeUrl", () => {
 
     describe("invalid URLs and unsafe inputs", () => {
         const invalidInputs = [
-            // eslint-disable-next-line no-script-url, string-quotes
+            // eslint-disable-next-line no-script-url, cyberworlds/string-quotes
             {input: "javascript:alert('xss')", description: "javascript protocol"},
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             {input: "data:text/html,<script>alert('xss')</script>", description: "data protocol"},
             {input: "file:///etc/passwd", description: "file protocol"},
             {input: "ftp://example.com", description: "ftp protocol"},
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             {input: "vbscript:msgbox('xss')", description: "vbscript protocol"},
             {input: "about:blank", description: "about protocol"},
             {input: "", description: "empty string"},

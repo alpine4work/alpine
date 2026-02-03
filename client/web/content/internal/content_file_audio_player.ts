@@ -54,7 +54,7 @@ const {
         viewboxHeight,
         barWidth: round3(barWidth),
         minBarHeight: round3(minBarHeight),
-        /* eslint-disable string-quotes */
+        /* eslint-disable cyberworlds/string-quotes */
 
         // We add 1 around the viewbox since we were sometimes getting rendering
         // artifacts in Chrome near the edge of the viewbox during an animation. Adding the
@@ -72,7 +72,7 @@ ${createArrayWithLength(barCount, index => {
 }).join("")}\
 </svg>`,
 
-        /* eslint-enable string-quotes */
+        /* eslint-enable cyberworlds/string-quotes */
     };
 })();
 

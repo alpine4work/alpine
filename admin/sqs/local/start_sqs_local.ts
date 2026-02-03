@@ -79,7 +79,7 @@ export async function startSqsLocal({
     const awsRegion = "us-east-1";
     const awsAccountId = "local";
 
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     const configContents = [];
 
@@ -132,7 +132,7 @@ messages-storage {
 }`);
     }
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 
     await fs.writeFile(configPath, configContents.join("\n\n") + "\n");
 
@@ -162,7 +162,7 @@ messages-storage {
             new CreateQueueCommand({
                 QueueName: "FileProcessorJobQueue",
                 Attributes: {
-                    // eslint-disable-next-line string-quotes
+                    // eslint-disable-next-line cyberworlds/string-quotes
                     RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:FileProcessorJobDeadLetterQueue","maxReceiveCount":"5"}`,
                 },
             }),
@@ -173,7 +173,7 @@ messages-storage {
                 new CreateQueueCommand({
                     QueueName: "JobQueue",
                     Attributes: {
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:JobDeadLetterQueue","maxReceiveCount":"5"}`,
                     },
                 }),
@@ -184,7 +184,7 @@ messages-storage {
                 new CreateQueueCommand({
                     QueueName: "FileProcessorHeavyJobQueue",
                     Attributes: {
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:FileProcessorJobQueue","maxReceiveCount":"5"}`,
                     },
                 }),
@@ -195,7 +195,7 @@ messages-storage {
                 new CreateQueueCommand({
                     QueueName: "FileProcessorLightJobQueue",
                     Attributes: {
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:FileProcessorJobQueue","maxReceiveCount":"5"}`,
                     },
                 }),

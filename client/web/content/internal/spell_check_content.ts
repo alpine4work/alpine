@@ -251,7 +251,7 @@ export async function actuallySpellCheckContent(
             for (let i = 0; i < text.length; i++) {
                 const char = text[i]!;
 
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 if (char === "'") {
                     const lastChar = text[i - 1]!;
                     if (/^\p{White_Space}$/u.test(lastChar)) {
@@ -259,7 +259,7 @@ export async function actuallySpellCheckContent(
                     } else {
                         text = text.slice(0, i) + "\u2019" + text.slice(i + 1);
                     }
-                    // eslint-disable-next-line string-quotes
+                    // eslint-disable-next-line cyberworlds/string-quotes
                 } else if (char === '"') {
                     const lastChar = text[i - 1]!;
                     if (/^\p{White_Space}$/u.test(lastChar)) {

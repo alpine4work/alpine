@@ -182,7 +182,7 @@ export default function SpaceProfileSettingsRoute() {
                                 //
                                 // Particularly the "x" in "256x256".
                                 //
-                                // eslint-disable-next-line string-quotes
+                                // eslint-disable-next-line cyberworlds/string-quotes
                                 fontFeatureSettings: '"calt" on',
                             }}
                         >

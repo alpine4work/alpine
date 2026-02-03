@@ -325,7 +325,7 @@ export class AwsTaskRealtimeService extends Construct {
                 // need to wait for `TaskRealtimeService` to be discovered by all our peers.
                 startPeriod: Duration.millis(taskRealtimeServiceDiscoveryWaitMs),
 
-                /* eslint-disable string-quotes */
+                /* eslint-disable cyberworlds/string-quotes */
 
                 command: [
                     "CMD-SHELL",
@@ -339,7 +339,7 @@ export class AwsTaskRealtimeService extends Construct {
                         .join(" ")}"`,
                 ],
 
-                /* eslint-enable string-quotes */
+                /* eslint-enable cyberworlds/string-quotes */
             },
         });
 
@@ -376,7 +376,7 @@ export class AwsTaskRealtimeService extends Construct {
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
                     //
-                    // eslint-disable-next-line string-quotes
+                    // eslint-disable-next-line cyberworlds/string-quotes
                     `/var/www/server/tasks/realtime/gateway/gateway.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:80/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
                 ],
             },

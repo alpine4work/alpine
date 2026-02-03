@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {fireEvent, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";

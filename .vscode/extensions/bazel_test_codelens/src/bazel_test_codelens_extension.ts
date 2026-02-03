@@ -99,7 +99,7 @@ const getTestCommandWithFilterIfPossible = (bazelTarget: string, testName: strin
         return `bazel run ${bazelTarget}`;
     }
 
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     return `bazel run ${bazelTarget} -- -t="${testName}"`; // these quotes are important for the shell
 };
 

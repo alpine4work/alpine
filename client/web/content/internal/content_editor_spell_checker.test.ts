@@ -130,7 +130,7 @@ describe("ContentEditorSpellChecker", () => {
         });
 
         describe("typing detection", () => {
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             const specialChars = "abcABC123@#$%^&*()-=[]\\;',/+{}|:\"<>";
 
             for (const char of specialChars) {

@@ -13,7 +13,7 @@ const rawFromAddress: FromEmailAddress = {
 
 test("correctly formats in name-addr format", () => {
     const actual = getFromEmailAddressNameAddr(rawFromAddress);
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     expect(actual).toBe('"Alpine" <test@alpine.inc>');
 });
 

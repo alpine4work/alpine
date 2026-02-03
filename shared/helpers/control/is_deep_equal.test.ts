@@ -45,9 +45,9 @@ test("undefined is stringified", () => {
     expect(stringifyForDeepEqualCheck(undefined)).toEqual("undefined");
     expect(stringifyForDeepEqualCheck([null])).toEqual("[null]");
     expect(stringifyForDeepEqualCheck([undefined])).toEqual("[undefined]");
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     expect(stringifyForDeepEqualCheck({p: null})).toEqual('{"p":null}');
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     expect(stringifyForDeepEqualCheck({p: undefined})).toEqual('{"p":undefined}');
     expect(stringifyForDeepEqualCheck({})).toEqual("{}");
 });

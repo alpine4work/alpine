@@ -333,7 +333,7 @@ export class AwsJobQueueService extends Construct {
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
                     //
-                    // eslint-disable-next-line string-quotes
+                    // eslint-disable-next-line cyberworlds/string-quotes
                     `/var/www/server/jobs/queue/queue.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "import fs from 'fs'; if (fs.readFileSync('/var/www-data/server_jobs_queue_healthcheck.txt', 'utf8').trim() !== 'Healthy') { throw new Error('Healthcheck failed') }"`,
                 ],
             },

@@ -1006,7 +1006,7 @@ export function getFileImagePreviewRenderingAdjustments(placeholder: FileImagePr
 }
 
 export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlaceholder) {
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     const pixelGrid = placeholder.get();
     const pixelGridWidth = pixelGrid[0].length;
@@ -1052,7 +1052,7 @@ export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewP
     svg += "</g></svg>";
     return svg;
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 }
 
 /**
@@ -1165,7 +1165,7 @@ function renderFileProcessingPreviewPlaceholder(
     pixelGrid: ReadonlyArray<ReadonlyArray<ColorWithShade>>,
     {className = ""}: {className?: string} = {},
 ) {
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     const pixelGridWidth = pixelGrid[0]!.length;
     const pixelGridHeight = pixelGrid.length;
@@ -1203,7 +1203,7 @@ function renderFileProcessingPreviewPlaceholder(
     svg += "</g></svg>";
     return svg;
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 }
 
 export function addContentFilePreviewBehaviorBase(

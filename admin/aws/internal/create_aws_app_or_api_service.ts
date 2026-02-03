@@ -387,7 +387,7 @@ export function createAwsAppOrApiService(
                 // `curl` is not installed in container. Use a script with our Node.js binary to
                 // perform healthcheck.
                 //
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 `${taskDefinitionOptions.containerCommandPath}.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}${loadBalancerOptions.healthCheckPath}'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
             ],
         },

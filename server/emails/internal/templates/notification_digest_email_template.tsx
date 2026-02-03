@@ -112,7 +112,7 @@ export function NotificationDigestEmailTemplate({
     return (
         <BaseEmailTemplate
             resourceServiceUrl={resourceServiceUrl}
-            /* eslint-disable string-quotes */
+            /* eslint-disable cyberworlds/string-quotes */
             globalStyles={`
                 @media (prefers-color-scheme: dark) {
                     .chat-brand-icon {
@@ -129,7 +129,7 @@ export function NotificationDigestEmailTemplate({
                     }
                 }
             `}
-            /* eslint-enable string-quotes */
+            /* eslint-enable cyberworlds/string-quotes */
             subject={subject}
             preview={preview}
         >
@@ -270,7 +270,7 @@ function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
                 <div
                     className="post-brand-icon"
                     style={{
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         backgroundImage: `url('${resourceServiceUrl}/icons/post_brand_icon_light.png')`,
                         // Force new stacking context to force this element and its background to be placed on top.
                         opacity: 0.999,
@@ -287,7 +287,7 @@ function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
                 <div
                     className="chat-brand-icon"
                     style={{
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         backgroundImage: `url('${resourceServiceUrl}/icons/chat_brand_icon_light.png')`,
                         // Force new stacking context to force this element and its background to be placed on top.
                         opacity: 0.999,
@@ -304,7 +304,7 @@ function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
                 <div
                     className="document-brand-icon"
                     style={{
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         backgroundImage: `url('${resourceServiceUrl}/icons/document_brand_icon_light.png')`,
                         // Force new stacking context to force this element and its background to be placed on top.
                         opacity: 0.999,
@@ -321,7 +321,7 @@ function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
                 <div
                     className="task-brand-icon"
                     style={{
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         backgroundImage: `url('${resourceServiceUrl}/icons/task_brand_icon_light.png')`,
                         // Force new stacking context to force this element and its background to be placed on top.
                         opacity: 0.999,

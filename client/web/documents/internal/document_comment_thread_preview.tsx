@@ -93,7 +93,7 @@ export function DocumentCommentThreadPreview({
         const previewContentElement = assertExists(previewContentRef.current);
 
         const commentElement = assertExists(
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             previewContentElement.querySelector(`[data-comment="${commentThread.id}"]`),
             "Snippet should contain previewed comment thread",
         );
@@ -235,13 +235,13 @@ export function DocumentCommentThreadPreview({
                         </ContentBlockWidthContextProvider>
                     </Box>
                     <ScriptBeforeAppInitialRender
-                        /* eslint-disable string-quotes */
+                        /* eslint-disable cyberworlds/string-quotes */
                         script={safe`var previewContentElement = document.currentScript.previousElementSibling; var previewElement = previewContentElement.parentElement; var commentElement = previewContentElement.querySelector('[data-comment="${safeAlphanumericString(
                             commentThread.id,
                         )}"]'); if (commentElement) { var previewRect = previewElement.getBoundingClientRect(); var commentRect = commentElement.getBoundingClientRect(); previewElement.scrollTop = commentRect.y - (previewRect.y - previewElement.scrollTop) - ${safeNumber(
                             commentOffset,
                         )}; }`}
-                        /* eslint-enable string-quotes */
+                        /* eslint-enable cyberworlds/string-quotes */
                     />
                 </Box>
             </Box>

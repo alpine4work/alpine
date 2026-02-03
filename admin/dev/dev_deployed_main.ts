@@ -24,7 +24,7 @@ async function main(): Promise<{exitCode: number}> {
         compareCommitSha = (await runProcess("git", ["rev-parse", "HEAD"])).trim();
     }
 
-    // eslint-disable-next-line no-global-fetch
+    // eslint-disable-next-line cyberworlds/no-global-fetch
     const response = await fetch("https://alpine.inc/api/internal/deploy");
 
     const deploy:

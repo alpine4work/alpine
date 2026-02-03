@@ -132,7 +132,7 @@ async function handleFetch(
     // [1]: https://en.wikipedia.org/wiki/Network_Time_Protocol
     // [2]: https://developers.cloudflare.com/workers/learning/security-model/
     if (url.pathname === "/api/time") {
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         return new Response(`{"startTime":${startTime},"endTime":${Date.now()}}`, {
             status: 200,
             headers: {"content-type": "application/json"},
@@ -154,7 +154,7 @@ async function handleFetch(
         // In development, static assets are served by `serve-static` middleware in
         // `AppService`. In production we serve static assets from Cloudflare R2.
         if (process.env.NODE_ENV !== "production") {
-            // eslint-disable-next-line no-global-fetch
+            // eslint-disable-next-line cyberworlds/no-global-fetch
             return fetch(request);
         }
 
@@ -223,7 +223,7 @@ async function handleFetch(
     // significant number of Honeycomb events come from Vite requests in
     // development environments.
     if (process.env.NODE_ENV === "development" && url.pathname.startsWith("/vite/")) {
-        // eslint-disable-next-line no-global-fetch
+        // eslint-disable-next-line cyberworlds/no-global-fetch
         return fetch(request);
     }
 
@@ -662,7 +662,7 @@ async function actuallyHandleFetch(
                     );
 
                 if (process.env.NODE_ENV !== "production") {
-                    // eslint-disable-next-line no-global-fetch
+                    // eslint-disable-next-line cyberworlds/no-global-fetch
                     return fetch(`http://${taskRealtimeServiceHost}/${spaceId}`, {headers});
                 }
 
@@ -676,7 +676,7 @@ async function actuallyHandleFetch(
                 // a small proxy server in `TaskRealtimeService` on port 80 that redirects to
                 // the right port.
                 //
-                // eslint-disable-next-line no-global-fetch
+                // eslint-disable-next-line cyberworlds/no-global-fetch
                 return fetch(
                     `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}`,
                     {headers},
@@ -736,7 +736,7 @@ async function actuallyHandleFetch(
                       await taskRealtimeServiceRouter.getRandomHost(routerContext, spaceId);
 
                 if (process.env.NODE_ENV !== "production") {
-                    // eslint-disable-next-line no-global-fetch
+                    // eslint-disable-next-line cyberworlds/no-global-fetch
                     return fetch(`http://${taskRealtimeServiceHost}/${spaceId}/loadQueries`, {
                         method: "POST",
                         headers,
@@ -754,7 +754,7 @@ async function actuallyHandleFetch(
                 // a small proxy server in `TaskRealtimeService` on port 80 that redirects to
                 // the right port.
                 //
-                // eslint-disable-next-line no-global-fetch
+                // eslint-disable-next-line cyberworlds/no-global-fetch
                 return fetch(
                     `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}/loadQueries`,
                     {
@@ -950,7 +950,7 @@ async function actuallyHandleFetch(
                     }
                 }
 
-                // eslint-disable-next-line no-global-fetch
+                // eslint-disable-next-line cyberworlds/no-global-fetch
                 let response = await fetch(proxyUrl, {
                     method: "GET",
                     headers: proxyHeaders,
@@ -1007,7 +1007,7 @@ async function actuallyHandleFetch(
         // untouched. To `AppService` it will look like the request is coming from a
         // web browser.
         //
-        // eslint-disable-next-line no-global-fetch
+        // eslint-disable-next-line cyberworlds/no-global-fetch
         response = await fetch(request, {headers});
 
         const appServiceEndTime = span.clock.now();
@@ -1042,7 +1042,7 @@ async function actuallyHandleFetch(
                 const retryHeaders = new Headers(request.headers);
                 addTracerPropagationContextHeader(retryHeaders, span);
 
-                // eslint-disable-next-line no-global-fetch
+                // eslint-disable-next-line cyberworlds/no-global-fetch
                 return fetch(request, {headers: retryHeaders});
             });
 
@@ -1099,7 +1099,7 @@ async function actuallyHandleFetch(
 
         response.headers.append(
             "server-timing",
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
         );
     }

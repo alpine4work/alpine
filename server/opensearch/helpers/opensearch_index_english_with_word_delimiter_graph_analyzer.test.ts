@@ -4,7 +4,7 @@ test("removes non-alphanumeric characters", () => {
     expect(
         Array.from(
             approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 "XL---42+'Autocoder'",
             ),
         ),

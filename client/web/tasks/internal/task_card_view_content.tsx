@@ -208,7 +208,7 @@ function TaskCardViewContent(
 
     if (displayCollections.length > maxCollectionCount) {
         fieldElements.push(
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             <Box color="grey-70" marginLeft="-1" style={{fontFeatureSettings: '"calt"'}}>
                 +{displayCollections.length - maxCollectionCount}
             </Box>,
@@ -269,7 +269,7 @@ function TaskCardViewContent(
                         textOverflow: "ellipsis",
                         // Render contextual alternate glyphs. User text may be rendered here. Helpful
                         // for consistency if the user types anything like 2x2 or an @ mention.
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         fontFeatureSettings: '"calt" on',
                     }}
                     dangerouslySetInnerHTML={useMemo(

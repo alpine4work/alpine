@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {CalendarDate} from "@internationalized/date";
 import _Fuse from "fuse.js";

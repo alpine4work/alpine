@@ -65,7 +65,7 @@ export async function renderApiBrowser({
     // We want errors to be printed on multiple lines. So add a new line after
     // `"error": {` to force Prettier to print on multiple lines.
     //
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     if (body.startsWith('{"error":{')) {
         body = body.slice(0, 10) + "\n" + body.slice(10);
     }
@@ -96,7 +96,7 @@ export async function renderApiBrowser({
             if (classes.length === 0) {
                 highlightedPrettyBodyHtml += escapeHtml(text);
             } else {
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 highlightedPrettyBodyHtml += `<span class="${classes}">${escapeHtml(text)}</span>`;
             }
         },
@@ -107,7 +107,7 @@ export async function renderApiBrowser({
 
     const dateHeaderValue = new Date().toUTCString();
 
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     const ltHtml = '<span class="tok-comment">&lt;</span>';
     const gtHtml = '<span class="tok-comment">&gt;</span>';
@@ -255,7 +255,7 @@ ${highlightedPrettyBodyHtml}</code></pre>
 </html>
 `;
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 
     return new Response(html, {
         status: response.status,

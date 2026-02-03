@@ -35,7 +35,7 @@ test("account can lose access to space", async ({page, context: browserContext})
     // Immediately clear space account cache or else `AppService` will continue to
     // consider the account authorized.
     //
-    // eslint-disable-next-line no-global-fetch
+    // eslint-disable-next-line cyberworlds/no-global-fetch
     const response = await fetch(
         `${services.getBaseUrl()}/api/internal/test/clearSpaceAccountsCache`,
     );

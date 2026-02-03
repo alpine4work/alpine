@@ -4,7 +4,7 @@ import {Miniflare} from "miniflare";
 import {join as joinPath} from "path";
 import toml from "toml";
 import {parseArgs} from "util";
-// eslint-disable-next-line sort-imports-by-source
+// eslint-disable-next-line cyberworlds/sort-imports-by-source
 import {writeTracerEventToFileInDev} from "../../shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 
 // Make our service easy to find in process managers. We include

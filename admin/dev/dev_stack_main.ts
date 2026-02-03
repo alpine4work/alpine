@@ -458,7 +458,7 @@ async function runGit(args: ProcessArgs) {
         .filter(isNonNullableOrFalse)
         .map((arg, i) => {
             arg = String(arg);
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             if (arg.includes(" ") || arg.length === 0) arg = `"${arg}"`;
             if (i === 0) return chalk.bold(arg);
             return arg;
@@ -501,7 +501,7 @@ async function runGh(
         .filter(isNonNullableOrFalse)
         .map((arg, i) => {
             arg = String(arg);
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             if (arg.includes(" ") || arg.length === 0) arg = `"${arg}"`;
             if (i === 0 || i === 1) return chalk.bold(arg);
             return arg;

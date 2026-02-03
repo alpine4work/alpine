@@ -1533,7 +1533,7 @@ export function ContentView<Content extends ContentWithReferences>({
                     dangerouslySetInnerHTML={{
                         __html:
                             typeof window === "undefined"
-                                ? // eslint-disable-next-line string-quotes
+                                ? // eslint-disable-next-line cyberworlds/string-quotes
                                   `(window.__contentViewCodeBlockDecorationsById || (window.__contentViewCodeBlockDecorationsById = {}))["${id}"] = ${JSON.stringify(
                                       ContentViewCodeBlockDecorationsSchema.serialize(
                                           codeBlockDecorations,

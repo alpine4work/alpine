@@ -4226,7 +4226,7 @@ test("bot can read messages in a chat if it\u2019s scope allows", async () => {
         },
     );
 
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     expect(payload.content?.toString()).toEqual('doc(paragraph("foo"))');
 });
 

@@ -382,7 +382,7 @@ export default function Root() {
             // https://github.com/facebook/react/issues/10474
             if (
                 process.env.NODE_ENV !== "production" &&
-                // eslint-disable-next-line no-global-error
+                // eslint-disable-next-line cyberworlds/no-global-error
                 new Error().stack?.includes("invokeGuardedCallbackDev")
             ) {
                 return;

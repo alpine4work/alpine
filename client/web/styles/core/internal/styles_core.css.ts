@@ -6,7 +6,7 @@
 
 import "~/client/web/styles/core/internal/helpers/register_constant_class_names.js";
 
-// eslint-disable-next-line sort-imports-by-source
+// eslint-disable-next-line cyberworlds/sort-imports-by-source
 import "~/client/web/styles/core/internal/global_1_reset.css.js";
 import "~/client/web/styles/core/internal/global_2_defaults.css.js";
 

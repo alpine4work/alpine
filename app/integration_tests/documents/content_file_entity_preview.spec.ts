@@ -668,7 +668,7 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
                     types: ["text/html"],
                     getData: (type: string) => {
                         if (type !== "text/html") return null;
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         return `<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`;
                     },
                 },
@@ -787,7 +787,7 @@ test("can paste `<iframe>` HTML to add file entity to chat", async ({
                     types: ["text/html"],
                     getData: (type: string) => {
                         if (type !== "text/html") return null;
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         return `<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`;
                     },
                 },

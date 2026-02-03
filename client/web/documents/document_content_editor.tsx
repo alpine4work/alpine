@@ -1220,7 +1220,7 @@ export function DocumentContentEditor({
     const handleCommentThreadSnippetPress = useEvent((commentThreadId: DocumentCommentThreadId) => {
         const editorContainerElement = assertExists(editorContainerRef.current);
         const firstCommentMarkElement = editorContainerElement.querySelector(
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             `[data-comment="${commentThreadId}"]`,
         );
         if (!firstCommentMarkElement) return;
@@ -1259,7 +1259,7 @@ export function DocumentContentEditor({
             const editorContainerElement = assertExists(editorContainerRef.current);
 
             const commentMarkElements = editorContainerElement.querySelectorAll(
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 `[data-comment="${commentThreadId}"]`,
             );
 
@@ -1361,7 +1361,7 @@ export function DocumentContentEditor({
                 }
                 case "CommentThread": {
                     const firstCommentMarkElement = editorContainerElement.querySelector(
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         `[data-comment="${initialScroll.commentThreadId}"]`,
                     );
                     if (firstCommentMarkElement) {

@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import escapeHtml from "escape-html";
 import {Warning} from "phosphor-react";

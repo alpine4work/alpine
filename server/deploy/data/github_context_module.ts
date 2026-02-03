@@ -122,7 +122,7 @@ export class GithubContextModule extends GithubContextModuleBase {
 
                     const fetchStartTime = span.clock.now();
 
-                    // eslint-disable-next-line no-global-fetch
+                    // eslint-disable-next-line cyberworlds/no-global-fetch
                     const response = await fetch(request);
 
                     const fetchEndTime = span.clock.now();
@@ -172,7 +172,7 @@ export class GithubContextModule extends GithubContextModuleBase {
             fetch: async (url: string, init?: RequestInit) => {
                 const request = new Request(url, init);
 
-                // eslint-disable-next-line no-global-fetch
+                // eslint-disable-next-line cyberworlds/no-global-fetch
                 const response = await fetch(request);
 
                 return response;

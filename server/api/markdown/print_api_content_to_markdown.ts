@@ -372,7 +372,7 @@ function printApiContentCodeBlockElementToMarkdown(
     // signal the language we're using:
     // https://html.spec.whatwg.org/multipage/text-level-semantics.html#the-code-element
     //
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     let html = `<pre>\n<code class="language-${escapeHtml(element.language)}">\n`;
 
     for (const line of element.lines) {
@@ -440,20 +440,20 @@ function printApiContentCodeBlockElementToMarkdown(
                         html += "<del>";
                         break;
                     case "Link": {
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         html += `<a href="${escapeHtml(mark.url)}">`;
                         break;
                     }
                     case "Highlight": {
                         const color = printApiContentInlineElementHighlightMarkColor(mark.color);
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         html += `<mark class="highlight-${color}">`;
                         break;
                     }
                     case "Comment": {
                         html += options.withSimpleCommentMarkHtml
                             ? "<comment>"
-                            : // eslint-disable-next-line string-quotes
+                            : // eslint-disable-next-line cyberworlds/string-quotes
                               `<mark data-comment="${mark.threadId}">`;
                         break;
                     }
@@ -586,7 +586,7 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
         !options.withoutTableWidth &&
         (element.width !== 1 || element.columns.some(column => column.width !== 1))
     ) {
-        /* eslint-disable string-quotes */
+        /* eslint-disable cyberworlds/string-quotes */
 
         let html = "<span hidden";
 
@@ -602,7 +602,7 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
 
         html += "/>";
 
-        /* eslint-enable string-quotes */
+        /* eslint-enable cyberworlds/string-quotes */
 
         const lastRow = rows[rows.length - 1];
         if (lastRow !== undefined) {
@@ -634,7 +634,7 @@ function* printApiContentTableBlockElementToMarkdown(
 
     let tableTagHtml = "<table";
 
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     if (element.width !== 1) {
         tableTagHtml += ` data-width="${JSON.stringify(element.width)}"`;
@@ -646,7 +646,7 @@ function* printApiContentTableBlockElementToMarkdown(
         ).slice(1, -1)}"`;
     }
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 
     tableTagHtml += ">";
 
@@ -1142,7 +1142,7 @@ function* printApiContentInlineElementToMarkdown(
             if (!linkMark) {
                 yield* contents;
             } else {
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 const openHtml = `<a href="${escapeHtml(linkMark.url)}">`;
                 const closeHtml = "</a>";
 
@@ -1262,7 +1262,7 @@ function* printApiContentInlineElementMarksToMarkdown(
         // If the URL looks like a mention then we need to use the HTML `<a>` form to
         // serialize the link. So the Markdown link isn't parsed as a mention.
         //
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         const openHtml = `<a href="${escapeHtml(mentionishMark.url)}">`;
         const closeHtml = "</a>";
 
@@ -1308,7 +1308,7 @@ function* printApiContentInlineElementMarkToMarkdown(
         case "Highlight": {
             const color = printApiContentInlineElementHighlightMarkColor(mark.color);
 
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             const openHtml = `<mark class="highlight-${escapeHtml(color)}">`;
             const closeHtml = `</mark>`;
 
@@ -1320,7 +1320,7 @@ function* printApiContentInlineElementMarkToMarkdown(
         case "Comment": {
             const openHtml = options.withSimpleCommentMarkHtml
                 ? "<comment>"
-                : // eslint-disable-next-line string-quotes
+                : // eslint-disable-next-line cyberworlds/string-quotes
                   `<mark data-comment="${mark.threadId}">`;
             const closeHtml = options.withSimpleCommentMarkHtml ? "</comment>" : "</mark>";
 

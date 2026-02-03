@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 /* eslint-disable no-console */
 
 import {
@@ -198,7 +198,7 @@ async function sendAlertToAlpine(
     console.log(JSON.stringify(body, null, 2));
 
     try {
-        // eslint-disable-next-line no-global-fetch
+        // eslint-disable-next-line cyberworlds/no-global-fetch
         const response = await fetch(apiUrl, {
             method: "POST",
             headers: {

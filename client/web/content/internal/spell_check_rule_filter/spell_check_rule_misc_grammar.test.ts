@@ -3,7 +3,7 @@ import {spellCheckRuleFilterMiscGrammar} from "~/client/web/content/internal/spe
 
 describe("spellCheckRuleFilterMiscGrammar()", () => {
     describe("how to wordchoice rule", () => {
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         test("returns false for 'how ' with wordchoice rule and 'to ' as insertafter suggestion", () => {
             const lint: SpellCheckRuleFilterLint = {
                 text: "how ",
@@ -14,7 +14,7 @@ describe("spellCheckRuleFilterMiscGrammar()", () => {
             expect(result).toBe(false);
         });
 
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         test("returns true for 'how ' with wordchoice rule but no 'to ' insertafter suggestions", () => {
             const lint: SpellCheckRuleFilterLint = {
                 text: "how ",

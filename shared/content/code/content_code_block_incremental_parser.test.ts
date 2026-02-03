@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {Parser} from "@lezer/common";
 import {highlightTree} from "@lezer/highlight";

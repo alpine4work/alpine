@@ -1,19 +1,18 @@
 {
     "permissions": {
         "allow": [
+            "Bash(ls:*)",
             "Bash(find:*)",
             "Bash(grep:*)",
+            "Bash(xargs:*)",
             "Bash(git show:*)",
             "Bash(dev check:*)",
             "Bash(dev test:*)",
             "Bash(dev format:*)",
+            "Bash(bazel build:*)",
             "Bash(bazel test:*)",
             "Bash(bazel query:*)",
-            "Bash(./admin/bin/dev check:*)",
-            "Bash(./admin/bin/dev test:*)",
-            "Bash(./admin/bin/dev format:*)",
-            "Bash(./admin/bin/bazel test:*)",
-            "Bash(./admin/bin/bazel query:*)"
+            "Bash(pnpm install)"
         ],
         "deny": []
     }

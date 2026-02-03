@@ -318,7 +318,7 @@ export async function resizeFile(
                     //
                     // https://ffmpeg.org/ffmpeg-filters.html#crop
                     //
-                    // eslint-disable-next-line string-quotes
+                    // eslint-disable-next-line cyberworlds/string-quotes
                     `crop='h=min(ih,iw/${minFilePreviewAspectRatio})':'w=min(iw,ih*${maxFilePreviewAspectRatio})':y=0:x=iw/2-ow/2`,
                     // Actually perform the resize! Some notes:
                     //
@@ -327,7 +327,7 @@ export async function resizeFile(
                     //
                     // https://trac.ffmpeg.org/wiki/Scaling
                     //
-                    // eslint-disable-next-line string-quotes
+                    // eslint-disable-next-line cyberworlds/string-quotes
                     `scale='min(${width},iw)':-1`,
                 ].join(",");
 

@@ -189,7 +189,7 @@ async function fetchClientTimeOffsetMs() {
     const url = new URL(`/api/time?n=${timeApiCallCount++}`, window.location.href);
 
     const clientStartHighResTime = performance.now();
-    // eslint-disable-next-line no-global-fetch
+    // eslint-disable-next-line cyberworlds/no-global-fetch
     const response = await fetch(url);
     const body: {startTime: number; endTime: number} = await response.json();
     const serverStartTime = body.startTime;

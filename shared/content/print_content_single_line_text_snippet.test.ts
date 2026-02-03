@@ -19,7 +19,7 @@ test("headings collapse onto the same line", () => {
         ]),
         schema.node("heading", {level: 2}, [schema.text("And is followed by another heading.")]),
         schema.node("paragraph", {}, [
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             schema.text('Nice. "This paragraph ends with a quote containing punctuation."'),
         ]),
         schema.node("paragraph", {}, [schema.text("No extra punctuation added")]),
@@ -32,7 +32,7 @@ test("headings collapse onto the same line", () => {
             getFileIfExists: () => null,
         }),
     ).toEqual(
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         'This is a heading: Followed by a paragraph. This is another heading? Except that last heading had punctuation. This paragraph ends with a colon: And is followed by another heading. Nice. "This paragraph ends with a quote containing punctuation." No extra punctuation added',
     );
 });
@@ -49,7 +49,7 @@ test("headings collapse onto the same line and get a bold mark", () => {
         ]),
         schema.node("heading", {level: 2}, [schema.text("And is followed by another heading.")]),
         schema.node("paragraph", {}, [
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             schema.text('Nice. "This paragraph ends with a quote containing punctuation."'),
         ]),
         schema.node("paragraph", {}, [schema.text("No extra punctuation added")]),
@@ -73,7 +73,7 @@ test("headings collapse onto the same line and get a bold mark", () => {
         {marks: [schema.mark("bold")], text: "And is followed by another heading."},
         {
             marks: [],
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             text: ' Nice. "This paragraph ends with a quote containing punctuation." No extra punctuation added',
         },
     ]);

@@ -64,7 +64,7 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
     // The canvas is rendered on the server, but we can't draw to it via this component.
     // Instead, we copy the commands ran in generateBlobsForContent and drawBlobFactoryToCanvas
     // in the server-side script. See the blobs/script package.
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     const generateBlobs = safe`window.__drawBlobs('${safeCanvasId}', ${safeFlatObjectString(
         settings,
     )}, ${safeNumber(scale || 1)})`;

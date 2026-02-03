@@ -96,7 +96,7 @@ describe("ensureAccountHasStripeCustomerId", () => {
         await session.account.createEmailAddress();
 
         const stripe = createMockStripeClient();
-        // eslint-disable-next-line no-global-error
+        // eslint-disable-next-line cyberworlds/no-global-error
         const stripeError = new Error("Stripe API error");
 
         stripe.customers.create.mockRejectedValue(stripeError);

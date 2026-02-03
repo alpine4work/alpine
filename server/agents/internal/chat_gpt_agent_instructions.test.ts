@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {getChatGptAgentInstructions} from "~/server/agents/internal/chat_gpt_agent_instructions.js";
 

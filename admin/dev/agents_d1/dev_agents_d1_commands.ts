@@ -161,7 +161,7 @@ export async function runDevAgentsD1StatusCommand({quiet = false}: {quiet?: bool
 export async function runDevAgentsD1ResetCommand() {
     // First, get all table names (excluding only system tables)
     const tablesResult = await runDevAgentsD1ExecuteCommand({
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         command: "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';",
         ignoreOutput: true,
     });

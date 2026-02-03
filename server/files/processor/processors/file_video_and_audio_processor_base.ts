@@ -85,7 +85,7 @@ const ffmpegImagePreviewContentOutputOptionsBase = [
     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/mmcg93qv2zvzmnmqt3ec6vtexm
     // https://trac.ffmpeg.org/wiki/Scaling#fit
     "-vf",
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease",
 ];
 

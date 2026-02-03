@@ -65,6 +65,6 @@ export function getFromEmailAddressNameAddr(emailAddress: FromEmailAddress): str
         emailAddress.displayName,
         "Must include `displayName` for name-attr formatted from email",
     );
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     return `"${emailAddress.displayName}" <${emailAddress.address}>`;
 }

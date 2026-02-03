@@ -242,7 +242,7 @@ export function ErrorDisplayMessageRenderer({
                                         , trace:&nbsp;
                                         <span
                                             style={{
-                                                // eslint-disable-next-line string-quotes
+                                                // eslint-disable-next-line cyberworlds/string-quotes
                                                 fontFeatureSettings: '"calt" off',
                                             }}
                                         >

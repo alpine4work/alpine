@@ -209,7 +209,7 @@ export function SettingsInvitePeopleModal({
                                     ),
                                     // Render contextual alternate glyphs. Particularly important that we render
                                     // the right "@" for emails.
-                                    // eslint-disable-next-line string-quotes
+                                    // eslint-disable-next-line cyberworlds/string-quotes
                                     fontFeatureSettings: '"calt" on',
                                 }}
                             />
@@ -254,7 +254,7 @@ function SettingInvitePeopleModalError({error}: {error: unknown}) {
                         textOverflow: "ellipsis",
                         // Render contextual alternate glyphs. Particularly important that we render
                         // the right "@" for emails.
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         fontFeatureSettings: '"calt" on',
                     }}
                     data-testid={

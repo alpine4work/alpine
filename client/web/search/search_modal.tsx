@@ -647,7 +647,7 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                 style={{
                     // Render contextual alternate glyphs. User text may be rendered here. Helpful
                     // for consistency if the user types anything like 2x2 or an @ mention.
-                    // eslint-disable-next-line string-quotes
+                    // eslint-disable-next-line cyberworlds/string-quotes
                     fontFeatureSettings: '"calt" on',
                 }}
                 // Chrome complains if `<input>` doesn't have an `id` or `name`.

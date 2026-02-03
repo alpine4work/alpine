@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {generateKeyPair} from "crypto";
 import {TokenAgent} from "~/server/tokens/token_agent.js";

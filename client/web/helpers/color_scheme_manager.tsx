@@ -2,7 +2,7 @@ import {useEffect} from "react";
 import {colorSchemeEventEmitter} from "~/client/web/helpers/internal/color_scheme_event_emitter.js";
 
 const initializeColorSchemeScript =
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     'var colorScheme = localStorage.getItem("colorScheme"); var isDarkColorScheme = colorScheme === "dark" || !colorScheme && window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.setAttribute("data-color", isDarkColorScheme ? "dark" : "light");';
 
 /**

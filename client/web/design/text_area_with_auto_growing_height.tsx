@@ -61,7 +61,7 @@ function TextAreaWithAutoGrowingHeight(
             />
             <ScriptBeforeAppInitialRender
                 // Make sure the `<textarea>` has the proper height on server render.
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 script={safe`var element = document.currentScript.previousElementSibling; element.style.height = "0px"; element.style.height = element.scrollHeight + "px"`}
             />
         </>

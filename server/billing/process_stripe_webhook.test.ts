@@ -1,4 +1,4 @@
-/* eslint-disable no-global-error */
+/* eslint-disable cyberworlds/no-global-error */
 import Stripe from "stripe";
 import {getAccountBillingItemIfExistsForTest} from "~/server/accounts/get_account_billing_item_if_exists_for_test.js";
 import {updateOurStripeCustomerId} from "~/server/accounts/update_our_stripe_customer_id.js";

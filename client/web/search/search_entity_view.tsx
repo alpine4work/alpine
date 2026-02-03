@@ -241,7 +241,7 @@ export function SearchEntityView({
                                 textOverflow: "ellipsis",
                                 // Render contextual alternate glyphs. Particularly important that we render
                                 // the right "@" for mentions.
-                                // eslint-disable-next-line string-quotes
+                                // eslint-disable-next-line cyberworlds/string-quotes
                                 fontFeatureSettings: '"calt" on',
                                 minHeight: !showTitle
                                     ? searchEntityViewBodyTextSnippetMinHeight
@@ -404,7 +404,7 @@ function SearchEntityViewExplainDebugWidgetOverlay({
 }
 
 function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSearchHitExplanation) {
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     const structureClassName = sprinkles({color: "grey-30"});
     const valueClassName = sprinkles({fontStyle: "code-semi-bold"});
@@ -483,5 +483,5 @@ function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSear
 
     return print("", "", rootExplanation, printValue(rootExplanation.value));
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 }

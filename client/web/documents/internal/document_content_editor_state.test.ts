@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {Fragment, Slice} from "prosemirror-model";
 import {Selection, TextSelection, Transaction} from "prosemirror-state";

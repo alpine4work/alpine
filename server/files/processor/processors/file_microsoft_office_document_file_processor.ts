@@ -132,7 +132,7 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                     // Output the Excel sheet onto a single page. See:
                     // https://ask.libreoffice.org/t/libreoffice-xls-to-pdf-conversion-breaks-single-page-content-into-multiple-pages-on-ubuntu-18-04/49104/2
                     outputFilter =
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         'calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
 
                     // Spreadsheets are an infinite canvas and aren't typically restricted by any

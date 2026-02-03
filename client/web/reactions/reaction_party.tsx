@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {useId, useMemo} from "react";
 import {usePress} from "react-aria";

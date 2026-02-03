@@ -30,7 +30,7 @@ import {ClientInfo} from "~/shared/remix/client_info.js";
  * Reads the SSR spacing scale from the `data-spacing` attribute on `<html>`.
  */
 export function SpacingScaleInitialAppRenderMismatchScript() {
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     const script = `(function() { var e = document.documentElement; var s1 = e.getAttribute("data-spacing"); var w = window.innerWidth; var s2 = /CyberworldsNativeMobile/.test(navigator.userAgent) ? "large" : w <= ${mobilePlatformMaxWindowWidth} ? "large" : w >= ${mediumSpacingScaleMinWindowWidth} ? "medium" : "small"; if (s1 !== s2) e.setAttribute("data-spacing-mismatch", "") })()`;
 
     return <script dangerouslySetInnerHTML={{__html: script}} />;

@@ -141,7 +141,7 @@ export function printAgentMessagesIntoMarkdownTree(
             });
         }
 
-        /* eslint-disable string-quotes */
+        /* eslint-disable cyberworlds/string-quotes */
 
         // Build opening tag with attributes
         let openingTag = "";
@@ -182,7 +182,7 @@ export function printAgentMessagesIntoMarkdownTree(
             openingTag += ` timezone="${escapeHtml(timeZoneAbbreviation)}"`;
         }
 
-        /* eslint-enable string-quotes */
+        /* eslint-enable cyberworlds/string-quotes */
 
         openingTag += ">";
 
@@ -233,7 +233,7 @@ function* getMessageParentHtml(
 ): IterableIterator<RootContent | null> {
     if (parent === null) return null;
 
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     yield {type: "html", value: `<blockquote cite="${escapeHtml(parent.author.name)}">`};
 
     for (const element of parent.markdownContent.slice(0, -1)) {

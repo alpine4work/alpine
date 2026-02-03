@@ -768,7 +768,7 @@ export function initializeScrollbar(
             const scrollbarThumbMarginPx = scrollbarThumbMarginRem * remPx;
             const scrollbarThumbInteractiveMarginRemPx = scrollbarThumbInteractiveMarginRem * remPx;
 
-            /* eslint-disable string-quotes */
+            /* eslint-disable cyberworlds/string-quotes */
 
             // We're drawing the following shape except the knobs at the top/bottom are
             // rounded instead of square..
@@ -863,7 +863,7 @@ export function initializeScrollbar(
                 "Z",
             ].join(" ")}")`;
 
-            /* eslint-enable string-quotes */
+            /* eslint-enable cyberworlds/string-quotes */
         }
     };
 

@@ -162,7 +162,7 @@ Expected path: ${actualHomeChildPath}
         resolvedHomePath = resolvedHomePathParts.join("/");
     }
 
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     // Includes the permissions OpenSearch needs to bootstrap. Once OpenSearch has
     // bootstrapped it'll extend this security policy with its own
@@ -190,7 +190,7 @@ grant {
 `,
     );
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 
     const subprocess = spawn(
         opensearchLocalBinPath,

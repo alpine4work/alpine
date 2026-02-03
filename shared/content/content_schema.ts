@@ -309,7 +309,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 // node or else we get an error because we have a wrapping `codeBlock` node
                 // with incorrect child content.
                 {
-                    // eslint-disable-next-line string-quotes
+                    // eslint-disable-next-line cyberworlds/string-quotes
                     tag: 'code[data-pm-slice*="\\"codeBlock\\""]',
                     priority: 100,
                 },

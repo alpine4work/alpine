@@ -50,7 +50,7 @@ export function renderBlobsArtToHtml(
     gradientHtml.setAttribute("class", blobsArtGradientClassName);
 
     const safeCanvasId = safeIdentifierString(canvasId);
-    // eslint-disable-next-line string-quotes
+    // eslint-disable-next-line cyberworlds/string-quotes
     const generateBlobs = safe`window.__drawBlobs('${safeCanvasId}', ${safeFlatObjectString(
         settings,
     )}, ${safeNumber(scale)})`;

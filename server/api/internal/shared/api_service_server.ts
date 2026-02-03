@@ -575,12 +575,12 @@ export async function createApiServiceRequestListener(
                                     message =
                                         "Access token in `Authorization` header failed signature verification.";
                                     break;
-                                // eslint-disable-next-line string-quotes
+                                // eslint-disable-next-line cyberworlds/string-quotes
                                 case 'unexpected "aud" claim value':
                                     message =
                                         "Access token in `Authorization` header has an incorrect audience.";
                                     break;
-                                // eslint-disable-next-line string-quotes
+                                // eslint-disable-next-line cyberworlds/string-quotes
                                 case '"exp" claim timestamp check failed':
                                     message = "Access token in `Authorization` header has expired.";
                                     break;

@@ -2,7 +2,10 @@
 
 const path = require("path");
 
-const repoDir = path.resolve(__dirname, "../../..");
+// Use `process.cwd()` since ESLint is invoked with `cwd` set to the workspace root.
+// We can't use `__dirname` because when loaded from `node_modules`, that path
+// doesn't relate to the repo structure.
+const repoDir = process.cwd();
 
 module.exports = {
     meta: {

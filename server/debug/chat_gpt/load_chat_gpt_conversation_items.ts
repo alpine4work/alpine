@@ -200,7 +200,7 @@ export async function loadChatGptConversationItems(
                     if (classes.length === 0) {
                         contentHtml += escapeHtml(text);
                     } else {
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         contentHtml += `<span class="${classes}">${escapeHtml(text)}</span>`;
                     }
                 },

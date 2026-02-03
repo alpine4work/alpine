@@ -168,7 +168,7 @@ self.addEventListener("pushsubscriptionchange", (event: PushSubscriptionChangeEv
         // TODO(rmtobin, 2025-12-17) This doesn't batch events like our other tracer implementations
         // but probably should. Currently it sends two events separately.
         const sendTracerEvent = (event: TracerEvent) => {
-            // eslint-disable-next-line no-global-fetch
+            // eslint-disable-next-line cyberworlds/no-global-fetch
             void fetch("/api/tracer", {
                 method: "POST",
                 body: JSON.stringify([

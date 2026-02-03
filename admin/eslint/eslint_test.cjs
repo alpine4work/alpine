@@ -16,7 +16,12 @@ const eslintTypeCheckingRuleIds = new Set(
 // This is a list of rules we want to run in --fix mode (opt-in). These are considered safe.
 // All other rules will be disabled in --fix mode. If you want to run ALL auto-fixable rules,
 // use --fix-all mode.
-const allowedFixRules = ["sort-imports-by-source", "sort-imports", "prefer-const", "wrap-iife"];
+const allowedFixRules = [
+    "cyberworlds/sort-imports-by-source",
+    "sort-imports",
+    "prefer-const",
+    "wrap-iife",
+];
 
 async function main() {
     const args = process.argv.slice(2);
@@ -56,7 +61,6 @@ async function main() {
         globInputPaths: false,
         fix: false,
         useEslintrc: false,
-        rulePaths: [path.join(workspacePath, "admin/eslint/rules")],
         overrideConfigFile: path.join(workspacePath, ".eslintrc.cjs"),
     });
 
@@ -81,14 +85,8 @@ async function main() {
         globInputPaths: false,
         fix: fixMode || fixAllMode,
         useEslintrc: false,
-        rulePaths: [path.join(workspacePath, "admin/eslint/rules")],
         overrideConfigFile: path.join(workspacePath, ".eslintrc.cjs"),
-        overrideConfig:
-            Object.keys(ruleOverrides).length > 0
-                ? {
-                      rules: ruleOverrides,
-                  }
-                : {},
+        overrideConfig: Object.keys(ruleOverrides).length > 0 ? {rules: ruleOverrides} : {},
         // In fix mode, disable the removal of eslint-disable directives to prevent
         // accidental removal of intentional disable comments
         reportUnusedDisableDirectives: fixMode || fixAllMode ? "off" : undefined,

@@ -55,7 +55,7 @@ export function convertApiContentToProperQuotes(content: ApiContent): ApiContent
 
                 let properQuote: string;
 
-                // eslint-disable-next-line string-quotes
+                // eslint-disable-next-line cyberworlds/string-quotes
                 if (quoteChar === '"') {
                     if (
                         charBefore === null ||

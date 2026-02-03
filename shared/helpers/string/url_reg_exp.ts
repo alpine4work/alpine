@@ -1,4 +1,4 @@
-/* eslint-disable no-useless-concat, string-quotes */
+/* eslint-disable no-useless-concat, cyberworlds/string-quotes */
 
 /**
  * NOTE(imjoshin, 2025-11-14): Updated regex! We also added support for '[]' in query params.

@@ -119,7 +119,7 @@ export class HoneycombTracerClient {
                             `$1${debugRedactedString}`,
                         );
 
-                        // eslint-disable-next-line no-global-fetch
+                        // eslint-disable-next-line cyberworlds/no-global-fetch
                         const response = await fetch(
                             `https://api.honeycomb.io/1/batch/${this._dataset}`,
                             {
@@ -216,7 +216,7 @@ export class HoneycombTracerClient {
         startTime: Date;
         endTime?: Date;
     }) {
-        // eslint-disable-next-line no-global-fetch
+        // eslint-disable-next-line cyberworlds/no-global-fetch
         const response = await fetch("https://api.honeycomb.io/1/markers/__all__", {
             method: "POST",
             headers: {

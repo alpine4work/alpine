@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 
 import {Mark, Node} from "prosemirror-model";
 import {fromApiContent} from "~/server/api/content/from_api_content.js";

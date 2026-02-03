@@ -320,7 +320,7 @@ async function loadContentFileCodeViewer({
     const [parser, code] = await runAllPromises([
         await language.getParser()?.promise,
         (async () => {
-            // eslint-disable-next-line no-global-fetch
+            // eslint-disable-next-line cyberworlds/no-global-fetch
             const response = await fetch(
                 `${resourceServiceUrl}/files/${spaceId}/${file.id}${file.signedUrlSearch}`,
                 {mode: "cors"},

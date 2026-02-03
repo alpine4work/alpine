@@ -134,7 +134,7 @@ export class DynamoClientInternal {
         try {
             // We create our own spans for DynamoDB actions so don't use
             // `fetchWithTracer()`.
-            // eslint-disable-next-line no-global-fetch
+            // eslint-disable-next-line cyberworlds/no-global-fetch
             response = await fetch(request, {signal: abortController.signal}).catch(error => {
                 // If the request was aborted, make sure we throw the reason passed into
                 // `AbortController`.

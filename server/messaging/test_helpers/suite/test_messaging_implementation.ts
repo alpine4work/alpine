@@ -1,4 +1,4 @@
-/* eslint-disable string-quotes */
+/* eslint-disable cyberworlds/string-quotes */
 import {addDays, addMinutes} from "date-fns";
 import {Fragment, Mark, Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";

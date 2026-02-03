@@ -35,7 +35,7 @@ export function SpaceInviteEmailTemplate({
         <BaseEmailTemplate
             subject={subject}
             resourceServiceUrl={resourceServiceUrl}
-            /* eslint-disable string-quotes */
+            /* eslint-disable cyberworlds/string-quotes */
             globalStyles={`
                 @media (prefers-color-scheme: dark) {
                     #brand-icons {
@@ -67,7 +67,7 @@ export function SpaceInviteEmailTemplate({
                     }
                 }
             `}
-            /* eslint-enable string-quotes */
+            /* eslint-enable cyberworlds/string-quotes */
         >
             <EmailText>
                 {inviterShortName} invited you to join <EmailTextBold>{spaceName}</EmailTextBold> on{" "}

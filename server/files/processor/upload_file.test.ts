@@ -408,7 +408,7 @@ Content-Length: 33102\r\n\
 
     await socketClosePromise;
 
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     expect(
         socketText
@@ -427,7 +427,7 @@ chunk\r\n\
 \r\n\
 `);
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 
     const match = assertExists(socketText.match(/,"file":\{"id":"([^"]*)"/m));
     const fileId = assertId<FileId>(match[1]!);
@@ -509,7 +509,7 @@ Content-Length: ${requestBody.length}\r\n\
         }
     }
 
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     expect(
         socketText
@@ -528,7 +528,7 @@ chunk\r\n\
 \r\n\
 `);
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 });
 
 // `http.createServer()` should truncate for us when we write more bytes than
@@ -679,7 +679,7 @@ Content-Length: 33102\r\n\
 
     await socketClosePromise;
 
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     expect(
         socketText
@@ -692,7 +692,7 @@ Connection: close\r\n\
 \r\n\
 `);
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 });
 
 test("can observe file while it\u2019s being uploaded", async () => {
@@ -779,7 +779,7 @@ Content-Length: 33102\r\n\
 
     await socketClosePromise;
 
-    /* eslint-disable string-quotes */
+    /* eslint-disable cyberworlds/string-quotes */
 
     expect(
         socketText
@@ -798,7 +798,7 @@ chunk\r\n\
 \r\n\
 `);
 
-    /* eslint-enable string-quotes */
+    /* eslint-enable cyberworlds/string-quotes */
 
     await ProcessContextModule.waitForTestTasks();
 

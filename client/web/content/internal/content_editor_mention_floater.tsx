@@ -1068,7 +1068,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
                         textOverflow: "ellipsis",
                         // Render contextual alternate glyphs. Particularly important that we render
                         // the right "@" for mentions.
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         fontFeatureSettings: '"calt" on',
                     }}
                 >

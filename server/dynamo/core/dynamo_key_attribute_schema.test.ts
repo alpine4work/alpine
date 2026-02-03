@@ -34,7 +34,7 @@ test("key attributes can be a reasonable set of ASCII characters", () => {
         "$",
         "%",
         "&",
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
         "'",
         "(",
         ")",
@@ -376,7 +376,7 @@ describe("`labelString`", () => {
             ],
         },
         {
-            // eslint-disable-next-line string-quotes
+            // eslint-disable-next-line cyberworlds/string-quotes
             string: 'So called "cats"',
             serializedString: "So$u20called$u20$u22cats$u22",
             serializedBytes: [

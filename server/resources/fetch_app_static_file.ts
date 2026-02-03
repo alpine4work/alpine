@@ -11,7 +11,7 @@ export async function fetchAppStaticFile(
     // `AppService`. In production we serve static assets from Cloudflare R2.
     if (process.env.NODE_ENV !== "production") {
         const fetchUrl = `${assertExists(env.APP_SERVICE_URL)}${url.pathname}`;
-        // eslint-disable-next-line no-global-fetch
+        // eslint-disable-next-line cyberworlds/no-global-fetch
         return fetch(fetchUrl);
     }
 

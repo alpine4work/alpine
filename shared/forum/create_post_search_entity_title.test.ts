@@ -249,7 +249,7 @@ test("creates title with code block", () => {
                 schema.node("doc", {}, [
                     schema.node("codeBlock", {language: "javascript"}, [
                         schema.node("codeBlockLine", {}, [schema.text("function hello() {")]),
-                        // eslint-disable-next-line string-quotes
+                        // eslint-disable-next-line cyberworlds/string-quotes
                         schema.node("codeBlockLine", {}, [schema.text("  console.log('Hi');")]),
                         schema.node("codeBlockLine", {}, [schema.text("}")]),
                     ]),
@@ -261,7 +261,7 @@ test("creates title with code block", () => {
                 getFileIfExists: () => null,
             },
         ),
-        // eslint-disable-next-line string-quotes
+        // eslint-disable-next-line cyberworlds/string-quotes
     ).toEqual("in Code Review: function hello() { console.log('Hi'); }");
 });
 
