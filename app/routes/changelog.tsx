@@ -1,4 +1,5 @@
 import {useMemo} from "react";
+import {BlobsArt} from "~/client/web/blobs/blobs_art.js";
 import {ContentView} from "~/client/web/content/content_view.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
@@ -6,6 +7,7 @@ import {SpaceContextProvider} from "~/client/web/spaces/space_context_provider.j
 import {getDocumentWithOptionalCommentsIfExists} from "~/server/documents/data/documents_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {DocumentModel} from "~/shared/documents/document_model.js";
@@ -78,6 +80,19 @@ export default function ChangelogRoute() {
         [],
     );
 
+    const cover = document.content.doc.attrs.cover as DocumentContentCover | null;
+    const blobsSettings = useMemo(
+        () =>
+            cover?.type === "Blobs"
+                ? {
+                      seed: cover.seed,
+                      themeColor: cover.themeColor,
+                      hueSpread: cover.hueSpread,
+                  }
+                : null,
+        [cover],
+    );
+
     return (
         <SpaceContextProvider
             initialSpace={space}
@@ -92,6 +107,7 @@ export default function ChangelogRoute() {
                     padding: "24px",
                 }}
             >
+                {blobsSettings !== null && <BlobsArt settings={blobsSettings} />}
                 <ContentView
                     content={document.content}
                     isInert={true}
