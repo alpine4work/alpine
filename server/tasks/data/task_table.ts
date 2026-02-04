@@ -34,7 +34,10 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
-import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
+import {
+    attachFileFromAttachment,
+    getFileFromAttachment,
+} from "~/server/files/data/files_actions.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
@@ -97,6 +100,7 @@ import {
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -143,6 +147,7 @@ import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
@@ -174,6 +179,10 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
+import {
+    ContentDuplicationVariableValues,
+    applyContentDuplicationVariableValues,
+} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
 import {
@@ -231,6 +240,7 @@ import {
     TaskNotesContent,
     TaskNotesContentSchema,
     TaskNotesContentWithReferences,
+    assertTaskNotesContent,
     emptyTaskNotesContent,
     isTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
@@ -3777,9 +3787,17 @@ export function deleteTaskAndAllChildren(
  */
 export function duplicateTaskAndAllChildren(
     context: ServerSessionActionContext,
-    taskId: TaskId,
-    actionTime: HybridLogicalTime,
-    timeZone: TimeZone,
+    {
+        sourceTaskId,
+        actionTime,
+        timeZone,
+        variableValues,
+    }: {
+        sourceTaskId: TaskId;
+        actionTime: HybridLogicalTime;
+        timeZone: TimeZone;
+        variableValues?: ContentDuplicationVariableValues;
+    },
 ): Promise<{
     spaceId: SpaceId;
     actions: ReadonlyArray<TaskAction>;
@@ -3789,7 +3807,7 @@ export function duplicateTaskAndAllChildren(
         const taskItem = await TaskTable.getItem(context, {
             partitionType: "Task",
             sortRangeType: "EssentialAttributes",
-            taskId,
+            taskId: sourceTaskId,
         });
 
         await authorizeTaskItemAccess(context, taskItem, "Edit", {
@@ -3806,19 +3824,48 @@ export function duplicateTaskAndAllChildren(
 
         let newRootTaskId: TaskId | null = null;
 
+        // Track notes that have files so we can attach them after the transaction.
+        const attachFiles: Array<{
+            fromTaskId: TaskId;
+            toTaskId: TaskId;
+            fileIds: ReadonlySet<FileId>;
+        }> = [];
+
         const createNotesClone = (
+            parentTaskId: TaskId | undefined,
             existingNotesItem: TaskNotesItem,
             newTaskId: TaskId,
-        ): TaskNotesItem => ({
-            partitionType: "Task",
-            sortRangeType: "Notes",
-            taskId: newTaskId,
-            spaceId: existingNotesItem.spaceId,
-            content: existingNotesItem.content,
-            // Reset version tracking
-            stepCountByAccountId: new TaskStepCountByAccountId(new Map()),
-            version: 0,
-        });
+        ): TaskNotesItem => {
+            let content = existingNotesItem.content;
+
+            // Apply variable substitution to notes content
+            if (!parentTaskId && variableValues && variableValues.size > 0) {
+                content = assertTaskNotesContent(
+                    applyContentDuplicationVariableValues(content, variableValues),
+                );
+            }
+
+            // Track file IDs so we can attach them after the transaction.
+            const {fileIds} = getContentReferencedIdsForNode(content);
+            if (fileIds.size > 0) {
+                attachFiles.push({
+                    fromTaskId: existingNotesItem.taskId,
+                    toTaskId: newTaskId,
+                    fileIds,
+                });
+            }
+
+            return {
+                partitionType: "Task",
+                sortRangeType: "Notes",
+                taskId: newTaskId,
+                spaceId: existingNotesItem.spaceId,
+                content,
+                // Reset version tracking
+                stepCountByAccountId: new TaskStepCountByAccountId(new Map()),
+                version: 0,
+            };
+        };
 
         // Our dynamo transaction limit is 100 actions. If we exceed that, we'll throw an error.
         // We don't want to keep resolving children if we already know we're going to fail.
@@ -3876,8 +3923,9 @@ export function duplicateTaskAndAllChildren(
                     creatorId: context.actor.getAccountId(),
                     actionTime,
                     creatorTimeZone: timeZone,
-                    titleSuffix: !parentTaskId ? "copy" : undefined,
                     parentTaskId,
+                    withTitleUpdate: !parentTaskId,
+                    variableValues: !parentTaskId ? variableValues : undefined,
                 },
             );
 
@@ -3891,7 +3939,7 @@ export function duplicateTaskAndAllChildren(
 
             if (notesItem) {
                 totalClonedObjectCount++;
-                const newNotesItem = createNotesClone(notesItem, newCurrentTaskId);
+                const newNotesItem = createNotesClone(parentTaskId, notesItem, newCurrentTaskId);
                 extraTransactionEntries.push(
                     TaskTable.transactionCreateOrReplaceItem(newNotesItem),
                 );
@@ -3951,7 +3999,10 @@ export function duplicateTaskAndAllChildren(
 
                         if (childTaskNotesItem) {
                             totalClonedObjectCount++;
+                            // Pass newCurrentTaskId as parentTaskId to indicate this is a child task.
+                            // This prevents variable substitution from being applied to child notes.
                             const newChildTaskNotesItem = createNotesClone(
+                                newCurrentTaskId,
                                 childTaskNotesItem,
                                 newChildTaskId,
                             );
@@ -3966,7 +4017,7 @@ export function duplicateTaskAndAllChildren(
                         throw new FailedPreconditionError("Child task limit exceeded", {
                             displayMessage: errorDisplayMessage`The task has too many child tasks.`,
                             // dedupe against the original root task ID
-                            aggregateDedupeKey: taskId,
+                            aggregateDedupeKey: sourceTaskId,
                         });
                     }
                 }),
@@ -3979,9 +4030,36 @@ export function duplicateTaskAndAllChildren(
             };
         };
 
-        const {actions, extraTransactionEntries} = await aggregateRecursiveActions(taskId);
+        const {actions, extraTransactionEntries} = await aggregateRecursiveActions(sourceTaskId);
         assertExists(newRootTaskId);
         const returnedTaskId = newRootTaskId!;
+
+        // Attach files from the source task notes to the new task notes BEFORE
+        // committing the transaction. This prevents a race condition where a user
+        // opens the newly created task before file attachments complete.
+        if (attachFiles.length > 0) {
+            await runAllPromises(
+                flatMapIterable(attachFiles, ({fromTaskId, toTaskId, fileIds}) =>
+                    mapIterable(fileIds, fileId =>
+                        attachFileFromAttachment(context, taskItem.spaceId, fileId, {
+                            from: FileTaskAuthorizer.bind({
+                                type: "TaskNotes",
+                                taskId: fromTaskId,
+                            }),
+                            to: FileTaskAuthorizer.bind({
+                                type: "TaskNotes",
+                                taskId: toTaskId,
+                            }),
+
+                            // The new task hasn't been created yet. So don't authorize we have access
+                            // since doing so will throw a `NotFoundError`. We definitely have access to
+                            // the new task since our actor is about to create it.
+                            dangerouslySkipToAuthorizeTargetAccess: true,
+                        }),
+                    ),
+                ),
+            );
+        }
 
         await commitTaskActionTransaction(context, taskItem.spaceId, actions, {
             extraTransactionEntries,

@@ -2,7 +2,7 @@ import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {initialBotSettingsItem} from "~/server/bots/internal/initial_bot_settings_item.js";
 import {knownBotSettings} from "~/server/bots/known_bot_settings.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
-import {BotSpaceSettingsSchemaSchema} from "~/shared/bots/bot_space_settings_schema_schema.js";
+import {BotSpaceSettingsSchemaSchema} from "~/shared/bots/bot_space_settings_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";

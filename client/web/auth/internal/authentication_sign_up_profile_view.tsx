@@ -109,10 +109,14 @@ export function AuthenticationSignUpProfileView({
             <label
                 id={reactionCharacterLabelId}
                 className={sprinkles({
-                    display: "inline-block",
+                    // `display: block; width: fit-content` is important here! As `inline-block`
+                    // there's some weird additional vertical space underneath the label.
+                    display: "block",
+                    width: "fit-content",
+                    maxWidth: "full",
                     fontSize: "75",
                     fontStyle: "semi-bold",
-                    paddingBottom: "1",
+                    paddingBottom: "1.5",
                 })}
             >
                 Character

@@ -9,6 +9,7 @@ import {
     createDocumentComment,
     deleteDocumentComment,
     deleteDocumentCommentReaction,
+    duplicateDocument,
     getDocument,
     getDocumentCommentAtVersion,
     getDocumentCommentThreadAndInitialCommentsIfExists,
@@ -58,6 +59,14 @@ export default implementRpcs(definitions, {
                 content: input.content,
             });
             return {documentId: id, createdTime};
+        },
+    },
+
+    duplicateDocument: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const {id} = await duplicateDocument(context.actor.authorizeSession(), input);
+            return {documentId: id};
         },
     },
 

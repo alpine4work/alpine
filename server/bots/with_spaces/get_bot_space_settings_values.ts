@@ -6,7 +6,7 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {BotSpaceSettingsSchema} from "~/shared/bots/bot_space_settings_schema_schema.js";
+import {BotSpaceSettingsSchema} from "~/shared/bots/bot_space_settings_schema.js";
 import {SimpleContentWithReferences} from "~/shared/content/simple_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";

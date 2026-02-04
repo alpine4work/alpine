@@ -46,7 +46,10 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
-import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
+import {
+    attachFileFromAttachment,
+    getFileFromAttachment,
+} from "~/server/files/data/files_actions.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {
@@ -81,7 +84,9 @@ import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {generateDuplicateContentTitle} from "~/shared/content/generate_duplicate_content_title.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -110,6 +115,7 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
     DocumentPreviewModel,
+    getDocumentContentTitle,
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
@@ -167,6 +173,10 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
+import {
+    ContentDuplicationVariableValues,
+    applyContentDuplicationVariableValues,
+} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
 import {
@@ -528,6 +538,126 @@ export async function createDocument(
         version,
         creator,
     };
+}
+
+/**
+ * Duplicate a document, optionally replacing template variables with provided values.
+ *
+ * Template variables are text patterns in the format `{{Variable name}}`. When
+ * `values` is provided, these patterns are replaced with the corresponding values.
+ */
+export async function duplicateDocument(
+    context: ServerSessionActionContext,
+    {
+        sourceDocumentId,
+        variableValues,
+    }: {
+        sourceDocumentId: DocumentId;
+        variableValues?: ContentDuplicationVariableValues;
+    },
+): ReturnType<typeof createDocument> {
+    // Load the source document. Use `getDocumentContentWithOptionalComments` so that
+    // users with only View access can duplicate documents. Comments are stripped
+    // automatically for viewers.
+    const {spaceId, content: sourceContentWithComments} =
+        await getDocumentContentWithOptionalComments(context, sourceDocumentId);
+
+    // Strip comment marks from the source content (in case the user has Comment access
+    // and the content includes comments).
+    const sourceContent = assertDocumentContent(
+        stripDocumentContentCommentMarks(sourceContentWithComments),
+    );
+
+    // Replace template variables if values are provided
+    let processedContent = sourceContent;
+    if (variableValues && variableValues.size > 0) {
+        processedContent = assertDocumentContent(
+            applyContentDuplicationVariableValues(sourceContent, variableValues),
+        );
+    }
+
+    // Build the new document content with the new title and fresh access policy
+    const creatorId = context.actor.getAccountId();
+    const newAccessPolicy: AccessPolicy = {
+        accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+
+    const processedContentTitle = getDocumentContentTitle(processedContent);
+
+    // Generate the new title with "(copy)" suffix but only if the title hasn't
+    // changed. If there was a template variable in the title we don't
+    // need "(copy)".
+    const newTitleText =
+        processedContentTitle === getDocumentContentTitle(sourceContent)
+            ? generateDuplicateContentTitle(processedContentTitle)
+            : processedContentTitle;
+
+    // Create the new title node
+    const newTitleNode = DocumentContentProsemirrorSchema.node(
+        "title",
+        processedContent.child(0).attrs,
+        newTitleText ? [DocumentContentProsemirrorSchema.text(newTitleText)] : [],
+    );
+
+    const newContentChildren: Array<Node> = [newTitleNode];
+    for (let i = 1; i < processedContent.childCount; i++) {
+        newContentChildren.push(processedContent.child(i));
+    }
+
+    const newContent = assertDocumentContent(
+        DocumentContentProsemirrorSchema.node(
+            "doc",
+            {
+                ...processedContent.attrs,
+                accessPolicy: newAccessPolicy,
+            },
+            newContentChildren,
+        ),
+    );
+
+    // Generate the document ID before creating the document. We need this ID to
+    // attach files BEFORE the document exists. This prevents a race condition where
+    // a user opens the document before file attachments complete.
+    const newDocumentId = generateId<DocumentId>();
+
+    // Extract file IDs from the new content
+    const {fileIds} = getContentReferencedIdsForNode(newContent);
+
+    // If there are files to attach, we need to pre-populate the authorization cache
+    // so that file attachment authorization succeeds for the not-yet-created document.
+    if (fileIds.size > 0) {
+        // Attach files from the source document to the new document BEFORE creating
+        // the document. This prevents a race condition where a user opens the document
+        // before file attachments complete.
+        await runAllPromises(
+            mapIterable(fileIds, fileId =>
+                attachFileFromAttachment(context, spaceId, fileId, {
+                    from: FileDocumentAuthorizer.bind({
+                        type: "Document",
+                        documentId: sourceDocumentId,
+                    }),
+                    to: FileDocumentAuthorizer.bind({
+                        type: "Document",
+                        documentId: newDocumentId,
+                    }),
+
+                    // The new document hasn't been created yet. So don't authorize we have access
+                    // since doing so will throw a `NotFoundError`. We definitely have access to
+                    // the new document since our actor is about to create it.
+                    dangerouslySkipToAuthorizeTargetAccess: true,
+                }),
+            ),
+        );
+    }
+
+    // Create the new document with the pre-generated ID
+    return createDocument(context, {
+        id: newDocumentId,
+        spaceId,
+        content: newContent,
+    });
 }
 
 /**

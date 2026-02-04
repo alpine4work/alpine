@@ -52,6 +52,7 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
+import {ContentDuplicationVariableValues} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     commitTaskActionTransaction,
@@ -467,7 +468,11 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
         context: Context<{rpc: RpcContextModuleBase}>,
         taskId: TaskId,
         timeZone: TimeZone,
-        options: {undoManager: TaskClientStoreUndoManager | null; time?: HybridLogicalTime},
+        options: {
+            undoManager: TaskClientStoreUndoManager | null;
+            time?: HybridLogicalTime;
+            variableValues?: ContentDuplicationVariableValues;
+        },
     ): Promise<{taskId: TaskId}> {
         return this._internal.duplicateTaskAndAllChildren(context, taskId, timeZone, options);
     }
@@ -2617,9 +2622,11 @@ export class TaskClientStoreInternal {
         {
             undoManager,
             time: actionTime = this.clock.now(),
+            variableValues,
         }: {
             undoManager: TaskClientStoreUndoManager | null;
             time?: HybridLogicalTime;
+            variableValues?: ContentDuplicationVariableValues;
         },
     ): Promise<{taskId: TaskId}> {
         const mapUndoActions = (actions: Iterable<TaskAction>) =>
@@ -2635,9 +2642,10 @@ export class TaskClientStoreInternal {
             {undoManager, mapUndoActions},
             () => {
                 return duplicateTaskAndAllChildren(context, {
-                    taskId,
+                    sourceTaskId: taskId,
                     actionTime,
                     timeZone,
+                    variableValues,
                 });
             },
         );

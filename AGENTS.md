@@ -68,7 +68,8 @@ Most Bazel packages at Alpine use the `ts_project()` rule maintained by us. It a
 collects the project’s source files and lets you declare dependencies (`deps`, you aren’t allowed to
 have cyclic dependencies between Bazel packages). This rule sets up Bazel tests for type checking
 (e.g. `//shared/helpers:helpers_typecheck_test`), linting (e.g.
-`//shared/helpers:helpers_lint_test`), and Jest unit tests.
+`//shared/helpers:helpers_lint_test`), formatting (e.g. `//shared/helpers:helpers_format_test`), and
+Jest unit tests.
 
 When you use `ts_project()` it automatically creates a rule for every `*.test.ts` file in the
 package (formatted as `*_test`). So for our previous example we have a file
@@ -104,9 +105,22 @@ We some scripts available from the `dev` executable for running Bazel tests just
 changed in the current git branch:
 
 ```bash
-dev check # Runs type check and lint tests affected by changes in the current branch
-dev test  # Runs Jest unit tests affected by changes in the current branch
+dev check  # Runs type check and lint tests for packages affected by changes in the current branch
+dev test   # Runs Jest unit tests for packages affected by changes in the current branch
+dev format # Runs Prettier and on all changed files in the current branch
 ```
+
+Instead of running type checking for a single package (e.g.
+`bazel test //shared/helpers:helpers_typecheck_test`) you should run `dev check`. Because type
+checking a single package with Bazel won’t check types for the _dependencies_ of the package which
+might have been affected if you updated exports. Generally running `dev check` is much better than
+individually running lint, type check, and formatting tests.
+
+Never run ESLint directly (e.g. `npx eslint`, `pnpm eslint`). Always use `bazel test *_lint_test` or
+`dev check` instead. The Bazel lint tests are configured with the correct plugins and settings.
+
+Never run Prettier directly. Use `dev format` to format files, or `bazel test *_format_test` if you
+just want to check that files are formatted correctly.
 
 ## Code style
 

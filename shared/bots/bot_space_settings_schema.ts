@@ -15,11 +15,11 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  */
 export type BotSpaceSettingsSchema = SchemaType<typeof BotSpaceSettingsSchemaSchema>;
 
-export type BotSpaceSettingsStringPropertySchema = SchemaType<
-    typeof BotSpaceSettingsStringPropertySchemaSchema
+export type BotSpaceSettingsSchemaStringProperty = SchemaType<
+    typeof BotSpaceSettingsSchemaStringPropertySchema
 >;
 
-export const BotSpaceSettingsStringPropertySchemaSchema = Schema.object({
+export const BotSpaceSettingsSchemaStringPropertySchema = Schema.object({
     type: Schema.value("String"),
     label: LabelStringSchema,
     hint: LabelStringWithoutMaxLengthSchema.maxLength(128).nullable(),
@@ -49,7 +49,7 @@ export const BotSpaceSettingsSchemaSchema = Schema.object({
     properties: Schema.map(
         IdentifierStringSchema,
         Schema.union({
-            String: BotSpaceSettingsStringPropertySchemaSchema,
+            String: BotSpaceSettingsSchemaStringPropertySchema,
         }),
     ),
 });

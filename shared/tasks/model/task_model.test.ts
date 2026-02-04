@@ -30,8 +30,9 @@ import {
 } from "~/shared/tasks/test_helpers/task_model_test_helpers.js";
 import {
     TaskTitleModel,
-    createTaskTitleFromText,
+    applyTaskTitleUpdate,
     emptyTaskTitle,
+    getTaskTitleText,
 } from "~/shared/tasks/title/task_title.js";
 
 function getActionReferencedSortableAccountWrapper(creatorAccountId: AccountId) {
@@ -219,19 +220,20 @@ describe("getCloneActions", () => {
     for (const {initial, expected} of titleCopiesCases) {
         test(`adds suffix to title without existing suffix: ${initial} -> ${expected}`, () => {
             task = updateTestTaskWithTitle({task, title: initial});
-            const title = createTaskTitleFromText(initial);
 
             const {actions} = task.getDuplicateActions({
                 creatorId: accountId,
                 actionTime: clock.now(),
                 creatorTimeZone: timeZone,
-                titleSuffix: "copy",
+                withTitleUpdate: true,
             });
             const titleAction = findAction<TaskUpdateTitleAction>(actions, "UpdateTitle");
 
-            // create a model and play the update on it
-            const titleModel = new TaskTitleModel(title).apply(titleAction.taskAction.titleUpdate);
-            expect(titleModel.getText()).toEqual(expected);
+            expect(
+                getTaskTitleText(
+                    applyTaskTitleUpdate(emptyTaskTitle.get(), titleAction.taskAction.titleUpdate),
+                ),
+            ).toEqual(expected);
         });
     }
 

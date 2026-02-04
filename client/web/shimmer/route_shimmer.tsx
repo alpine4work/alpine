@@ -217,6 +217,9 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId.$index.reactions": {
         component: ReactionsRouteShimmer,
     },
+    "routes/s.$spaceId.documents.$documentId.duplicate": {
+        component: ContentDuplicationRouteShimmer,
+    },
     "routes/s.$spaceId.favorites": {component: SearchFavoritesRouteShimmer},
     "routes/s.$spaceId.inbox": {component: InboxRouteShimmer},
     "routes/s.$spaceId.more._index": {component: MoreRouteShimmer},
@@ -257,6 +260,7 @@ const shimmerOptionsByRouteId: Record<
         component: TaskCommentsRouteShimmer,
     },
     "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": {component: ReactionsRouteShimmer},
+    "routes/s.$spaceId.tasks.$taskId.duplicate": {component: ContentDuplicationRouteShimmer},
     "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskCollectionRouteShimmer},
     "routes/s.$spaceId.tasks.view": {component: TaskQueryRouteShimmer},
 
@@ -908,6 +912,99 @@ function ChannelCreatorRouteShimmer() {
                     <Spacer space={channelCreatorFieldHelpMarginTop} />
                     <TextShimmer fontSize="50" width="full" ragRight="3" />
                     <TextShimmer fontSize="50" width="64" />
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function ContentDuplicationRouteShimmer() {
+    const spacingScale = useSpacingScale();
+    const platform = usePlatform();
+
+    return (
+        <Box display="flex" flexDirection="column" alignItems="center">
+            <Box
+                flexShrink="0"
+                paddingTop="safe-area-inset"
+                width="full"
+                maxWidth={peekNarrowLayoutWidth}
+            >
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    position="relative"
+                    height={navigationBarHeight}
+                    paddingX={platform === "mobile" ? navigationBarMobileGap : screenPaddingX}
+                >
+                    {platform === "mobile" && <MobileBackButton />}
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        justifyContent="center"
+                        alignItems={platform !== "mobile" ? "flex-start" : "center"}
+                        width="full"
+                        height="full"
+                    >
+                        {/* Title: "Duplicate "[title]"" */}
+                        <TextShimmer
+                            fontSize={
+                                platform !== "mobile"
+                                    ? channelCreatorNavigationBarDesktopTitleFontSize
+                                    : "100"
+                            }
+                            width={platform !== "mobile" ? "48" : "32"}
+                            ragRight={platform !== "mobile" ? "4" : undefined}
+                        />
+                    </Box>
+                    {/* "Create" button */}
+                    <Box display="flex" justifyContent="flex-end">
+                        <Box
+                            className={pulseAnimationClassName}
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            backgroundColor="grey-10"
+                            paddingX="3"
+                            height="7"
+                            borderRadius="1"
+                        >
+                            <Box opacity="0" fontSize="100">
+                                Create
+                            </Box>
+                        </Box>
+                    </Box>
+                </Box>
+                <Box
+                    display="flex"
+                    flexDirection="column"
+                    gap={channelCreatorGap}
+                    paddingTop={channelCreatorMarginTop}
+                    paddingX={screenPaddingX}
+                >
+                    {/* First text input */}
+                    <Box pointerEvents="auto">
+                        <TextShimmer fontSize="75" width="10" />
+                        <Spacer space="1.5" />
+                        <Box height="9" className={textInputClassName} />
+                    </Box>
+                    {/* Second text input */}
+                    <Box>
+                        <TextShimmer fontSize="75" width="14" />
+                        <Spacer space="1.5" />
+                        <Box height="9" className={textInputClassName} />
+                    </Box>
+                    {/* Content input */}
+                    <Box>
+                        <TextShimmer fontSize="75" width="14" ragRight="2" />
+                        <Spacer space="1.5" />
+                        <Box
+                            className={textInputClassName}
+                            style={{
+                                height: channelCreatorDescriptionFieldMinHeightPx[spacingScale],
+                            }}
+                        />
+                    </Box>
                 </Box>
             </Box>
         </Box>

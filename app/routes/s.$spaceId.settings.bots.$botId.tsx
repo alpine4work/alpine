@@ -45,8 +45,8 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {BotSettingsAccountSchema} from "~/shared/bots/bot_settings_account_schema.js";
 import {
     BotSpaceSettingsSchemaSchema,
-    BotSpaceSettingsStringPropertySchema,
-} from "~/shared/bots/bot_space_settings_schema_schema.js";
+    BotSpaceSettingsSchemaStringProperty,
+} from "~/shared/bots/bot_space_settings_schema.js";
 import {SimpleContentWithReferencesSchema} from "~/shared/content/simple_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -319,7 +319,7 @@ function SpaceBotSettingsStringProperty({
     updatePropertyValue,
 }: {
     isDisabled: boolean;
-    propertySchema: BotSpaceSettingsStringPropertySchema;
+    propertySchema: BotSpaceSettingsSchemaStringProperty;
     propertyValue: SchemaSerializedValue | undefined;
     isSecretPropertyWithValue: boolean;
     updatePropertyValue: (propertyValue: SchemaSerializedValue) => Promise<void>;

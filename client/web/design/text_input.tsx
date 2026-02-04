@@ -40,6 +40,12 @@ export type TextInputProps = {
     onEnter?: () => void;
 
     /**
+     * If the enter key is pressed with command (on MacOS) or control (on windows)
+     * this event fires.
+     */
+    onModEnter?: () => void;
+
+    /**
      * If the escape key is pressed while focused on this text input this
      * event fires.
      */
@@ -104,7 +110,17 @@ export type TextInputProps = {
     /**
      * What font should we use for this text input? Defaults to `normal`.
      */
-    fontStyle?: "normal" | "code";
+    fontStyle?: "normal" | "extra-bold" | "code" | "code-extra-bold";
+
+    /**
+     * Should we use an italic font?
+     */
+    isFontItalic?: boolean;
+
+    /**
+     * Is there a strikethrough decoration on the font?
+     */
+    hasFontStrikeDecoration?: boolean;
 
     /**
      * Override the right padding of the text input.
@@ -130,7 +146,7 @@ export type TextInputProps = {
 // This is a string so it's fine to export.
 // eslint-disable-next-line react-refresh/only-export-components
 export const textInputClassName = sprinkles({
-    border: "grey-20",
+    boxShadow: "elevation-5-with-grey-10-border",
     backgroundColor: "grey-0",
     color: "grey-100",
     borderRadius: "1",
@@ -154,10 +170,14 @@ export const TextInput = forwardRef(function TextInput(
         <Box>
             <label
                 className={sprinkles({
-                    display: "inline-block",
+                    // `display: block; width: fit-content` is important here! As `inline-block`
+                    // there's some weird additional vertical space underneath the label.
+                    display: "block",
+                    width: "fit-content",
+                    maxWidth: "full",
                     fontSize: "75",
-                    fontStyle: "semi-bold",
-                    paddingBottom: "1",
+                    fontStyle: "truncate-semi-bold",
+                    paddingBottom: "1.5",
                 })}
                 htmlFor={id}
             >
@@ -176,6 +196,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         value,
         onChange,
         onEnter,
+        onModEnter,
         onEscape,
         placeholder,
         isDisabled,
@@ -186,6 +207,8 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         formName,
         fontSize = "75",
         fontStyle = "normal",
+        isFontItalic = false,
+        hasFontStrikeDecoration = false,
         paddingRight,
         isFocusRingVisible = false,
         maxLength,
@@ -222,6 +245,13 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         }
     }, []);
 
+    const isCodeFontStyle = {
+        normal: false,
+        "extra-bold": false,
+        code: true,
+        "code-extra-bold": true,
+    }[fontStyle];
+
     return (
         <FocusRing offset="border" isVisible={isFocusRingVisible}>
             <input
@@ -240,9 +270,19 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                     color: isDisabled || isReadOnly ? "grey-70" : "grey-100",
                 })}
                 style={{
+                    fontStyle: isFontItalic ? "italic" : undefined,
+                    // Italics in our code font is controlled by a variable font setting instead of
+                    // `font-style: italic`.
+                    // eslint-disable-next-line cyberworlds/string-quotes
+                    fontVariationSettings: isCodeFontStyle && isFontItalic ? '"ital" 1' : undefined,
                     // Allow contextual alternate glyphs in regular text content.
                     // eslint-disable-next-line cyberworlds/string-quotes
                     fontFeatureSettings: inputType === "text" ? '"calt" on' : '"calt" off',
+                    // Was a strike requested for the font? Only render a strike if the value isn't
+                    // empty. Otherwise the strike renders on the placeholder which looks funny.
+                    ...(hasFontStrikeDecoration && value.length > 0
+                        ? {textDecorationLine: "line-through", textDecorationThickness: 1}
+                        : undefined),
                 }}
                 id={id}
                 aria-label={ariaLabel}
@@ -263,6 +303,21 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                 enterKeyHint={onEnter ? "done" : undefined}
                 maxLength={maxLength}
                 onKeyDown={event => {
+                    if (
+                        onModEnter &&
+                        event.key === "Enter" &&
+                        !event.altKey &&
+                        !event.shiftKey &&
+                        // Cmd+Enter on MacOS platforms should trigger the callback
+                        // Ctrl+Enter on non-MacOS platforms should trigger the callback
+                        (isAppleDevice ? event.metaKey : event.ctrlKey)
+                    ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onModEnter();
+                        return;
+                    }
+
                     if (
                         onEnter &&
                         event.key === "Enter" &&

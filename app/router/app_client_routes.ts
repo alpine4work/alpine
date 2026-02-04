@@ -417,6 +417,11 @@ function updateTaskDataRoute(route: DataRouteObject) {
             originalRouteLoader(...args),
             spaceRouteModulePromise.get(),
         ]);
+
+        // In case there's no loader immediately return null. There's no data to
+        // process!
+        if (result === null) return null;
+
         assert(result instanceof Response);
 
         const data = await processLoaderResult(result);

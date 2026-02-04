@@ -3,7 +3,7 @@ import {
     chatGptKnownBotId,
     cursorKnownBotId,
 } from "~/server/bots/settings_default_known_bot_account_model_data.js";
-import {BotSpaceSettingsSchema} from "~/shared/bots/bot_space_settings_schema_schema.js";
+import {BotSpaceSettingsSchema} from "~/shared/bots/bot_space_settings_schema.js";
 import {SimpleContent} from "~/shared/content/simple_content_schema.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";

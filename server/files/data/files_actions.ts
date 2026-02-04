@@ -1555,13 +1555,28 @@ export async function attachFileFromAttachment(
     {
         from: fromTargetAuthorizer,
         to: toTargetAuthorizer,
-    }: {from: FileAuthorizer; to: FileAuthorizer},
+        dangerouslySkipToAuthorizeTargetAccess,
+    }: {
+        from: FileAuthorizer;
+        to: FileAuthorizer;
+        dangerouslySkipToAuthorizeTargetAccess?: boolean;
+    },
 ): Promise<FileModel> {
     const [file] = await runAllPromises([
         // Make sure the file exists with the provided authorizer.
         getFileFromAttachment(context, spaceId, fileId, fromTargetAuthorizer),
+
         // Make sure we have access to the new file authorizer.
-        toTargetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
+        //
+        // Allow skipping this authorization check. Useful if we're attaching a file to
+        // an entity that's about to be created. It's not even that dangerous to allow
+        // file attachments to an entity you don't have access to. An "attached" file
+        // isn't rendered unless the underlying entity references the file. If the
+        // actor can't update the underlying entity then the unused attached file will
+        // eventually be garbage collected away.
+        !dangerouslySkipToAuthorizeTargetAccess
+            ? toTargetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit")
+            : null,
     ]);
 
     await FilesTable.createOrReplaceItem(context, {

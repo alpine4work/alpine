@@ -242,6 +242,7 @@ const responsiveProperties = defineProperties({
         width: {
             ...spacingWithPercentages,
             auto: "auto",
+            "fit-content": "fit-content",
             border: 1,
             "border-thick": 2,
             // Includes top and bottom for easy use with a `<Spacer>` component.

@@ -10,6 +10,7 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
+import {ContentDuplicationVariableValuesSchema} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -83,9 +84,10 @@ export const duplicateTaskAndAllChildren = defineRpc({
     // Duplicates the task twice if called twice.
     isIdempotent: false,
     input: {
-        taskId: Schema.id<TaskId>(),
+        sourceTaskId: Schema.id<TaskId>(),
         actionTime: HybridLogicalTimeSchema,
         timeZone: TimeZoneSchema,
+        variableValues: ContentDuplicationVariableValuesSchema.optional(),
     },
     output: {
         actions: Schema.array(TaskActionSchema),

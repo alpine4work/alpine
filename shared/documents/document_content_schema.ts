@@ -401,6 +401,8 @@ export const DocumentContentSchema =
 export const UncheckedDocumentContentSchema =
     documentSchemas.UncheckedTopNodeType as Schema<any> as Schema<Node>;
 
+export const DocumentContentMarkSchema = documentSchemas.Mark;
+
 export const DocumentContentStepSchema = documentSchemas.createStepSchema();
 
 export function createEmptyDocumentContent(creatorId: AccountId) {

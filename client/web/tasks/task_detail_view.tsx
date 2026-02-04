@@ -18,6 +18,7 @@ import {
     useState,
 } from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {ContentDuplicationInstructionalModal} from "~/client/web/content/content_duplication_instructional_modal.js";
 import {ContentEditorRef} from "~/client/web/content/content_editor.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
@@ -37,9 +38,11 @@ import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_el
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
+import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/web/remix/route_layout_context.js";
@@ -122,8 +125,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {
+    encodeContentDuplicationVariableSchemaForUrl,
+    extractContentDuplicationVariableSchema,
+} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -200,6 +208,7 @@ export function TaskDetailView({
         space: {id: spaceId},
         currentAccount,
     } = useSpaceContext();
+    const peekStackContext = usePeekStackContext();
 
     const mainRef = useRef<TaskDetailViewMainRef>(null);
 
@@ -646,6 +655,17 @@ export function TaskDetailView({
         onConfirm: () => void;
     } | null>(null);
 
+    // State for the duplicate instructional modal
+    const [showDuplicateInstructionalModal, setShowDuplicateInstructionalModal] = useState(false);
+    const [
+        doNotShowDuplicationInstructionalModalAgain,
+        setDoNotShowDuplicationInstructionalModalAgain,
+    ] = useLocalStorage(
+        "cyberworlds/doNotShowContentDuplicationInstructionalModalAgain",
+        Schema.boolean,
+        false,
+    );
+
     const undoManager: TaskClientStoreUndoManager = useMemo(
         () => ({
             pushUndoStackEntry: ({undoActions, removedFromQueries, leaseId, release}) => {
@@ -776,6 +796,39 @@ export function TaskDetailView({
                     label: "Duplicate",
                     pressErrorTitle: "Couldn\u2019t duplicate task",
                     onPress: async () => {
+                        // Get the task's title text
+                        const task = taskSubscription?.taskEntryStore.getSnapshot().task;
+                        const titleText = task?.getTitle().getText() ?? "";
+
+                        // Get the notes content
+                        const notesContent = notesEditorStateStore
+                            .getSnapshot()
+                            .editorState.getDoc();
+
+                        // Extract variable schema from notes content and title
+                        const schema = extractContentDuplicationVariableSchema(notesContent, {
+                            additionalText: [titleText],
+                        });
+
+                        // If there are variables, navigate to the duplicate interstitial
+                        const encodedSchema = encodeContentDuplicationVariableSchemaForUrl(schema);
+                        if (encodedSchema !== null) {
+                            const searchParams = new URLSearchParams();
+                            searchParams.set("title", addFallbackToTaskTitle(titleText));
+                            searchParams.set("schema", encodedSchema);
+
+                            await navigate(
+                                `/s/${spaceId}/tasks/${taskId}/duplicate?${searchParams.toString()}`,
+                            );
+                            return;
+                        }
+
+                        // Show the instructional modal if it hasn't been dismissed
+                        if (!doNotShowDuplicationInstructionalModalAgain) {
+                            setShowDuplicateInstructionalModal(true);
+                            return;
+                        }
+
                         const {taskId: newTaskId} = await store.duplicateTaskAndAllChildren(
                             context,
                             taskId,
@@ -783,7 +836,14 @@ export function TaskDetailView({
                             {undoManager},
                         );
 
-                        await navigate(`/s/${spaceId}/tasks/${newTaskId}`);
+                        // Navigate to the new task. Always open in a peek on desktop. To make it
+                        // clear when you're duplicating from a peek that the new task is a
+                        // duplicate.
+                        if (platform !== "mobile") {
+                            await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
+                        } else {
+                            await navigate(`/s/${spaceId}/tasks/${newTaskId}`);
+                        }
                     },
                 },
                 {
@@ -872,8 +932,12 @@ export function TaskDetailView({
         hasEditAccessLevel,
         initialFields.assignee?.id,
         isAppleDevice,
+        doNotShowDuplicationInstructionalModalAgain,
         navigate,
+        notesEditorStateStore,
         onShowCommentsChange,
+        peekStackContext,
+        platform,
         priorityInputState.isVisible,
         redo,
         reporter,
@@ -1068,6 +1132,31 @@ export function TaskDetailView({
                     taskId={taskCloseConfirmationState.taskId}
                     onClose={() => setTaskCloseConfirmationState(null)}
                     onConfirm={taskCloseConfirmationState.onConfirm}
+                />
+            )}
+            {showDuplicateInstructionalModal && (
+                <ContentDuplicationInstructionalModal
+                    noun="task"
+                    onDuplicate={async () => {
+                        const {taskId: newTaskId} = await store.duplicateTaskAndAllChildren(
+                            context,
+                            taskId,
+                            timeZone,
+                            {undoManager},
+                        );
+
+                        // Navigate to the new task. Always open in a peek on desktop. To make it
+                        // clear when you're duplicating from a peek that the new task is a
+                        // duplicate.
+                        if (platform !== "mobile") {
+                            await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
+                        } else {
+                            await navigate(`/s/${spaceId}/tasks/${newTaskId}`);
+                        }
+                    }}
+                    onClose={() => setShowDuplicateInstructionalModal(false)}
+                    doNotShowAgain={doNotShowDuplicationInstructionalModalAgain}
+                    onDoNotShowAgainChange={setDoNotShowDuplicationInstructionalModalAgain}
                 />
             )}
         </>

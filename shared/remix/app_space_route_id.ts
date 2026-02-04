@@ -16,6 +16,7 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.documents.$documentId._index"
     | "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId.$index.reactions"
     | "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index"
+    | "routes/s.$spaceId.documents.$documentId.duplicate"
     | "routes/s.$spaceId.favorites"
     | "routes/s.$spaceId.inbox"
     | "routes/s.$spaceId.invite._index"
@@ -43,6 +44,7 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.tasks.$taskId._index"
     | "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions"
     | "routes/s.$spaceId.tasks.$taskId.comments._index"
+    | "routes/s.$spaceId.tasks.$taskId.duplicate"
     | "routes/s.$spaceId.tasks._index"
     | "routes/s.$spaceId.tasks.collections.$collectionId"
     | "routes/s.$spaceId.tasks.view";

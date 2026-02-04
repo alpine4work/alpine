@@ -37,6 +37,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/web/content:content",
     "//client/web/content/file_entity:file_entity",
     "//client/web/content/state:state",
+    "//client/web/content/with_navigation:with_navigation",
     "//client/web/context:context",
     "//client/web/debug/chat_gpt:chat_gpt",
     "//client/web/design:design",

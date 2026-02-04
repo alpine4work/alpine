@@ -461,6 +461,10 @@ function DocumentPresentationInstructionalConfirmationModal({
             // dialog's two buttons will usually be the main actions you want to take.
             // Dismissing a modal by clicking the background should also feel natural.
             withoutCloseButton={true}
+            // The user can cancel with the escape key or clicking outside the modal. This
+            // instructional modal isn't warning the user about any destructive action so
+            // "Cancel" feels like it confuses the message.
+            shouldHideCancelButton={true}
             additionalButtons={
                 <Checkbox
                     color="grey-60"

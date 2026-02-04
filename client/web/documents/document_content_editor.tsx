@@ -30,6 +30,7 @@ import {
     ContentBlockWidthContextProvider,
     useContentBlockWidth,
 } from "~/client/web/content/content_block_width.js";
+import {ContentDuplicationInstructionalModal} from "~/client/web/content/content_duplication_instructional_modal.js";
 import {ContentEditor, ContentEditorRef} from "~/client/web/content/content_editor.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/web/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
@@ -83,6 +84,7 @@ import {useIsMounted} from "~/client/web/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {MemoObject} from "~/client/web/helpers/types/memo_object.js";
+import {useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
@@ -91,6 +93,7 @@ import {PanoramaIcon} from "~/client/web/icons/panorama_icon.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {NavigationBarRef} from "~/client/web/navigation/navigation_bar_types.js";
+import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
@@ -101,6 +104,7 @@ import {
     useSpacingScale,
 } from "~/client/web/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
+import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {documentContentEditorSidebarWidth} from "~/client/web/styles/document_shared_styles.js";
@@ -147,6 +151,7 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
     encodeDocumentCommentRoomKey,
+    getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -168,11 +173,16 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {
+    encodeContentDuplicationVariableSchemaForUrl,
+    extractContentDuplicationVariableSchema,
+} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
-import {createDocument} from "~/shared/rpc/documents_rpc_definitions.js";
+import {createDocument, duplicateDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -271,16 +281,31 @@ export function DocumentContentEditor({
     const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
     const peekContext = usePeekContext();
+    const peekStackContext = usePeekStackContext();
+    const navigate = useNavigate();
     const isMounted = useIsMounted();
+
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const commentThreadListViewRef = useRef<DocumentCommentThreadListViewRef>(null);
     const presentationControllerRef = useRef<DocumentPresentationControllerRef>(null);
+
     const editorContainerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
-    const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
     const blockWidth = useContentBlockWidth();
+
+    const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
+
+    const [showDuplicateInstructionalModal, setShowDuplicateInstructionalModal] = useState(false);
+    const [
+        doNotShowDuplicationInstructionalModalAgain,
+        setDoNotShowDuplicationInstructionalModalAgain,
+    ] = useLocalStorage(
+        "cyberworlds/doNotShowContentDuplicationInstructionalModalAgain",
+        Schema.boolean,
+        false,
+    );
 
     const {
         spaceId,
@@ -1598,15 +1623,85 @@ export function DocumentContentEditor({
                           ]
                         : []),
                 ],
+                ...(currentAccount
+                    ? [
+                          [
+                              cast<MenuAction>({
+                                  label: "Duplicate",
+                                  iconPlacement: "end",
+                                  pressErrorTitle: "Couldn\u2019t duplicate document",
+                                  onPress: async () => {
+                                      // Get the current document content
+                                      const currentDoc = content.doc;
+
+                                      // Check for template variables
+                                      const schema =
+                                          extractContentDuplicationVariableSchema(currentDoc);
+
+                                      // Navigate to the duplicate interstitial with schema
+                                      const encodedSchema =
+                                          encodeContentDuplicationVariableSchemaForUrl(schema);
+
+                                      if (encodedSchema !== null) {
+                                          const searchParams = new URLSearchParams();
+                                          searchParams.set(
+                                              "title",
+                                              getDocumentContentTitle(currentDoc),
+                                          );
+                                          searchParams.set("schema", encodedSchema);
+
+                                          await navigate(
+                                              `/s/${spaceId}/documents/${documentId}/duplicate?${searchParams.toString()}`,
+                                          );
+                                          return;
+                                      }
+
+                                      // Show the instructional modal if it hasn't been dismissed
+                                      if (!doNotShowDuplicationInstructionalModalAgain) {
+                                          setShowDuplicateInstructionalModal(true);
+                                          return;
+                                      }
+
+                                      // No variables - duplicate directly via RPC
+                                      const {documentId: newDocumentId} = await duplicateDocument(
+                                          context,
+                                          {sourceDocumentId: documentId},
+                                      );
+
+                                      // Navigate to the new document. Always open in a peek on desktop. To make it
+                                      // clear when you're duplicating from a peek that the new document is a
+                                      // duplicate.
+                                      if (platform !== "mobile") {
+                                          await peekStackContext.push(
+                                              `/s/${spaceId}/documents/${newDocumentId}`,
+                                          );
+                                      } else {
+                                          await navigate(
+                                              `/s/${spaceId}/documents/${newDocumentId}`,
+                                          );
+                                      }
+                                  },
+                              }),
+                          ],
+                      ]
+                    : []),
             ],
             [
                 accessLevel,
+                content.doc,
+                context,
+                currentAccount,
+                doNotShowDuplicationInstructionalModalAgain,
+                documentId,
                 favoriteMenuAction,
                 isAppleDevice,
                 isRedoDisabled,
                 isUndoDisabled,
+                navigate,
                 onCopyLink,
+                peekStackContext,
                 platform,
+                spaceId,
             ],
         ),
         // Don't render the share button if the account doesn't have space access. They
@@ -2210,6 +2305,28 @@ export function DocumentContentEditor({
                     editorRef={editorRef}
                     editorState={editorState}
                     onClose={() => setIsCoverModalOpen(false)}
+                />
+            )}
+            {showDuplicateInstructionalModal && (
+                <ContentDuplicationInstructionalModal
+                    noun="document"
+                    onDuplicate={async () => {
+                        const {documentId: newDocumentId} = await duplicateDocument(context, {
+                            sourceDocumentId: documentId,
+                        });
+
+                        // Navigate to the new document. Always open in a peek on desktop. To make it
+                        // clear when you're duplicating from a peek that the new document is a
+                        // duplicate.
+                        if (platform !== "mobile") {
+                            await peekStackContext.push(`/s/${spaceId}/documents/${newDocumentId}`);
+                        } else {
+                            await navigate(`/s/${spaceId}/documents/${newDocumentId}`);
+                        }
+                    }}
+                    onClose={() => setShowDuplicateInstructionalModal(false)}
+                    doNotShowAgain={doNotShowDuplicationInstructionalModalAgain}
+                    onDoNotShowAgainChange={setDoNotShowDuplicationInstructionalModalAgain}
                 />
             )}
         </Box>

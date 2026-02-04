@@ -1,3 +1,4 @@
+import {generateDuplicateContentTitle} from "~/shared/content/generate_duplicate_content_title.js";
 import {InternalError} from "~/shared/error/error.js";
 import {
     HybridLogicalTime,
@@ -8,6 +9,10 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    ContentDuplicationVariableValues,
+    applyContentDuplicationVariableValuesToText,
+} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
@@ -38,7 +43,11 @@ import {
     TaskSortableAccountSchema,
 } from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatus, TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {TaskTitleModel, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {
+    TaskTitleModel,
+    addFallbackToTaskTitle,
+    emptyTaskTitleModel,
+} from "~/shared/tasks/title/task_title.js";
 
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
 
@@ -238,19 +247,22 @@ export class TaskModel {
      * @param creatorTimeZone - The time zone of the actor.
      * @param parentTaskId - The ID of the parent task, defaulted to the cloned task's parent.
      * @param titleSuffix - A suffix to append to the cloned task's title.
+     * @param variableValues - Values for template variable substitution in the title.
      */
     public getDuplicateActions({
         creatorId,
         actionTime,
         creatorTimeZone,
         parentTaskId,
-        titleSuffix,
+        withTitleUpdate,
+        variableValues,
     }: {
         creatorId: AccountId;
         actionTime: HybridLogicalTime;
         creatorTimeZone: TimeZone;
         parentTaskId?: TaskId;
-        titleSuffix?: string;
+        withTitleUpdate?: boolean;
+        variableValues?: ContentDuplicationVariableValues;
     }): {taskId: TaskId; actions: Array<TaskAction>} {
         const actions: Array<TaskAction> = [];
 
@@ -303,28 +315,16 @@ export class TaskModel {
             });
         }
 
-        // Title
-        // Note: we only support copying titles as text for now
-        const titleText = this.getTitle().getText();
-        let title = this.getTitle();
-        if (titleSuffix) {
-            const suffixRegex = new RegExp(` \\(${titleSuffix}( \\d+)?\\)$`);
-            const suffixMatch = titleText.match(suffixRegex);
-            if (suffixMatch?.index) {
-                // if we already have this suffix, increment the number
-                const suffixNumber = suffixMatch[1] ? parseInt(suffixMatch[1], 10) + 1 : 2;
-                const replacementString = ` (${titleSuffix} ${suffixNumber})`;
-                const startPos = suffixMatch.index;
-                const endPos = startPos + suffixMatch[0].length;
-                title = this.getTitle().replace(startPos, endPos, replacementString).newTitle;
-            } else {
-                // if we don't have this suffix, add it
-                title = this.getTitle().replace(
-                    titleText.length,
-                    titleText.length,
-                    ` (${titleSuffix})`,
-                ).newTitle;
-            }
+        const originalTitleText = addFallbackToTaskTitle(this.getTitle().getText());
+        let titleText = originalTitleText;
+
+        // Apply variable substitution before suffix logic
+        if (variableValues && variableValues.size > 0) {
+            titleText = applyContentDuplicationVariableValuesToText(titleText, variableValues);
+        }
+
+        if (withTitleUpdate && titleText === originalTitleText) {
+            titleText = generateDuplicateContentTitle(titleText);
         }
 
         actions.push({
@@ -333,7 +333,7 @@ export class TaskModel {
             taskId: taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: title.getRaw(),
+                titleUpdate: TaskTitleModel.fromText(titleText).getRaw(),
             },
         });
 

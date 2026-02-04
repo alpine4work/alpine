@@ -22,6 +22,7 @@ import {
     DocumentId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {ContentDuplicationVariableValuesSchema} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -70,6 +71,19 @@ export const createDocument = defineRpc({
     output: {
         documentId: Schema.id<DocumentId>(),
         createdTime: Schema.date,
+    },
+});
+
+export const duplicateDocument = defineRpc({
+    name: "duplicateDocument",
+    // Creates a new document, so not idempotent
+    isIdempotent: false,
+    input: {
+        sourceDocumentId: Schema.id<DocumentId>(),
+        variableValues: ContentDuplicationVariableValuesSchema.optional(),
+    },
+    output: {
+        documentId: Schema.id<DocumentId>(),
     },
 });
 

@@ -662,6 +662,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
     return {
         TopNodeType,
         UncheckedTopNodeType,
+        Mark: MarkUnionSchema,
         createStepSchema,
     };
 }

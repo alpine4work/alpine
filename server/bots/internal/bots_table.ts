@@ -2,7 +2,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
-import {BotSpaceSettingsSchemaSchema} from "~/shared/bots/bot_space_settings_schema_schema.js";
+import {BotSpaceSettingsSchemaSchema} from "~/shared/bots/bot_space_settings_schema.js";
 import {SimpleContentSchema} from "~/shared/content/simple_content_schema.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {ApiKey} from "~/shared/id/api_key.js";

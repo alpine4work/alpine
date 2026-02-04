@@ -87,9 +87,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const {spaceId, actions, taskId} = await duplicateTaskAndAllChildren(
                 context.actor.authorizeSession(),
-                input.taskId,
-                input.actionTime,
-                input.timeZone,
+                input,
             );
 
             const accountIds = new Set<AccountId>();

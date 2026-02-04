@@ -568,9 +568,11 @@ export class TaskTitleModel {
     }
 
     public static fromText(text: string, options?: {clientIdForTest?: number}) {
-        const prosemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, [
-            TaskTitleProsemirrorSchema.text(text),
-        ]);
+        const prosemirrorNode = TaskTitleProsemirrorSchema.node(
+            "doc",
+            {},
+            text.length > 0 ? [TaskTitleProsemirrorSchema.text(text)] : [],
+        );
 
         const doc = createDoc(options);
         prosemirrorToYXmlFragment(prosemirrorNode, doc.getXmlFragment("doc"));

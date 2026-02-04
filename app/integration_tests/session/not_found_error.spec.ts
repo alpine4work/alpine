@@ -138,6 +138,10 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This comment thread doesn\u2019t exist")).toBeVisible();
         });
     },
+    "documents.$documentId.duplicate": () => {
+        // Doesn't actually load document data so won't throw a not found error
+        // on load.
+    },
     "notifications.channel-posts.$channelIdAndBucketGeneration": () => {
         // Users generally won't navigate to this route on their own. Don't bother
         // testing the 404 not found page.
@@ -247,6 +251,10 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
 
             await expect(page.getByText("This task doesn\u2019t exist")).toBeVisible();
         });
+    },
+    "tasks.$taskId.duplicate": () => {
+        // Doesn't actually load task data so won't throw a not found error
+        // on load.
     },
     "tasks.collections.$collectionId": () => {
         test("not found error for route `tasks.collections.$collectionId`", async ({

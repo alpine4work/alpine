@@ -26,6 +26,7 @@ import {
     createDocumentComment,
     deleteDocumentComment,
     documentContentCacheEvictionTimeoutMs,
+    duplicateDocument,
     getDocument,
     getDocumentAccessPolicyForBotScope,
     getDocumentAndCommentThreadsWithInitialComments,
@@ -104,6 +105,7 @@ import {
     DocumentId,
     RpcCallId,
 } from "~/shared/id/types/id_types.js";
+import {ContentDuplicationVariableValues} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -18427,5 +18429,473 @@ describe("idempotence", () => {
         );
 
         expect(await document.getString()).toEqual('doc(title, paragraph("a"))');
+    });
+});
+
+describe("duplicateDocument", () => {
+    test("duplicates a document without variables", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session, {
+            title: "Original Document",
+            body: "Hello, world!",
+        });
+
+        const {id: newDocumentId} = await duplicateDocument(session.action(), {
+            sourceDocumentId: document.id,
+        });
+
+        expect(newDocumentId).not.toBe(document.id);
+
+        const newDocument = await getDocument(session.action(), newDocumentId);
+        const newTitle = newDocument.content.doc.firstChild!.textContent;
+        const newBody = newDocument.content.doc.child(1).textContent;
+        expect(newTitle).toBe("Original Document (copy)");
+        expect(newBody).toBe("Hello, world!");
+    });
+
+    test("duplicates a document with Text variable replacement", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const documentContent = assertDocumentContent(
+            schema.node(
+                "doc",
+                {
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: null,
+                        urlGrant: null,
+                    },
+                },
+                [
+                    schema.node("title", {}, [schema.text("Template: {{Name}}")]),
+                    schema.node("paragraph", {}, [schema.text("Hello, {{Name}}!")]),
+                ],
+            ),
+        );
+
+        const document = await createDocument(session.action(), {
+            spaceId: space.id,
+            content: documentContent,
+        });
+
+        const variableValues: ContentDuplicationVariableValues = new Map([
+            ["Name", {type: "Text", text: "Alice", marks: []}],
+        ]);
+
+        const {id: newDocumentId} = await duplicateDocument(session.action(), {
+            sourceDocumentId: document.id,
+            variableValues,
+        });
+
+        const newDocument = await getDocument(session.action(), newDocumentId);
+        const newTitle = newDocument.content.doc.firstChild!.textContent;
+        const newBody = newDocument.content.doc.child(1).textContent;
+        // Title variable was replaced, so "(copy)" suffix is omitted
+        expect(newTitle).toBe("Template: Alice");
+        expect(newBody).toBe("Hello, Alice!");
+    });
+
+    test("duplicates a document with Content variable replacement", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const documentContent = assertDocumentContent(
+            schema.node(
+                "doc",
+                {
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: null,
+                        urlGrant: null,
+                    },
+                },
+                [
+                    schema.node("title", {}, [schema.text("Template Document")]),
+                    schema.node("paragraph", {}, [schema.text("{{Description}}")]),
+                ],
+            ),
+        );
+
+        const document = await createDocument(session.action(), {
+            spaceId: space.id,
+            content: documentContent,
+        });
+
+        const messageContent = assertMessageContent(
+            MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("This is a rich text description."),
+                ]),
+            ]),
+        );
+
+        const variableValues: ContentDuplicationVariableValues = new Map([
+            ["Description", {type: "Content", content: messageContent}],
+        ]);
+
+        const {id: newDocumentId} = await duplicateDocument(session.action(), {
+            sourceDocumentId: document.id,
+            variableValues,
+        });
+
+        const newDocument = await getDocument(session.action(), newDocumentId);
+        const newTitle = newDocument.content.doc.firstChild!.textContent;
+        const newBody = newDocument.content.doc.child(1).textContent;
+        expect(newTitle).toBe("Template Document (copy)");
+        expect(newBody).toBe("This is a rich text description.");
+    });
+
+    test("replacing title variable omits copy suffix", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const documentContent = assertDocumentContent(
+            schema.node(
+                "doc",
+                {
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: null,
+                        urlGrant: null,
+                    },
+                },
+                [
+                    // Title is entirely a template variable
+                    schema.node("title", {}, [schema.text("{{Title}}")]),
+                    schema.node("paragraph", {}, [schema.text("Document content.")]),
+                ],
+            ),
+        );
+
+        const document = await createDocument(session.action(), {
+            spaceId: space.id,
+            content: documentContent,
+        });
+
+        const variableValues: ContentDuplicationVariableValues = new Map([
+            ["Title", {type: "Text", text: "My Custom Title", marks: []}],
+        ]);
+
+        const {id: newDocumentId} = await duplicateDocument(session.action(), {
+            sourceDocumentId: document.id,
+            variableValues,
+        });
+
+        const newDocument = await getDocument(session.action(), newDocumentId);
+        const newTitle = newDocument.content.doc.firstChild!.textContent;
+
+        // When a title variable is replaced, "(copy)" suffix should NOT be added
+        expect(newTitle).toBe("My Custom Title");
+    });
+
+    test("empty Text value is a no-op (variable not replaced)", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const documentContent = assertDocumentContent(
+            schema.node(
+                "doc",
+                {
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: null,
+                        urlGrant: null,
+                    },
+                },
+                [
+                    schema.node("title", {}, [schema.text("Template: {{Name}}")]),
+                    schema.node("paragraph", {}, [schema.text("Hello, {{Name}}!")]),
+                ],
+            ),
+        );
+
+        const document = await createDocument(session.action(), {
+            spaceId: space.id,
+            content: documentContent,
+        });
+
+        // Empty string value - should be a no-op
+        const variableValues: ContentDuplicationVariableValues = new Map([
+            ["Name", {type: "Text", text: "", marks: []}],
+        ]);
+
+        const {id: newDocumentId} = await duplicateDocument(session.action(), {
+            sourceDocumentId: document.id,
+            variableValues,
+        });
+
+        const newDocument = await getDocument(session.action(), newDocumentId);
+        const newTitle = newDocument.content.doc.firstChild!.textContent;
+        const newBody = newDocument.content.doc.child(1).textContent;
+        // Variable should remain unchanged because we provided empty text
+        expect(newTitle).toBe("Template: {{Name}} (copy)");
+        expect(newBody).toBe("Hello, {{Name}}!");
+    });
+
+    test("empty Content value is a no-op (variable not replaced)", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const documentContent = assertDocumentContent(
+            schema.node(
+                "doc",
+                {
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: null,
+                        urlGrant: null,
+                    },
+                },
+                [
+                    schema.node("title", {}, [schema.text("Template Document")]),
+                    schema.node("paragraph", {}, [schema.text("{{Description}}")]),
+                ],
+            ),
+        );
+
+        const document = await createDocument(session.action(), {
+            spaceId: space.id,
+            content: documentContent,
+        });
+
+        // Empty content value - should be a no-op
+        const emptyContent = assertMessageContent(
+            MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("paragraph", {}, []),
+            ]),
+        );
+
+        const variableValues: ContentDuplicationVariableValues = new Map([
+            ["Description", {type: "Content", content: emptyContent}],
+        ]);
+
+        const {id: newDocumentId} = await duplicateDocument(session.action(), {
+            sourceDocumentId: document.id,
+            variableValues,
+        });
+
+        const newDocument = await getDocument(session.action(), newDocumentId);
+        const newTitle = newDocument.content.doc.firstChild!.textContent;
+        const newBody = newDocument.content.doc.child(1).textContent;
+        // Variable should remain unchanged because we provided empty content
+        expect(newTitle).toBe("Template Document (copy)");
+        expect(newBody).toBe("{{Description}}");
+    });
+
+    test("new document has fresh access policy owned by duplicator", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+
+        const document = await TestDocument.create(session1, {
+            title: "Original",
+            access: "Public",
+        });
+
+        const {id: newDocumentId} = await duplicateDocument(session2.action(), {
+            sourceDocumentId: document.id,
+        });
+
+        const newDocument = await getDocument(session2.action(), newDocumentId);
+        const newAccessPolicy = newDocument.content.doc.attrs.accessPolicy as AccessPolicy;
+
+        // The duplicator should have Manage access
+        expect(newAccessPolicy.accountGrantById.get(session2.account.id)?.level).toBe("Manage");
+        // The original owner should not have access to the new document
+        expect(newAccessPolicy.accountGrantById.has(session1.account.id)).toBe(false);
+        // No default grant
+        expect(newAccessPolicy.defaultGrant).toBe(null);
+    });
+
+    test("strips comment marks when duplicating", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session, {
+            title: "Test Document",
+            body: "Some text here",
+        });
+
+        // Create a comment thread on the document (on the word "Some")
+        await document.createCommentThread(session, {from: 16, to: 20}, "A remark on this text");
+
+        // Verify the original document has the comment mark
+        const originalString = await document.getString();
+        expect(originalString).toContain('comment("Some")');
+
+        const {id: newDocumentId} = await duplicateDocument(session.action(), {
+            sourceDocumentId: document.id,
+        });
+
+        const {content: newContent} = await getDocumentContent(session.action(), newDocumentId);
+        // The duplicated document should not have comment marks (the word "Some" should
+        // appear without the comment() wrapper)
+        const newContentString = newContent.toString();
+        expect(newContentString).not.toContain("comment(");
+        expect(newContentString).toContain('"Some text here"');
+    });
+
+    describe("authorization", () => {
+        test("user with Manage access can duplicate", async () => {
+            const space = await TestSpace.create(context);
+            const ownerSession = await space.createSession();
+
+            const document = await TestDocument.create(ownerSession, {title: "Original"});
+
+            // Owner has Manage access by default
+            const {id: newDocumentId} = await duplicateDocument(ownerSession.action(), {
+                sourceDocumentId: document.id,
+            });
+
+            expect(newDocumentId).not.toBe(document.id);
+        });
+
+        test("user with Edit access can duplicate", async () => {
+            const space = await TestSpace.create(context);
+            const ownerSession = await space.createSession();
+            const editorSession = await space.createSession();
+
+            const document = await TestDocument.create(ownerSession, {title: "Original"});
+            await document.access.grant(ownerSession, editorSession, "Edit");
+
+            const {id: newDocumentId} = await duplicateDocument(editorSession.action(), {
+                sourceDocumentId: document.id,
+            });
+
+            expect(newDocumentId).not.toBe(document.id);
+        });
+
+        test("user with Comment access can duplicate", async () => {
+            const space = await TestSpace.create(context);
+            const ownerSession = await space.createSession();
+            const commenterSession = await space.createSession();
+
+            const document = await TestDocument.create(ownerSession, {title: "Original"});
+            await document.access.grant(ownerSession, commenterSession, "Comment");
+
+            const {id: newDocumentId} = await duplicateDocument(commenterSession.action(), {
+                sourceDocumentId: document.id,
+            });
+
+            expect(newDocumentId).not.toBe(document.id);
+        });
+
+        test("user with View access can duplicate", async () => {
+            const space = await TestSpace.create(context);
+            const ownerSession = await space.createSession();
+            const viewerSession = await space.createSession();
+
+            const document = await TestDocument.create(ownerSession, {title: "Original"});
+            await document.access.grant(ownerSession, viewerSession, "View");
+
+            const {id: newDocumentId} = await duplicateDocument(viewerSession.action(), {
+                sourceDocumentId: document.id,
+            });
+
+            expect(newDocumentId).not.toBe(document.id);
+        });
+
+        test("user without access cannot duplicate", async () => {
+            const space = await TestSpace.create(context);
+            const ownerSession = await space.createSession();
+            const otherSession = await space.createSession();
+
+            const document = await TestDocument.create(ownerSession, {title: "Original"});
+
+            await expect(
+                duplicateDocument(otherSession.action(), {
+                    sourceDocumentId: document.id,
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+        });
+
+        test("duplicate creates document that only duplicator has access to", async () => {
+            const space = await TestSpace.create(context);
+            const ownerSession = await space.createSession();
+            const viewerSession = await space.createSession();
+
+            const document = await TestDocument.create(ownerSession, {title: "Original"});
+            await document.access.grant(ownerSession, viewerSession, "View");
+
+            const {id: newDocumentId} = await duplicateDocument(viewerSession.action(), {
+                sourceDocumentId: document.id,
+            });
+
+            // The viewer who duplicated should be able to access their copy
+            await expect(getDocument(viewerSession.action(), newDocumentId)).resolves.toBeTruthy();
+
+            // The original owner should not have access to the duplicate
+            await expect(getDocument(ownerSession.action(), newDocumentId)).rejects.toThrow(
+                PermissionDeniedError,
+            );
+        });
+    });
+
+    test("duplicates a document with files and attaches files to new document", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
+
+        // Create and attach a file to the document
+        const file = await TestFile.create(session);
+        await attachFileAsUploader(
+            session.action(),
+            space.id,
+            file.id,
+            FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+        );
+
+        // Add the file to the document content
+        await updateDocumentContent(session.action(), {
+            id: document.id,
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    2,
+                    4,
+                    new Slice(
+                        Fragment.from(
+                            schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            clientId: generateId(),
+        });
+
+        // Duplicate the document
+        const {id: newDocumentId} = await duplicateDocument(session.action(), {
+            sourceDocumentId: document.id,
+        });
+
+        // Verify the new document has the file in its content
+        const newDocument = await getDocument(session.action(), newDocumentId);
+        const newDocumentFileRow = newDocument.content.doc.child(1);
+        expect(newDocumentFileRow.type.name).toBe("fileRow");
+        expect(newDocumentFileRow.child(0).attrs.fileId).toBe(file.id);
+        expect(newDocument.content.references.fileById?.has(file.id)).toBe(true);
+
+        // Verify the file is attached to the new document (can be accessed through the new document)
+        const fileFromNewDocument = await file.from(
+            session,
+            FileDocumentAuthorizer.bind({type: "Document", documentId: newDocumentId}),
+        );
+        expect(fileFromNewDocument.id).toBe(file.id);
     });
 });

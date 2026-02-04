@@ -6,7 +6,11 @@ import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 
 const metadataByRouteId: Record<
     AppSpaceRouteId | "routes/switch-space",
-    {readonly errorTitle: string; readonly spaceSideBarSpacing?: "Always" | "Never" | "Sometimes"}
+    {
+        readonly errorTitle: string;
+        // Defaults to `Sometimes`
+        readonly spaceSideBarSpacing?: "Always" | "Never" | "Sometimes";
+    }
 > = {
     "routes/s.$spaceId._index": {
         errorTitle: "Couldn\u2019t open space",
@@ -54,6 +58,9 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId.$index.reactions": {
         errorTitle: "Couldn\u2019t open comment reactions",
+    },
+    "routes/s.$spaceId.documents.$documentId.duplicate": {
+        errorTitle: "Couldn\u2019t duplicate document",
     },
     "routes/s.$spaceId.favorites": {
         errorTitle: "Couldn\u2019t open favorites",
@@ -138,6 +145,9 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": {
         errorTitle: "Couldn\u2019t open comment reactions",
+    },
+    "routes/s.$spaceId.tasks.$taskId.duplicate": {
+        errorTitle: "Couldn\u2019t duplicate task",
     },
     "routes/s.$spaceId.tasks._index": {
         errorTitle: "Couldn\u2019t open tasks",

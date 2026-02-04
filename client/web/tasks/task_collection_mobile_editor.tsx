@@ -146,10 +146,14 @@ export function TaskCollectionMobileEditor({
                 <Box>
                     <label
                         className={sprinkles({
-                            display: "inline-block",
+                            // `display: block; width: fit-content` is important here! As `inline-block`
+                            // there's some weird additional vertical space underneath the label.
+                            display: "block",
+                            width: "fit-content",
+                            maxWidth: "full",
                             fontSize: "75",
                             fontStyle: "semi-bold",
-                            paddingBottom: "2",
+                            paddingBottom: "2.5",
                         })}
                     >
                         Color
