@@ -42,7 +42,7 @@ import {useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
-import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
+import {usePeekStackContextIfExists} from "~/client/web/peek/peek_stack_context.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/web/remix/route_layout_context.js";
@@ -208,7 +208,7 @@ export function TaskDetailView({
         space: {id: spaceId},
         currentAccount,
     } = useSpaceContext();
-    const peekStackContext = usePeekStackContext();
+    const peekStackContext = usePeekStackContextIfExists();
 
     const mainRef = useRef<TaskDetailViewMainRef>(null);
 
@@ -839,7 +839,7 @@ export function TaskDetailView({
                         // Navigate to the new task. Always open in a peek on desktop. To make it
                         // clear when you're duplicating from a peek that the new task is a
                         // duplicate.
-                        if (platform !== "mobile") {
+                        if (peekStackContext && platform !== "mobile") {
                             await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
                         } else {
                             await navigate(`/s/${spaceId}/tasks/${newTaskId}`);
@@ -1148,7 +1148,7 @@ export function TaskDetailView({
                         // Navigate to the new task. Always open in a peek on desktop. To make it
                         // clear when you're duplicating from a peek that the new task is a
                         // duplicate.
-                        if (platform !== "mobile") {
+                        if (peekStackContext && platform !== "mobile") {
                             await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
                         } else {
                             await navigate(`/s/${spaceId}/tasks/${newTaskId}`);

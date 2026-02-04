@@ -24,3 +24,12 @@ export function usePeekStackContext(): PeekStackContext {
 
     return peekStackContext;
 }
+
+export function usePeekStackContextIfExists(): PeekStackContext | null {
+    const peekStackContext = useContext(PeekStackContextDefinition);
+
+    // Provide a mock context implementation in unit tests so components don't throw.
+    if (import.meta.jest && mockPeekStackContextForTest) return mockPeekStackContextForTest;
+
+    return peekStackContext;
+}

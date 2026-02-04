@@ -93,7 +93,7 @@ import {PanoramaIcon} from "~/client/web/icons/panorama_icon.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {NavigationBarRef} from "~/client/web/navigation/navigation_bar_types.js";
-import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
+import {usePeekStackContextIfExists} from "~/client/web/peek/peek_stack_context.js";
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
@@ -281,7 +281,7 @@ export function DocumentContentEditor({
     const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
     const peekContext = usePeekContext();
-    const peekStackContext = usePeekStackContext();
+    const peekStackContext = usePeekStackContextIfExists();
     const navigate = useNavigate();
     const isMounted = useIsMounted();
 
@@ -1671,7 +1671,7 @@ export function DocumentContentEditor({
                                       // Navigate to the new document. Always open in a peek on desktop. To make it
                                       // clear when you're duplicating from a peek that the new document is a
                                       // duplicate.
-                                      if (platform !== "mobile") {
+                                      if (peekStackContext && platform !== "mobile") {
                                           await peekStackContext.push(
                                               `/s/${spaceId}/documents/${newDocumentId}`,
                                           );
@@ -2318,7 +2318,7 @@ export function DocumentContentEditor({
                         // Navigate to the new document. Always open in a peek on desktop. To make it
                         // clear when you're duplicating from a peek that the new document is a
                         // duplicate.
-                        if (platform !== "mobile") {
+                        if (peekStackContext && platform !== "mobile") {
                             await peekStackContext.push(`/s/${spaceId}/documents/${newDocumentId}`);
                         } else {
                             await navigate(`/s/${spaceId}/documents/${newDocumentId}`);
