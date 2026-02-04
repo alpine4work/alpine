@@ -380,6 +380,11 @@ export function PostCreator({
                                 // directly to correctly handle loading and error states.
                                 assertExists(createButtonRef.current).press();
                             }}
+                            // Since the post content editor fills the entire screen height, it makes
+                            // sense that if the user `mousedown`s in the bottom margin we should create a
+                            // new paragraph and move selection there if the last item is not already a
+                            // paragraph (e.g. a divider or table or something).
+                            withMouseDownAtEndCreatesParagraph={true}
                         />
                     </Box>
                 </OverlayScopeContextProvider>

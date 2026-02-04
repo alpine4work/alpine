@@ -655,6 +655,13 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * checks ignored. If that is not needed, do not provide this prop.
      */
     onSpellCheckIgnoreLint?: (lint: {key: string; kind: string}) => Promise<void>;
+
+    /**
+     * If the user `mousedown`s at the end of the content editor (below the last
+     * item) should we create a new paragraph and move the selection there? False
+     * by default. Only true for `<DocumentContentEditor>` right now.
+     */
+    withMouseDownAtEndCreatesParagraph?: boolean;
 } & (
     | {
           /**
@@ -3138,21 +3145,65 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         viewProps.handleDOMEvents = {
-            // If the `<ContentEditor>` is unfocused and the user clicks inside with their
-            // mouse then focus the position they clicked on `mousedown`. ProseMirror will
-            // set the selection on `mouseup` ([part 1][1], [part 2][2]) but we want the
-            // selection to be set on `mousedown` instead as that's what's consistent with
-            // browser behavior.
-            //
-            // [1]: https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L294
-            // [2]: https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L401
             mousedown: (view, event) => {
+                const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
+
+                // If clicking below all content (in the bottom padding area) and the last
+                // block is not a paragraph, insert an empty paragraph and put the cursor
+                // there. This provides a convenient way to continue typing after ending a
+                // document with a non-paragraph block like a code block, quote, or list.
+                if (
+                    propsRef.current.withMouseDownAtEndCreatesParagraph &&
+                    posResult &&
+                    posResult.inside === -1
+                ) {
+                    const doc = view.state.doc;
+                    const lastChild = doc.lastChild;
+
+                    if (lastChild && lastChild.type.name !== "paragraph") {
+                        // Get the DOM element for the last child to check if click is below it
+                        const lastChildPos = doc.content.size - lastChild.nodeSize;
+                        const lastChildDom = view.nodeDOM(lastChildPos);
+
+                        if (lastChildDom instanceof HTMLElement) {
+                            const lastChildRect = lastChildDom.getBoundingClientRect();
+
+                            // Check if click is below the last child element
+                            if (event.clientY > lastChildRect.bottom) {
+                                const schema = view.state.schema;
+                                const paragraphType = schema.nodes.paragraph;
+
+                                // Only insert if the schema has a paragraph node type
+                                if (paragraphType) {
+                                    const paragraph = paragraphType.create();
+                                    const insertPos = doc.content.size;
+                                    const transaction = view.state.tr;
+                                    transaction.insert(insertPos, paragraph);
+                                    transaction.setSelection(
+                                        TextSelection.create(transaction.doc, insertPos + 1),
+                                    );
+                                    view.dispatch(transaction);
+                                    view.focus();
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (view.hasFocus()) return false;
 
-                const pos = view.posAtCoords({left: event.clientX, top: event.clientY});
+                // If the `<ContentEditor>` is unfocused and the user clicks inside with their
+                // mouse then focus the position they clicked on `mousedown`. ProseMirror will
+                // set the selection on `mouseup` ([part 1][1], [part 2][2]) but we want the
+                // selection to be set on `mousedown` instead as that's what's consistent with
+                // browser behavior.
+                //
+                // [1]: https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L294
+                // [2]: https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L401
 
-                if (pos) {
-                    const $pos = view.state.doc.resolve(pos.pos);
+                if (posResult) {
+                    const $pos = view.state.doc.resolve(posResult.pos);
                     const selection = Selection.near($pos);
 
                     if (view.state.selection.eq(selection)) return true;
