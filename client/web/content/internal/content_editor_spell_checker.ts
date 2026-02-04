@@ -9,6 +9,7 @@ import {getContentEditorReferences} from "~/client/web/content/state/content_edi
 import {AppContext} from "~/client/web/context/app_context.js";
 import {getPlatformWithoutListening} from "~/client/web/remix/platform_context.js";
 import {searchWordTypingDebounceMs} from "~/client/web/search/core/search_word_typing_debounce_ms.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -23,6 +24,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  */
 export class ContentEditorSpellChecker {
     private readonly _getContext: () => AppContext;
+    private readonly _getAccessLevel: () => AccessLevel;
     private readonly _view: EditorView;
     private readonly _spellCheck: (content: Node) => Promise<Array<ContentSpellCheckLint>>;
 
@@ -34,8 +36,19 @@ export class ContentEditorSpellChecker {
 
     private _spellCheckCount = 0;
 
-    constructor(getContext: () => AppContext, spaceId: SpaceId, view: EditorView) {
+    constructor({
+        getContext,
+        getAccessLevel,
+        spaceId,
+        view,
+    }: {
+        getContext: () => AppContext;
+        getAccessLevel: () => AccessLevel;
+        spaceId: SpaceId;
+        view: EditorView;
+    }) {
         this._getContext = getContext;
+        this._getAccessLevel = getAccessLevel;
         this._view = view;
 
         this._spellCheck = createSpellCheckContent({
@@ -59,6 +72,13 @@ export class ContentEditorSpellChecker {
         assert(!this._isDestroyed);
 
         if (!transaction.docChanged) return;
+
+        // If the user doesn't have edit access, immediately clear any existing lints
+        // and return early. Lints are distracting for users who can't edit the document.
+        if (!hasAccessLevel(this._getAccessLevel(), "Edit")) {
+            this._view.dispatch(setContentEditorSpellCheckerLints(this._view.state.tr, []));
+            return;
+        }
 
         this._transactions?.push(transaction);
 
@@ -128,6 +148,10 @@ export class ContentEditorSpellChecker {
 
     private async _runSpellCheck() {
         assert(this._transactions === null);
+
+        // Only run spell check if the user has edit access. Lints are distracting
+        // for users who can't edit the document.
+        if (!hasAccessLevel(this._getAccessLevel(), "Edit")) return;
 
         const transactions: Array<Transaction> = [];
         this._transactions = transactions;

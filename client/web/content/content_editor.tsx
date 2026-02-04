@@ -3298,11 +3298,12 @@ function ContentEditor<Content extends ContentWithReferences>(
         \* ========================================================================== */
 
         const spellChecker = spaceContextRef.current
-            ? new ContentEditorSpellChecker(
-                  () => assertExists(contextRef.current),
-                  spaceContextRef.current.space.id,
+            ? new ContentEditorSpellChecker({
+                  getContext: () => assertExists(contextRef.current),
+                  getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
+                  spaceId: spaceContextRef.current.space.id,
                   view,
-              )
+              })
             : null;
 
         /* ========================================================================== *\
