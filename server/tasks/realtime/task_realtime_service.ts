@@ -318,17 +318,6 @@ export async function run({
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
                 }
 
-                if (
-                    actorContextModule.serviceName !== "AppService" &&
-                    // `JobQueueService` can apply transactions by processing the
-                    // `RetryUnprocessedTaskActionTransactions` maintenance job.
-                    actorContextModule.serviceName !== "JobQueueService"
-                ) {
-                    throw new PermissionDeniedError(
-                        "Only `AppService` or `JobQueueService` can apply transactions",
-                    );
-                }
-
                 if (!(actorContextModule instanceof SystemActorContextModule)) {
                     throw new PermissionDeniedError("Only system actors can apply transactions");
                 }
@@ -353,16 +342,6 @@ export async function run({
             case "LoadQueries": {
                 if (request.method !== "POST") {
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
-                }
-
-                if (
-                    actorContextModule.serviceName !== "AppService" &&
-                    actorContextModule.serviceName !== "EdgeService" &&
-                    actorContextModule.serviceName !== "ApiService"
-                ) {
-                    throw new PermissionDeniedError(
-                        "Only `AppService`, `EdgeService`, or `ApiService` can load queries",
-                    );
                 }
 
                 const consistencySearchParam = url.searchParams.get("consistency");
@@ -422,15 +401,6 @@ export async function run({
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
                 }
 
-                if (
-                    actorContextModule.serviceName !== "AppService" &&
-                    actorContextModule.serviceName !== "ApiService"
-                ) {
-                    throw new PermissionDeniedError(
-                        "Only `AppService` or `ApiService` can get a task without dependencies",
-                    );
-                }
-
                 const consistencySearchParam = url.searchParams.get("consistency");
 
                 let consistency: DynamoCacheReadConsistency = "Eventual";
@@ -474,15 +444,6 @@ export async function run({
             case "GetCollection": {
                 if (request.method !== "GET") {
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
-                }
-
-                if (
-                    actorContextModule.serviceName !== "AppService" &&
-                    actorContextModule.serviceName !== "ApiService"
-                ) {
-                    throw new PermissionDeniedError(
-                        "Only `AppService` or `ApiService` can get a task collection",
-                    );
                 }
 
                 const consistencySearchParam = url.searchParams.get("consistency");
