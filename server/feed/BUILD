@@ -12,6 +12,7 @@ ts_project(
     tests = {
         "feed_actions_test": {"size": "medium"},
         "feed_actions_slow_test": {"size": "medium"},
+        "internal/rank_feed_entries_test": {},
     },
     visibility = [
         "//admin/crawl:__pkg__",
@@ -24,6 +25,7 @@ ts_project(
         "//server/dynamo/core",
         "//server/files/data",
         "//server/helpers",
+        "//server/search/data/table",
         "//server/spaces",
         "//shared/context",
         "//shared/error",

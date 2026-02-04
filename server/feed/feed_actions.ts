@@ -1,4 +1,3 @@
-import {compareDesc} from "date-fns";
 import {
     ServerActionContext,
     ServerSessionActionContext,
@@ -8,9 +7,11 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {FeedTable, feedEntryBlockMaxEntryCount} from "~/server/feed/internal/feed_table.js";
+import {rankFeedEntries} from "~/server/feed/internal/rank_feed_entries.js";
 import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
 import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
+import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
@@ -27,7 +28,7 @@ import {
     FeedTaskCollectionEntryModel,
     FeedWelcomeEntryModel,
 } from "~/shared/feed/feed_entry_model.js";
-import {FeedEntry, getFeedEntryTime} from "~/shared/feed/feed_entry_schema.js";
+import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -41,7 +42,8 @@ import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iter
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {parseSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {createTaskCollectionNotFoundError} from "~/shared/tasks/task_error_messages.js";
 
 /**
@@ -506,86 +508,119 @@ async function updateFeedEntries(
 
     const currentTime = new Date();
 
-    const [candidateEntries, accountCandidateEntries, welcomeEntry] = await runAllPromises([
-        parallelMapAsyncIterableToArray(
-            FeedTable.query(context, {
-                limit,
-                partitionKey: {
-                    partitionType: "FeedCandidates",
-                    spaceId,
+    const [candidateEntries, accountCandidateEntries, welcomeEntry, searchAffinityEntities] =
+        await runAllPromises([
+            parallelMapAsyncIterableToArray(
+                FeedTable.query(context, {
+                    limit,
+                    partitionKey: {
+                        partitionType: "FeedCandidates",
+                        spaceId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Entry",
+                        index: DynamoKeyAttributeSchema.integer.maxValue,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Entry",
+                        index: (feedItem?.lastCandidateIndex ?? -1) + 1,
+                    },
+                }),
+                async (
+                    item,
+                ): Promise<
+                    | (FeedCandidatesEntryItem & {isUnauthorized?: undefined})
+                    | {isUnauthorized: true; index: number}
+                > => {
+                    const result = await authorizeFeedEntryIfPossible(context, item.entry);
+                    if (!result.ok) return {isUnauthorized: true, index: item.index};
+                    return item;
                 },
-                startSortKey: {
-                    sortRangeType: "Entry",
-                    index: DynamoKeyAttributeSchema.integer.maxValue,
+            ),
+            parallelMapAsyncIterableToArray(
+                FeedTable.query(context, {
+                    limit,
+                    partitionKey: {
+                        partitionType: "FeedAccountCandidates",
+                        spaceId,
+                        accountId: context.actor.getAccountId(),
+                    },
+                    startSortKey: {
+                        sortRangeType: "Entry",
+                        index: DynamoKeyAttributeSchema.integer.maxValue,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Entry",
+                        index: (feedItem?.lastAccountCandidateIndex ?? -1) + 1,
+                    },
+                }),
+                async (
+                    item,
+                ): Promise<
+                    | (FeedAccountCandidatesEntryItem & {isUnauthorized?: undefined})
+                    | {isUnauthorized: true; index: number}
+                > => {
+                    const result = await authorizeFeedEntryIfPossible(context, item.entry);
+                    if (!result.ok) return {isUnauthorized: true, index: item.index};
+                    return item;
                 },
-                endSortKey: {
-                    sortRangeType: "Entry",
-                    index: (feedItem?.lastCandidateIndex ?? -1) + 1,
-                },
-            }),
-            async (
-                item,
-            ): Promise<
-                | (FeedCandidatesEntryItem & {isUnauthorized?: undefined})
-                | {isUnauthorized: true; index: number}
-            > => {
-                const result = await authorizeFeedEntryIfPossible(context, item.entry);
-                if (!result.ok) return {isUnauthorized: true, index: item.index};
-                return item;
-            },
-        ),
-        parallelMapAsyncIterableToArray(
-            FeedTable.query(context, {
-                limit,
-                partitionKey: {
-                    partitionType: "FeedAccountCandidates",
-                    spaceId,
-                    accountId: context.actor.getAccountId(),
-                },
-                startSortKey: {
-                    sortRangeType: "Entry",
-                    index: DynamoKeyAttributeSchema.integer.maxValue,
-                },
-                endSortKey: {
-                    sortRangeType: "Entry",
-                    index: (feedItem?.lastAccountCandidateIndex ?? -1) + 1,
-                },
-            }),
-            async (
-                item,
-            ): Promise<
-                | (FeedAccountCandidatesEntryItem & {isUnauthorized?: undefined})
-                | {isUnauthorized: true; index: number}
-            > => {
-                const result = await authorizeFeedEntryIfPossible(context, item.entry);
-                if (!result.ok) return {isUnauthorized: true, index: item.index};
-                return item;
-            },
-        ),
+            ),
 
-        // If we're creating the account's feed then add a welcome entry to the end of
-        // the feed.
-        !feedItem
-            ? (async (): Promise<FeedEntry> => {
-                  const items = await getSpaceAutoAddAccountsFromEmailDomains(context, spaceId, {
-                      // Use strong consistency to make sure we include the correct information in
-                      // the welcome entry.
-                      consistency: "Strong",
-                  });
+            // If we're creating the account's feed then add a welcome entry to the end of
+            // the feed.
+            !feedItem
+                ? (async (): Promise<FeedEntry> => {
+                      const items = await getSpaceAutoAddAccountsFromEmailDomains(
+                          context,
+                          spaceId,
+                          // Use strong consistency to make sure we include the correct information in
+                          // the welcome entry.
+                          {consistency: "Strong"},
+                      );
 
-                  return {
-                      type: "Welcome",
-                      addedTime: currentTime,
-                      emailDomainWithAutoAddAccountsEnabled:
-                          items.find(item => item.isEnabled)?.emailDomain ?? null,
-                  };
-              })()
-            : null,
-    ]);
+                      return {
+                          type: "Welcome",
+                          addedTime: currentTime,
+                          emailDomainWithAutoAddAccountsEnabled:
+                              items.find(item => item.isEnabled)?.emailDomain ?? null,
+                      };
+                  })()
+                : null,
+
+            // Fetch affinity data for ranking feed entries. We use affinities to
+            // prioritize content from accounts/channels the user interacts with
+            // frequently. Use 2x the search affinity limit used by `searchByAffinity`
+            // on the client (30) and get all candidates to maximize the affinity data
+            // available for ranking.
+            internalGetSearchAffinityEntities(context, {
+                spaceId,
+                limit: 60,
+                withAllQueriedItems: true,
+            }),
+        ]);
+
+    // Build maps for quick affinity lookups when scoring entries.
+    const searchAffinityPointsByAccountId = new Map<AccountId, number>();
+    const searchAffinityPointsByChannelId = new Map<ChannelId, number>();
+
+    for (const {entityId, points} of searchAffinityEntities) {
+        if (entityId === "TaskPersonal") continue;
+
+        const entityIdObject = parseSearchAffinityEntityId(entityId);
+
+        switch (entityIdObject.type) {
+            case "Account":
+                searchAffinityPointsByAccountId.set(entityIdObject.accountId, points);
+                break;
+            case "Channel":
+                searchAffinityPointsByChannelId.set(entityIdObject.channelId, points);
+                break;
+        }
+    }
 
     const index = feedItem?.nextIndex ?? 0;
 
-    let mergedCandidateEntries: Array<FeedEntry> = [];
+    const mergedCandidateEntries: Array<FeedEntry> = [];
 
     const getCreatorIdForEntry = (
         entry: FeedEntry & {type: "Document" | "TaskCollection" | "Channel"},
@@ -624,33 +659,30 @@ async function updateFeedEntries(
         mergedCandidateEntries.push(entry.entry);
     }
 
-    // After merging our candidate entries sort them again by time.
-    mergedCandidateEntries.sort((entry1, entry2) =>
-        compareDesc(getFeedEntryTime(entry1), getFeedEntryTime(entry2)),
-    );
+    // Rank entries using affinity scores and diversity constraints.
+    let rankedEntries = rankFeedEntries({
+        entries: mergedCandidateEntries,
+        searchAffinityPointsByAccountId,
+        searchAffinityPointsByChannelId,
+    });
 
-    // Make sure we don't have more than `limit` total candidates after merging our
-    // candidate arrays.
-    mergedCandidateEntries = mergedCandidateEntries.slice(0, limit);
+    // Make sure we don't have more than `limit` total candidates after ranking
+    // our candidate arrays.
+    if (rankedEntries.length > limit) {
+        rankedEntries = rankedEntries.slice(0, limit);
+    }
 
     // If we're creating the account's feed then add a welcome entry to the end of
     // the feed.
     if (!feedItem) {
-        mergedCandidateEntries.push(assertExists(welcomeEntry));
+        rankedEntries.push(assertExists(welcomeEntry));
     }
 
-    const entryBlockFinalCount = Math.ceil(
-        mergedCandidateEntries.length / feedEntryBlockMaxEntryCount,
-    );
+    const entryBlockFinalCount = Math.ceil(rankedEntries.length / feedEntryBlockMaxEntryCount);
     const entryBlocks: Array<Replace<FeedEntryBlockItem, {entries: Array<FeedEntry>}>> = [];
 
-    // TODO: In the future we should use a [recommender system][1] algorithm to
-    // rank content for the feed instead of adding all items in chronological
-    // order. For now we take candidate entries in the order they were added and
-    // put them in the account's feed in the same order.
-    //
-    // [1]: https://en.wikipedia.org/wiki/Recommender_system
-    for (const entry of mergedCandidateEntries) {
+    // Add ranked entries to entry blocks.
+    for (const entry of rankedEntries) {
         if (
             entryBlocks.length === 0 ||
             entryBlocks[entryBlocks.length - 1]!.entries.length === feedEntryBlockMaxEntryCount

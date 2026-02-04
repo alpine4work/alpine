@@ -1506,7 +1506,15 @@ export const getSearchAffinitiesEarlyReturnTestCounter = new TestCounter<Account
  */
 export async function internalGetSearchAffinityEntities(
     context: ServerSessionActionContext,
-    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+    {
+        spaceId,
+        limit,
+        withAllQueriedItems,
+    }: {
+        spaceId: SpaceId;
+        limit: number;
+        withAllQueriedItems?: boolean;
+    },
 ): Promise<
     Array<{
         entityId: SearchAffinityEntityId;
@@ -1519,6 +1527,7 @@ export async function internalGetSearchAffinityEntities(
     const results = await internalGetSearchAffinitiesEntitiesBase(context, {
         spaceId,
         limit,
+        withAllQueriedItems,
         queryItems: () =>
             filterAsyncIterableIterator(
                 AccountSearchAffinityEntitiesIndex.query(context, {
@@ -1701,12 +1710,14 @@ async function internalGetSearchAffinitiesEntitiesBase<
     {
         spaceId,
         limit,
+        withAllQueriedItems,
         queryItems,
         deleteItem,
         directlyUpdateItem,
     }: {
         spaceId: SpaceId;
         limit: number;
+        withAllQueriedItems?: boolean;
         queryItems: () => AsyncIterableIterator<Item>;
         deleteItem: (item: Item) => Promise<void>;
         directlyUpdateItem: (
@@ -1754,7 +1765,11 @@ async function internalGetSearchAffinitiesEntitiesBase<
             // items with a higher score than `limitCandidateItem`. So we can return!
             if (limitCandidateItem.pointsBucket > item.pointsBucket) {
                 getSearchAffinitiesEarlyReturnTestCounter.incrementForTest(accountId);
-                return candidateItems.slice(0, limit);
+
+                // When `withAllQueriedItems` is true, return all candidate items instead of
+                // slicing to the limit. This is useful when the caller wants to use all
+                // available affinity data for ranking algorithms.
+                return withAllQueriedItems ? candidateItems : candidateItems.slice(0, limit);
             }
         }
 
@@ -1809,7 +1824,10 @@ async function internalGetSearchAffinitiesEntitiesBase<
 
     candidateItems.sort((a, b) => b.points - a.points);
 
-    const items = candidateItems.slice(0, limit);
+    // When `withAllQueriedItems` is true, return all queried items instead of
+    // slicing to the limit. This is useful when the caller wants to use all
+    // available affinity data for ranking algorithms.
+    const items = withAllQueriedItems ? candidateItems : candidateItems.slice(0, limit);
 
     // Remove items with points less than `searchAffinityExpirationPoints`. We may
     // have these items in the database before expiration removes them or if the

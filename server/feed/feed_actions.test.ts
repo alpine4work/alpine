@@ -16,6 +16,7 @@ import {enableMockFileTaskCollectionEntityModelForTest} from "~/server/files/dat
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
+import {addSearchAffinityEntityPointsForTest} from "~/server/search/data/table/search_entity_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -4281,5 +4282,360 @@ test("can paginate through feed entries when each block only has a single entry"
                 .slice(0, 3)
                 .map(async post => new FeedPostEntryModel({post: await post.getRealtime()})),
         ),
+    });
+});
+
+test("posts from high-affinity accounts appear before posts from low-affinity accounts", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const channel = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    // Add affinity points for session2's account (high affinity) from session3's perspective.
+    await addSearchAffinityEntityPointsForTest(space.systemAction(), {
+        spaceId: space.id,
+        accountId: session3.account.id,
+        entityId: `Account:${session2.account.id}`,
+        points: 1000,
+    });
+
+    // Create posts: session1 posts first (older), then session2 posts (newer).
+    // Without ranking, the feed would show session2's post first (chronological).
+    // With ranking, session2's post should still be first (high affinity + newer).
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post1 = await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post2 = await channel.createPost(session2);
+    await ProcessContextModule.waitForTestTasks();
+
+    const result = await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 10});
+
+    // Post from high-affinity account (session2) should be first.
+    expect(result.entries[0]).toMatchObject({
+        type: "Post",
+        post: expect.objectContaining({model: expect.objectContaining({id: post2.id})}),
+    });
+    expect(result.entries[1]).toMatchObject({
+        type: "Post",
+        post: expect.objectContaining({model: expect.objectContaining({id: post1.id})}),
+    });
+});
+
+test("posts from high-affinity accounts appear before posts from low-affinity accounts (reverse)", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const channel = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    // Add affinity points for session2's account (high affinity) from session3's perspective.
+    await addSearchAffinityEntityPointsForTest(space.systemAction(), {
+        spaceId: space.id,
+        accountId: session3.account.id,
+        entityId: `Account:${session2.account.id}`,
+        points: 1000,
+    });
+
+    // Create posts: session1 posts first (older), then session2 posts (newer).
+    // Without ranking, the feed would show session2's post first (chronological).
+    // With ranking, session2's post should still be first (high affinity + newer).
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post1 = await channel.createPost(session2);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post2 = await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    const result = await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 10});
+
+    // Post from high-affinity account (session2) should be first.
+    expect(result.entries[0]).toMatchObject({
+        type: "Post",
+        post: expect.objectContaining({model: expect.objectContaining({id: post1.id})}),
+    });
+    expect(result.entries[1]).toMatchObject({
+        type: "Post",
+        post: expect.objectContaining({model: expect.objectContaining({id: post2.id})}),
+    });
+});
+
+test("posts in high-affinity channels appear before posts in low-affinity channels", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel1 = await TestChannel.create(session1);
+    const channel2 = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    // Add channel affinity points for channel1 (space-level affinity).
+    // Note: Channel affinity is space-level, not account-level, so any account
+    // viewing high-activity content from that channel increases its ranking.
+    await addSearchAffinityEntityPointsForTest(space.systemAction(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+        entityId: `Channel:${channel1.id}`,
+        points: 1000,
+    });
+
+    // Create posts: first in channel2 (older, low affinity), then channel1 (newer, high affinity).
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post1 = await channel2.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post2 = await channel1.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    const result = await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10});
+
+    // Post from high-affinity channel should be first.
+    expect(result.entries[0]).toMatchObject({
+        type: "Post",
+        post: expect.objectContaining({model: expect.objectContaining({id: post2.id})}),
+    });
+    expect(result.entries[1]).toMatchObject({
+        type: "Post",
+        post: expect.objectContaining({model: expect.objectContaining({id: post1.id})}),
+    });
+});
+
+test("posts in high-affinity channels appear before posts in low-affinity channels (reverse)", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel1 = await TestChannel.create(session1);
+    const channel2 = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    // Add channel affinity points for channel1 (space-level affinity).
+    // Note: Channel affinity is space-level, not account-level, so any account
+    // viewing high-activity content from that channel increases its ranking.
+    await addSearchAffinityEntityPointsForTest(space.systemAction(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+        entityId: `Channel:${channel1.id}`,
+        points: 1000,
+    });
+
+    // Create posts: first in channel2 (older, low affinity), then channel1 (newer, high affinity).
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post1 = await channel1.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post2 = await channel2.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    const result = await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10});
+
+    // Post from high-affinity channel should be first.
+    expect(result.entries[0]).toMatchObject({
+        type: "Post",
+        post: expect.objectContaining({model: expect.objectContaining({id: post1.id})}),
+    });
+    expect(result.entries[1]).toMatchObject({
+        type: "Post",
+        post: expect.objectContaining({model: expect.objectContaining({id: post2.id})}),
+    });
+});
+
+test("diversity: avoids consecutive posts from the same author", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const channel = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    // Give both session1 and session2 some affinity so their posts are ranked,
+    // but give session1 higher affinity so their posts would normally cluster.
+    await addSearchAffinityEntityPointsForTest(space.systemAction(), {
+        spaceId: space.id,
+        accountId: session3.account.id,
+        entityId: `Account:${session1.account.id}`,
+        points: 1000,
+    });
+    await addSearchAffinityEntityPointsForTest(space.systemAction(), {
+        spaceId: space.id,
+        accountId: session3.account.id,
+        entityId: `Account:${session2.account.id}`,
+        points: 500,
+    });
+
+    // Create interleaved posts: session1, session2, session1, session2.
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel.createPost(session2);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel.createPost(session2);
+    await ProcessContextModule.waitForTestTasks();
+
+    const result = await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 10});
+
+    // Find the post entries.
+    const postEntries = result.entries.filter(entry => entry.type === "Post");
+
+    // Check that no two consecutive posts are from the same author.
+    for (let i = 0; i < postEntries.length - 1; i++) {
+        const currentAuthor = postEntries[i]!.post.model.author.id;
+        const nextAuthor = postEntries[i + 1]!.post.model.author.id;
+        expect(currentAuthor).not.toEqual(nextAuthor);
+    }
+});
+
+test("diversity: avoids consecutive posts in the same channel", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const channel1 = await TestChannel.create(session1);
+    const channel2 = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    // Give channel1 higher affinity so its posts would normally cluster.
+    await addSearchAffinityEntityPointsForTest(space.systemAction(), {
+        spaceId: space.id,
+        accountId: session3.account.id,
+        entityId: `Channel:${channel1.id}`,
+        points: 1000,
+    });
+    await addSearchAffinityEntityPointsForTest(space.systemAction(), {
+        spaceId: space.id,
+        accountId: session3.account.id,
+        entityId: `Channel:${channel2.id}`,
+        points: 500,
+    });
+
+    // Create posts from different authors in different channels to test channel
+    // diversity (not just author diversity).
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel1.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel2.createPost(session2);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel1.createPost(session2);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel2.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    const result = await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 10});
+
+    // Find the post entries.
+    const postEntries = result.entries.filter(entry => entry.type === "Post");
+
+    // Check that no two consecutive posts are in the same channel.
+    for (let i = 0; i < postEntries.length - 1; i++) {
+        const currentChannel = postEntries[i]!.post.model.channel.id;
+        const nextChannel = postEntries[i + 1]!.post.model.channel.id;
+        expect(currentChannel).not.toEqual(nextChannel);
+    }
+});
+
+test("diversity: falls back when only one author", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    // Create multiple posts from the same author.
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    const result = await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10});
+
+    // All posts should still appear even though they're from the same author.
+    const postEntries = result.entries.filter(entry => entry.type === "Post");
+    expect(postEntries).toHaveLength(3);
+});
+
+test("zero-affinity entries use chronological order as tiebreaker", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    // Create posts without any affinity data. They should appear in
+    // chronological order (newest first).
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post1 = await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post2 = await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    const post3 = await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    const result = await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10});
+
+    // Find the post entries (they should be in chronological order, newest first).
+    const postEntries = result.entries.filter(entry => entry.type === "Post");
+
+    expect(postEntries[0]!.post.model.id).toEqual(post3.id);
+    expect(postEntries[1]!.post.model.id).toEqual(post2.id);
+    expect(postEntries[2]!.post.model.id).toEqual(post1.id);
+});
+
+test("welcome entry always appears at the end of the feed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    // Add high affinity for channel posts.
+    await addSearchAffinityEntityPointsForTest(space.systemAction(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+        entityId: `Channel:${channel.id}`,
+        points: 10000,
+    });
+
+    // Create some posts.
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+    await channel.createPost(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    const result = await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10});
+
+    // Welcome entry should be at the very end.
+    const lastEntry = result.entries[result.entries.length - 1];
+    expect(lastEntry).toMatchObject({
+        type: "Welcome",
+        addedTime: expect.any(Date),
     });
 });
