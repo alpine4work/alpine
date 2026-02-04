@@ -34,6 +34,7 @@ import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_serv
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
@@ -58,7 +59,6 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,

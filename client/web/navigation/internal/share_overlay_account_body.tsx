@@ -17,14 +17,14 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {messageInputEditorPaddingYPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {
+    MessageContentWithReferences,
+    emptyMessageContentWithReferences,
+} from "~/shared/content/message_content_schema.js";
 import {trimContent} from "~/shared/content/trim_content.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {
-    MessageContentWithReferences,
-    emptyMessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

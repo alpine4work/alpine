@@ -24,6 +24,10 @@ import {
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
 import {getSearchEntityMentionWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {
     PostContentProsemirrorSchema,
@@ -33,10 +37,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";

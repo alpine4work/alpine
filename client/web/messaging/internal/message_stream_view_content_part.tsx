@@ -8,9 +8,9 @@ import {
     isContentListItemNodeTypeName,
 } from "~/shared/content/content_node_type_name.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

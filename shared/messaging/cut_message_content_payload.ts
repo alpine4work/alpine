@@ -2,13 +2,13 @@ import {Node} from "prosemirror-model";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
     MessageContentWithReferences,
     assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+} from "~/shared/content/message_content_schema.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {MessageStream} from "~/shared/messaging/message_schema.js";
 
 /**

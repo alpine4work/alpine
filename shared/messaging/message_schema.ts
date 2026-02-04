@@ -1,10 +1,10 @@
 import {ApiMentionTargetPath} from "~/shared/api/parse_api_path.js";
+import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {FileIdOrFileEntityIdSchema, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {DocumentId, PostId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";

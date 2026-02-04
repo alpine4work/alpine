@@ -3,16 +3,16 @@ import {
     emptyContentReferences,
     mergeContentReferences,
 } from "~/shared/content/content_references.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
-import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
     MessageContentWithReferences,
     assertMessageContent,
     createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+} from "~/shared/content/message_content_schema.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
+import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {
     MessageContentPayloadContentUpdate,
     MessageStream,

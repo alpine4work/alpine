@@ -1,6 +1,11 @@
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
+import {ContentDuplicationVariableValuesSchema} from "~/shared/content/content_duplication_variable_schema.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
+import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/content/message_content_schema.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
@@ -10,11 +15,6 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
-import {ContentDuplicationVariableValuesSchema} from "~/shared/messaging/content_duplication_variable_schema.js";
-import {
-    MessageContentSchema,
-    MessageContentStepSchema,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
     MessageReferencedIdsSchema,

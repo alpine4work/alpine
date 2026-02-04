@@ -6,6 +6,7 @@ import {MessageList} from "~/client/web/messaging/message_list.js";
 import {VirtualizedTreeBase} from "~/client/web/virtualized/helpers/virtualized_tree.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeIndexQueryResult,
@@ -29,7 +30,6 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {AccountId, ChannelId, PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";

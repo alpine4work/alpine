@@ -10,6 +10,7 @@ import {
 } from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {isEmptyContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
@@ -22,7 +23,6 @@ import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {AccountId, FileId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageReferencedIds,

@@ -4,11 +4,11 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {createTaskComment} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {context, services} = createTestServices();
 

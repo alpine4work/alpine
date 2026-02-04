@@ -35,6 +35,12 @@ import {getAccount} from "~/server/spaces/get_account.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {getTaskCommentPayload, getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {
+    MessageContent,
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
@@ -63,12 +69,6 @@ import {
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {
-    MessageContent,
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClericalSchema,
     MessagePayload,

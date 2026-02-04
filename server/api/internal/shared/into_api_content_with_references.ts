@@ -12,13 +12,13 @@ import {
     ContentReferencesFile,
     ContentReferencesSearchEntity,
 } from "~/shared/content/content_references.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {truncateContentMentionText} from "~/shared/content/truncate_content_mention_text.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
     deletedSearchEntityTitle,

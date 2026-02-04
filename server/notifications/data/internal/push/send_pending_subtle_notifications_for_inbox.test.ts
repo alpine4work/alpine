@@ -18,12 +18,12 @@ import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BrowserId, ChatId, NotificationEventId} from "~/shared/id/types/id_types.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const sendWebPushNotificationToAllSubscriptionsMock = jest.fn();

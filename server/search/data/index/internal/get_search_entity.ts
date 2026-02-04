@@ -65,6 +65,12 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {
+    MessageContent,
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    emptyMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
@@ -110,12 +116,6 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {
-    MessageContent,
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-    emptyMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagePayload,
     MessageStream,

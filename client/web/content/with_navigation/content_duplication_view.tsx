@@ -33,12 +33,6 @@ import {
 } from "~/client/web/styles/forum_shared_styles.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {
     ContentDuplicationVariableSchema,
     ContentDuplicationVariableSchemaContentProperty,
@@ -46,11 +40,17 @@ import {
     ContentDuplicationVariableSchemaTextProperty,
     ContentDuplicationVariableValues,
     ContentDuplicationVariableValuesProperty,
-} from "~/shared/messaging/content_duplication_variable_schema.js";
+} from "~/shared/content/content_duplication_variable_schema.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
+} from "~/shared/content/message_content_schema.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 
 /**
  * A generic content duplication view that can be used for both documents and tasks.

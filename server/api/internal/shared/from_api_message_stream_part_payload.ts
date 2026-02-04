@@ -1,11 +1,11 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {printApiMentionTarget} from "~/shared/api/parse_api_path.js";
 import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+} from "~/shared/content/message_content_schema.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 
 export function fromApiMessageStreamPartPayload(

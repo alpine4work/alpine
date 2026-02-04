@@ -1,12 +1,12 @@
 import {Node} from "prosemirror-model";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
 import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
-import {MessageContentProsemirrorSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayload,
     MessagePayload,

@@ -36,6 +36,12 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
+    MessageContent,
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
+import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
@@ -55,12 +61,6 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContent,
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, MessageRoomKeyType} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadContentUpdate,

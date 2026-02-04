@@ -7,6 +7,10 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {MessageDeleteConfirmationDialog} from "~/client/web/messaging/internal/message_delete_confirmation_dialog.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {
+    MessageContent,
+    MessageContentWithReferences,
+} from "~/shared/content/message_content_schema.js";
 import {trimContentFragmentEndPos} from "~/shared/content/trim_content.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -17,10 +21,6 @@ import {
     reverseLinkedList,
 } from "~/shared/helpers/immutable/linked_list.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {
-    MessageContent,
-    MessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadModel} from "~/shared/messaging/message_model.js";
 
 export type MessageEditingState<RoomKey extends string> =

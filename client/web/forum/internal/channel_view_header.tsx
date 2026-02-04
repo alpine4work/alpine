@@ -32,15 +32,15 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     MessageContent,
     MessageContentWithReferences,
     assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+} from "~/shared/content/message_content_schema.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export function ChannelViewHeader({
     header,

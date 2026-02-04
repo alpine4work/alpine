@@ -14,10 +14,10 @@ import {
     searchByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 

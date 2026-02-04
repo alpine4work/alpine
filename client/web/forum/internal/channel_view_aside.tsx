@@ -36,6 +36,11 @@ import {colorSchemeVars, fontSizes, sprinkles} from "~/client/web/styles/styles.
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+import {
+    MessageContent,
+    MessageContentWithReferences,
+    assertMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -49,11 +54,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {AccountId, PostId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContent,
-    MessageContentWithReferences,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 
 export function ChannelViewAside({
     channel,

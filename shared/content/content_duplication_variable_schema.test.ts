@@ -1,3 +1,6 @@
+/* eslint-disable jest-dom/prefer-to-have-text-content */
+
+import {Mark, Node as ProseMirrorNode} from "prosemirror-model";
 import {
     ContentDuplicationVariableSchema,
     ContentDuplicationVariableValues,
@@ -12,8 +15,6 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-/* eslint-disable jest-dom/prefer-to-have-text-content */
-
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -62,7 +63,7 @@ function schemaToObject(schema: ContentDuplicationVariableSchema) {
         if (prop.type === "Text") {
             result[name] = {
                 type: "Text",
-                markTypes: prop.marks.map(mark => mark.type),
+                markTypes: prop.marks.map((mark: {type: string}) => mark.type),
             };
         } else {
             result[name] = {type: "Content"};
@@ -626,9 +627,9 @@ describe("applyContentDuplicationValues", () => {
 
         // Find the "World" text node and verify it has bold mark
         let foundBold = false;
-        paragraph.forEach(node => {
+        paragraph.forEach((node: ProseMirrorNode) => {
             if (node.isText && node.text === "World") {
-                foundBold = node.marks.some(m => m.type.name === "bold");
+                foundBold = node.marks.some((m: Mark) => m.type.name === "bold");
             }
         });
         expect(foundBold).toBe(true);
@@ -956,7 +957,7 @@ describe("encodeContentDuplicationSchemaForUrl / decodeContentDuplicationSchemaF
         expect(decodedProp?.type).toBe("Text");
         assert(decodedProp?.type === "Text");
         // Marks are decoded in bit order: italic (bit 0), bold (bit 1)
-        expect(decodedProp.marks.map(m => m.type)).toEqual(["italic", "bold"]);
+        expect(decodedProp.marks.map((m: {type: string}) => m.type)).toEqual(["italic", "bold"]);
     });
 
     test("round-trips Content variable", () => {
@@ -989,7 +990,7 @@ describe("encodeContentDuplicationSchemaForUrl / decodeContentDuplicationSchemaF
         const nameProp = decodedSchema.get("Name");
         expect(nameProp?.type).toBe("Text");
         assert(nameProp?.type === "Text");
-        expect(nameProp.marks.map(m => m.type)).toEqual(["bold"]);
+        expect(nameProp.marks.map((m: {type: string}) => m.type)).toEqual(["bold"]);
 
         expect(decodedSchema.get("Code")).toEqual({type: "Text", marks: []});
     });
@@ -1075,12 +1076,14 @@ describe("encodeContentDuplicationSchemaForUrl / decodeContentDuplicationSchemaF
         expect(decodedProp?.type).toBe("Text");
         assert(decodedProp?.type === "Text");
         expect(decodedProp.marks).toHaveLength(3);
-        const markNames = decodedProp.marks.map(m => m.type);
+        const markNames = decodedProp.marks.map((m: {type: string}) => m.type);
         expect(markNames).toContain("bold");
         expect(markNames).toContain("italic");
         expect(markNames).toContain("highlight");
 
-        const highlightDecodedMark = decodedProp.marks.find(mark => mark.type === "highlight");
+        const highlightDecodedMark = decodedProp.marks.find(
+            (mark: {type: string}) => mark.type === "highlight",
+        );
         assert(highlightDecodedMark?.type === "highlight");
         expect(highlightDecodedMark?.color).toBe(HighlightColor.Green);
     });

@@ -71,7 +71,13 @@ import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {ContentDuplicationVariableValues} from "~/shared/content/content_duplication_variable_schema.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -105,12 +111,6 @@ import {
     DocumentId,
     RpcCallId,
 } from "~/shared/id/types/id_types.js";
-import {ContentDuplicationVariableValues} from "~/shared/messaging/content_duplication_variable_schema.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,

@@ -8,6 +8,7 @@ import {
     emptyContentReferences,
 } from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {truncateContentForMessageReplyPreview} from "~/shared/content/truncate_content_for_message_reply_preview.js";
 import {codeClassName, strikeClassName} from "~/shared/design/core/constant_class_names.js";
 import {assertPostContent} from "~/shared/forum/post_content_schema.js";
@@ -17,7 +18,6 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {Store} from "~/shared/store/store.js";
 

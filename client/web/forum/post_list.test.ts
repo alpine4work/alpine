@@ -6,6 +6,7 @@ import {
 } from "~/client/web/forum/post_list.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
@@ -18,7 +19,6 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
-import {emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";

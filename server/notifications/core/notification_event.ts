@@ -3,6 +3,7 @@ import {
     ApiBotWebhookNewMessageEventParent,
     ApiBotWebhookNewMessageEventPostParent,
 } from "~/shared/api/types/api_specification_convenience_types.js";
+import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {
     AccountId,
@@ -15,7 +16,6 @@ import {
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";

@@ -1,3 +1,7 @@
+import {
+    ContentDuplicationVariableValues,
+    applyContentDuplicationVariableValuesToText,
+} from "~/shared/content/content_duplication_variable_schema.js";
 import {generateDuplicateContentTitle} from "~/shared/content/generate_duplicate_content_title.js";
 import {InternalError} from "~/shared/error/error.js";
 import {
@@ -9,10 +13,6 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-import {
-    ContentDuplicationVariableValues,
-    applyContentDuplicationVariableValuesToText,
-} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";

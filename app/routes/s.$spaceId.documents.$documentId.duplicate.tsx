@@ -4,11 +4,11 @@ import {deserializeDocumentIdForLoader} from "~/app/helpers/deserialize_id_for_l
 import {ContentDuplicationView} from "~/client/web/content/with_navigation/content_duplication_view.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {addFallbackToDocumentTitle} from "~/shared/documents/document_model.js";
 import {
     ContentDuplicationVariableValues,
     decodeContentDuplicationVariableSchemaFromUrl,
-} from "~/shared/messaging/content_duplication_variable_schema.js";
+} from "~/shared/content/content_duplication_variable_schema.js";
+import {addFallbackToDocumentTitle} from "~/shared/documents/document_model.js";
 import {duplicateDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 
 /**

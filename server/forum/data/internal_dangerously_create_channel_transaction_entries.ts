@@ -1,7 +1,7 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
+import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContent, emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 /**
  * Dangerous since we create a channel item for `channelId` without checking whether a

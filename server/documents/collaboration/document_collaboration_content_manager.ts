@@ -10,6 +10,7 @@ import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentReferencedIds,
@@ -52,7 +53,6 @@ import {
     SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorStep,

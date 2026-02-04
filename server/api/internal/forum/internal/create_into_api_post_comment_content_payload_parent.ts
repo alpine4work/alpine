@@ -1,10 +1,10 @@
 import {intoApiMessageContentPayloadParent} from "~/server/api/internal/shared/into_api_message_content_payload_parent.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
 import {getPostCommentParentContent} from "~/server/forum/data/post_messaging.js";
+import {assertMessageContent} from "~/shared/content/message_content_schema.js";
 import {assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {assertMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 export function createIntoApiPostCommentContentPayloadParent(

@@ -112,6 +112,7 @@ import {
     sprinkles,
 } from "~/client/web/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {trimContentEnd} from "~/shared/content/trim_content.js";
 import {fileClassName} from "~/shared/design/core/constant_class_names.js";
 import {
@@ -138,7 +139,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Id} from "~/shared/id/id.js";
 import {PostId} from "~/shared/id/types/id_types.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 

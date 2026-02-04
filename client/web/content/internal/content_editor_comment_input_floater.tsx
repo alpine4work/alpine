@@ -74,6 +74,10 @@ import {
     spaceLayoutStyles,
 } from "~/client/web/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {
+    MessageContentWithReferences,
+    emptyMessageContentWithReferences,
+} from "~/shared/content/message_content_schema.js";
 import {trimContentEnd, trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
@@ -98,10 +102,6 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentWithReferences,
-    emptyMessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 export function ContentEditorCommentInputFloater({

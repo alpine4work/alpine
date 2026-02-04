@@ -21,6 +21,10 @@ import {
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_table.js";
 import {ApiTask} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -28,10 +32,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";

@@ -73,6 +73,10 @@ import {
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
+    MessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
+import {
     DataLossError,
     ErrorBase,
     FailedPreconditionError,
@@ -109,10 +113,6 @@ import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_me
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
-import {
-    MessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClerical,
     MessageContentPayloadContentUpdate,

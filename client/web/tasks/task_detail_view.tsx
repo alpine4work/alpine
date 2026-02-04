@@ -109,6 +109,10 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
+import {
+    encodeContentDuplicationVariableSchemaForUrl,
+    extractContentDuplicationVariableSchema,
+} from "~/shared/content/content_duplication_variable_schema.js";
 import {Context} from "~/shared/context/context.js";
 import {
     addRemLengths,
@@ -125,10 +129,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {
-    encodeContentDuplicationVariableSchemaForUrl,
-    extractContentDuplicationVariableSchema,
-} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {Schema} from "~/shared/schema/schema.js";

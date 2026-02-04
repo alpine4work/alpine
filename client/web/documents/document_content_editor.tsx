@@ -127,6 +127,11 @@ import {
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
+import {
+    encodeContentDuplicationVariableSchemaForUrl,
+    extractContentDuplicationVariableSchema,
+} from "~/shared/content/content_duplication_variable_schema.js";
+import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {paragraphClassName} from "~/shared/design/core/constant_class_names.js";
 import {Platform} from "~/shared/design/core/platform.js";
@@ -173,11 +178,6 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
-import {
-    encodeContentDuplicationVariableSchemaForUrl,
-    extractContentDuplicationVariableSchema,
-} from "~/shared/messaging/content_duplication_variable_schema.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {createDocument, duplicateDocument} from "~/shared/rpc/documents_rpc_definitions.js";

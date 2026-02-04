@@ -24,11 +24,11 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId, ChatId, FileId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,

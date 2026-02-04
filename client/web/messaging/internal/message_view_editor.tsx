@@ -16,10 +16,10 @@ import {
     messageViewOutlineMargin,
 } from "~/client/web/styles/messaging_shared_styles.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 
 export type MessageViewEditorRef = {
     focus(): void;

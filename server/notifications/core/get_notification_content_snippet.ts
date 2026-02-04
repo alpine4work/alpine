@@ -1,6 +1,6 @@
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+import {MessageContent, assertMessageContent} from "~/shared/content/message_content_schema.js";
 import {PostContent, assertPostContent} from "~/shared/forum/post_content_schema.js";
-import {MessageContent, assertMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 /**
  * Get the content snippet for `MessageContent` for a notification event.

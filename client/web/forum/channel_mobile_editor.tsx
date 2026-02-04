@@ -25,14 +25,14 @@ import {
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {
+    MessageContent,
+    MessageContentWithReferences,
+} from "~/shared/content/message_content_schema.js";
 import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {
-    MessageContent,
-    MessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
 
 export function ChannelMobileEditor({
     title,

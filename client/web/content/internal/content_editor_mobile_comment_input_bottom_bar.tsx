@@ -20,13 +20,13 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {emptyMessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 export function ContentEditorMobileCommentInputBottomBar({

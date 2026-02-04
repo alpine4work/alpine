@@ -61,6 +61,7 @@ import {
     AccessPolicyAccountGrant,
 } from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     FailedPreconditionError,
@@ -90,7 +91,6 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";

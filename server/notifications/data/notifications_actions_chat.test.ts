@@ -28,6 +28,12 @@ import {testGetInboxEntries} from "~/server/notifications/data/test_helpers/test
 import {unarchiveInboxEntry} from "~/server/notifications/data/unarchive_inbox_entry.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {
+    assertMessageContent,
+    createSimpleMessageContent,
+    emptyMessageContent,
+    MessageContentProsemirrorSchema as schema,
+} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -43,12 +49,6 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateId} from "~/shared/id/id.js";
-import {
-    assertMessageContent,
-    createSimpleMessageContent,
-    emptyMessageContent,
-    MessageContentProsemirrorSchema as schema,
-} from "~/shared/messaging/message_content_schema.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";

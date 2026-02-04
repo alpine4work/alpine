@@ -37,6 +37,7 @@ import {
 import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
@@ -46,7 +47,6 @@ import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,

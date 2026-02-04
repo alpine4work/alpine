@@ -1,6 +1,10 @@
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {ContentSelectionSchema} from "~/shared/content/content_selection_schema.js";
+import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/content/message_content_schema.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
 import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
 import {
@@ -15,10 +19,6 @@ import {
     DocumentCommentThreadId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
-import {
-    MessageContentSchema,
-    MessageContentStepSchema,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {

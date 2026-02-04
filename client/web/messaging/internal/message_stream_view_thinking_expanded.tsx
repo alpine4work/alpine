@@ -21,9 +21,9 @@ import {
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {getContentSnippetPos} from "~/shared/content/get_content_snippet.js";
+import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {listItemIndentationVar} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 

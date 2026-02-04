@@ -18,6 +18,10 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -25,10 +29,6 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 
 type ProcessingType = "Once" | "TwiceSerially" | "ThriceConcurrently";
 

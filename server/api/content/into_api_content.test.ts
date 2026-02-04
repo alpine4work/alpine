@@ -5,6 +5,7 @@ import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {intoApiContent} from "~/server/api/content/into_api_content.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
@@ -18,7 +19,6 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {MessageContentProsemirrorSchema} from "~/shared/messaging/message_content_schema.js";
 
 // Node builders
 const doc = (...content: Array<Node>) => schema.nodes.doc.create(null, content);

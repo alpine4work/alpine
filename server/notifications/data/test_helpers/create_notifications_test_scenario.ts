@@ -1,12 +1,12 @@
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+} from "~/shared/content/message_content_schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 
 // We create a new scenario for every test so the inbox isn't shared between
 // test runs.

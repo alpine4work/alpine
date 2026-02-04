@@ -1,5 +1,5 @@
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadSchema} from "~/shared/messaging/message_schema.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {JsonStringifiableUint8Array} from "~/shared/schema/schema.js";

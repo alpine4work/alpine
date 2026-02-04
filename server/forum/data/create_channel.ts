@@ -14,13 +14,13 @@ import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContent, emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 /**
  * Create a new channel.

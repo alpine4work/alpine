@@ -21,6 +21,10 @@ import {
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
 import {getSearchEntityMentionWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -33,10 +37,6 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";

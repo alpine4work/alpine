@@ -57,6 +57,10 @@ import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {
+    MessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     FailedPreconditionError,
@@ -90,10 +94,6 @@ import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_me
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
-import {
-    MessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,

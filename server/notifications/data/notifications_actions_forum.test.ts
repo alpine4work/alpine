@@ -38,6 +38,11 @@ import {getSpaceAccountsCacheForTest} from "~/server/spaces/get_space_accounts_c
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError, PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
 import {
@@ -51,11 +56,6 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";

@@ -23,6 +23,13 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {
+    MessageContentProsemirrorSchema,
+    MessageContentWithReferences,
+    assertMessageContent,
+    createSimpleMessageContent,
+    MessageContentProsemirrorSchema as schema,
+} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
@@ -34,13 +41,6 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {
-    MessageContentProsemirrorSchema,
-    MessageContentWithReferences,
-    assertMessageContent,
-    createSimpleMessageContent,
-    MessageContentProsemirrorSchema as schema,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, MessagePayloadModel} from "~/shared/messaging/message_model.js";
 import {
     MessagingRealtimeEvent,

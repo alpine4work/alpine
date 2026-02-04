@@ -1,5 +1,6 @@
 import {Fragment, Mark, Node} from "prosemirror-model";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {MessageContentProsemirrorSchema as schema} from "~/shared/content/message_content_schema.js";
 import {
     trimContent,
     trimContentEnd,
@@ -11,7 +12,6 @@ import {
 import {cast} from "~/shared/helpers/control/cast.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {MessageContentProsemirrorSchema as schema} from "~/shared/messaging/message_content_schema.js";
 
 // Helper function to create a document from content
 const doc = (...content: Array<Node>) => schema.nodes.doc.create(null, content);

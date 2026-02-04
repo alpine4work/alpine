@@ -12,6 +12,10 @@ import {normalizeHtmlForFileEntityTest} from "~/client/web/content/file_entity/i
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
@@ -20,10 +24,6 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {assertId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {defaultClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

@@ -12,10 +12,10 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 let testChannelCount = 1;
 

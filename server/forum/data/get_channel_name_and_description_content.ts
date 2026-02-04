@@ -4,9 +4,9 @@ import {authorizeChannelItemAccess} from "~/server/forum/data/internal/authorize
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 /**
  * Get the channel name and description content without references. Used for

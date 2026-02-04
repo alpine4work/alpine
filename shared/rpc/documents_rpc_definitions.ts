@@ -1,7 +1,12 @@
 import {AccessLevelSchema, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
+import {ContentDuplicationVariableValuesSchema} from "~/shared/content/content_duplication_variable_schema.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
+import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/content/message_content_schema.js";
 import {DocumentContentReferencedIdsSchema} from "~/shared/documents/document_content_referenced_ids.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
 import {
@@ -22,11 +27,6 @@ import {
     DocumentId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
-import {ContentDuplicationVariableValuesSchema} from "~/shared/messaging/content_duplication_variable_schema.js";
-import {
-    MessageContentSchema,
-    MessageContentStepSchema,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadModelFileSchema} from "~/shared/messaging/message_model.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {

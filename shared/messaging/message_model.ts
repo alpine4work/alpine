@@ -1,3 +1,4 @@
+import {MessageContentWithReferencesSchema} from "~/shared/content/message_content_schema.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -10,7 +11,6 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {Id} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClericalSchema,
     MessageContentPayloadContentUpdateSchema,

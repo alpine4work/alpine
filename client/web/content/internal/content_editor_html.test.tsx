@@ -26,6 +26,10 @@ import {TestSpaceContextProvider} from "~/client/web/spaces/space_context_provid
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -52,10 +56,6 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
 import {attachFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";

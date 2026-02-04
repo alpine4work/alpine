@@ -1,7 +1,7 @@
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {MessageContentWithReferencesSchema} from "~/shared/content/message_content_schema.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";

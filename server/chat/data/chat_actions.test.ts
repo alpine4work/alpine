@@ -37,6 +37,10 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
+import {
+    MessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -46,10 +50,6 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {generateId} from "~/shared/id/id.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
 import {AccountId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 const context = createTestContext({

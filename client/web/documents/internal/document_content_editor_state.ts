@@ -18,6 +18,10 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {
+    MessageContent,
+    MessageContentWithReferences,
+} from "~/shared/content/message_content_schema.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentReferences,
@@ -44,10 +48,6 @@ import {
     FileId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
-import {
-    MessageContent,
-    MessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type DocumentContentEditorState = CollaborativeContentEditorState<

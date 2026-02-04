@@ -84,12 +84,20 @@ import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ContentDuplicationVariableValues,
+    applyContentDuplicationVariableValues,
+} from "~/shared/content/content_duplication_variable_schema.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {generateDuplicateContentTitle} from "~/shared/content/generate_duplicate_content_title.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {
+    MessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
     DocumentCommentThreadReference,
@@ -173,16 +181,8 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
-import {
-    ContentDuplicationVariableValues,
-    applyContentDuplicationVariableValues,
-} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
-import {
-    MessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,

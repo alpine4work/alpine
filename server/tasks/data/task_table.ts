@@ -100,8 +100,16 @@ import {
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ContentDuplicationVariableValues,
+    applyContentDuplicationVariableValues,
+} from "~/shared/content/content_duplication_variable_schema.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {
+    MessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -179,16 +187,8 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
-import {
-    ContentDuplicationVariableValues,
-    applyContentDuplicationVariableValues,
-} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
-import {
-    MessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,

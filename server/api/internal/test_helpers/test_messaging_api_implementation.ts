@@ -9,14 +9,14 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const knownTaskId = generateId<TaskId>();

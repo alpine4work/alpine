@@ -1,6 +1,10 @@
 import {AccessLevelSchema, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/content/message_content_schema.js";
+import {
     DynamoGeneralRealtimeEventStubSchema,
     createDynamoGeneralRealtimeBackfillResultSchema,
     createDynamoGeneralRealtimeEventSchema,
@@ -19,10 +23,6 @@ import {PostContentSchema, PostContentStepSchema} from "~/shared/forum/post_cont
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {DynamoGeneralRealtimePostEventSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentSchema,
-    MessageContentStepSchema,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
     MessageReferencedIdsSchema,

@@ -14,6 +14,7 @@ import {
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {ContentDuplicationVariableValues} from "~/shared/content/content_duplication_variable_schema.js";
 import {Context} from "~/shared/context/context.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
@@ -52,7 +53,6 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
-import {ContentDuplicationVariableValues} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     commitTaskActionTransaction,

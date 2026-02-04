@@ -1,14 +1,14 @@
 import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/content/message_content_schema.js";
+import {
     DynamoGeneralRealtimeEventStubSchema,
     createDynamoGeneralRealtimeEventSchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentSchema,
-    MessageContentStepSchema,
-} from "~/shared/messaging/message_content_schema.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {

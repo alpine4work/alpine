@@ -9,10 +9,10 @@ import {MessageStreamViewThinkingProgressDefaultSummary} from "~/client/web/mess
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {contentStyles, sprinkles, waveAnimationClassName} from "~/client/web/styles/styles.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this

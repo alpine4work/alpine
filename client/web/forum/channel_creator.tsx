@@ -41,12 +41,12 @@ import {
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId} from "~/shared/id/id.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {createChannel} from "~/shared/rpc/forum_rpc_definitions.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 

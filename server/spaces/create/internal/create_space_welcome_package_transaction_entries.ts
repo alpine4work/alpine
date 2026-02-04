@@ -4,10 +4,10 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {internalDangerouslyCreateChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_channel_transaction_entries.js";
 import {internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries} from "~/server/spaces/instantiate_bot_space_account.js";
 import {SpaceWelcomePackageItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 export async function createSpaceWelcomePackageTransactionEntries(
     context: ServerActionContext,

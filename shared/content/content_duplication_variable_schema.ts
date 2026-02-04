@@ -1,5 +1,6 @@
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {ContentMarkTypeName} from "~/shared/content/content_node_type_name.js";
+import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {SimpleContentProsemirrorSchema} from "~/shared/content/simple_content_schema.js";
 import {trimContent} from "~/shared/content/trim_content.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
@@ -13,7 +14,6 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**

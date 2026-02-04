@@ -85,6 +85,13 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+    emptyMessageContent,
+    emptyMessageContentWithReferences,
+} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     FailedPreconditionError,
@@ -114,13 +121,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-    createSimpleMessageContent,
-    emptyMessageContent,
-    emptyMessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
 import {
     ServerSynchronizationCheckpoint,
     generateServerSynchronizationCheckpoint,

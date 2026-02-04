@@ -3,15 +3,15 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema.js";
+import {
     PostContentProsemirrorSchema,
     assertPostContent,
     createSimplePostContent,
 } from "~/shared/forum/post_content_schema.js";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 
 const context = createTestContext({});
 

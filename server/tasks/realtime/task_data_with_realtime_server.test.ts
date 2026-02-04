@@ -11,9 +11,9 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
+import {ContentDuplicationVariableValues} from "~/shared/content/content_duplication_variable_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {ContentDuplicationVariableValues} from "~/shared/messaging/content_duplication_variable_schema.js";
 import {getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 
 const context = createTestContext({

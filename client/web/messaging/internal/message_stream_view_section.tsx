@@ -4,8 +4,8 @@ import {MessageStreamViewContentPart} from "~/client/web/messaging/internal/mess
 import {MessageStreamViewThinkingSummary} from "~/client/web/messaging/internal/message_stream_view_thinking_summary.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
+import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageStreamContentPartPayload,

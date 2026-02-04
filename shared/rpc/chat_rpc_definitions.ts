@@ -1,10 +1,10 @@
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
-import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
-} from "~/shared/messaging/message_content_schema.js";
+} from "~/shared/content/message_content_schema.js";
+import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
     MessageReferencedIdsSchema,

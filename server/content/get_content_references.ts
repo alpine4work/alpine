@@ -15,6 +15,7 @@ import {
     getContentReferencedIdsForSteps,
 } from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
@@ -28,7 +29,6 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 export function getContentReferencesForNode(
     context: ServerActionContext,

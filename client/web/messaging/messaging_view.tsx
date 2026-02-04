@@ -51,11 +51,11 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
+import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {

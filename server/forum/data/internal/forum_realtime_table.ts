@@ -18,6 +18,11 @@ import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {
+    MessageContent,
+    MessageContentSchema,
+    emptyMessageContent,
+} from "~/shared/content/message_content_schema.js";
 import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
@@ -45,11 +50,6 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId, ChannelId, FileId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContent,
-    MessageContentSchema,
-    emptyMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";

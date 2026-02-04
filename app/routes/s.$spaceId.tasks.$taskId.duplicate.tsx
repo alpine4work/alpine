@@ -9,7 +9,7 @@ import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/web/tasks/core/ta
 import {
     ContentDuplicationVariableValues,
     decodeContentDuplicationVariableSchemaFromUrl,
-} from "~/shared/messaging/content_duplication_variable_schema.js";
+} from "~/shared/content/content_duplication_variable_schema.js";
 
 /**
  * Route for duplicating a task with template variable replacement.

@@ -2,7 +2,7 @@ import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {useEffect, useState} from "react";
 import {ChannelCreator} from "~/client/web/forum/channel_creator.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
-import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {emptyMessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 
 export function meta() {
     return [{title: `New channel${metaTitlePostfix}`}];

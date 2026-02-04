@@ -10,12 +10,12 @@ import {getScrollToNewMessagesMargin} from "~/client/web/messaging/use_scroll_to
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {actuallyComputeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
+import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageStream,

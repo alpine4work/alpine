@@ -1,14 +1,14 @@
 import {Step} from "prosemirror-transform";
 import {ContentReferences, ContentReferencesSchema} from "~/shared/content/content_references.js";
-import {FileEntityId, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentSchema,
     MessageContentStepSchema,
-} from "~/shared/messaging/message_content_schema.js";
+} from "~/shared/content/message_content_schema.js";
+import {FileEntityId, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {AccountId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
