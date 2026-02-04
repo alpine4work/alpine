@@ -38,7 +38,10 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";
-import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {
+    ContentFileEntityRenderers,
+    ContentFileEntityRenderersContext,
+} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {ContentView} from "~/client/web/content/content_view.js";
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {createContentEditorCheckListItemNodeViewConstructor} from "~/client/web/content/internal/content_editor_check_list_item_node_view.js";
@@ -226,6 +229,7 @@ import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection
@@ -965,8 +969,22 @@ function ContentEditor<Content extends ContentWithReferences>(
     const contextRef = useRef(context);
     const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
     const spaceContextRef = useRef(spaceContext);
-    const fileEntityRenderersRef = useRef(fileEntityRenderers);
     const blockWidthRef = useRef(blockWidth);
+
+    const fileEntityRenderersRef = useRef<
+        ContentFileEntityRenderers | null | ValueStore<ContentFileEntityRenderers | null>
+    >(fileEntityRenderers);
+
+    // If we're in a hot reloading environment then `fileEntityRenderersRef` should
+    // be a store so that when it changes any files are re-rendered. In production,
+    // the file renderers object is a constant that never changes.
+    if (
+        import.meta.hot &&
+        !(fileEntityRenderersRef.current !== null && "set" in fileEntityRenderersRef.current)
+    ) {
+        fileEntityRenderersRef.current = new ValueStore(fileEntityRenderersRef.current);
+    }
+
     useInsertionEffect(() => {
         propsRef.current = props;
         routeLayoutRef.current = routeLayout;
@@ -978,8 +996,17 @@ function ContentEditor<Content extends ContentWithReferences>(
         contextRef.current = context;
         addGlobalLoadingIndicatorRef.current = addGlobalLoadingIndicator;
         spaceContextRef.current = spaceContext;
-        fileEntityRenderersRef.current = fileEntityRenderers;
         blockWidthRef.current = blockWidth;
+
+        if (
+            import.meta.hot &&
+            fileEntityRenderersRef.current !== null &&
+            "set" in fileEntityRenderersRef.current
+        ) {
+            fileEntityRenderersRef.current.set(fileEntityRenderers);
+        } else {
+            fileEntityRenderersRef.current = fileEntityRenderers;
+        }
     });
 
     /* ========================================================================== *\

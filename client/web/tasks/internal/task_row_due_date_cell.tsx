@@ -29,7 +29,7 @@ import {
     taskRowViewMinHeight,
 } from "~/client/web/styles/tasks_shared_styles.js";
 import {TaskClientReadonlyStore} from "~/client/web/tasks/core/task_client_store.js";
-import {formatTaskDate} from "~/client/web/tasks/internal/format_task_date.js";
+import {formatTaskDate} from "~/client/web/tasks/format_task_date.js";
 import {TaskDateInput} from "~/client/web/tasks/internal/task_date_input.js";
 import {TaskGridViewColumn} from "~/client/web/tasks/internal/task_row_view.js";
 import {spacing} from "~/shared/design/core/spacing.js";

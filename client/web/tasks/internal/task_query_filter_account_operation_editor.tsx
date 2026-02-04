@@ -12,10 +12,10 @@ import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {inputPlaceholderStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {TaskCurrentAccountAvatar} from "~/client/web/tasks/internal/task_current_account_avatar.js";
-import {TaskMissingAccountAvatar} from "~/client/web/tasks/internal/task_missing_account_avatar.js";
 import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/web/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/web/tasks/internal/task_query_filter_operator_editor.js";
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
+import {TaskMissingAccountAvatar} from "~/client/web/tasks/task_missing_account_avatar.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {assert} from "~/shared/helpers/control/assert.js";

@@ -19,9 +19,8 @@ import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicat
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAccountRegistryForSpaceId} from "~/client/web/accounts/account_registry_context.js";
-import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {ContentFileViewerModal} from "~/client/web/content/content_file_viewer_modal.js";
-import {contentFileEntityRenderers} from "~/client/web/content/file_entity/content_file_entity_renderers.js";
+import {ContentFileEntityRenderersContextProvider} from "~/client/web/content/file_entity/content_file_entity_renderers_context_provider.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {ContextMenuContextProvider} from "~/client/web/design/context_menu.js";
@@ -875,7 +874,7 @@ export default function SpaceLayoutRoute() {
                 }
             }}
         >
-            <ContentFileEntityRenderersContext.Provider value={contentFileEntityRenderers}>
+            <ContentFileEntityRenderersContextProvider>
                 <GlobalLoadingIndicatorContextProvider>
                     {globalLoadingIndicator => (
                         <SpaceContextProvider
@@ -929,8 +928,7 @@ export default function SpaceLayoutRoute() {
                         </SpaceContextProvider>
                     )}
                 </GlobalLoadingIndicatorContextProvider>
-                ,
-            </ContentFileEntityRenderersContext.Provider>
+            </ContentFileEntityRenderersContextProvider>
         </GlobalKeyDownEvent>
     );
 }

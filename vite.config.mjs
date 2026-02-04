@@ -59,10 +59,12 @@ export default defineConfig(({mode}) => {
             },
         },
         define: {
-            // This is set to an empty string outside of production, mostly for integration tests. In integration tests we serve assets from
-            // app service, but we don't know the port ahead of time, so an empty string allows us to fall back to relative urls.
-            // We override this for dev in `app_service_wrapper.ts` to the actual service url.
-            // Does not have a trailing slash so it can be concatenated with relative urls!
+            // This is set to an empty string outside of production, mostly for integration
+            // tests. In integration tests we serve assets from app service, but we don't
+            // know the port ahead of time, so an empty string allows us to fall back to
+            // relative urls. We override this for dev in `app_service_wrapper.ts` to the
+            // actual service url. Does not have a trailing slash so it can be concatenated
+            // with relative urls!
             __RESOURCE_SERVICE_URL__: JSON.stringify(
                 process.env.NODE_ENV === "production" ? "https://resources.alpine.inc" : "",
             ),

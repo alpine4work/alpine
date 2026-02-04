@@ -6,8 +6,8 @@ import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {TaskPriorityIcon} from "~/client/web/tasks/internal/task_priority_icon.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/web/tasks/internal/task_query_filter_operator_editor.js";
+import {TaskPriorityIcon} from "~/client/web/tasks/task_priority_icon.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
 import {TaskQueryPriorityFilter} from "~/shared/tasks/task_query_filter.js";
 

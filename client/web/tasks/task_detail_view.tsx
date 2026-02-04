@@ -28,6 +28,7 @@ import {getNextFocusableElementIfExists} from "~/client/web/design/helpers/get_n
 import {MenuAction} from "~/client/web/design/menu.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {useReporter} from "~/client/web/design/reporter.js";
+import {getElementSafeAreaInsetTopPx} from "~/client/web/design/safe_area_inset.js";
 import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
@@ -52,6 +53,7 @@ import {
     taskDetailViewDenseFieldMinHeight,
     taskDetailViewFieldLabelColor,
     taskDetailViewFieldLabelFontSize,
+    taskDetailViewHeaderMarginBottom,
     taskDetailViewMainMinHeightPx,
     taskDetailViewSectionGap,
     taskDetailViewStatusButtonMobilePaddingBottom,
@@ -78,7 +80,6 @@ import {
     TaskAssigneeInput,
     TaskAssigneeInputRef,
 } from "~/client/web/tasks/internal/task_assignee_input.js";
-import {TaskChildTasksProgressWheel} from "~/client/web/tasks/internal/task_child_tasks_progress_wheel.js";
 import {TaskCloseConfirmationModalDialog} from "~/client/web/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {
     TaskCollectionsInput,
@@ -98,6 +99,7 @@ import {TaskGridViewVirtualizedListViewRef} from "~/client/web/tasks/internal/ta
 import {TaskPriorityInput} from "~/client/web/tasks/internal/task_priority_input.js";
 import {TaskStatusButton} from "~/client/web/tasks/internal/task_status_button.js";
 import {TaskUndoStackEntry} from "~/client/web/tasks/internal/use_task_undo_stack_state.js";
+import {TaskChildTasksProgressWheel} from "~/client/web/tasks/task_child_tasks_progress_wheel.js";
 import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {
     VirtualizedScrollView,
@@ -105,7 +107,13 @@ import {
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {Context} from "~/shared/context/context.js";
-import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -977,6 +985,7 @@ export function TaskDetailView({
                                     node: (
                                         <TaskDetailViewMainMemo
                                             ref={mainRef}
+                                            viewRef={viewRef}
                                             possiblyGhostTaskId={taskId}
                                             store={store}
                                             taskSubscription={taskSubscription}
@@ -1104,6 +1113,7 @@ const TaskDetailViewMainMemo = memo(forwardRef(TaskDetailViewMain));
 
 function TaskDetailViewMain(
     {
+        viewRef,
         possiblyGhostTaskId,
         store,
         taskSubscription,
@@ -1133,6 +1143,7 @@ function TaskDetailViewMain(
         commitActionTransaction,
         commitActionTransactionAndCreateIfNeeded,
     }: {
+        viewRef: RefObject<VirtualizedScrollViewRef | null>;
         possiblyGhostTaskId: TaskId;
         store: TaskClientStore;
         taskSubscription: TaskClientTaskSubscription | null;
@@ -1372,7 +1383,11 @@ function TaskDetailViewMain(
                     <Spacer space={navigationBarHeight} />
                 )}
                 <ContextMenuActions actions={contextMenuActions}>
-                    <Box paddingBottom={taskDetailViewSectionGap} paddingX={screenPaddingX}>
+                    <Box
+                        position="relative"
+                        paddingX={screenPaddingX}
+                        style={{paddingBottom: taskDetailViewHeaderMarginBottom}}
+                    >
                         {platform !== "mobile" ? (
                             <Box height={navigationBarHeight} />
                         ) : (
@@ -1407,6 +1422,9 @@ function TaskDetailViewMain(
                             onTitleChange={onTitleChange}
                             placeholder={taskFallbackTitle}
                         />
+                        {task && task.getChildTaskCount() > 0 && (
+                            <TaskDetailViewChildTasksButton viewRef={viewRef} task={task} />
+                        )}
                     </Box>
                 </ContextMenuActions>
                 <Box
@@ -1623,17 +1641,6 @@ function TaskDetailViewMain(
                         onClick={focusChildrenGridViewStart}
                     >
                         <Box fontSize={taskDetailViewFieldLabelFontSize}>Subtasks</Box>
-                        {task && task.getChildTaskCount() > 0 && (
-                            <Box display="flex" alignItems="center" gap="1">
-                                <TaskChildTasksProgressWheel
-                                    childTaskCount={task.getChildTaskCount()}
-                                    closedChildTaskCount={task.getClosedChildTaskCount()}
-                                />
-                                <Box color="grey-70">
-                                    {task.getClosedChildTaskCount()}/{task.getChildTaskCount()}
-                                </Box>
-                            </Box>
-                        )}
                     </span>
                 </Box>
             </Box>
@@ -1755,7 +1762,7 @@ function TaskDetailViewParentBreadcrumbs({
                                 color="grey-60"
                                 height="5"
                                 paddingX="1.5"
-                                flexShrink="1"
+                                flexShrink="0"
                                 display="flex"
                                 alignItems="center"
                                 gap="1"
@@ -1771,33 +1778,34 @@ function TaskDetailViewParentBreadcrumbs({
                 }
 
                 parentNodes.push(
-                    <Button
-                        key={parentTaskEntry.task.id}
-                        variant="quieter"
-                        height="5"
-                        paddingX="1.5"
-                        flexShrink="1"
-                        pressErrorTitle="Couldn&#x2019;t open task"
-                        onPress={() =>
-                            navigate(
-                                `/s/${parentTaskEntry.task.getSpaceId()}/tasks/${
-                                    parentTaskEntry.task.id
-                                }`,
-                                {
-                                    // Don't let the route open in `<PeekStack>`.
-                                    stopPropagation: true,
-                                },
-                            )
-                        }
-                    >
-                        <span
-                            dangerouslySetInnerHTML={{
-                                __html: serializeProsemirrorFragmentToHtml(
-                                    parentTaskEntry.task.getTitle().getProsemirrorNode().content,
-                                ),
-                            }}
-                        />
-                    </Button>,
+                    <Box key={parentTaskEntry.task.id} flexShrink="1" style={{minWidth: 0}}>
+                        <Button
+                            variant="quieter"
+                            height="5"
+                            paddingX="1.5"
+                            pressErrorTitle="Couldn&#x2019;t open task"
+                            onPress={() =>
+                                navigate(
+                                    `/s/${parentTaskEntry.task.getSpaceId()}/tasks/${
+                                        parentTaskEntry.task.id
+                                    }`,
+                                    {
+                                        // Don't let the route open in `<PeekStack>`.
+                                        stopPropagation: true,
+                                    },
+                                )
+                            }
+                        >
+                            <span
+                                dangerouslySetInnerHTML={{
+                                    __html: serializeProsemirrorFragmentToHtml(
+                                        parentTaskEntry.task.getTitle().getProsemirrorNode()
+                                            .content,
+                                    ),
+                                }}
+                            />
+                        </Button>
+                    </Box>,
                 );
 
                 loopTask = parentTaskEntry.task;
@@ -1810,6 +1818,16 @@ function TaskDetailViewParentBreadcrumbs({
             // We insert parent nodes at the end of the list but we want the top level
             // parent to appear first.
             parentNodes.reverse();
+
+            if (parentNodes.length > 4) {
+                parentNodes.splice(
+                    2,
+                    parentNodes.length - 4,
+                    <Box key="ellipsis" flexShrink="0" paddingX="1.5">
+                        …
+                    </Box>,
+                );
+            }
 
             return (
                 <Box
@@ -1835,6 +1853,59 @@ function TaskDetailViewParentBreadcrumbs({
     }, [currentAccount?.id, navigate, task, taskSubscription]);
 
     return useStore(nodeStore);
+}
+
+function TaskDetailViewChildTasksButton({
+    viewRef,
+    task,
+}: {
+    viewRef: RefObject<VirtualizedScrollViewRef | null>;
+    task: TaskModel;
+}) {
+    return (
+        <Box
+            position="absolute"
+            marginX="-1.5"
+            style={{
+                bottom: subtractRemLengths(taskDetailViewHeaderMarginBottom, "5", "0.5"),
+            }}
+        >
+            <Button
+                height="5"
+                paddingX="1.5"
+                onPress={() => {
+                    const view = assertExists(viewRef.current);
+
+                    const spacingScale = getSpacingScaleWithoutListening();
+                    const {offset, height} = view.getPositionByIndex(0);
+
+                    // Scroll to the first child task. The virtualized list has
+                    // `<TaskDetailViewMain>` as the first item then after that is all the child
+                    // tasks. If there are no child tasks this will be the first ghost task.
+                    const scrollOffset =
+                        offset +
+                        height -
+                        getElementSafeAreaInsetTopPx(view.getContentElement()) -
+                        convertRemLengthToPx(
+                            addRemLengths(navigationBarHeight, "32"),
+                            spacingScale,
+                        );
+
+                    view.setScrollOffset(scrollOffset, {behavior: "instant"});
+                }}
+            >
+                <Box as="span" display="flex" alignItems="center" gap="1">
+                    <TaskChildTasksProgressWheel
+                        childTaskCount={task.getChildTaskCount()}
+                        closedChildTaskCount={task.getClosedChildTaskCount()}
+                    />
+                    <Box as="span" color="grey-70">
+                        {task.getClosedChildTaskCount()}/{task.getChildTaskCount()}{" "}
+                    </Box>
+                </Box>
+            </Button>
+        </Box>
+    );
 }
 
 function TaskDetailViewNavigationBarTitle({

@@ -19,7 +19,7 @@ import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
-import {TaskMissingAccountAvatar} from "~/client/web/tasks/internal/task_missing_account_avatar.js";
+import {TaskMissingAccountAvatar} from "~/client/web/tasks/task_missing_account_avatar.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";

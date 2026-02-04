@@ -304,7 +304,11 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     "src",
                     new URL(
                         printFileEntityIdIntoPath(this._getSpaceId(), fileId),
-                        resourceServiceUrl,
+                        // NOTE(calebmer): This must be `window.location.origin` not
+                        // `resourceServiceUrl`. Since the URL is something like
+                        // `/s/:spaceId/documents/:documentId`. It's a URL into our app since we're
+                        // dealing with a file entity here.
+                        window.location.origin,
                     ).toString(),
                 );
 

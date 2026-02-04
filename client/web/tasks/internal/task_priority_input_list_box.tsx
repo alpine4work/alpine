@@ -12,9 +12,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
-import {getTaskPriorityName} from "~/client/web/tasks/internal/get_task_priority_name.js";
-import {TaskPriorityIcon} from "~/client/web/tasks/internal/task_priority_icon.js";
+import {getTaskPriorityName} from "~/client/web/tasks/get_task_priority_name.js";
 import {TaskPriorityInputItem} from "~/client/web/tasks/internal/task_priority_input.js";
+import {TaskPriorityIcon} from "~/client/web/tasks/task_priority_icon.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";

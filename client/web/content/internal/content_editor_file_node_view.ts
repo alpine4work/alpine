@@ -59,6 +59,7 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 
 const contentEditorFileParentUpdateEventEmitter =
     new ElementEventEmitter<ContentEditorTableLayout | null>("parentupdate");
@@ -98,7 +99,10 @@ export function createContentEditorFileNodeViewConstructor({
     getCurrentAccount: () => AccountModel | null;
     getBlockWidth: () => number;
     getAttachmentTarget: () => FileAttachmentTarget;
-    getFileEntityRenderers: () => ContentFileEntityRenderers | null;
+    getFileEntityRenderers: () =>
+        | ContentFileEntityRenderers
+        | null
+        | Store<ContentFileEntityRenderers | null>;
     getAccessLevel: () => AccessLevel;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
     draggingFileRef: MutableRefObject<{getPos: () => number | null} | null>;
@@ -208,6 +212,16 @@ export function createContentEditorFileNodeViewConstructor({
 
                     let html: HtmlElementGenerator;
 
+                    const fileEntityRenderersStore = getFileEntityRenderers();
+
+                    // Support store file entity renders in hot reloading environments.
+                    const fileEntityRenderers =
+                        import.meta.hot &&
+                        fileEntityRenderersStore !== null &&
+                        "getSnapshot" in fileEntityRenderersStore
+                            ? get(fileEntityRenderersStore)
+                            : (fileEntityRenderersStore as ContentFileEntityRenderers | null);
+
                     if (isFileEntity) {
                         const clientInfo = getClientInfo();
 
@@ -215,7 +229,7 @@ export function createContentEditorFileNodeViewConstructor({
                             node,
                             fileEntityId: fileId,
                             fileEntityResult,
-                            fileEntityRenderers: getFileEntityRenderers(),
+                            fileEntityRenderers,
                             layout,
                             getContext,
                             clientInfo,
@@ -249,14 +263,14 @@ export function createContentEditorFileNodeViewConstructor({
                         });
                     }
 
-                    return {file, html};
+                    return {file, html, fileEntityRenderers};
                 });
 
                 const updateFromStore = () => {
                     cleanupBehavior?.();
                     cleanupBehavior = null;
 
-                    const {file, html} = htmlStore.getSnapshot();
+                    const {file, html, fileEntityRenderers} = htmlStore.getSnapshot();
 
                     if (dom === undefined) {
                         dom = html.generateNode();
@@ -319,7 +333,7 @@ export function createContentEditorFileNodeViewConstructor({
                             spaceId,
                             fileEntityId: fileId,
                             fileEntityResult,
-                            fileEntityRenderers: getFileEntityRenderers(),
+                            fileEntityRenderers,
                             navigate,
                             getReporter,
                             onShiftMouseDown,

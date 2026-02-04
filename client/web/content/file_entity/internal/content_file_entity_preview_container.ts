@@ -31,6 +31,7 @@ export interface ContentFileEntityPreviewContainerResult {
     scaledWidthPx: number;
     blockMaxWidthPx: number;
     isSmallerThanHalfOfBlockMaxWidth: boolean;
+    isSmallerThanThirdOfBlockMaxWidth: boolean;
 }
 
 export function setupContentFileEntityPreviewContainer(
@@ -122,5 +123,6 @@ export function setupContentFileEntityPreviewContainer(
         scaledWidthPx,
         blockMaxWidthPx,
         isSmallerThanHalfOfBlockMaxWidth,
+        isSmallerThanThirdOfBlockMaxWidth,
     };
 }

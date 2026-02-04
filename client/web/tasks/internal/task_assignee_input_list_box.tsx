@@ -13,11 +13,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
-import {
-    TaskAssigneeInputItem,
-    nullTaskAssigneeInputLabel,
-} from "~/client/web/tasks/internal/task_assignee_input.js";
-import {TaskMissingAccountAvatar} from "~/client/web/tasks/internal/task_missing_account_avatar.js";
+import {TaskAssigneeInputItem} from "~/client/web/tasks/internal/task_assignee_input.js";
+import {nullTaskAssigneeInputLabel} from "~/client/web/tasks/null_task_assignee_input_label.js";
+import {TaskMissingAccountAvatar} from "~/client/web/tasks/task_missing_account_avatar.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";

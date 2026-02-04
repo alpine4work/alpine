@@ -1,5 +1,9 @@
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
+import {colorSchemeVars} from "~/client/web/styles/styles.js";
+import {
+    taskChildTasksProgressWheelLineClassName,
+    taskChildTasksProgressWheelTrackClassName,
+} from "~/client/web/tasks/task_child_tasks_progress_wheel_html.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -16,17 +20,9 @@ import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spaci
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-const progressTrackClassName = sprinkles({
-    position: "absolute",
-    inset: "0",
-});
-
-const progressLineClassName = sprinkles({
-    position: "absolute",
-    inset: "0",
-    color: {light: "theme-50-const", dark: "theme-40-const"},
-});
-
+// IMPORTANT: If you update the HTML in this component you should also update
+// `renderTaskChildTasksProgressWheel()` for code that needs to render progress
+// wheels in `<ContentEditor>`.
 export function TaskChildTasksProgressWheel({
     childTaskCount,
     closedChildTaskCount,
@@ -84,7 +80,7 @@ export function TaskChildTasksProgressWheel({
         >
             <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className={progressTrackClassName}
+                className={taskChildTasksProgressWheelTrackClassName}
                 style={{
                     color: isPressed
                         ? colorSchemeVars["grey-40"]
@@ -108,7 +104,7 @@ export function TaskChildTasksProgressWheel({
             </svg>
             <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className={progressLineClassName}
+                className={taskChildTasksProgressWheelLineClassName}
                 fill="currentColor"
                 viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
             >

@@ -18,6 +18,12 @@ import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_k
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const taskDetailViewSectionGap = "10";
+
+// A little extra margin at the bottom of the header so when we render the
+// subtasks button (which renders in the margin bottom to avoid changing the
+// layout) it looks good.
+export const taskDetailViewHeaderMarginBottom = addRemLengths(taskDetailViewSectionGap, "1");
+
 export const taskDetailViewDenseFieldGap = "5";
 export const taskDetailViewDenseFieldMinHeight = "4";
 export const taskDetailViewTitleFontSize = "300";
@@ -28,11 +34,13 @@ export const taskDetailViewCommentSidebarWidth = "128";
 export const taskDetailNotesFieldLabelPaddingBottom = "1";
 export const taskDetailViewSubtasksFieldLabelPaddingBottom = "2";
 export const taskCommentsHeaderNavigationBarSpacing = "8";
+
 export const taskDetailViewStatusButtonSize = {
     desktopWide: "7",
     desktopNarrow: "6",
     mobileNarrow: "7",
 } as const;
+
 export const taskDetailViewStatusButtonMobilePaddingTop = "3";
 export const taskDetailViewStatusButtonMobilePaddingBottom = "2";
 

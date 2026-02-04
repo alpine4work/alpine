@@ -189,6 +189,27 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 unsubscribeFromPlatformChange();
                 unsubscribeFromSpacingScaleChange();
                 unsubscribeFromReferencesUpdate();
+
+                // When destroying a `fileFloat`, we may be converting to a `fileRow`! In this
+                // case the `file` node may not be destroyed, just moved into the `fileRow`.
+                // However, the file's layout will change in the new parent so we need to
+                // dispatch an update so the file node can re-render. Since ProseMirror only
+                // calls `update()` on the `file` node view if the `file` itself changes (which
+                // it doesn't only the parent changes in this case).
+                //
+                // Wait a microtask, if any child nodes are still in the DOM, tell them
+                // to update!
+                {
+                    const oldChildNodes = Array.from(dom.childNodes);
+
+                    scheduleMicrotask(() => {
+                        for (const childNode of oldChildNodes) {
+                            if (childNode instanceof Element && document.body.contains(childNode)) {
+                                dispatchContentEditorFileParentUpdatedEvent(childNode, null);
+                            }
+                        }
+                    });
+                }
             },
             ignoreMutation: record => {
                 // Ignore changes to `style` and `class` attribute when file row layout

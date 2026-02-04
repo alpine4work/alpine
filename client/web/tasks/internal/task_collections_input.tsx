@@ -57,7 +57,6 @@ import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
 } from "~/client/web/tasks/internal/task_collection_chip.js";
-import {TaskCollectionChipBase} from "~/client/web/tasks/internal/task_collection_chip_base.js";
 import {
     TaskCollectionComboBoxCollectionItem,
     TaskCollectionComboBoxItem,
@@ -66,6 +65,7 @@ import {
 import {TaskCollectionComboBoxListBox} from "~/client/web/tasks/internal/task_collection_combo_box_list_box.js";
 import {useTaskCollectionComboBoxSearchState} from "~/client/web/tasks/internal/task_collection_combo_box_search_state.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/web/tasks/internal/use_search_task_collections_by_affinity.js";
+import {TaskCollectionChipBase} from "~/client/web/tasks/task_collection_chip_base.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";

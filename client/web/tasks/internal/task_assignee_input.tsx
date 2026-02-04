@@ -30,7 +30,8 @@ import {
     TaskAssigneeInputListBox,
     TaskAssigneeInputListBoxOptionItem,
 } from "~/client/web/tasks/internal/task_assignee_input_list_box.js";
-import {TaskMissingAccountAvatar} from "~/client/web/tasks/internal/task_missing_account_avatar.js";
+import {nullTaskAssigneeInputLabel} from "~/client/web/tasks/null_task_assignee_input_label.js";
+import {TaskMissingAccountAvatar} from "~/client/web/tasks/task_missing_account_avatar.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -43,8 +44,6 @@ import {Store} from "~/shared/store/store.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
-
-export const nullTaskAssigneeInputLabel = "Nobody";
 
 export type TaskAssigneeInputItem =
     | {

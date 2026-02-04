@@ -20,14 +20,14 @@ import {
     taskRowViewMinHeight,
 } from "~/client/web/styles/tasks_shared_styles.js";
 import {TaskClientReadonlyStore} from "~/client/web/tasks/core/task_client_store.js";
-import {getTaskPriorityName} from "~/client/web/tasks/internal/get_task_priority_name.js";
-import {TaskPriorityIcon} from "~/client/web/tasks/internal/task_priority_icon.js";
+import {getTaskPriorityName} from "~/client/web/tasks/get_task_priority_name.js";
 import {
     TaskPriorityInput,
     TaskPriorityInputRef,
 } from "~/client/web/tasks/internal/task_priority_input.js";
 import {TaskGridViewColumn} from "~/client/web/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
+import {TaskPriorityIcon} from "~/client/web/tasks/task_priority_icon.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";

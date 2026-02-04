@@ -63,6 +63,7 @@ import {
     TaskClientReadonlyStore,
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
+    TaskClientStoreTaskEntry,
     TaskClientStoreUndoManager,
     TaskClientStoreUpdateTitleActionTransactionBuilder,
 } from "~/client/web/tasks/core/task_client_store.js";
@@ -119,6 +120,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
@@ -459,11 +461,33 @@ function TaskRowView(
     const task = taskEntry?.task ?? null;
     const possiblyGhostTaskId = assertExists(taskId ?? ghostTaskId);
 
-    const parentTaskId = task?.getParent()?.taskId ?? null;
-    const parentTaskEntryStore =
-        parentTaskId !== null && query !== null
-            ? query.getReferencedTaskEntryStore(parentTaskId)
-            : null;
+    const parentPreviewStore = useMemo((): Store<{
+        rootTaskEntry: TaskClientStoreTaskEntry;
+        depth: number;
+    }> | null => {
+        if (!capabilities.hasParentTaskTitle) return null;
+        if (parents.length !== 0) return null;
+
+        const parentTaskId = task?.getParent()?.taskId ?? null;
+        if (parentTaskId === null || query === null) return null;
+
+        return computeStore(get => {
+            let rootTaskEntry = get(query.getReferencedTaskEntryStore(parentTaskId));
+            let depth = 1;
+
+            while (rootTaskEntry.task) {
+                const grandParentTaskId = rootTaskEntry.task.getParent()?.taskId ?? null;
+                if (grandParentTaskId === null) break;
+                rootTaskEntry = get(query.getReferencedTaskEntryStore(grandParentTaskId));
+                depth++;
+            }
+
+            return {
+                rootTaskEntry,
+                depth,
+            };
+        });
+    }, [capabilities.hasParentTaskTitle, parents.length, query, task]);
 
     const access = useStore(
         useMemo(
@@ -1778,7 +1802,7 @@ function TaskRowView(
                         capabilities.hasColumns ? taskRowViewFirstColumnExtraPaddingLeft : undefined
                     }
                     parents={parents}
-                    parentTaskEntryStore={parentTaskEntryStore}
+                    parentPreviewStore={parentPreviewStore}
                     isGhostTask={isGhostTask}
                     isFirstRow={isFirstRow}
                     areChildTasksExpanded={areChildTasksExpanded}

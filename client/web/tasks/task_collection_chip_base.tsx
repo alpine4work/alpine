@@ -4,41 +4,33 @@ import {usePress} from "react-aria";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
-import {Sprinkles, colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskCollectionChipBorderRadius,
     taskCollectionChipHeight,
-    taskCollectionChipPaddingY,
 } from "~/client/web/styles/tasks_shared_styles.js";
+import {
+    taskCollectionChipBaseClassNameBase,
+    taskCollectionChipBaseColorDotClassNameByColor,
+    taskCollectionChipBaseDesktopLayoutClassName,
+    taskCollectionChipBaseDesktopLayoutColorDotContainerClassName,
+    taskCollectionChipBaseDesktopLayoutWithoutColorClassName,
+    taskCollectionChipBaseNameClassName,
+    taskCollectionChipBaseNameGradientClassName,
+} from "~/client/web/tasks/task_collection_chip_base_html.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 const TaskCollectionChipBaseForwardRef = forwardRef(TaskCollectionChipBase);
 export {TaskCollectionChipBaseForwardRef as TaskCollectionChipBase};
 
-const chipClassNameBase = sprinkles({
-    fontSize: "75",
-    paddingY: taskCollectionChipPaddingY,
-    borderRadius: taskCollectionChipBorderRadius,
-    display: "inline-flex",
-    alignItems: "center",
-    // These two properties are particularly important for
-    // `<TaskDetailCollectionsField>` which renders an `<input>` as `name` when
-    // creating a new collection. If the user types a lot of content then the chip
-    // should grow until we reach the max-width then the `<input>` within should
-    // start scrolling.
-    maxWidth: "full",
-    overflow: "hidden",
-});
-
-const chipClassName = `${chipClassNameBase} ${sprinkles({
+const chipClassName = `${taskCollectionChipBaseClassNameBase} ${sprinkles({
     height: taskCollectionChipHeight,
     paddingRight: "1.5",
 })}`;
 
-const chipWithoutRemoveClassName = `${chipClassNameBase} ${sprinkles({
+const chipWithoutRemoveClassName = `${taskCollectionChipBaseClassNameBase} ${sprinkles({
     height: taskCollectionChipHeight,
     paddingRight: {desktop: "1.5", mobile: "2.5"},
 })}`;
@@ -51,49 +43,9 @@ const chipWithoutColorAndWithoutRemoveClassName = `${chipWithoutRemoveClassName}
     paddingLeft: {desktop: "1.5", mobile: "2.5"},
 })}`;
 
-const desktopLayoutChipClassName = `${chipClassNameBase} ${sprinkles({
-    height: taskCollectionChipHeight.desktop,
-})}`;
-
-const desktopLayoutChipWithoutColorClassName = `${desktopLayoutChipClassName} ${sprinkles({
-    paddingLeft: "1.5",
-})}`;
-
 const colorDotContainerClassName = sprinkles({
     paddingLeft: {desktop: "1.5", mobile: "2.5"},
     paddingRight: {desktop: "1", mobile: "1.5"},
-});
-
-const desktopLayoutColorDotContainerClassName = sprinkles({
-    paddingLeft: "1.5",
-    paddingRight: "1",
-});
-
-const colorDotClassNameByColor = new DefaultMap((color: Sprinkles["color"]) =>
-    sprinkles({
-        width: "1.5",
-        height: "1.5",
-        borderRadius: "full",
-        backgroundColor: color,
-    }),
-);
-
-const nameClassName = sprinkles({
-    position: "relative",
-    zIndex: "0",
-    fontStyle: "normal",
-    overflow: "hidden",
-    paddingRight: "1.5",
-    marginRight: "-1.5",
-});
-
-const nameGradientClassName = sprinkles({
-    position: "absolute",
-    zIndex: "10",
-    right: "0",
-    top: "0",
-    bottom: "0",
-    width: "1.5",
 });
 
 const removeButtonContainerClassName = sprinkles({
@@ -101,6 +53,9 @@ const removeButtonContainerClassName = sprinkles({
     marginRight: {mobile: "-1", desktop: "-1.5"},
 });
 
+// IMPORTANT: If you update the HTML in this component you should also update
+// `renderTaskCollectionChipBase()` for code that needs to render chips in
+// `<ContentEditor>`.
 function TaskCollectionChipBase(
     {
         color,
@@ -154,8 +109,8 @@ function TaskCollectionChipBase(
             className={
                 withDesktopLayout
                     ? color !== null
-                        ? desktopLayoutChipClassName
-                        : desktopLayoutChipWithoutColorClassName
+                        ? taskCollectionChipBaseDesktopLayoutClassName
+                        : taskCollectionChipBaseDesktopLayoutWithoutColorClassName
                     : color !== null
                       ? onRemove
                           ? chipClassName
@@ -171,19 +126,19 @@ function TaskCollectionChipBase(
                 <div
                     className={
                         withDesktopLayout
-                            ? desktopLayoutColorDotContainerClassName
+                            ? taskCollectionChipBaseDesktopLayoutColorDotContainerClassName
                             : colorDotContainerClassName
                     }
                 >
                     <div
-                        className={colorDotClassNameByColor.getOrSetDefault(
+                        className={taskCollectionChipBaseColorDotClassNameByColor.getOrSetDefault(
                             getTaskCollectionColor(color),
                         )}
                     />
                 </div>
             )}
             <div
-                className={nameClassName}
+                className={taskCollectionChipBaseNameClassName}
                 style={{
                     maxWidth: nameMaxWidth ? spacing[nameMaxWidth] : undefined,
                     whiteSpace: "nowrap",
@@ -194,7 +149,7 @@ function TaskCollectionChipBase(
                 }}
             >
                 <div
-                    className={nameGradientClassName}
+                    className={taskCollectionChipBaseNameGradientClassName}
                     style={{
                         background: `linear-gradient(to right, transparent, ${backgroundColor} ${spacing["0.5"]})`,
                     }}

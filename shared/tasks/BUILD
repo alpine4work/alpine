@@ -18,6 +18,7 @@ ts_project(
         "//shared/crdt",
         "//shared/design",
         "//shared/error",
+        "//shared/files",
         "//shared/helpers",
         "//shared/id",
         "//shared/messaging",

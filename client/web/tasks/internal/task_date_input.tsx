@@ -19,7 +19,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {formatTaskDate} from "~/client/web/tasks/internal/format_task_date.js";
+import {formatTaskDate} from "~/client/web/tasks/format_task_date.js";
 import {TaskDateInputCalendar} from "~/client/web/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/web/tasks/internal/task_date_input_text.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";

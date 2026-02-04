@@ -129,6 +129,7 @@ import {
     taskDetailViewCommentSidebarWidth,
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
+    taskDetailViewHeaderMarginBottom,
     taskDetailViewSectionGap,
     taskDetailViewStatusButtonMobilePaddingBottom,
     taskDetailViewStatusButtonMobilePaddingTop,
@@ -1971,7 +1972,7 @@ function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams})
                         }}
                         width="64"
                     />
-                    <Box height={taskDetailViewSectionGap} />
+                    <Box style={{height: taskDetailViewHeaderMarginBottom}} />
                     <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
                         <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
                         <TextShimmer fontSize="75" width="24" />

@@ -1,9 +1,19 @@
 import classNames from "classnames";
-import {colorSchemeVars, pingAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
+import {colorSchemeVars, pingAnimationClassName} from "~/client/web/styles/styles.js";
+import {
+    taskPriorityIconClassName,
+    taskPriorityIconUrgentCircleFillHighlightedClassName,
+    taskPriorityIconUrgentCircleFillNotHighlightedClassName,
+    taskPriorityIconUrgentContainerClassName,
+    taskPriorityIconUrgentPingContainerClassName,
+} from "~/client/web/tasks/task_priority_icon_html.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
+// IMPORTANT: If you update the HTML in this component you should also update
+// `renderTaskPriorityIcon()` for code that needs to render icons in
+// `<ContentEditor>`.
 export function TaskPriorityIcon({
     size,
     priority,
@@ -53,16 +63,12 @@ export function TaskPriorityIcon({
             // Derived from Phosphor's `<WarningCircle>` icon but we made the exclamation
             // mark bigger and duotone.
             return (
-                <div className={sprinkles({flexShrink: "0", position: "relative", zIndex: "0"})}>
+                <div className={taskPriorityIconUrgentContainerClassName}>
                     {shouldHighlightUrgent && (
                         <div
                             className={classNames(
                                 pingAnimationClassName,
-                                sprinkles({
-                                    position: "absolute",
-                                    inset: "0",
-                                    zIndex: "-10",
-                                }),
+                                taskPriorityIconUrgentPingContainerClassName,
                             )}
                         >
                             <svg
@@ -88,11 +94,11 @@ export function TaskPriorityIcon({
                             cx="16"
                             cy="16"
                             r="13"
-                            className={sprinkles({
-                                fill: shouldHighlightUrgent
-                                    ? "red-50-const"
-                                    : {light: "grey-70", dark: "grey-20"},
-                            })}
+                            className={
+                                shouldHighlightUrgent
+                                    ? taskPriorityIconUrgentCircleFillHighlightedClassName
+                                    : taskPriorityIconUrgentCircleFillNotHighlightedClassName
+                            }
                         />
                         <rect
                             x="15"
@@ -115,7 +121,7 @@ export function TaskPriorityIcon({
         <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 32 32"
-            className={sprinkles({flexShrink: "0"})}
+            className={taskPriorityIconClassName}
             // Safari doesn't like `width` and `height` attributes being set to rem units
             // so use `style` instead.
             style={{

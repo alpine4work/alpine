@@ -68,7 +68,7 @@ import {
     TaskClientStoreTaskEntry,
 } from "~/client/web/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/web/tasks/internal/build_task_title_input_keymap_plugin.js";
-import {createTaskEntryAccessStore} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
+import {computeTaskEntryAccess} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/web/tasks/internal/task_grid_view_task_key.js";
 import {getTaskQueryManuallySortedDirection} from "~/client/web/tasks/internal/task_grid_view_virtualized_list.js";
@@ -107,6 +107,7 @@ import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_ke
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -306,7 +307,7 @@ function TaskRowTitleInput(
         indentation: number;
         paddingRight: RemLength | undefined;
         parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
-        parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
+        parentPreviewStore: Store<{rootTaskEntry: TaskClientStoreTaskEntry; depth: number}> | null;
         isGhostTask: boolean;
         isFirstRow: boolean;
         areChildTasksExpanded: boolean;
@@ -355,7 +356,7 @@ function TaskRowTitleInput(
         placeholder,
         indentation,
         paddingRight,
-        parentTaskEntryStore,
+        parentPreviewStore,
         areChildTasksExpanded,
         onAreChildTasksExpandedToggle,
         createTaskAbove,
@@ -611,9 +612,6 @@ function TaskRowTitleInput(
 
     const shouldShowChildTasksButton = (task?.getChildTaskCount() ?? 0) > 0;
 
-    const shouldShowParentTaskTitle =
-        capabilities.hasParentTaskTitle && !!parentTaskEntryStore && indentation === 0;
-
     // If the task has a multiline title and margin right content (show child task
     // button or parent task title) then we want to render the margin right content
     // in the negative space at the end of our wrapped text.
@@ -641,8 +639,8 @@ function TaskRowTitleInput(
     //    character in the title.
     //
     // So we need a two phase React render to position everything correctly.
-    const hasMultilineTitleAndShouldShowMarginRightContent =
-        capabilities.hasMultilineTitle && (shouldShowChildTasksButton || shouldShowParentTaskTitle);
+    const hasMultilineTitleAndShouldShowMarginRightContent: boolean =
+        capabilities.hasMultilineTitle && (shouldShowChildTasksButton || !!parentPreviewStore);
 
     const [multilineState, setMultilineState] = useState<TaskRowTitleInputMultilineState | null>(
         null,
@@ -1766,7 +1764,7 @@ function TaskRowTitleInput(
                         paddingLeft:
                             capabilities.hasMultilineTitle && multilineState?.withoutMarginLeft
                                 ? undefined
-                                : shouldShowParentTaskTitle
+                                : parentPreviewStore
                                   ? spacing["1.5"]
                                   : shouldShowChildTasksButton
                                     ? spacing["3"]
@@ -1800,10 +1798,10 @@ function TaskRowTitleInput(
                             capabilities.hasMultilineTitle && multilineState ? "0" : undefined,
                     }}
                 >
-                    {shouldShowParentTaskTitle && (
+                    {parentPreviewStore && (
                         <TaskRowTitleParentTaskTitle
                             query={query}
-                            parentTaskEntryStore={parentTaskEntryStore}
+                            parentPreviewStore={parentPreviewStore}
                         />
                     )}
                     {shouldShowChildTasksButton && (
@@ -1862,10 +1860,10 @@ function taskTitlePlugin(initialTaskTitle: TaskTitleModel) {
 
 function TaskRowTitleParentTaskTitle({
     query,
-    parentTaskEntryStore,
+    parentPreviewStore,
 }: {
     query: TaskClientQuery | null;
-    parentTaskEntryStore: Store<TaskClientStoreTaskEntry>;
+    parentPreviewStore: Store<{rootTaskEntry: TaskClientStoreTaskEntry; depth: number}>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
     // this component. It is critical for scroll performance that this component
@@ -1885,22 +1883,26 @@ function TaskRowTitleParentTaskTitle({
 
     const {currentAccount} = useSpaceContext();
 
+    const parentPreview = useStore(parentPreviewStore);
+
     const access = useStore(
         useMemo(
             () =>
-                createTaskEntryAccessStore(
-                    currentAccount?.id,
-                    // If `query` is null then we'll only ever render a ghost task. Ghost tasks
-                    // should never have a parent task.
-                    assertExists(query),
-                    parentTaskEntryStore,
+                computeStore(get =>
+                    computeTaskEntryAccess(
+                        get,
+                        currentAccount?.id,
+                        // If `query` is null then we'll only ever render a ghost task. Ghost tasks
+                        // should never have a parent task.
+                        assertExists(query),
+                        parentPreview.rootTaskEntry,
+                    ),
                 ),
-            [currentAccount?.id, parentTaskEntryStore, query],
+            [currentAccount?.id, parentPreview.rootTaskEntry, query],
         ),
     );
 
-    const parentTaskEntry = useStore(parentTaskEntryStore);
-    const parentTaskTitle = parentTaskEntry.task?.getTitle();
+    const parentTaskTitle = parentPreview.rootTaskEntry.task?.getTitle();
 
     return useMemo(() => {
         // If the parent task was deleted, don't show the deleted task's title.
@@ -1908,6 +1910,12 @@ function TaskRowTitleParentTaskTitle({
 
         return (
             <div className={parentTaskTitleClassName}>
+                {parentPreview.depth > 1 && (
+                    <>
+                        <CaretLeft size={spacing["3"]} className={parentTaskTitleIconClassName} />
+                        <div className={parentTaskTitleIconClassName}>…</div>
+                    </>
+                )}
                 <CaretLeft size={spacing["3"]} className={parentTaskTitleIconClassName} />
                 {access.type !== "PermissionGranted" ? (
                     <div className={parentTaskTitlePermissionDeniedClassName}>
@@ -1929,7 +1937,7 @@ function TaskRowTitleParentTaskTitle({
                 )}
             </div>
         );
-    }, [access.type, parentTaskTitle]);
+    }, [access.type, parentPreview.depth, parentTaskTitle]);
 }
 
 // Copied from ProseMirror:

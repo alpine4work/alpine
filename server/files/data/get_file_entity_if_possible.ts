@@ -2,6 +2,7 @@ import {ServerActionContextModules} from "~/server/context/server_action_context
 import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
 import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
+import {getFileTaskEntityModelIfPossible} from "~/server/files/data/get_file_task_entity_model_if_possible.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -19,6 +20,7 @@ import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {FileTaskCollectionEntityModelSchema} from "~/shared/tasks/file_task_collection_entity_model.js";
+import {FileTaskEntityModelSchema} from "~/shared/tasks/file_task_entity_model.js";
 
 // NOTE(calebmer, 2025-08-19): It could be useful to have a generic
 // `StateContextModule` that lets you stash arbitrary state in context instead
@@ -66,6 +68,17 @@ export async function getFileEntityIfPossible(
             return mapResult(
                 result,
                 model => new FileEntityModel(FileDocumentEntityModelSchema, model),
+            );
+        }
+        case "Task": {
+            const result = await getFileTaskEntityModelIfPossible(
+                context,
+                spaceId,
+                entityIdObject.taskId,
+            );
+            return mapResult(
+                result,
+                model => new FileEntityModel(FileTaskEntityModelSchema, model),
             );
         }
         case "TaskCollection": {

@@ -8,6 +8,8 @@ export function getFileEntityNoun(type: FileEntityIdObject["type"]): string {
     switch (type) {
         case "Document":
             return "document";
+        case "Task":
+            return "task";
         case "TaskCollection":
             return "task collection";
         case "Channel":
@@ -29,6 +31,8 @@ export function getFileEntityStartOfSentenceNoun(type: FileEntityIdObject["type"
     switch (type) {
         case "Document":
             return "Document";
+        case "Task":
+            return "Task";
         case "TaskCollection":
             return "Task collection";
         case "Channel":

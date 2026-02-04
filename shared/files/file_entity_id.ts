@@ -13,6 +13,7 @@ import {
     PostId,
     SpaceId,
     TaskCollectionId,
+    TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -22,6 +23,7 @@ import {Schema} from "~/shared/schema/schema.js";
  */
 export type FileEntityId =
     | `Document:${DocumentId}`
+    | `Task:${TaskId}`
     | `TaskCollection:${TaskCollectionId}`
     | `Channel:${ChannelId}`
     | `Post:${PostId}`;
@@ -44,6 +46,7 @@ export type FileEntityType = keyof typeof fileEntityIdTestMap;
  */
 export type FileEntityIdObject =
     | {readonly type: "Document"; readonly documentId: DocumentId}
+    | {readonly type: "Task"; readonly taskId: TaskId}
     | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId}
     | {readonly type: "Channel"; readonly channelId: ChannelId}
     | {readonly type: "Post"; readonly postId: PostId};
@@ -58,6 +61,8 @@ export function parseFileEntityId(id: FileEntityId): FileEntityIdObject {
     switch (idType) {
         case "Document":
             return {type: "Document", documentId: idPayloadParts[0] as DocumentId};
+        case "Task":
+            return {type: "Task", taskId: idPayloadParts[0] as TaskId};
         case "TaskCollection":
             return {type: "TaskCollection", collectionId: idPayloadParts[0] as TaskCollectionId};
         case "Channel":
@@ -79,6 +84,7 @@ type GetFileEntityIdTestMapType<Id extends string> = MergeObjectIntersection<
 
 const fileEntityIdTestMap: GetFileEntityIdTestMapType<FileEntityId> = {
     Document: isId,
+    Task: isId,
     TaskCollection: isId,
     Channel: isId,
     Post: isId,
@@ -126,6 +132,8 @@ export function printFileEntityIdIntoPath(spaceId: SpaceId, id: FileEntityId): s
     switch (idObject.type) {
         case "Document":
             return `/s/${spaceId}/documents/${idObject.documentId}`;
+        case "Task":
+            return `/s/${spaceId}/tasks/${idObject.taskId}`;
         case "TaskCollection":
             return `/s/${spaceId}/tasks/collections/${idObject.collectionId}`;
         case "Channel":

@@ -146,6 +146,12 @@ function Button(
         fullWidth?: boolean;
 
         /**
+         * Set the maximum width of the button. If the button exceeds this width the
+         * text will be truncated.
+         */
+        maxWidth?: "full";
+
+        /**
          * Should the button not have a default minimum width? Can be used when there's
          * not much available space. Normally short buttons like "Ok" need a minimum
          * width to continue looking like a button.
@@ -188,7 +194,7 @@ function Button(
         /**
          * Control how much horizontal padding on this button. Default is `3`.
          */
-        paddingX?: "1.5" | "2" | "2.5" | "3";
+        paddingX?: "1" | "1.5" | "2" | "2.5" | "3";
 
         /**
          * How tall is this button? Default is `7`.
@@ -280,6 +286,7 @@ function Button(
         shouldShowPendingSpinner: shouldShowPendingSpinnerFromProps,
         withoutLoadingIndicator = false,
         fullWidth = false,
+        maxWidth,
         withoutMinWidth = false,
         shouldSubmitForm = false,
         withoutFocusOnPress = false,
@@ -682,6 +689,7 @@ function Button(
                     className: sprinkles({
                         display: "flex",
                         width: fullWidth ? "full" : undefined,
+                        maxWidth,
                         height: touchSlop.sizeWithSlop,
                         paddingY: touchSlop.slop,
                         marginY: `-${touchSlop.slop}`,

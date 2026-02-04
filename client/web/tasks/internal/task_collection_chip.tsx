@@ -1,4 +1,4 @@
-import {TaskCollectionChipBase} from "~/client/web/tasks/internal/task_collection_chip_base.js";
+import {TaskCollectionChipBase} from "~/client/web/tasks/task_collection_chip_base.js";
 import {Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 

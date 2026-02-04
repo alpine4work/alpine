@@ -2494,6 +2494,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "type": "Enum",
                                                                                     "values": [
                                                                                         "Document",
+                                                                                        "Task",
                                                                                         "TaskCollection",
                                                                                         "Channel",
                                                                                         "Post"
