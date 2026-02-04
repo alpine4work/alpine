@@ -83,10 +83,10 @@ export class AwsJobQueueService extends Construct {
             vpc,
             launchTemplate,
 
-            minCapacity: 4,
+            minCapacity: 3,
             // During a deploy, we double our capacity needs since we keep running old
             // instances to maintain availability while a new fleet of instances start.
-            maxCapacity: 8,
+            maxCapacity: 6,
 
             // See the long comment in `AwsAppService` for why we use a public
             // subnet for our services. The TL;DR is sending egress traffic like Honeycomb

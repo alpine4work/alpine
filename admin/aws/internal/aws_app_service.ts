@@ -32,10 +32,10 @@ export class AwsAppService extends Construct {
             serviceName: "App",
             secretsName: "AppServiceSecrets",
             autoScalingGroup: {
-                minCapacity: 8,
+                minCapacity: 4,
                 // During a deploy, we double our capacity needs since we keep running old
                 // instances to maintain availability while a new fleet of instances start.
-                maxCapacity: 16,
+                maxCapacity: 8,
             },
             taskDefinition: {
                 tarballPath: "cyberworlds/app/app_image_tarball_load/tarball.tar",

@@ -8,8 +8,8 @@ export const cloudwatchAgentConfig = JSON.stringify({
             AutoScalingGroupName: "${aws:AutoScalingGroupName}",
             InstanceId: "${aws:InstanceId}",
             InstanceType: "${aws:InstanceType}",
-            ImageId: "${aws:ImageId}",
         },
+        aggregation_dimensions: [["AutoScalingGroupName"]],
         metrics_collected: {
             mem: {
                 measurement: ["total", "used", "used_percent"],
@@ -22,24 +22,14 @@ export const cloudwatchAgentConfig = JSON.stringify({
             disk: {
                 measurement: ["total", "used", "used_percent", "inodes_used", "inodes_total"],
                 metrics_collection_interval: 60,
+                resources: ["/"],
             },
             swap: {
                 measurement: ["free", "used", "used_percent"],
             },
             diskio: {
                 measurement: ["reads", "writes", "io_time", "read_time", "write_time"],
-            },
-            processes: {
-                measurement: [
-                    "running",
-                    "blocked",
-                    "dead",
-                    "idle",
-                    "sleeping",
-                    "total",
-                    "total_threads",
-                ],
-                metrics_collection_interval: 5,
+                resources: ["/"],
             },
         },
     },
@@ -49,13 +39,18 @@ export const cloudwatchAgentConfig = JSON.stringify({
                 collect_list: [
                     {
                         file_path: "/var/log/messages",
-                        log_group_name: "/ec2/{instance_id}/messages",
+                        log_group_name: "/ec2/instance/messages",
                         timezone: "UTC",
                     },
                     {
                         file_path:
                             "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log",
-                        log_group_name: "/ec2/{instance_id}/amazon-cloudwatch-agent",
+                        log_group_name: "/ec2/instance/amazon-cloudwatch-agent",
+                        timezone: "UTC",
+                    },
+                    {
+                        file_path: "/var/log/ecs/ecs-init.log",
+                        log_group_name: "/ec2/instance/ecs-agent",
                         timezone: "UTC",
                     },
                 ],
