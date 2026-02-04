@@ -110,7 +110,6 @@ export default function ChangelogRoute() {
                 {blobsSettings !== null && <BlobsArt settings={blobsSettings} />}
                 <ContentView
                     content={document.content}
-                    isInert={true}
                     fileAttachmentTarget={fileAttachmentTarget}
                 />
             </div>
