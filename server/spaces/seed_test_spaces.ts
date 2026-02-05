@@ -6,6 +6,7 @@ import {addSpaceAccountWithoutAuthorization} from "~/server/spaces/internal/add_
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -26,6 +27,7 @@ export async function seedTestSpaces(
         spaceId: defaultSpaceId,
         name: "Test",
         createdTime: new Date(),
+        themeColor: defaultSpaceThemeColor,
     });
 
     const spaceAccountItem = await SpacesTable.getItemIfExists(context, {

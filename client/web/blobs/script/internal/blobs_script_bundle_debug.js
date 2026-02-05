@@ -4221,8 +4221,12 @@ function interpolateColors(a, b, n) {
     return (0, import_color10.default)(hcl_default(a, b)(n));
 }
 
+// shared/helpers/control/assert_equal_types.js
+function assertEqualTypes(...MISMATCH) {}
+
 // shared/design/core/theme_colors.js
 var themeColors = ["red", "orange", "yellow", "green", "cyan", "blue", "indigo", "purple", "pink"];
+assertEqualTypes();
 
 // shared/helpers/number/stable_random.js
 function cyrb53(baseString, keyString, seed = 0) {

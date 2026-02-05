@@ -1,5 +1,6 @@
 import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
 import {getLatestAvatarVersion} from "~/shared/avatar/get_latest_avatar_version.js";
+import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Model} from "~/shared/schema/model/model.js";
@@ -50,6 +51,11 @@ export class SpaceModel extends Model(
             darkTheme: AvatarModelSchema.nullable().default(null),
             lightTheme: AvatarModelSchema.nullable().default(null),
         }),
+        /**
+         * The theme color used for accent UI elements throughout the space.
+         * Defaults to blue if not set.
+         */
+        themeColor: Schema.enum(themeColors).default(defaultThemeColor),
     }),
 ) {
     // TODO(ifitzsimmons, #add-avatar-tests): Add tests for this function.

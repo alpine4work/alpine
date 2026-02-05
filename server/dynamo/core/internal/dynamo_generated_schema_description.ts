@@ -11461,6 +11461,21 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "themeColor": {
+                                        "valueSchema": {
+                                            "type": "Enum",
+                                            "values": [
+                                                "red",
+                                                "orange",
+                                                "green",
+                                                "cyan",
+                                                "indigo",
+                                                "purple",
+                                                "pink"
+                                            ]
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

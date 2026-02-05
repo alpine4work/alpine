@@ -6,6 +6,7 @@ import {addSpaceAccountWithoutAuthorization} from "~/server/spaces/internal/add_
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {SpaceAccountItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -26,6 +27,7 @@ export async function createSpaceForTest(
         spaceId: id,
         name,
         createdTime: new Date(),
+        themeColor: defaultSpaceThemeColor,
     });
 }
 

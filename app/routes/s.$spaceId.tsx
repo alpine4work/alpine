@@ -69,6 +69,7 @@ import {
 import {SpaceLayoutWebMobileTabBar} from "~/client/web/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {SpaceContextProvider} from "~/client/web/spaces/space_context_provider.js";
+import {ThemeColorManager} from "~/client/web/spaces/theme_color_manager.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
@@ -84,10 +85,12 @@ import {LoaderArgs, LoaderContextModules} from "~/server/remix/loader_context.js
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
 import {getSpace} from "~/server/spaces/get_space.js";
+import {getSpaceThemeColor} from "~/server/spaces/get_space_theme_color.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {alpioneers} from "~/shared/accounts/known_account_ids.js";
 import {Context} from "~/shared/context/context.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
+import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {
@@ -234,6 +237,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
         }
 
         case "Anonymous": {
+            const themeColor = await getSpaceThemeColor(context, spaceId, {consistency});
             const space = new SpaceModel({
                 id: spaceId,
                 version: -1,
@@ -244,6 +248,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                     darkTheme: null,
                     lightTheme: null,
                 },
+                themeColor,
             });
 
             return jsonWithSchema(
@@ -348,6 +353,8 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                         darkTheme: null,
                         lightTheme: null,
                     },
+                    // Theme color is not private, so include it for the invite page styling.
+                    themeColor: space?.themeColor || defaultThemeColor,
                 });
 
                 return jsonWithSchema(
@@ -888,6 +895,7 @@ export default function SpaceLayoutRoute() {
                                     : loaderData.currentAccountWithoutSpace
                             }
                         >
+                            <ThemeColorManager />
                             <TaskRealtimeClientContextProvider
                                 spaceId={spaceId}
                                 currentAccountId={

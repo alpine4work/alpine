@@ -7,11 +7,11 @@ import {useInitialAppRenderId} from "~/client/web/helpers/lifecycle/initial_app_
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 import {generateId} from "~/shared/id/id.js";
 import {unsubscribeFromEmailNotificationWithUrl} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -32,9 +32,11 @@ export default function NotificationsUnsubscribeRoute() {
     const appContext = useAppContext();
     const setErrorState = useErrorState();
     const hasInitiallyMountedRef = useRef(false);
+    const context = useSpaceContext();
 
-    // TODO(#theme-color)
-    const themeColor = defaultThemeColor;
+    // This is an unauthenticated (but presigned) route. Unless we're logged in,
+    // we won't have the actual theme color here - just the default.
+    const themeColor = context.space.themeColor;
 
     const [unsubscribeComplete, setUnsubscribeComplete] = useState(false);
 

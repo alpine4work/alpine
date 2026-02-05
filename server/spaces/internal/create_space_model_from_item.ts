@@ -8,6 +8,7 @@ export function createSpaceModelFromItem(spaceItem: SpaceItem): SpaceModel {
         version: spaceItem.updateLockVersion ?? 0,
         name: spaceItem.name,
         alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
+        themeColor: spaceItem.themeColor,
         avatars: {
             darkTheme: createAvatarModelFromItem(spaceItem.avatars.darkTheme),
             lightTheme: createAvatarModelFromItem(spaceItem.avatars.lightTheme),

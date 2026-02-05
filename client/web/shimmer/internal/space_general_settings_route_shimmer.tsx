@@ -25,7 +25,7 @@ export function SpaceGeneralSettingsRouteShimmer() {
                 {/* Logo field shimmer */}
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                     <Box width="full">
-                        <TextShimmer fontSize="100" width="12" />
+                        <TextShimmer fontSize="100" width="8" />
                         <Spacer space="1" />
                         <TextShimmer fontSize="75" width="48" />
                     </Box>
@@ -34,6 +34,40 @@ export function SpaceGeneralSettingsRouteShimmer() {
                         className={pulseAnimationClassName}
                         width="12"
                         height="12"
+                        backgroundColor="grey-10"
+                        borderRadius={spaceAvatarBorderRadius}
+                    />
+                </Box>
+
+                {/* Logo (dark) field shimmer */}
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box width="full">
+                        <TextShimmer fontSize="100" width="24" />
+                        <Spacer space="1" />
+                        <TextShimmer fontSize="75" width="64" />
+                    </Box>
+                    <Box
+                        marginLeft="-12"
+                        className={pulseAnimationClassName}
+                        width="12"
+                        height="12"
+                        backgroundColor="grey-10"
+                        borderRadius={spaceAvatarBorderRadius}
+                    />
+                </Box>
+
+                {/* Theme field shimmer */}
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box width="full">
+                        <TextShimmer fontSize="100" width="12" />
+                        <Spacer space="1" />
+                        <TextShimmer fontSize="75" width="64" />
+                    </Box>
+                    <Box
+                        marginLeft="-12"
+                        className={pulseAnimationClassName}
+                        width="16"
+                        height="6"
                         backgroundColor="grey-10"
                         borderRadius={spaceAvatarBorderRadius}
                     />

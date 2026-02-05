@@ -1,7 +1,10 @@
+import {CaretDown} from "phosphor-react";
 import {useId, useRef, useState} from "react";
 import {AvatarUploader, avatarUploaderSize} from "~/client/web/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
+import {Button} from "~/client/web/design/button.js";
+import {MenuButton} from "~/client/web/design/menu_button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
@@ -14,13 +17,28 @@ import {
 import {SpaceAvatarWithThemeOverride} from "~/client/web/spaces/space_avatar_with_theme_avatar_override.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
-import {sprinkles} from "~/client/web/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
+import {
+    SelectableSpaceThemeColor,
+    selectableSpaceThemeColors,
+} from "~/shared/design/core/theme_colors.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {updateSpaceName} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {updateSpaceName, updateSpaceThemeColor} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+
+const themeColorNames: {[key in SelectableSpaceThemeColor]: string} = {
+    red: "Red",
+    orange: "Orange",
+    green: "Green",
+    cyan: "Cyan",
+    // We intentially choose indigo to be "blue" so it's more differentiated from Cyan
+    indigo: "Blue",
+    purple: "Purple",
+    pink: "Pink",
+} as const;
 
 export default function SpaceGeneralSettingsRoute() {
     const context = useAppContext();
@@ -34,6 +52,15 @@ export default function SpaceGeneralSettingsRoute() {
 
     const [name, setName] = useState<string | null>(null);
     const [shouldShowConfirmSaveNameDialog, setShouldShowConfirmSaveNameDialog] = useState(false);
+
+    const handleUpdateThemeColor = async (themeColor: SelectableSpaceThemeColor) => {
+        const {space: updatedSpace} = await updateSpaceThemeColor(context, {
+            spaceId: originalSpace.id,
+            themeColor,
+        });
+
+        updateSpace(updatedSpace);
+    };
 
     const handleSaveName = async () => {
         if (name === null) return;
@@ -93,9 +120,7 @@ export default function SpaceGeneralSettingsRoute() {
                 if (!responseBody.ok) throw responseBody.error;
 
                 if (responseBody.type !== "UploadSpaceAvatar") {
-                    throw new InternalError(
-                        quote`Unexpected response type \u201C${responseBody.type}\u201D`,
-                    );
+                    throw new InternalError(quote`Unexpected response type “${responseBody.type}”`);
                 }
                 return responseBody;
             },
@@ -221,6 +246,86 @@ export default function SpaceGeneralSettingsRoute() {
                             theme="dark"
                         />
                     </AvatarUploader>
+                </Box>
+                <Box display="flex" gap="6" alignItems="center" justifyContent="space-between">
+                    <Box userSelect="text">
+                        <Box display="inline" fontSize="100" fontStyle="semi-bold">
+                            Theme
+                        </Box>
+                        <Box
+                            paddingTop="1"
+                            fontSize="75"
+                            color="grey-60"
+                            userSelect="text"
+                            style={{
+                                // Allow contextual alternate glyphs in regular text content.
+                                //
+                                // Particularly the "x" in "256x256".
+                                //
+                                // eslint-disable-next-line cyberworlds/string-quotes
+                                fontFeatureSettings: '"calt" on',
+                            }}
+                        >
+                            An accent color used for buttons, completed tasks, and more
+                        </Box>
+                    </Box>
+                    <MenuButton
+                        placement="bottom-end"
+                        actions={selectableSpaceThemeColors.map(color => ({
+                            key: color,
+                            label: themeColorNames[color],
+                            icon: (
+                                <Box
+                                    height="4"
+                                    width="4"
+                                    display="flex"
+                                    alignItems="center"
+                                    justifyContent="center"
+                                >
+                                    <Box
+                                        width="2"
+                                        height="2"
+                                        borderRadius="full"
+                                        style={{
+                                            backgroundColor: colorSchemeVars[`${color}-50`],
+                                        }}
+                                    />
+                                </Box>
+                            ),
+                            isSelected: originalSpace.themeColor === color,
+                            onPress: async () => {
+                                if (originalSpace.themeColor !== color) {
+                                    await handleUpdateThemeColor(color);
+                                }
+                            },
+                            pressErrorTitle: "Couldn’t update theme color",
+                        }))}
+                    >
+                        <Button
+                            height="6"
+                            paddingX="2"
+                            variant="quiet"
+                            icon={<CaretDown />}
+                            iconPlacement="end"
+                        >
+                            <Box display="flex" alignItems="center" gap="2">
+                                <Box
+                                    width="2"
+                                    height="2"
+                                    borderRadius="full"
+                                    style={{
+                                        backgroundColor:
+                                            colorSchemeVars[`${originalSpace.themeColor}-50`],
+                                    }}
+                                />
+                                {originalSpace.themeColor in themeColorNames
+                                    ? themeColorNames[
+                                          originalSpace.themeColor as keyof typeof themeColorNames
+                                      ]
+                                    : originalSpace.themeColor}
+                            </Box>
+                        </Button>
+                    </MenuButton>
                 </Box>
             </Box>
             {shouldShowConfirmSaveNameDialog && (

@@ -1,6 +1,10 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
+import {
+    defaultSpaceThemeColor,
+    selectableSpaceThemeColors,
+} from "~/shared/design/core/theme_colors.js";
 import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -52,6 +56,14 @@ export const SpacesTable = DynamoTableSchema.new({
                          * implementations.
                          */
                         alphaAccessDefaultChannelId: Schema.id<ChannelId>().optional(),
+
+                        /**
+                         * The theme color used for accent UI elements throughout the space.
+                         * Defaults to blue if not set.
+                         */
+                        themeColor: Schema.enum(selectableSpaceThemeColors).default(
+                            defaultSpaceThemeColor,
+                        ),
                     }),
                 },
 

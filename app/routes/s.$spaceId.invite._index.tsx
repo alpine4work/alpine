@@ -15,7 +15,6 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
-import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import {acceptSpaceAccountInvite} from "~/shared/rpc/spaces_rpc_definitions.js";
@@ -55,8 +54,7 @@ export default function HomeRoute() {
     const appContext = useAppContext();
     const context = useSpaceContext();
 
-    // TODO(#theme-color) - support theme color via hook
-    const themeColor = defaultThemeColor;
+    const themeColor = context.space.themeColor;
 
     const onRejectInviteAndMarkAsSpam = async () => {
         // Let the sub route handle the rejection.

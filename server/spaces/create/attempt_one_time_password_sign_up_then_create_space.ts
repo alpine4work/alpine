@@ -21,6 +21,7 @@ import {genericEmailAddressDomains} from "~/shared/accounts/generic_email_addres
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
@@ -335,6 +336,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                               maxLabelStringLength,
                                           ),
                                     createdTime: currentTime,
+                                    themeColor: defaultSpaceThemeColor,
                                 }),
                                 SpacesTable.transactionCreateItem({
                                     partitionType: "AutoAddAccountsFromEmailDomain",
@@ -453,6 +455,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                 spaceId: personalSpaceId,
                 name: spaceName,
                 createdTime: currentTime,
+                themeColor: defaultSpaceThemeColor,
             }),
 
             // `getAddSpaceAccountTransactionEntries()` adds a condition check transaction

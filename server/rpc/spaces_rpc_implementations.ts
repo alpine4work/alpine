@@ -17,6 +17,7 @@ import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {updateSpaceAccountRole} from "~/server/spaces/update_space_account_role.js";
 import {updateSpaceAccountSettings} from "~/server/spaces/update_space_account_settings.js";
 import {updateSpaceName} from "~/server/spaces/update_space_name.js";
+import {updateSpaceThemeColor} from "~/server/spaces/update_space_theme_color.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -137,6 +138,20 @@ export default implementRpcs(definitions, {
                 context.actor.authorizeSession(),
                 input.spaceId,
                 input.name,
+            );
+            return {
+                space,
+            };
+        },
+    },
+
+    updateSpaceThemeColor: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const space = await updateSpaceThemeColor(
+                context.actor.authorizeSession(),
+                input.spaceId,
+                input.themeColor,
             );
             return {
                 space,

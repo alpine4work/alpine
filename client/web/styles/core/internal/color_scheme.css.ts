@@ -195,9 +195,16 @@ function createTheme(color: ThemeColor) {
 /**
  * Color variables that are set to some user determined theme value.
  */
-// TODO(calebmer): Allow switching theme color vars based on workspace settings.
 const themeColorSchemeVars: {[K in keyof ReturnType<typeof createTheme>]: CssVarFunction} =
     createGlobalTheme(":root", createTheme(defaultThemeColor));
+
+// Create CSS rules for each theme color so we can switch themes dynamically
+// based on the data-theme attribute
+for (const themeColor of themeColors) {
+    globalStyle(`:root[data-theme="${themeColor}"]`, {
+        vars: assignVars(themeColorSchemeVars, createTheme(themeColor)),
+    });
+}
 
 const grey1TranslucentColor = getColorForShiftingGreyColor(0.1, "1", "0");
 const grey5TranslucentColor = getColorForShiftingGreyColor(0.1, "5", "0");

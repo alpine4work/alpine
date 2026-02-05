@@ -9,6 +9,7 @@ import {createSpaceModelFromItem} from "~/server/spaces/internal/create_space_mo
 import {dangerouslyApplySpaceWelcomePackage} from "~/server/spaces/internal/dangerously_apply_space_welcome_package.js";
 import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
 import {SpaceItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
+import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -107,6 +108,7 @@ async function actuallyCreateSpace(
             spaceId,
             name,
             createdTime: currentTime,
+            themeColor: defaultSpaceThemeColor,
         });
 
         const spaceItem: SpaceItem = {

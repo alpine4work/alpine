@@ -12,6 +12,7 @@ import {getDocumentWithOptionalCommentsIfExists} from "~/server/documents/data/d
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createEmptySpellCheckIgnoredLintsForNewEntity} from "~/server/spell_check/get_spell_check_ignored_lints.js";
+import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
 import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document_model.js";
@@ -84,6 +85,7 @@ export async function loader({context: unauthenticatedContext}: LoaderArgs) {
                 darkTheme: null,
                 lightTheme: null,
             },
+            themeColor: defaultSpaceThemeColor,
         }),
         document,
         spellCheckIgnoredLints: createEmptySpellCheckIgnoredLintsForNewEntity(
