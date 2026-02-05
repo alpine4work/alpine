@@ -365,6 +365,8 @@ function FeedSearchAffinityView({
             const shouldOpenInPeek = event.shiftKey || shouldOpenSearchAffinityResultInPeek(result);
 
             void navigate(path, {stopPropagation: !shouldOpenInPeek}).then(() => {
+                setIsPendingNavigation(false);
+
                 // If user spam clicks an item, only mark affinity interaction once.
                 if (hasMarkedAffinityInteractionRef.current) return;
                 hasMarkedAffinityInteractionRef.current = true;
