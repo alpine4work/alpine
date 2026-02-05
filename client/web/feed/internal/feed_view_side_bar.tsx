@@ -1,5 +1,5 @@
 import {Link as LinkIcon} from "phosphor-react";
-import {useId, useMemo, useRef, useState} from "react";
+import {useId, useMemo, useState} from "react";
 import {usePress} from "react-aria";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -337,8 +337,6 @@ function FeedSearchAffinityView({
 
     const [isPendingNavigation, setIsPendingNavigation] = useState(false);
 
-    const hasMarkedAffinityInteractionRef = useRef(false);
-
     const {isPressed, pressProps} = usePress({
         onPress: event => {
             if (isPendingNavigation) return;
@@ -364,32 +362,30 @@ function FeedSearchAffinityView({
             // the fullscreen space effectively, so better to keep them in a peek.
             const shouldOpenInPeek = event.shiftKey || shouldOpenSearchAffinityResultInPeek(result);
 
-            void navigate(path, {stopPropagation: !shouldOpenInPeek}).then(() => {
-                setIsPendingNavigation(false);
-
-                // If user spam clicks an item, only mark affinity interaction once.
-                if (hasMarkedAffinityInteractionRef.current) return;
-                hasMarkedAffinityInteractionRef.current = true;
-
-                // Whenever the user selects a suggested (or favorite) result, we record a high
-                // intent affinity interaction. This is because the user opening a result from
-                // the feed view sidebar is super high signal that this is an entity they care
-                // about. In this way the suggested list is a self reinforcing system. The more
-                // a user selects an entity, the higher the entity will appear in the user's
-                // next search.
-                markSearchAffinityEntityInteraction(context, {
-                    spaceId: space.id,
-                    entityId: result.id,
-                    interaction: {type: "HighIntentUpdate"},
-                }).catch(error => {
-                    // Silently fail. This doesn't affect anything the user sees so we don't need
-                    // to report the error to the user.
-                    reporter.logErrorWithoutDisplaying(
-                        "Couldn\u2019t mark search result select affinity interaction",
-                        error,
-                    );
+            void navigate(path, {stopPropagation: !shouldOpenInPeek})
+                .then(() => {
+                    // Whenever the user selects a suggested (or favorite) result, we record a high
+                    // intent affinity interaction. This is because the user opening a result from
+                    // the feed view sidebar is super high signal that this is an entity they care
+                    // about. In this way the suggested list is a self reinforcing system. The more
+                    // a user selects an entity, the higher the entity will appear in the user's
+                    // next search.
+                    markSearchAffinityEntityInteraction(context, {
+                        spaceId: space.id,
+                        entityId: result.id,
+                        interaction: {type: "HighIntentUpdate"},
+                    }).catch(error => {
+                        // Silently fail. This doesn't affect anything the user sees so we don't need
+                        // to report the error to the user.
+                        reporter.logErrorWithoutDisplaying(
+                            "Couldn\u2019t mark search result select affinity interaction",
+                            error,
+                        );
+                    });
+                })
+                .finally(() => {
+                    setIsPendingNavigation(false);
                 });
-            });
         },
     });
 
