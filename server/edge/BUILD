@@ -97,7 +97,7 @@ js_binary(
     entry_point = "edge_service_dev_main.mjs",
     env = {"NODE_ENV": "development"},
     node_options = ["--experimental-vm-modules"],
-    visibility = ["//app/integration_tests:__pkg__"],
+    visibility = ["//admin/environment/test/integration:__pkg__"],
 )
 
 production_transition(

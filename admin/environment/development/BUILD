@@ -1,7 +1,7 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "helpers",
+    name = "development",
     visibility = ["//admin:__subpackages__"],
     deps = [
         "//:node_modules/@miniflare/r2",

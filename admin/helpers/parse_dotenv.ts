@@ -33,7 +33,7 @@ const env = new Lazy(() => {
         //
         // Don't load a local `.env.test` file because tests run in a Bazel sandbox
         // where we don't have access to the workspace directory.
-        process.env.NODE_ENV !== "test"
+        process.env.NODE_ENV !== "test" && process.env.BUILD_WORKSPACE_DIRECTORY
             ? loadDotenvFile(path.join(getWorkspacePath(), `.env.${nodeEnv}.local`))
             : null,
     ];

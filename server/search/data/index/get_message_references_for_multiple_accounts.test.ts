@@ -36,17 +36,6 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
 
-beforeEach(() => {
-    import.meta.jest.useFakeTimers();
-});
-
-afterEach(() => {
-    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
-    import.meta.jest.clearAllTimers();
-    import.meta.jest.useRealTimers();
-    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
-});
-
 const context = createTestContext({
     shouldStartOpensearch: true,
     searchInjection,
@@ -67,6 +56,20 @@ const context = createTestContext({
             }
         }
     },
+});
+
+beforeEach(() => {
+    import.meta.jest.useFakeTimers();
+});
+
+// Important that this goes after `createTestContext()` which will register
+// `afterEach` hooks that clean up some timers (specifically
+// `TestLocalJobSender` which cleans up any delayed jobs).
+afterEach(() => {
+    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
+    import.meta.jest.clearAllTimers();
+    import.meta.jest.useRealTimers();
+    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
 // NOTE(calebmer, 2025-07-23): When I wrote this file it was testing

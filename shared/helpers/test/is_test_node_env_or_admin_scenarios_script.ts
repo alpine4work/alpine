@@ -6,4 +6,7 @@
  */
 export const isTestNodeEnvOrAdminScenariosScript =
     process.env.NODE_ENV === "test" ||
-    (process.env.NODE_ENV === "development" && process.env.ADMIN_SCRIPT === "scenarios");
+    (process.env.NODE_ENV === "development" &&
+        typeof process !== "undefined" &&
+        process.release.name === "node" &&
+        process.env.ADMIN_SCRIPT === "scenarios");

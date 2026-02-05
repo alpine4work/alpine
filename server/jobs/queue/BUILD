@@ -35,9 +35,7 @@ js_binary(
     name = "queue",
     data = [":queue_lib"],
     entry_point = "job_queue_service_main.js",
-    visibility = [
-        "//app/integration_tests:__pkg__",
-    ],
+    visibility = ["//admin/environment/test/integration:__pkg__"],
 )
 
 js_image_layer(

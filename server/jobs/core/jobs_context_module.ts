@@ -7,6 +7,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 
 export class JobsContextModule
     extends ContextModuleBase<{
@@ -24,7 +25,7 @@ export class JobsContextModule
             this._sender = sender;
         } else {
             // May only construct an uninitialized context module in tests.
-            assert(process.env.NODE_ENV === "test");
+            assert(isTestNodeEnvOrAdminScenariosScript);
 
             Object.defineProperty(this, "_sender", {
                 configurable: true,
@@ -105,7 +106,7 @@ export class JobsContextModule
     public static test(): JobsContextModule & {
         initialize: (sender: JobSenderBase) => void;
     } {
-        assert(process.env.NODE_ENV === "test");
+        assert(isTestNodeEnvOrAdminScenariosScript);
 
         const contextModule = new JobsContextModule(null);
 

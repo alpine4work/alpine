@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "r2",
-    visibility = ["//server:__subpackages__"],
+    visibility = [
+        "//admin:__subpackages__",
+        "//server:__subpackages__",
+    ],
     deps = [
         "//:node_modules/@aws-sdk/client-s3",
         "//:node_modules/@aws-sdk/s3-request-presigner",

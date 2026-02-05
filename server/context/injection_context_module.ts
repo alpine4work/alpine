@@ -1,11 +1,3 @@
-import {
-    ServerAccountActionContext,
-    ServerActionContext,
-    ServerActionContextModules,
-    ServerSessionActionContext,
-    ServerSystemActionContext,
-} from "~/server/context/server_action_context.js";
-import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 /**
  * Bazel prevents packages from having cyclic dependencies. This is a good
  * thing! Cyclic dependencies increase bundle size, increase type checking
@@ -30,6 +22,14 @@ import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_act
  * such that you can eliminate the circular dependency.
  */
 
+import {
+    ServerAccountActionContext,
+    ServerActionContext,
+    ServerActionContextModules,
+    ServerSessionActionContext,
+    ServerSystemActionContext,
+} from "~/server/context/server_action_context.js";
+import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {TaskContextModuleActionTransaction} from "~/server/context/task_context_module_base.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
@@ -62,6 +62,7 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {
     AccountId,
     ChannelId,
@@ -397,7 +398,7 @@ function createInjectionContextModule<
         }
 
         public static test(injection?: Partial<Injection>) {
-            assert(process.env.NODE_ENV === "test");
+            assert(isTestNodeEnvOrAdminScenariosScript);
 
             return new InjectionContextModule(
                 createObjectFromKeys(
@@ -414,7 +415,7 @@ function createInjectionContextModule<
         }
 
         public cloneForTest(injection?: Partial<Injection>) {
-            assert(process.env.NODE_ENV === "test");
+            assert(isTestNodeEnvOrAdminScenariosScript);
 
             return new InjectionContextModule(
                 mapObjectValues(

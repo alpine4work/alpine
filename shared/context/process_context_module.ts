@@ -5,6 +5,7 @@ import {DeadlineExceededError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
 // We grab the original `setTimeout` here since we want to set a timeout
@@ -57,7 +58,7 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      * Create an implementation of this context module for tests.
      */
     public static test({afterEach}: {afterEach: (action: () => Promise<void>) => void}) {
-        assert(process.env.NODE_ENV === "test");
+        assert(isTestNodeEnvOrAdminScenariosScript);
 
         // Install an after each hook to wait for tasks.
         afterEach(async () => {
@@ -98,7 +99,7 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
     }: {
         withoutDeadlineExceededLog?: boolean;
     } = {}): Promise<void> {
-        assert(process.env.NODE_ENV === "test");
+        assert(isTestNodeEnvOrAdminScenariosScript);
         assert(afterEachPromisesForTest);
 
         // Must early return when there are no promises since otherwise
@@ -161,4 +162,4 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
 }
 
 let afterEachPromisesForTest: Set<Promise<unknown> & {deadlineExceededError: Error}> | null =
-    process.env.NODE_ENV === "test" ? new Set() : null;
+    isTestNodeEnvOrAdminScenariosScript ? new Set() : null;

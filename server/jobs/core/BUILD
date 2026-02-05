@@ -4,9 +4,7 @@ ts_project(
     name = "core",
     test_deps = ["//server/dynamo/test_helpers"],
     visibility = [
-        "//admin/aws:__pkg__",
-        "//admin/cron:__pkg__",
-        "//admin/lambda/schedule_deploy:__pkg__",
+        "//admin:__subpackages__",
         "//app:__pkg__",
         "//server:__subpackages__",
     ],

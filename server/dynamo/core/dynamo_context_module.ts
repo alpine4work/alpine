@@ -7,6 +7,7 @@ import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_mo
 import {InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 
 /**
@@ -49,7 +50,7 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
             this._client = client;
         } else {
             // May only construct an uninitialized context module in tests.
-            assert(process.env.NODE_ENV === "test");
+            assert(isTestNodeEnvOrAdminScenariosScript);
 
             Object.defineProperty(this, "_client", {
                 configurable: true,
@@ -87,7 +88,7 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
             ensureLocalCachePath: string | null;
         }) => void;
     } {
-        assert(process.env.NODE_ENV === "test");
+        assert(isTestNodeEnvOrAdminScenariosScript);
 
         const contextModule = new DynamoContextModule(null, {
             retryTransaction: null,

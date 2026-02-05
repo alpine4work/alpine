@@ -50,6 +50,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//admin/dev",
     "//admin/dynamo",
     "//admin/eslint",
+    "//admin/scenarios",
     "//app/integration_tests:integration_tests_lib",
     # Can't use `//native/mobile/ios:app` since then we need to traverse
     # `swift_library()` and `ios_application()` which we can't do on our Linux CI
@@ -59,6 +60,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//server/api",
     "//server/deploy/script",
     "//server/edge",
+    "//server/files/processor",
     "//server/files/processor/test_helpers",
     "//server/messaging/realtime/test_helpers",
     "//server/notifications/data:notifications_actions_forum_test",

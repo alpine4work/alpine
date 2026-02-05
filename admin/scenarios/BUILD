@@ -14,7 +14,7 @@ ts_project(
         "//:node_modules/chalk",
         "//:node_modules/cookie",
         "//:node_modules/gpt-tokenizer",
-        "//admin/dev/helpers",
+        "//admin/environment/development",
         "//admin/helpers",
         "//server/chat/test_helpers",
         "//server/context",

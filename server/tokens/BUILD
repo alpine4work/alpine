@@ -4,6 +4,7 @@ ts_project(
     name = "tokens",
     test_deps = ["//:node_modules/@types/node"],
     visibility = [
+        "//admin:__subpackages__",
         "//app:__subpackages__",
         "//server:__subpackages__",
     ],

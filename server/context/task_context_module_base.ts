@@ -14,6 +14,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {PartialBy} from "~/shared/helpers/types/partial_by.js";
 import {
     AccountId,
@@ -234,7 +235,7 @@ export class TestTaskContextModule
         ) => Promise<Value>;
         alwaysNotFound?: boolean;
     }) {
-        assert(process.env.NODE_ENV === "test");
+        assert(isTestNodeEnvOrAdminScenariosScript);
 
         super({dangerouslyEscalateToSystemContext});
         this._alwaysNotFound = alwaysNotFound;

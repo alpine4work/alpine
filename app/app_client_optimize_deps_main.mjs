@@ -34,7 +34,7 @@ async function main() {
     const {bazelSandboxPlugin} = await import(
         joinPath(
             process.env.JS_BINARY__EXECROOT,
-            "external/aspect_rules_esbuild/esbuild/private/plugins/bazel-sandbox.js",
+            "external/aspect_rules_esbuild/esbuild/private/plugins/bazel-sandbox.cjs",
         )
     );
 

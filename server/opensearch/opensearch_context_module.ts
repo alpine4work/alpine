@@ -28,6 +28,7 @@ import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_mo
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -64,7 +65,7 @@ export class OpensearchContextModule
             this._client = client;
         } else {
             // May only construct an uninitialized context module in tests.
-            assert(process.env.NODE_ENV === "test");
+            assert(isTestNodeEnvOrAdminScenariosScript);
 
             Object.defineProperty(this, "_client", {
                 configurable: true,
@@ -88,7 +89,7 @@ export class OpensearchContextModule
     public static test(): OpensearchContextModule & {
         initialize: (client: OpensearchClientInterface) => void;
     } {
-        assert(process.env.NODE_ENV === "test");
+        assert(isTestNodeEnvOrAdminScenariosScript);
 
         const contextModule = new OpensearchContextModule(null);
 

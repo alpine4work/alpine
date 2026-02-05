@@ -8,9 +8,8 @@ ts_project(
         ":local_data",
     ],
     visibility = [
-        "//admin/adhoc:__pkg__",
         "//admin/dev:__pkg__",
-        "//server/dynamo/test_helpers:__pkg__",
+        "//admin/environment/test/unit:__pkg__",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-sqs",

@@ -6,6 +6,7 @@ ts_project(
         "//server/dynamo/test_helpers",
     ],
     visibility = [
+        "//admin:__subpackages__",
         "//app:__subpackages__",
         "//server:__subpackages__",
     ],

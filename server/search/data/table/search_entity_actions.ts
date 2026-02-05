@@ -12,7 +12,6 @@ import {
     ActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     AccountSearchAffinityEntitiesIndex,
@@ -65,6 +64,7 @@ import {
     initialOrderKey,
 } from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {Id, assertId, generateId} from "~/shared/id/id.js";
 import {

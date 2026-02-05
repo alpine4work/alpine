@@ -2,7 +2,6 @@ import {TestApnsContextModule} from "~/server/context/apns_context_module_base.j
 import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
-import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
@@ -16,6 +15,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -45,11 +45,14 @@ export class TestLocalJobSender implements JobSenderBase {
     private readonly _createSystemContext: (spaceId: SpaceId) => TestSystemActionContext;
     private readonly _getProcessContext: () => ServerProcessContext;
 
+    private _afterEachCallbacks: Array<() => void> = [];
+
     constructor({
         processJob,
         processMaintenanceJob = asyncNoop,
         createSystemContext,
         getProcessContext,
+        afterEach,
     }: {
         processJob: (
             context: Context<TestSystemActionContextModules & PushContextModules>,
@@ -65,6 +68,7 @@ export class TestLocalJobSender implements JobSenderBase {
         ) => Promise<void>;
         createSystemContext: (spaceId: SpaceId) => TestSystemActionContext;
         getProcessContext: () => ServerProcessContext;
+        afterEach: (action: () => MaybePromise<void>) => void;
     }) {
         assert(process.env.NODE_ENV === "test");
 
@@ -72,6 +76,15 @@ export class TestLocalJobSender implements JobSenderBase {
         this._processMaintenanceJob = processMaintenanceJob;
         this._createSystemContext = createSystemContext;
         this._getProcessContext = getProcessContext;
+
+        afterEach(() => {
+            const callbacks = this._afterEachCallbacks;
+            this._afterEachCallbacks = [];
+
+            for (const callback of callbacks) {
+                callback();
+            }
+        });
     }
 
     public send(
@@ -145,7 +158,7 @@ export class TestLocalJobSender implements JobSenderBase {
         } else {
             const timeout = createTimeout(run, delaySeconds * 1000);
 
-            afterTestEnds(() => {
+            this._afterEachCallbacks.push(() => {
                 if (!hasRun) {
                     timeout.clear();
                     run();
@@ -187,7 +200,7 @@ export class TestLocalJobSender implements JobSenderBase {
         } else {
             const timeout = createTimeout(run, delaySeconds * 1000);
 
-            afterTestEnds(() => {
+            this._afterEachCallbacks.push(() => {
                 if (!hasRun) {
                     timeout.clear();
                     run();

@@ -7,6 +7,7 @@ import {
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {AvatarId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -164,7 +165,7 @@ export class FilesContextModule extends FilesContextModuleBase {
 export class TestFilesContextModule extends FilesContextModuleBase {
     constructor() {
         super();
-        assert(process.env.NODE_ENV === "test");
+        assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
     public override async dangerouslySignFileUrlWithoutAuthorization(

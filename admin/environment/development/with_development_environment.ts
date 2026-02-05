@@ -127,7 +127,7 @@ const taskRealtimeServiceLocalPort = assertPort(env.TASK_REALTIME_DEV_PORT);
  * The context type is `TestContext` which has just about everything you'd want
  * and lets you use our test helpers like `TestDocument` with the context.
  */
-export async function withDevContext<Value>(
+export async function withDevelopmentEnvironment<Value>(
     action: (
         context: TestContext,
         options: {tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>},

@@ -10,6 +10,7 @@ ts_project(
     visibility = [
         "//admin/crawl:__pkg__",
         "//admin/dev:__subpackages__",
+        "//admin/environment:__subpackages__",
         "//app:__pkg__",
         "//server:__subpackages__",
     ],

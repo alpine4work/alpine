@@ -15,7 +15,6 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {dynamoGeneralRealtimeBackfillSafetyWindowMinutes} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {addAccountGrantsToChannelAccessPolicy} from "~/server/forum/data/add_account_grants_to_channel_access_policy.js";
@@ -4338,9 +4337,7 @@ test("if time hasn\u2019t moved forward updating a post will set it to +1ms of t
 });
 
 test("broadcasts channel realtime events to channel", async () => {
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([]);
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([]);
 
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -4350,23 +4347,17 @@ test("broadcasts channel realtime events to channel", async () => {
     const channel1 = await TestChannel.create(session);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([]);
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([]);
 
     const channel2 = await TestChannel.create(session);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([]);
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([]);
 
     const otherChannel = await TestChannel.create(otherSession);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([]);
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([]);
 
     await updateChannelName(session.action(), {
         channelId: channel2.id,
@@ -4374,9 +4365,7 @@ test("broadcasts channel realtime events to channel", async () => {
     });
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
 
@@ -4386,9 +4375,7 @@ test("broadcasts channel realtime events to channel", async () => {
     });
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
     ]);
@@ -4399,9 +4386,7 @@ test("broadcasts channel realtime events to channel", async () => {
     });
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
@@ -4409,9 +4394,7 @@ test("broadcasts channel realtime events to channel", async () => {
 });
 
 test("broadcasts post realtime events to channel and post", async () => {
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([]);
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([]);
 
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -4424,16 +4407,12 @@ test("broadcasts post realtime events to channel and post", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([]);
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([]);
 
     await channel2.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
@@ -4441,9 +4420,7 @@ test("broadcasts post realtime events to channel and post", async () => {
     const post2 = await otherChannel.createPost(otherSession);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
@@ -4453,9 +4430,7 @@ test("broadcasts post realtime events to channel and post", async () => {
     const post3 = await channel1.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
@@ -4467,9 +4442,7 @@ test("broadcasts post realtime events to channel and post", async () => {
     await channel1.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
@@ -4483,9 +4456,7 @@ test("broadcasts post realtime events to channel and post", async () => {
     await channel2.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
@@ -4505,9 +4476,7 @@ test("broadcasts post realtime events to channel and post", async () => {
     });
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
@@ -4529,9 +4498,7 @@ test("broadcasts post realtime events to channel and post", async () => {
     });
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
@@ -4551,9 +4518,7 @@ test("broadcasts post realtime events to channel and post", async () => {
     await channel2.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
-    ).toEqual([
+    expect(context.getDurableObjectBroadcasts().map(({url}) => url)).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,

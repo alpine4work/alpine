@@ -8,6 +8,7 @@ ts_project(
         for label in OPENSEARCH_VISIBILITY
     ] + [
         "//admin/crawl:__pkg__",
+        "//admin/environment/test/unit:__pkg__",
         "//admin/opensearch:__subpackages__",
         "//app:__pkg__",
         "//server/api:__subpackages__",

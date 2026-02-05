@@ -1,6 +1,5 @@
 import webPush, {WebPushError} from "web-push";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
-import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {
     InternalError,
@@ -9,6 +8,7 @@ import {
     UnknownError,
 } from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {
     SendWebPushNotificationOptions,
     WebPushNotificationContent,

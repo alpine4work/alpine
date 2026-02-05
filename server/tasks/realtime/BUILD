@@ -56,7 +56,7 @@ js_binary(
     name = "realtime",
     data = [":realtime_lib"],
     entry_point = "task_realtime_service_main.js",
-    visibility = ["//app/integration_tests:__pkg__"],
+    visibility = ["//admin/environment/test/integration:__pkg__"],
 )
 
 js_image_layer(

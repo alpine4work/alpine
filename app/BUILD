@@ -185,9 +185,9 @@ write_source_files(
 
 js_binary(
     name = "app_client_optimize_deps_tool",
-    data = ["@aspect_rules_esbuild//esbuild/private:plugins/bazel-sandbox.js"],
+    data = ["@aspect_rules_esbuild//esbuild/private:plugins/bazel-sandbox.cjs"],
     entry_point = "app_client_optimize_deps_main.mjs",
-    no_copy_to_bin = ["@aspect_rules_esbuild//esbuild/private:plugins/bazel-sandbox.js"],
+    no_copy_to_bin = ["@aspect_rules_esbuild//esbuild/private:plugins/bazel-sandbox.cjs"],
 )
 
 js_run_binary(
@@ -336,7 +336,7 @@ js_binary(
     ],
     entry_point = "build/server/app_service_main.js",
     no_copy_to_bin = [":app_runfiles"],
-    visibility = ["//app/integration_tests:__pkg__"],
+    visibility = ["//admin/environment/test/integration:__pkg__"],
 )
 
 # Doesn't use `production_transition()` because we apply

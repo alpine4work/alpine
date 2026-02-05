@@ -3,7 +3,7 @@ import "~/server/helpers/node/register_noop_react_refresh.js";
 import * as inquirer from "@inquirer/prompts";
 import chalk from "chalk";
 import {inspect} from "util";
-import {withDevContext} from "~/admin/dev/helpers/with_dev_context.js";
+import {withDevelopmentEnvironment} from "~/admin/environment/development/with_development_environment.js";
 import {createLaunchVideoScenario} from "~/admin/scenarios/launch_video_scenario.js";
 import {createMockAgentPlaygroundScenario} from "~/admin/scenarios/mock_agent_playground_scenario.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
@@ -24,7 +24,7 @@ const allScenarios: Record<string, ScenarioFunction> = {
 };
 
 async function main() {
-    await withDevContext(async (context, options) => {
+    await withDevelopmentEnvironment(async (context, options) => {
         const scenarioNameArg = process.argv[2] ?? "";
 
         let scenarioName: string;

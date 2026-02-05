@@ -156,6 +156,9 @@ beforeEach(() => {
     import.meta.jest.useFakeTimers();
 });
 
+// Important that this goes after `createTestContext()` which will register
+// `afterEach` hooks that clean up some timers (specifically
+// `TestLocalJobSender` which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();

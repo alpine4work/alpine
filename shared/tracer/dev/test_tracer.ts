@@ -5,7 +5,7 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 // This file should only run in a Node.js test environment. Either Jest
 // or Playwright.
 assert(process.release.name === "node");
-assert(process.env.NODE_ENV === "test");
+assert(process.env.NODE_ENV !== "production");
 
 export const testTracer = TracerRoot.new({
     serviceName: "Test",

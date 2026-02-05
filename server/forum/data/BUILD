@@ -18,7 +18,7 @@ ts_project(
         "post_messaging_test": {"size": "medium"},
     },
     visibility = [
-        "//admin/crawl:__pkg__",
+        "//admin:__subpackages__",
         "//app:__pkg__",
         "//server:__subpackages__",
     ],

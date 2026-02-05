@@ -166,8 +166,5 @@ js_binary(
     name = "processor",
     data = [":processor_local_lib"],
     entry_point = "file_processor_local_service_main.js",
-    visibility = [
-        "//admin/dev:__pkg__",
-        "//app/integration_tests:__pkg__",
-    ],
+    visibility = ["//admin/environment/test/integration:__pkg__"],
 )

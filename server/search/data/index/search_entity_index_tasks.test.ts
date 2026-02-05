@@ -35,17 +35,6 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
-beforeEach(() => {
-    import.meta.jest.useFakeTimers();
-});
-
-afterEach(() => {
-    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
-    import.meta.jest.clearAllTimers();
-    import.meta.jest.useRealTimers();
-    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
-});
-
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 
 let indexSearchEntityJobCount = 0;
@@ -82,6 +71,20 @@ const context = createTestContext({
             }
         }
     },
+});
+
+beforeEach(() => {
+    import.meta.jest.useFakeTimers();
+});
+
+// Important that this goes after `createTestContext()` which will register
+// `afterEach` hooks that clean up some timers (specifically
+// `TestLocalJobSender` which cleans up any delayed jobs).
+afterEach(() => {
+    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
+    import.meta.jest.clearAllTimers();
+    import.meta.jest.useRealTimers();
+    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
 function getIndexedSearchEntity(entity: TestTask) {

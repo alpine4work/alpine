@@ -39,7 +39,6 @@ import {
     getFileFromAttachment,
 } from "~/server/files/data/files_actions.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {
@@ -170,6 +169,7 @@ import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";

@@ -9,7 +9,6 @@ import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_ac
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestPushContextModules} from "~/server/dynamo/test_helpers/create_test_push_context_modules.js";
-import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
 import {updateInboxEntryAfterExecuteTransactionTestCheckpoint} from "~/server/notifications/data/internal/update_inbox_entry.js";
@@ -3078,25 +3077,20 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(
                 new Map(
-                    filterMapArray(
-                        TestLocalEdgeServiceContextModule.takeDurableObjectBroadcasts(),
-                        ({url, body = {}}) => {
-                            const match = url.match(
-                                /^\/api\/durable-objects\/my-account\/([^/]+)\/broadcast-inbox-realtime-event-transaction$/,
-                            );
-                            if (!match) return;
+                    filterMapArray(context.takeDurableObjectBroadcasts(), ({url, body = {}}) => {
+                        const match = url.match(
+                            /^\/api\/durable-objects\/my-account\/([^/]+)\/broadcast-inbox-realtime-event-transaction$/,
+                        );
+                        if (!match) return;
 
-                            // Ignore any realtime updates `session1` received.
-                            if (match[1] === session1.account.id) return;
+                        // Ignore any realtime updates `session1` received.
+                        if (match[1] === session1.account.id) return;
 
-                            return [
-                                match[1],
-                                MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(
-                                    body,
-                                ),
-                            ];
-                        },
-                    ),
+                        return [
+                            match[1],
+                            MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(body),
+                        ];
+                    }),
                 ),
             ).toEqual(
                 new Map([

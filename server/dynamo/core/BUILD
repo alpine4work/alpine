@@ -14,6 +14,7 @@ ts_project(
         for label in DYNAMO_CORE_VISIBILITY
     ] + [
         "//admin/crawl:__pkg__",
+        "//admin/environment/test/unit:__pkg__",
         "//server/content/context_module:__pkg__",
         "//server/context:__pkg__",
         "//server/dynamo/core:__subpackages__",

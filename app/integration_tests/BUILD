@@ -30,18 +30,12 @@ load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 ts_playwright_tests(
     name = "integration_tests",
     data = [
-        "//app:app_test",
-        "//server/apns:apns_development_certificates",
-        "//server/edge",
-        "//server/files/processor",
+        "//admin/environment/test/integration:integration_data",
         "//server/files/processor:test_fixtures/py_pdf_sample_google_doc_document.pdf",
         "//server/files/processor:test_fixtures/undraw_landscape_photographer.svg",
         "//server/files/processor:test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         "//server/files/processor:test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
         "//server/files/processor:test_fixtures/wikimedia_png_transparency_demonstration.png",
-        "//server/jobs/queue",
-        "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",
-        "//server/tasks/realtime",
     ],
     skip_projects_by_src = {
         # Explicitly desktop only tests.
@@ -76,6 +70,7 @@ ts_playwright_tests(
         "//:node_modules/set-cookie-parser",
         "//:node_modules/sharp",
         "//:node_modules/ws",
+        "//admin/environment/test/integration",
         "//admin/helpers",
         "//app:app_lib",
         "//server/chat/test_helpers",
