@@ -879,7 +879,9 @@ test("HTML table with invalid data attributes", () => {
             {
                 type: "Table",
                 width: 1,
-                columns: [{width: 1}],
+                hasHeaderColumn: undefined,
+                hasHeaderRow: undefined,
+                columns: [{width: 1}, {width: 1}],
                 rows: [
                     {
                         cells: [
@@ -888,6 +890,7 @@ test("HTML table with invalid data attributes", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "Cell"}]},
                                 ],
                             },
+                            {elements: []},
                         ],
                     },
                 ],
@@ -1271,7 +1274,7 @@ More content
             {
                 type: "Table",
                 width: 1,
-                columns: [{width: 1}],
+                columns: [{width: 1}, {width: 1}],
                 hasHeaderColumn: undefined,
                 hasHeaderRow: undefined,
                 rows: [
@@ -1317,6 +1320,7 @@ More content
                                     },
                                 ],
                             },
+                            {elements: []},
                         ],
                     },
                 ],
@@ -1667,6 +1671,90 @@ test("document mention", () => {
         ],
     });
 });
+
+test("document mention with autolink syntax", () => {
+    const documentId = "d93hre935d0yd7akahtrwcvv30";
+    expect(
+        parseApiContentFromMarkdown(
+            `<https://alpine.inc/s/${spaceId}/documents/${documentId}?mention>`,
+            {
+                spaceId,
+            },
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {
+                        type: "Mention",
+                        target: {type: "Document", id: documentId},
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+// Only https://alpine.inc is allowed for mentions
+test("parses mention from alpine.inc", () => {
+    const documentId = "d93hre935d0yd7akahtrwcvv30";
+    expect(
+        parseApiContentFromMarkdown(
+            `<https://alpine.inc/s/${spaceId}/documents/${documentId}?mention>`,
+            {
+                spaceId,
+            },
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {
+                        type: "Mention",
+                        target: {type: "Document", id: documentId},
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+// Disallowed domains should render as links, not mentions
+const disallowedMentionDomains = [
+    ["https://evil.com", "random domain"],
+    ["https://alpine.inc.evil.com", "domain containing alpine.inc"],
+    ["https://fakealine.inc", "typosquatting domain"],
+    ["https://example.com", "example.com"],
+    ["https://notion.so", "notion.so"],
+    ["https://test.cyberworlds.dev", "test.cyberworlds.dev"],
+    ["https://staging.cyberworlds.dev", "staging.cyberworlds.dev"],
+    ["http://localhost:3000", "localhost:3000"],
+    ["http://localhost", "localhost"],
+] as const;
+
+test.each(disallowedMentionDomains)(
+    "does not parse mention from disallowed domain: %s (%s)",
+    baseUrl => {
+        const documentId = "d93hre935d0yd7akahtrwcvv30";
+        const url = `${baseUrl}/s/${spaceId}/documents/${documentId}?mention`;
+        expect(parseApiContentFromMarkdown(`<${url}>`, {spaceId})).toEqual({
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: url,
+                            marks: [{type: "Link", url}],
+                        },
+                    ],
+                },
+            ],
+        });
+    },
+);
 
 test("post mention", () => {
     const postId = "p93hre935d0yd7akahtrwcvv30";
@@ -2438,7 +2526,9 @@ test("completely empty HTML table", () => {
             {
                 type: "Table",
                 width: 1,
-                columns: [],
+                columns: [{width: 1}, {width: 1}],
+                hasHeaderColumn: undefined,
+                hasHeaderRow: undefined,
                 rows: [],
             },
         ],
@@ -2458,8 +2548,10 @@ test("HTML table with empty row", () => {
             {
                 type: "Table",
                 width: 1,
-                columns: [],
-                rows: [{cells: []}],
+                columns: [{width: 1}, {width: 1}],
+                hasHeaderColumn: undefined,
+                hasHeaderRow: undefined,
+                rows: [{cells: [{elements: []}, {elements: []}]}],
             },
         ],
     });
@@ -2669,22 +2761,38 @@ test("whitespace between table cells is ignored", () => {
             {
                 type: "Table",
                 width: 1,
-                columns: [{width: 1}],
+                columns: [{width: 1}, {width: 1}],
+                hasHeaderColumn: undefined,
+                hasHeaderRow: undefined,
                 rows: [
                     {
                         cells: [
                             {
                                 elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Cell 1"}]},
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Cell 1", marks: undefined},
+                                        ],
+                                    },
                                     {
                                         type: "Code",
                                         language: "text",
                                         lines: [
-                                            {elements: [{type: "Text", text: "<td>Cell 2</td>"}]},
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Text",
+                                                        text: "<td>Cell 2</td>",
+                                                        marks: undefined,
+                                                    },
+                                                ],
+                                            },
                                         ],
                                     },
                                 ],
                             },
+                            {elements: []},
                         ],
                     },
                 ],

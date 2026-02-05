@@ -930,6 +930,9 @@ function* parseApiContentBlockElementFromMarkdown(
                 };
             });
 
+            // Ensure at least 2 columns (schema requires tableCell{2,})
+            columnCount = Math.max(columnCount, 2);
+
             for (const row of rows) {
                 while (row.cells.length < columnCount) {
                     row.cells.push({elements: []});
@@ -1173,6 +1176,9 @@ class ApiContentBlockElementsMarkdownTableState {
                         }),
                     };
                 });
+
+                // Ensure at least 2 columns (schema requires tableCell{2,})
+                columnCount = Math.max(columnCount, 2);
 
                 for (const row of rows) {
                     while (row.cells.length < columnCount) {

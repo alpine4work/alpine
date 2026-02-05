@@ -13,6 +13,7 @@ import {
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
+import {maxContentListItemIndentation} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -82,9 +83,12 @@ export function* fromApiContentBlockElements(
                     for (let itemIndex = 0; itemIndex < element.items.length; itemIndex++) {
                         const item = element.items[itemIndex]!;
 
+                        // Clamp indent to max allowed value
+                        const clampedIndent = Math.min(indent, maxContentListItemIndentation);
+
                         if (item.elements.length > 0) {
                             const attrs: {indent: number; checked?: boolean; orderStart?: number} =
-                                {indent};
+                                {indent: clampedIndent};
 
                             if (typeName === "checkListItem") {
                                 attrs.checked = assertCheckListItem(item).checked;
@@ -106,7 +110,7 @@ export function* fromApiContentBlockElements(
                             for (const nestedListElement of item.nestedListElements) {
                                 yield* fromApiContentListBlockElement(
                                     nestedListElement,
-                                    indent + 1,
+                                    clampedIndent + 1,
                                 );
                             }
                         }
@@ -156,10 +160,17 @@ export function* fromApiContentBlockElements(
                         return schema.nodes.tableRow!.create(
                             null,
                             row.cells.map(cell => {
-                                return schema.nodes.tableCell!.create(
-                                    null,
-                                    Array.from(fromApiContentBlockElements(schema, cell.elements)),
+                                const cellContent = Array.from(
+                                    fromApiContentBlockElements(schema, cell.elements),
                                 );
+
+                                // Table cells require at least one block element (tableBlock+)
+                                // If the cell is empty, create an empty paragraph
+                                if (cellContent.length === 0) {
+                                    cellContent.push(schema.nodes.paragraph!.create());
+                                }
+
+                                return schema.nodes.tableCell!.create(null, cellContent);
                             }),
                         );
                     }),

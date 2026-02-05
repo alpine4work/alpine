@@ -349,6 +349,7 @@ const ApiContentCodeBlockElementArbitrary: Arbitrary<ApiContentCodeBlockElement>
     ),
 });
 
+// Schema requires tableCell{2,} so tables must have at least 2 columns
 const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElement> = fc.oneof(
     // Simple table that should be formatted as a GFM table.
     fc
@@ -359,6 +360,7 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
             hasHeaderColumn: fc.constant(false),
             columns: fc.array(
                 fc.record({width: fc.float({min: Math.fround(0.01), max: 20, noNaN: true})}),
+                {minLength: 2},
             ),
             rows: fc.array(
                 fc.record({
@@ -366,6 +368,7 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
                         fc.record({
                             elements: fc.tuple(ApiContentParagraphBlockElementArbitrary),
                         }),
+                        {minLength: 2},
                     ),
                 }),
             ),
@@ -385,6 +388,7 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
         hasHeaderColumn: fc.boolean(),
         columns: fc.array(
             fc.record({width: fc.float({min: Math.fround(0.01), max: 20, noNaN: true})}),
+            {minLength: 2},
         ),
         rows: fc.array(
             fc.record({
@@ -401,6 +405,7 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
                             }),
                         ),
                     }),
+                    {minLength: 2},
                 ),
             }),
         ),

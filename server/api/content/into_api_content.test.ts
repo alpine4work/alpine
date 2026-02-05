@@ -2463,6 +2463,37 @@ test("converts table with fewer columnWidths than actual columns", () => {
     );
 });
 
+// ProseMirror handles our validation that a table cell has children, but we
+// need to make sure we don't throw an error when converting to and from API
+// content.
+test("converts table with cell containing only empty paragraph into API content", () => {
+    testIntoApiContent(
+        doc(
+            table(
+                {columnWidths: [50, 50]},
+                tableRow(tableCell(paragraph()), tableCell(paragraph())),
+            ),
+        ),
+        {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1,
+                    columns: [{width: 50}, {width: 50}],
+                    rows: [
+                        {
+                            cells: [
+                                {elements: [{type: "Paragraph", elements: []}]},
+                                {elements: [{type: "Paragraph", elements: []}]},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+    );
+});
+
 test("converts quote block with lists inside into API content", () => {
     testIntoApiContent(
         doc(
