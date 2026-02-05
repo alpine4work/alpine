@@ -340,7 +340,7 @@ export function PostCreator({
                             // On mobile, don't allow interactions when unfocused. We're already in an
                             // editing modality.
                             withoutMobileDualModality={true}
-                            placeholder="Share your ideas…"
+                            placeholder="Share your ideas, press @ to insert…"
                             // Special case for `<ShareOverlay>`'s "Post in channel". If there's an empty
                             // paragraph followed by a file row then consider the body to be empty so we
                             // see the placeholder in the first empty paragraph instead of empty space.

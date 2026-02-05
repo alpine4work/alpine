@@ -41,9 +41,17 @@ export type ContentEditorMentionFloaterState = {
     readonly type: "Mention";
 
     /**
-     * `from` should always be an `@` character. If it's not we should clear the
-     * floater. `to` should be the end of the mention search query. The user can
-     * move their selection within this range and make edits to the search query.
+     * The character that triggered the mention floater. We support both `@` (the
+     * standard mention trigger) and `/` (for users coming from Slack or Notion
+     * where `/` is the slash command trigger).
+     */
+    readonly triggerCharacter: "@" | "/";
+
+    /**
+     * `from` should always be the trigger character (`@` or `/`). If it's not we
+     * should clear the floater. `to` should be the end of the mention search
+     * query. The user can move their selection within this range and make edits
+     * to the search query.
      */
     readonly range: {
         readonly from: number;

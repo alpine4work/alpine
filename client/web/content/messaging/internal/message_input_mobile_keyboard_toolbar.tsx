@@ -122,7 +122,7 @@ export function MessageInputMobileKeyboardToolbar({
         >
             <MessageInputMobileKeyboardToolbarButton
                 dividerRight
-                label="Mention"
+                label="Insert"
                 isActive={false}
                 onPress={() => {
                     const view = assertExists(viewRef.current);
@@ -132,7 +132,7 @@ export function MessageInputMobileKeyboardToolbar({
                     view.dispatch(
                         state.tr
                             .replaceSelectionWith(schema.text("@"))
-                            .setMeta(openContentEditorMentionFloaterMetaKey, true),
+                            .setMeta(openContentEditorMentionFloaterMetaKey, "@"),
                     );
                 }}
             >

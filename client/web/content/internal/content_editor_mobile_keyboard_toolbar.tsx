@@ -286,7 +286,7 @@ export function ContentEditorMobileKeyboardToolbar({
                             }}
                         >
                             <ContentEditorMobileKeyboardToolbarButton
-                                label="Mention"
+                                label="Insert"
                                 dividerRight
                                 isActive={false}
                                 onPress={() => {
@@ -297,7 +297,7 @@ export function ContentEditorMobileKeyboardToolbar({
                                     view.dispatch(
                                         state.tr
                                             .replaceSelectionWith(schema.text("@"))
-                                            .setMeta(openContentEditorMentionFloaterMetaKey, true),
+                                            .setMeta(openContentEditorMentionFloaterMetaKey, "@"),
                                     );
                                 }}
                             >

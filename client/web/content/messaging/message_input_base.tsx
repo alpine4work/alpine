@@ -1,5 +1,5 @@
 import {animate} from "motion";
-import {ArrowRight, ArrowUp, File, Image, PencilSimple, Plus, X} from "phosphor-react";
+import {ArrowRight, ArrowUp, At, File, Image, PencilSimple, Plus, X} from "phosphor-react";
 import {Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -46,6 +46,7 @@ import {MessageInputMobileKeyboardToolbar} from "~/client/web/content/messaging/
 import {MessageInputFileEntityPreview} from "~/client/web/content/messaging/message_input_file_entity_preview.js";
 import {MessageInputFilePreview} from "~/client/web/content/messaging/message_input_file_preview.js";
 import {selectFiles} from "~/client/web/content/select_files.js";
+import {openContentEditorMentionFloaterMetaKey} from "~/client/web/content/state/content_editor_meta_keys.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -1010,140 +1011,190 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             // menu opens above the input. Let's make that pattern consistent.
                                             placement="top-start"
                                             actions={[
-                                                {
-                                                    label: "Image",
-                                                    icon: <Image />,
-                                                    onPress: () => {
-                                                        selectFiles(
-                                                            assertExists(inputContainerRef.current),
-                                                            {
-                                                                multiple: true,
-                                                                acceptContentTypes:
-                                                                    getFileImageContentTypes(),
-                                                                // It's important to return focus before removing the temporary input element
-                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                                                // finished.
-                                                                onReturnFocus: () =>
-                                                                    editorRef.current?.focus(),
-                                                            },
-                                                        )
-                                                            .then(files => {
-                                                                if (files.length === 0) return;
+                                                [
+                                                    {
+                                                        label: "Image",
+                                                        icon: <Image />,
+                                                        onPress: () => {
+                                                            selectFiles(
+                                                                assertExists(
+                                                                    inputContainerRef.current,
+                                                                ),
+                                                                {
+                                                                    multiple: true,
+                                                                    acceptContentTypes:
+                                                                        getFileImageContentTypes(),
+                                                                    // It's important to return focus before removing the temporary input element
+                                                                    // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                    // finished.
+                                                                    onReturnFocus: () =>
+                                                                        editorRef.current?.focus(),
+                                                                },
+                                                            )
+                                                                .then(files => {
+                                                                    if (files.length === 0) return;
 
-                                                                // Make sure we didn't unmount while selecting files.
-                                                                if (!isMounted()) return;
+                                                                    // Make sure we didn't unmount while selecting files.
+                                                                    if (!isMounted()) return;
 
-                                                                events.addFiles(
-                                                                    "<MessageInput> insert files",
-                                                                    files.map(file => ({
-                                                                        type: "UploadFile",
-                                                                        input: {type: "File", file},
-                                                                    })),
-                                                                );
-                                                            })
-                                                            .catch(scheduleUncaughtError);
+                                                                    events.addFiles(
+                                                                        "<MessageInput> insert files",
+                                                                        files.map(file => ({
+                                                                            type: "UploadFile",
+                                                                            input: {
+                                                                                type: "File",
+                                                                                file,
+                                                                            },
+                                                                        })),
+                                                                    );
+                                                                })
+                                                                .catch(scheduleUncaughtError);
+                                                        },
                                                     },
-                                                },
-                                                {
-                                                    label: "Video",
-                                                    icon: <VideoIcon />,
-                                                    onPress: () => {
-                                                        selectFiles(
-                                                            assertExists(inputContainerRef.current),
-                                                            {
-                                                                multiple: true,
-                                                                acceptContentTypes:
-                                                                    getFileVideoContentTypes(),
-                                                                // It's important to return focus before removing the temporary input element
-                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                                                // finished.
-                                                                onReturnFocus: () =>
-                                                                    editorRef.current?.focus(),
-                                                            },
-                                                        )
-                                                            .then(files => {
-                                                                if (files.length === 0) return;
+                                                    {
+                                                        label: "Video",
+                                                        icon: <VideoIcon />,
+                                                        onPress: () => {
+                                                            selectFiles(
+                                                                assertExists(
+                                                                    inputContainerRef.current,
+                                                                ),
+                                                                {
+                                                                    multiple: true,
+                                                                    acceptContentTypes:
+                                                                        getFileVideoContentTypes(),
+                                                                    // It's important to return focus before removing the temporary input element
+                                                                    // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                    // finished.
+                                                                    onReturnFocus: () =>
+                                                                        editorRef.current?.focus(),
+                                                                },
+                                                            )
+                                                                .then(files => {
+                                                                    if (files.length === 0) return;
 
-                                                                // Make sure we didn't unmount while selecting files.
-                                                                if (!isMounted()) return;
+                                                                    // Make sure we didn't unmount while selecting files.
+                                                                    if (!isMounted()) return;
 
-                                                                events.addFiles(
-                                                                    "<MessageInput> insert files",
-                                                                    files.map(file => ({
-                                                                        type: "UploadFile",
-                                                                        input: {type: "File", file},
-                                                                    })),
-                                                                );
-                                                            })
-                                                            .catch(scheduleUncaughtError);
+                                                                    events.addFiles(
+                                                                        "<MessageInput> insert files",
+                                                                        files.map(file => ({
+                                                                            type: "UploadFile",
+                                                                            input: {
+                                                                                type: "File",
+                                                                                file,
+                                                                            },
+                                                                        })),
+                                                                    );
+                                                                })
+                                                                .catch(scheduleUncaughtError);
+                                                        },
                                                     },
-                                                },
-                                                {
-                                                    label: "Audio",
-                                                    icon: <WaveformIcon />,
-                                                    onPress: () => {
-                                                        selectFiles(
-                                                            assertExists(inputContainerRef.current),
-                                                            {
-                                                                multiple: true,
-                                                                acceptContentTypes:
-                                                                    getFileAudioContentTypes(),
-                                                                // It's important to return focus before removing the temporary input element
-                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                                                // finished.
-                                                                onReturnFocus: () =>
-                                                                    editorRef.current?.focus(),
-                                                            },
-                                                        )
-                                                            .then(files => {
-                                                                if (files.length === 0) return;
+                                                    {
+                                                        label: "Audio",
+                                                        icon: <WaveformIcon />,
+                                                        onPress: () => {
+                                                            selectFiles(
+                                                                assertExists(
+                                                                    inputContainerRef.current,
+                                                                ),
+                                                                {
+                                                                    multiple: true,
+                                                                    acceptContentTypes:
+                                                                        getFileAudioContentTypes(),
+                                                                    // It's important to return focus before removing the temporary input element
+                                                                    // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                    // finished.
+                                                                    onReturnFocus: () =>
+                                                                        editorRef.current?.focus(),
+                                                                },
+                                                            )
+                                                                .then(files => {
+                                                                    if (files.length === 0) return;
 
-                                                                // Make sure we didn't unmount while selecting files.
-                                                                if (!isMounted()) return;
+                                                                    // Make sure we didn't unmount while selecting files.
+                                                                    if (!isMounted()) return;
 
-                                                                events.addFiles(
-                                                                    "<MessageInput> insert files",
-                                                                    files.map(file => ({
-                                                                        type: "UploadFile",
-                                                                        input: {type: "File", file},
-                                                                    })),
-                                                                );
-                                                            })
-                                                            .catch(scheduleUncaughtError);
+                                                                    events.addFiles(
+                                                                        "<MessageInput> insert files",
+                                                                        files.map(file => ({
+                                                                            type: "UploadFile",
+                                                                            input: {
+                                                                                type: "File",
+                                                                                file,
+                                                                            },
+                                                                        })),
+                                                                    );
+                                                                })
+                                                                .catch(scheduleUncaughtError);
+                                                        },
                                                     },
-                                                },
-                                                {
-                                                    label: "File",
-                                                    icon: <File />,
-                                                    onPress: () => {
-                                                        selectFiles(
-                                                            assertExists(inputContainerRef.current),
-                                                            {
-                                                                multiple: true,
-                                                                // It's important to return focus before removing the temporary input element
-                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                                                // finished.
-                                                                onReturnFocus: () =>
-                                                                    editorRef.current?.focus(),
-                                                            },
-                                                        )
-                                                            .then(files => {
-                                                                if (files.length === 0) return;
+                                                    {
+                                                        label: "File",
+                                                        icon: <File />,
+                                                        onPress: () => {
+                                                            selectFiles(
+                                                                assertExists(
+                                                                    inputContainerRef.current,
+                                                                ),
+                                                                {
+                                                                    multiple: true,
+                                                                    // It's important to return focus before removing the temporary input element
+                                                                    // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                    // finished.
+                                                                    onReturnFocus: () =>
+                                                                        editorRef.current?.focus(),
+                                                                },
+                                                            )
+                                                                .then(files => {
+                                                                    if (files.length === 0) return;
 
-                                                                // Make sure we didn't unmount while selecting files.
-                                                                if (!isMounted()) return;
+                                                                    // Make sure we didn't unmount while selecting files.
+                                                                    if (!isMounted()) return;
 
-                                                                events.addFiles(
-                                                                    "<MessageInput> insert files",
-                                                                    files.map(file => ({
-                                                                        type: "UploadFile",
-                                                                        input: {type: "File", file},
-                                                                    })),
-                                                                );
-                                                            })
-                                                            .catch(scheduleUncaughtError);
+                                                                    events.addFiles(
+                                                                        "<MessageInput> insert files",
+                                                                        files.map(file => ({
+                                                                            type: "UploadFile",
+                                                                            input: {
+                                                                                type: "File",
+                                                                                file,
+                                                                            },
+                                                                        })),
+                                                                    );
+                                                                })
+                                                                .catch(scheduleUncaughtError);
+                                                        },
                                                     },
-                                                },
+                                                ],
+                                                [
+                                                    {
+                                                        label: "Insert",
+                                                        icon: <At />,
+                                                        onPress: () => {
+                                                            const editor = assertExists(
+                                                                editorRef.current,
+                                                            );
+                                                            const view = editor._getInternalView();
+
+                                                            const {state} = view;
+                                                            const schema = state.doc.type.schema;
+
+                                                            editor.focus();
+
+                                                            view.dispatch(
+                                                                state.tr
+                                                                    .replaceSelectionWith(
+                                                                        schema.text("@"),
+                                                                    )
+                                                                    .setMeta(
+                                                                        openContentEditorMentionFloaterMetaKey,
+                                                                        "@",
+                                                                    ),
+                                                            );
+                                                        },
+                                                    },
+                                                ],
                                             ]}
                                         >
                                             <IconButton

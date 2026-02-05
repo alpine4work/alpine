@@ -664,17 +664,19 @@ function contentEditorFloaterStatePlugin() {
                 }
 
                 // Double check that we can only open the `Mention` floater if the character
-                // preceding our selection is `@`.
-                if (
-                    transaction.getMeta(openContentEditorMentionFloaterMetaKey) &&
-                    newState.selection.head > 0
-                ) {
+                // preceding our selection is the trigger character (`@` or `/`).
+                const mentionTriggerCharacter: "@" | "/" | undefined = transaction.getMeta(
+                    openContentEditorMentionFloaterMetaKey,
+                );
+                if (mentionTriggerCharacter && newState.selection.head > 0) {
                     const $from = newState.doc.resolve(newState.selection.head - 1);
                     if (
-                        $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1) === "@"
+                        $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1) ===
+                        mentionTriggerCharacter
                     ) {
                         return {
                             type: "Mention",
+                            triggerCharacter: mentionTriggerCharacter,
                             range: {from: $from.pos, to: newState.selection.head},
                             searchQuery: "",
                             handleKeyDownRef: {current: null},
@@ -707,11 +709,13 @@ function contentEditorFloaterStatePlugin() {
                 if (floaterState.type === "Mention" && !floaterState.isClosing) {
                     const $from = newState.doc.resolve(floaterState.range.from);
 
-                    // If the mention no longer starts with `@` then close our floater.
+                    // If the mention no longer starts with the trigger character then close
+                    // our floater.
                     if (
                         !$from.parent.inlineContent ||
                         $from.parentOffset === $from.parent.content.size ||
-                        $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1) !== "@"
+                        $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1) !==
+                            floaterState.triggerCharacter
                     ) {
                         floaterState = {...floaterState, isClosing: true};
                     }
@@ -766,7 +770,9 @@ function contentEditorFloaterStatePlugin() {
                         } else {
                             const searchQuery = child?.text ?? "";
 
-                            if (searchQuery.includes("@")) {
+                            // Close the floater if user types another instance of the trigger
+                            // character.
+                            if (searchQuery.includes(floaterState.triggerCharacter)) {
                                 floaterState = {...floaterState, isClosing: true};
                             } else if (searchQuery !== floaterState.searchQuery) {
                                 floaterState = {

@@ -1881,7 +1881,11 @@ export function DocumentContentEditor({
                                     }
                                 }}
                                 aria-label="Document"
-                                placeholder="Share your ideas…"
+                                placeholder={
+                                    hasAccessLevel(accessLevel, "Edit")
+                                        ? "Share your ideas, press @ to insert…"
+                                        : "Share your ideas…"
+                                }
                                 accessLevel={accessLevel}
                                 // While the sidebar is open, don't render our document toolbar. It would be
                                 // weird for it to pop up when writing a comment.

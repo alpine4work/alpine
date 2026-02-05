@@ -988,7 +988,7 @@ function PostContentViewEditor({
                         // On mobile, don't allow interactions when unfocused. We're already in an
                         // editing modality.
                         withoutMobileDualModality={true}
-                        placeholder="Share your ideas…"
+                        placeholder="Share your ideas, press @ to insert…"
                         fileAttachmentTarget={fileAttachmentTarget}
                         className={sprinkles({padding: "2"})}
                         onModEnterKeyDown={event => {

@@ -168,7 +168,7 @@ export function PostMobileEditor({
                             // On mobile, don't allow interactions when unfocused. We're already in an
                             // editing modality.
                             withoutMobileDualModality={true}
-                            placeholder="Share your ideas…"
+                            placeholder="Share your ideas, press @ to insert…"
                             fileAttachmentTarget={useMemo(
                                 (): FileAttachmentTarget => ({type: "Post", postId: post.id}),
                                 [post.id],

@@ -37,7 +37,28 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
 
             return state.tr
                 .replaceSelectionWith(schema.text("@"))
-                .setMeta(openContentEditorMentionFloaterMetaKey, true);
+                .setMeta(openContentEditorMentionFloaterMetaKey, "@");
+        }),
+    );
+
+    // `/` opens a mention search/selector interface at the start of an empty
+    // paragraph (for users coming from Slack or Notion where `/` is the slash
+    // command trigger)
+    rules.push(
+        new InputRule(/^\/$/u, state => {
+            const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
+
+            // Don't open the mention floater if we're in a code block.
+            if (
+                $from.node().type.name === "codeBlockLine" ||
+                $to.node().type.name === "codeBlockLine"
+            ) {
+                return null;
+            }
+
+            return state.tr
+                .replaceSelectionWith(schema.text("/"))
+                .setMeta(openContentEditorMentionFloaterMetaKey, "/");
         }),
     );
 

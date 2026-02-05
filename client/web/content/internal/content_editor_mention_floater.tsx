@@ -826,7 +826,7 @@ export function ContentEditorMentionFloater({
             // iOS. We may need to change this constant if the keyboard height for iOS
             // changes or the Android keyboard height is bigger.
             overflowBottom={platform === "mobile" ? "18rem" : undefined}
-            offset="3"
+            offset="2.5"
             overlay={
                 <Box
                     data-testid="ContentEditorMentionFloater"
