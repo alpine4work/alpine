@@ -5641,7 +5641,8 @@ function transformPastedForContentTable(
 
             default: {
                 // Check if node is allowed in table cell
-                if (isContentTableBlockNode(node) || node.type.name === "text") {
+                // Allow table block nodes, text nodes, and inline nodes (like mentions)
+                if (isContentTableBlockNode(node) || node.type.name === "text" || node.isInline) {
                     primaryContent.push(node);
                 } else {
                     remainingContent.push(node);
