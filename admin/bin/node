@@ -1,5 +1,24 @@
 #!/bin/bash
 
+# Worktree support: search up from the current directory for a `cyberworlds`
+# checkout. If we find one with a different `admin/bin/node` script, run that
+# instead. Skip if we're in Bazel's output directory since the execroot
+# mirrors the source tree and we'd find `admin/bin` scripts there.
+if [[ "$(pwd -P)" != *"/_bazel_"* ]]; then
+    search_dir="$PWD"
+    while [ "$search_dir" != "/" ]; do
+        if [ -x "$search_dir/admin/bin/node" ]; then
+            this_script=$(cd "$(dirname "$0")" && pwd -P)/node
+            found_script=$(cd "$search_dir/admin/bin" && pwd -P)/node
+            if [ "$this_script" != "$found_script" ]; then
+                exec "$search_dir/admin/bin/node" "$@"
+            fi
+            break
+        fi
+        search_dir=$(dirname "$search_dir")
+    done
+fi
+
 workspace_path=$(cd $(dirname $0)/../.. && pwd)
 
 # If we are in our workspace then run `node` through Bazel so we get the right
