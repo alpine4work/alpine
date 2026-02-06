@@ -10,12 +10,11 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {runAllObjectPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
 
-export async function createMockAgentPlaygroundScenario(
-    context: TestContext,
-): Promise<JsonObjectValue> {
+export async function createMockAgentPlaygroundScenario(context: TestContext) {
     const space = await TestSpace.create(context, {name: "Mock Agent Playground"});
 
     const session = await space.createSession({name: "Test Testerson", role: "Owner"});
@@ -40,7 +39,9 @@ export async function createMockAgentPlaygroundScenario(
     await putMockAgentRecording(botAccount, `/posts/${post.id}`, recording);
 
     return {
-        spaceId: space.id,
-        ownerEmailAddress,
+        log: cast<JsonObjectValue>({
+            spaceId: space.id,
+            ownerEmailAddress,
+        }),
     };
 }

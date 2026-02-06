@@ -45,5 +45,6 @@ js_binary(
     env = {
         "NODE_ENV": "development",
         "ADMIN_SCRIPT": "scenarios",
+        "DEBUG": "admin/scenarios/*",
     },
 )

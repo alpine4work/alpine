@@ -1,66 +1,47 @@
 import {CalendarDateTime, today as getToday, today} from "@internationalized/date";
-import {stringifyCookie} from "cookie";
-import fs from "fs/promises";
 import {
     decode as decodeO200kBaseTokens,
     encode as encodeO200kBaseTokens,
 } from "gpt-tokenizer/esm/encoding/o200k_base";
-import {join as joinPath} from "path";
+import {
+    FictionalAmbrookAccounts,
+    createFictionalAmbrookSpace,
+} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
 import {putMockAgentRecording} from "~/admin/scenarios/internal/put_mock_agent_recording.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     addSearchAffinityEntityPointsForTest,
     favoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_actions.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
-import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
-import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {MockAgentRecordingAction} from "~/shared/agents/mock_agent_recording.js";
-import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {
-    runAllObjectPromises,
-    runAllPromiseThunks,
-    runAllPromises,
-} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
-import {BotId} from "~/shared/id/types/id_types.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export async function createLaunchVideoScenario(
     context: TestContext,
     {tokenAgent}: {tokenAgent: TokenAgent},
-): Promise<JsonObjectValue> {
-    const space = await TestSpace.create(context, {
-        // We use our company name for the space since a fictional product name might
-        // not be clear (it may look like an Alpine product name). Plus it's good to
-        // get our company name in more screenshots.
-        name: "Alpine",
-    });
+) {
+    const {space, accounts, cassCadeEmailAddress, roseCompasEmailAddress} =
+        await createFictionalAmbrookSpace(context, tokenAgent);
 
-    const accounts = await createFictionalAmbrookAccounts(space, tokenAgent);
     const {
         cassCade,
         roseCompas,
@@ -72,28 +53,7 @@ export async function createLaunchVideoScenario(
         chatGpt,
     } = accounts;
 
-    const currentTime = new Date();
-
-    const emailAddressTime =
-        currentTime.getFullYear().toString().padStart(4, "0") +
-        "." +
-        (currentTime.getMonth() + 1).toString().padStart(2, "0") +
-        "." +
-        currentTime.getDate().toString().padStart(2, "0") +
-        "." +
-        // Seconds through the day. We use this format instead of `hh.mm.ss` so the
-        // date clearly reads as a date. Seconds are added on purely to disambiguate.
-        (
-            currentTime.getHours() * 60 * 60 +
-            currentTime.getMinutes() * 60 +
-            currentTime.getSeconds()
-        )
-            .toString()
-            .padStart(5, "0");
-
     const [
-        cassCadeEmailAddress,
-        roseCompasEmailAddress,
         {
             sprintCollection,
             lastSprintCollection,
@@ -116,11 +76,6 @@ export async function createLaunchVideoScenario(
         engineeringChat,
         hrChat,
     ] = await runAllPromises([
-        cassCade.account.createEmailAddress(`cass.cade.${emailAddressTime}@test.cyberworlds.dev`),
-        roseCompas.account.createEmailAddress(
-            `rose.compas.${emailAddressTime}@test.cyberworlds.dev`,
-        ),
-
         createFictionalAmbrookSprintTasks(accounts),
         createLaunchVideoFeed(accounts),
         createLaunchVideoDocuments(accounts),
@@ -142,10 +97,6 @@ export async function createLaunchVideoScenario(
 
             return chat;
         })(),
-
-        uploadScenarioSpaceAvatar(tokenAgent, cassCade, "light", "scenario_space_avatar_light.svg"),
-        uploadScenarioSpaceAvatar(tokenAgent, cassCade, "dark", "scenario_space_avatar_dark.svg"),
-        uploadFictionalAmbrookAccountAvatars(tokenAgent, accounts),
     ]);
 
     await runAllPromises([
@@ -300,231 +251,18 @@ export async function createLaunchVideoScenario(
     ]);
 
     return {
-        spaceId: space.id,
-        cassCade: {
-            accountId: cassCade.account.id,
-            emailAddress: cassCadeEmailAddress,
-        },
-        roseCompas: {
-            accountId: roseCompas.account.id,
-            emailAddress: roseCompasEmailAddress,
-        },
+        log: cast<JsonObjectValue>({
+            spaceId: space.id,
+            cassCade: {
+                accountId: cassCade.account.id,
+                emailAddress: cassCadeEmailAddress,
+            },
+            roseCompas: {
+                accountId: roseCompas.account.id,
+                emailAddress: roseCompasEmailAddress,
+            },
+        }),
     };
-}
-
-async function uploadScenarioSpaceAvatar(
-    tokenAgent: TokenAgent,
-    session: TestSpaceSession,
-    themeColor: "light" | "dark",
-    path: string,
-): Promise<void> {
-    const contentType = assertExists(getPathFileContentTypeIfExists(path));
-
-    const file = await fs.readFile(
-        joinPath(runfilesPath, "cyberworlds/admin/scenarios/fixtures", path),
-    );
-
-    const url = new URL(
-        `/api/avatar/space/${session.space.id}`,
-        session.context.constants.edgeServiceUrl,
-    );
-    url.searchParams.set("themeColor", themeColor);
-
-    await fetchWithTracer(
-        session.context.tracer.getTracer(),
-        url,
-        {
-            serviceName: "EdgeService",
-            route: "/api/avatar/space/:spaceId",
-            method: "POST",
-            headers: {
-                "content-type": contentType,
-                "content-length": file.length.toString(),
-                cookie: stringifyCookie({
-                    session: await tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                        "EdgeService",
-                        session.getTokenPayload(),
-                    ),
-                }),
-            },
-            body: new Uint8Array(file),
-        },
-        async response => {
-            const responseData = await response.json();
-            const responseBody = UploadAvatarResponseSchema.deserialize(responseData);
-            if (!responseBody.ok) throw responseBody.error;
-        },
-    );
-}
-
-async function uploadScenarioAccountAvatar(
-    tokenAgent: TokenAgent,
-    session: TestSession,
-    path: string,
-): Promise<void> {
-    const contentType = assertExists(getPathFileContentTypeIfExists(path));
-
-    const file = await fs.readFile(
-        joinPath(runfilesPath, "cyberworlds/admin/scenarios/fixtures", path),
-    );
-
-    await fetchWithTracer(
-        session.context.tracer.getTracer(),
-        new URL(
-            `/api/avatar/account/${session.account.id}`,
-            session.context.constants.edgeServiceUrl,
-        ),
-        {
-            serviceName: "EdgeService",
-            route: "/api/avatar/account/:accountId",
-            method: "POST",
-            headers: {
-                "content-type": contentType,
-                "content-length": file.length.toString(),
-                cookie: stringifyCookie({
-                    session: await tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                        "EdgeService",
-                        session.getTokenPayload(),
-                    ),
-                }),
-            },
-            body: new Uint8Array(file),
-        },
-        async response => {
-            const responseData = await response.json();
-            const responseBody = UploadAvatarResponseSchema.deserialize(responseData);
-            if (!responseBody.ok) throw responseBody.error;
-        },
-    );
-}
-
-async function uploadScenarioBotAvatar(
-    tokenAgent: TokenAgent,
-    session: TestSession,
-    botId: BotId,
-    path: string,
-): Promise<void> {
-    const contentType = assertExists(getPathFileContentTypeIfExists(path));
-
-    const file = await fs.readFile(
-        joinPath(runfilesPath, "cyberworlds/admin/scenarios/fixtures", path),
-    );
-
-    await fetchWithTracer(
-        session.context.tracer.getTracer(),
-        new URL(`/api/avatar/bot/${botId}`, session.context.constants.edgeServiceUrl),
-        {
-            serviceName: "EdgeService",
-            route: "/api/avatar/bot/:botId",
-            method: "POST",
-            headers: {
-                "content-type": contentType,
-                "content-length": file.length.toString(),
-                cookie: stringifyCookie({
-                    session: await tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                        "EdgeService",
-                        session.getTokenPayload(),
-                    ),
-                }),
-            },
-            body: new Uint8Array(file),
-        },
-        async response => {
-            const responseData = await response.json();
-            const responseBody = UploadAvatarResponseSchema.deserialize(responseData);
-            if (!responseBody.ok) throw responseBody.error;
-        },
-    );
-}
-
-type FictionalAmbrookAccounts = Awaited<ReturnType<typeof createFictionalAmbrookAccounts>>;
-
-async function createFictionalAmbrookAccounts(space: TestSpace, tokenAgent: TokenAgent) {
-    const roseCompasPromise = space.createSession({
-        name: "Rose Compás",
-        role: "Owner",
-        reactionCharacter: {type: "Tree", variant: "Green"},
-        // Rose will change the ChatGPT bot's avatar. Only internal accounts can do this.
-        hasInternalAccess: true,
-    });
-
-    return runAllObjectPromises({
-        // Chief of Staff (landing page is from Cass's perspective)
-        cassCade: space.createSession({
-            name: "Cass Cade",
-            role: "Admin",
-            reactionCharacter: {type: "Yeti", variant: "Blue"},
-        }),
-
-        // CEO (launch video is from Rose's perspective)
-        roseCompas: roseCompasPromise,
-
-        // Designer
-        mattRHorn: space.createSession({
-            name: "Matt R. Horn",
-            reactionCharacter: {type: "Cat", variant: "Grey"},
-        }),
-
-        // Engineer 1
-        masonClay: space.createSession({
-            name: "Mason Clay",
-            reactionCharacter: {type: "Yeti", variant: "Brown"},
-        }),
-
-        // Engineer 2
-        elleKappaTan: space.createSession({
-            name: "Elle Kappa-Tan",
-            reactionCharacter: {type: "Cat", variant: "Yellow"},
-        }),
-
-        // Sales
-        cliffWeathers: space.createSession({
-            name: "Cliff Weathers",
-            reactionCharacter: {type: "Tree", variant: "Blue"},
-        }),
-
-        // HR
-        hollyEvergreen: space.createSession({
-            name: "Holly Evergreen",
-            reactionCharacter: {type: "Tree", variant: "Pink"},
-        }),
-
-        // AI
-        chatGpt: (async () => {
-            const bot = await TestBot.get(space.context, getDynamoSeedConstants().mockChatGptBotId);
-
-            const roseCompas = await roseCompasPromise;
-
-            // Has to be done before instantiating the bot account in the space or else the
-            // account will not have the bot's avatar (we copy it over on instantiation)
-            await uploadScenarioBotAvatar(
-                tokenAgent,
-                roseCompas,
-                bot.id,
-                "scenario_chatgpt_avatar.png",
-            );
-
-            return bot.instantiate(roseCompas);
-        })(),
-    });
-}
-
-async function uploadFictionalAmbrookAccountAvatars(
-    tokenAgent: TokenAgent,
-    accounts: FictionalAmbrookAccounts,
-) {
-    const upload = (name: Exclude<keyof FictionalAmbrookAccounts, "chatGpt">, path: string) =>
-        uploadScenarioAccountAvatar(tokenAgent, accounts[name], path);
-
-    await runAllPromises([
-        upload("cassCade", "scenario_cass_cade_avatar.png"),
-        upload("roseCompas", "scenario_rose_compas_avatar.png"),
-        upload("mattRHorn", "scenario_matt_r_horn_avatar.png"),
-        upload("masonClay", "scenario_mason_clay_avatar.png"),
-        upload("elleKappaTan", "scenario_elle_kappa_tan_avatar.png"),
-        upload("cliffWeathers", "scenario_cliff_weathers_avatar.png"),
-        upload("hollyEvergreen", "scenario_holly_evergreen_avatar.png"),
-    ]);
 }
 
 async function createFictionalAmbrookSprintTasks({

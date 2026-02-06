@@ -16,7 +16,7 @@ import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
 type ScenarioFunction = (
     context: TestContext,
     options: {tokenAgent: TokenAgent},
-) => Promise<JsonObjectValue>;
+) => Promise<{log: JsonObjectValue}>;
 
 const allScenarios: Record<string, ScenarioFunction> = {
     LaunchVideo: createLaunchVideoScenario,
@@ -61,7 +61,7 @@ async function main() {
 
         // eslint-disable-next-line no-console
         console.log(
-            inspect(output, {
+            inspect(output.log, {
                 depth: Infinity,
                 colors: !!chalk.supportsColor,
                 // Split objects onto new lines even if they're below the break length.
