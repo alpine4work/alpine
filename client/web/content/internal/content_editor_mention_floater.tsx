@@ -699,6 +699,30 @@ export function ContentEditorMentionFloater({
         searchMentionOutput.isPending,
     );
 
+    // Suppress hover styles until the pointer moves. That way if the user's
+    // pointer just happens to be over the mention floater while they're typing it
+    // doesn't appear like you're about to select the item the pointer is
+    // coincidentally hovering over.
+    const [suppressHover, setSuppressHover] = useState(true);
+
+    useEffect(() => {
+        // Wait until we're done loading to unsuppress hover styles.
+        if (isLoading && !shouldShowLoadingIndicatorIfLoading) return;
+
+        // Hovering has been unsuppressed! We don't need to listen for `pointermove`
+        // events anymore.
+        if (!suppressHover) return;
+
+        const handlePointerMove = () => {
+            setSuppressHover(false);
+        };
+
+        document.addEventListener("pointermove", handlePointerMove, true);
+        return () => {
+            document.removeEventListener("pointermove", handlePointerMove, true);
+        };
+    }, [isLoading, shouldShowLoadingIndicatorIfLoading, suppressHover]);
+
     if (isLoading && !shouldShowLoadingIndicatorIfLoading) return null;
 
     let overlayItemIndex = 0;
@@ -761,6 +785,7 @@ export function ContentEditorMentionFloater({
                                                 isClosing={isClosing}
                                                 isFocusVisible={selectionState.isFocusVisible}
                                                 isSelected={selectionState.index === index}
+                                                suppressHover={suppressHover}
                                                 action={item.action}
                                                 onPress={item.onPress}
                                             />
@@ -776,6 +801,7 @@ export function ContentEditorMentionFloater({
                                                 isClosing={isClosing}
                                                 isFocusVisible={selectionState.isFocusVisible}
                                                 isSelected={selectionState.index === index}
+                                                suppressHover={suppressHover}
                                                 accountData={item.accountData}
                                                 onPress={item.onPress}
                                             />
@@ -791,6 +817,7 @@ export function ContentEditorMentionFloater({
                                                 isClosing={isClosing}
                                                 isFocusVisible={selectionState.isFocusVisible}
                                                 isSelected={selectionState.index === index}
+                                                suppressHover={suppressHover}
                                                 entity={item.entity}
                                                 onPress={item.onPress}
                                             />
@@ -869,6 +896,7 @@ function ContentEditorMentionFloaterItemBase({
     isSelected,
     isFocusVisible,
     isClosing,
+    suppressHover,
     children,
     onPress,
 }: {
@@ -878,6 +906,7 @@ function ContentEditorMentionFloaterItemBase({
     isSelected: boolean;
     isFocusVisible: boolean;
     isClosing: boolean;
+    suppressHover: boolean;
     children: ReactNode | ((props: {isPressed: boolean}) => ReactNode);
     onPress: () => void;
 }) {
@@ -885,7 +914,9 @@ function ContentEditorMentionFloaterItemBase({
 
     const itemRef = useRef<HTMLDivElement>(null);
 
-    const {isHovered, hoverProps} = useHover({});
+    const {isHovered: isHoveredFromState, hoverProps} = useHover({});
+
+    const isHovered = isHoveredFromState && !suppressHover;
 
     const {isPressed, pressProps} = usePress({
         onPress,
@@ -975,6 +1006,7 @@ function ContentEditorMentionFloaterAccountItem({
     isFocusVisible,
     isClosing,
     accountData,
+    suppressHover,
     onPress,
 }: {
     menuRef: RefObject<HTMLDivElement | null>;
@@ -984,6 +1016,7 @@ function ContentEditorMentionFloaterAccountItem({
     isFocusVisible: boolean;
     isClosing: boolean;
     accountData: AccountModelData;
+    suppressHover: boolean;
     onPress: () => void;
 }) {
     return (
@@ -994,6 +1027,7 @@ function ContentEditorMentionFloaterAccountItem({
             isSelected={isSelected}
             isFocusVisible={isFocusVisible}
             isClosing={isClosing}
+            suppressHover={suppressHover}
             onPress={onPress}
         >
             <AccountAvatar account={accountData} size="5" />
@@ -1011,6 +1045,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isSelected,
     isFocusVisible,
     isClosing,
+    suppressHover,
     entity,
     onPress,
 }: {
@@ -1020,6 +1055,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isSelected: boolean;
     isFocusVisible: boolean;
     isClosing: boolean;
+    suppressHover: boolean;
     entity: SearchEntityModel;
     onPress: () => void;
 }) {
@@ -1043,6 +1079,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
             isSelected={isSelected}
             isFocusVisible={isFocusVisible}
             isClosing={isClosing}
+            suppressHover={suppressHover}
             onPress={onPress}
         >
             <Box display="flex" alignItems="flex-start">
@@ -1102,6 +1139,7 @@ function ContentEditorMentionFloaterInsertItem({
     isFocusVisible,
     isClosing,
     action,
+    suppressHover,
     onPress,
 }: {
     menuRef: RefObject<HTMLDivElement | null>;
@@ -1111,6 +1149,7 @@ function ContentEditorMentionFloaterInsertItem({
     isFocusVisible: boolean;
     isClosing: boolean;
     action: ContentEditorInsertMenuAction;
+    suppressHover: boolean;
     onPress: () => void;
 }) {
     return (
@@ -1121,6 +1160,7 @@ function ContentEditorMentionFloaterInsertItem({
             isSelected={isSelected}
             isFocusVisible={isFocusVisible}
             isClosing={isClosing}
+            suppressHover={suppressHover}
             onPress={onPress}
         >
             {({isPressed}) => (
