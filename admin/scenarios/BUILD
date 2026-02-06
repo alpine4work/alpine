@@ -8,6 +8,7 @@ ts_project(
         # Exclude dot-files like `.DS_Store` on MacOS.
         exclude = ["fixtures/**/.*"],
     ),
+    visibility = ["//admin/scenarios:__subpackages__"],
     deps = [
         "//:node_modules/@inquirer/prompts",
         "//:node_modules/@internationalized/date",
