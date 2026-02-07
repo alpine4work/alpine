@@ -109,6 +109,11 @@ export class AwsGithubRunners extends Construct {
                             // Includes `gcc` and `make` among other common build tools. Necessary for
                             // building some npm packages.
                             "build-essential",
+                            // LLVM's linker. When Bazel auto-configures the CC toolchain it looks
+                            // for `lld` first, falling back to `gold` (from binutils). `gold` is
+                            // deprecated and `rustc` warns when it's used. Installing `lld` makes
+                            // Bazel prefer it, which is also faster.
+                            "lld",
                             // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to
                             // enable remote caching before anything is built by Bazel.
                             "nodejs",
