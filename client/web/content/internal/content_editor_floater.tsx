@@ -21,7 +21,10 @@ import {
     ContentEditorHighlightSelectorRef,
 } from "~/client/web/content/internal/content_editor_highlight_selector.js";
 import {ContentEditorLinkInput} from "~/client/web/content/internal/content_editor_link_input.js";
-import {ContentEditorMentionFloater} from "~/client/web/content/internal/content_editor_mention_floater.js";
+import {
+    ContentEditorMentionFloater,
+    ContentEditorMentionFloaterSectionOrder,
+} from "~/client/web/content/internal/content_editor_mention_floater.js";
 import {ContentEditorPointerToolbar} from "~/client/web/content/internal/content_editor_pointer_toolbar.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/web/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {ContentEditorFloaterState} from "~/client/web/content/state/content_editor_floater_state.js";
@@ -52,6 +55,7 @@ export function ContentEditorFloater({
     hasSelectionEnteredWhenUnfocused,
     setDecorationCallbacks,
     commentFileAttachmentTarget,
+    mentionFloaterSectionOrder,
 }: {
     platform: Platform;
     state: EditorState & {schema: ContentProsemirrorSchema};
@@ -72,6 +76,7 @@ export function ContentEditorFloater({
         >
     >;
     commentFileAttachmentTarget: Memo<FileAttachmentTarget> | undefined;
+    mentionFloaterSectionOrder: ContentEditorMentionFloaterSectionOrder;
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
@@ -141,6 +146,7 @@ export function ContentEditorFloater({
                     handleKeyDownRef={floaterState.handleKeyDownRef}
                     isFocused={isFocused}
                     isClosing={floaterState.isClosing}
+                    sectionOrder={mentionFloaterSectionOrder}
                     onCloseWithoutAnimation={() =>
                         setFloaterState({type: "PointerToolbar", previousState: floaterState})
                     }

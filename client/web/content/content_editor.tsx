@@ -69,6 +69,7 @@ import {
     isContentTableBlockNode,
 } from "~/client/web/content/internal/content_editor_insert.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/web/content/internal/content_editor_link_mark_view.js";
+import {ContentEditorMentionFloaterSectionOrder} from "~/client/web/content/internal/content_editor_mention_floater.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/web/content/internal/content_editor_mention_node_view.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/web/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
 import {ContentEditorMobileKeyboardToolbar} from "~/client/web/content/internal/content_editor_mobile_keyboard_toolbar.js";
@@ -485,6 +486,22 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     withoutMobileDualModality?: boolean;
 
     /**
+     * The order of sections in the mention menu when there's no search query.
+     *
+     * - `PeopleSuggestedInsert`: People section first, then Suggested, then Insert.
+     *   This is the default, use for message inputs, post inputs, etc.
+     * - `InsertSuggestedPeople`: Insert section first, then Suggested, then People.
+     *   Use this for document content editors.
+     * - `SuggestedInsertPeople`: Suggested section first, then Insert, then People.
+     *   Use this for task notes content editors.
+     *
+     * When there is a search query, the order is always: Insert, People, Other.
+     *
+     * Defaults to `PeopleSuggestedInsert`.
+     */
+    mentionFloaterSectionOrder?: ContentEditorMentionFloaterSectionOrder;
+
+    /**
      * If the content editor supports files then you must pass in
      * `FileAttachmentTarget`. This prop is used:
      *
@@ -879,6 +896,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         accessLevel = "Manage",
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
+        mentionFloaterSectionOrder = "PeopleSuggestedInsert",
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         onFocus,
@@ -4910,6 +4928,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 hasSelectionEnteredWhenUnfocused={hasSelectionEnteredWhenUnfocused}
                 setDecorationCallbacks={setDecorationCallbacks}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
+                mentionFloaterSectionOrder={mentionFloaterSectionOrder}
             />
             <ContentEditorFileToolbarController
                 state={unwrappedState}

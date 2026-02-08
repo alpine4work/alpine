@@ -1887,6 +1887,22 @@ export function DocumentContentEditor({
                                         : "Share your ideas…"
                                 }
                                 accessLevel={accessLevel}
+                                // When you're typing in the first paragraph of a document (2 child nodes,
+                                // title + paragraph) you probably want to insert some formatting (like a
+                                // table). This helps the user discover features of Alpine documents. Since we
+                                // prompt them with "press @ to insert" as a placeholder.
+                                //
+                                // As you're typing a long document probably the next thing you want to do is
+                                // mention another document, task, or something else.
+                                //
+                                // Mentioning a person is probably the last thing you want to do while working
+                                // on a document since mentions won't send a notification when typing in a
+                                // document.
+                                mentionFloaterSectionOrder={
+                                    content.doc.childCount <= 2
+                                        ? "InsertSuggestedPeople"
+                                        : "SuggestedInsertPeople"
+                                }
                                 // While the sidebar is open, don't render our document toolbar. It would be
                                 // weird for it to pop up when writing a comment.
                                 withoutMobileKeyboardToolbar={sidebarState.isOpen}

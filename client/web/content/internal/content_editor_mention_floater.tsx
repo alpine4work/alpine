@@ -100,6 +100,17 @@ const maxAccountCount = 5;
  */
 const fuseScoreMatchCutoff = 0.35;
 
+/**
+ * The order of sections in the mention menu when there's no search query.
+ *
+ * When there is a search query insert is always first (the other sections
+ * follow the same order).
+ */
+export type ContentEditorMentionFloaterSectionOrder =
+    | "PeopleSuggestedInsert"
+    | "InsertSuggestedPeople"
+    | "SuggestedInsertPeople";
+
 export function ContentEditorMentionFloater({
     state,
     viewRef,
@@ -108,6 +119,7 @@ export function ContentEditorMentionFloater({
     handleKeyDownRef,
     isFocused,
     isClosing,
+    sectionOrder,
     onCloseWithoutAnimation: onCloseWithoutAnimationFromProps,
     onCloseWithAnimation: onCloseWithAnimationFromProps,
 }: {
@@ -123,6 +135,7 @@ export function ContentEditorMentionFloater({
     handleKeyDownRef: RefObject<((event: KeyboardEvent) => void) | null>;
     isFocused: boolean;
     isClosing: boolean;
+    sectionOrder: ContentEditorMentionFloaterSectionOrder;
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
@@ -443,58 +456,88 @@ export function ContentEditorMentionFloater({
         const hasSearchMentionResults =
             searchMentionOutput.results !== null && searchMentionOutput.results.length > 0;
         const hasSearchedInsertMenuActions = searchedInsertMenuActions.length > 0;
-        const isSearchedInsertMenuActionsFirst = searchMentionOutput.queryText.length > 0;
+        const hasSearchQuery = searchMentionOutput.queryText.length > 0;
 
         const itemSections: Array<{
             title: string;
             items: ReadonlyArray<Item>;
         }> = [];
 
-        if (isSearchedInsertMenuActionsFirst && hasSearchedInsertMenuActions) {
-            itemSections.push({
-                title: "Insert",
-                items: searchedInsertMenuActions.map(action => ({
-                    type: "Insert",
-                    action,
-                    onPress: action.onPress,
-                })),
-            });
-        }
+        const insertSection = hasSearchedInsertMenuActions
+            ? {
+                  title: "Insert",
+                  items: searchedInsertMenuActions.map(action => ({
+                      type: "Insert" as const,
+                      action,
+                      onPress: action.onPress,
+                  })),
+              }
+            : null;
 
-        if (hasSearchedAccountDatas) {
-            itemSections.push({
-                title: "People",
-                items: searchedAccountDatas.map(accountData => ({
-                    type: "Account",
-                    accountData,
-                    onPress: () => saveAccountMention(accountData),
-                })),
-            });
-        }
+        const peopleSection = hasSearchedAccountDatas
+            ? {
+                  title: "People",
+                  items: searchedAccountDatas.map(accountData => ({
+                      type: "Account" as const,
+                      accountData,
+                      onPress: () => saveAccountMention(accountData),
+                  })),
+              }
+            : null;
 
-        if (hasSearchMentionResults) {
-            itemSections.push({
-                title: searchMentionOutput.queryText.length === 0 ? "Suggested" : "Other",
-                items: searchMentionOutput.results.map(result => ({
-                    type: "SearchEntity",
-                    entity: result.model,
-                    onPress: () =>
-                        saveSearchEntityMention(
-                            searchEntityRegistry.getEntityStore(result.model).getSnapshot(),
-                        ),
-                })),
-            });
-        }
+        const suggestedSection = hasSearchMentionResults
+            ? {
+                  title: hasSearchQuery ? "Other" : "Suggested",
+                  items: searchMentionOutput.results.map(result => ({
+                      type: "SearchEntity" as const,
+                      entity: result.model,
+                      onPress: () =>
+                          saveSearchEntityMention(
+                              searchEntityRegistry.getEntityStore(result.model).getSnapshot(),
+                          ),
+                  })),
+              }
+            : null;
 
-        if (!isSearchedInsertMenuActionsFirst && hasSearchedInsertMenuActions) {
-            itemSections.push({
-                title: "Insert",
-                items: searchedInsertMenuActions.map(action => ({
-                    type: "Insert",
-                    action,
-                    onPress: action.onPress,
-                })),
-            });
+        switch (sectionOrder) {
+            case "PeopleSuggestedInsert": {
+                if (!hasSearchQuery) {
+                    if (peopleSection) itemSections.push(peopleSection);
+                    if (suggestedSection) itemSections.push(suggestedSection);
+                    if (insertSection) itemSections.push(insertSection);
+                } else {
+                    // If there's a search query, put the insert section first. Since insert matches
+                    // are near exact matches.
+                    if (insertSection) itemSections.push(insertSection);
+
+                    if (peopleSection) itemSections.push(peopleSection);
+                    if (suggestedSection) itemSections.push(suggestedSection);
+                }
+                break;
+            }
+            case "InsertSuggestedPeople": {
+                if (insertSection) itemSections.push(insertSection);
+                if (suggestedSection) itemSections.push(suggestedSection);
+                if (peopleSection) itemSections.push(peopleSection);
+                break;
+            }
+            case "SuggestedInsertPeople": {
+                if (!hasSearchQuery) {
+                    if (suggestedSection) itemSections.push(suggestedSection);
+                    if (insertSection) itemSections.push(insertSection);
+                    if (peopleSection) itemSections.push(peopleSection);
+                } else {
+                    // If there's a search query, put the insert section first. Since insert matches
+                    // are near exact matches.
+                    if (insertSection) itemSections.push(insertSection);
+
+                    if (suggestedSection) itemSections.push(suggestedSection);
+                    if (peopleSection) itemSections.push(peopleSection);
+                }
+                break;
+            }
+            default:
+                throw exhaustive(sectionOrder);
         }
 
         return itemSections;
@@ -506,6 +549,7 @@ export function ContentEditorMentionFloater({
         searchMentionOutput.results,
         searchedAccountDatas,
         searchedInsertMenuActions,
+        sectionOrder,
     ]);
 
     const items = useMemo(() => itemSections.flatMap(section => section.items), [itemSections]);

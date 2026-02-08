@@ -129,6 +129,10 @@ function TaskDetailNotesField(
                             onChange={onNotesEditorStateChange}
                             placeholder="Add more details…"
                             fileAttachmentTarget={fileAttachmentTarget}
+                            // Mentioning a person is probably the last thing you want to do while working
+                            // on task notes since mentions won't send a notification when typing in
+                            // task notes.
+                            mentionFloaterSectionOrder="SuggestedInsertPeople"
                             className={classNames(
                                 tasksStyles.detailNotesContentEditorClassName,
                                 sprinkles({paddingX: screenPaddingX}),
