@@ -1,9 +1,4 @@
-import {
-    Modality,
-    getInteractionModality,
-    isFocusVisible as getIsFocusVisible,
-    setInteractionModality,
-} from "@react-aria/interactions";
+import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
 import {IconContext, MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {EditorState, Selection, TextSelection} from "prosemirror-state";
@@ -518,17 +513,20 @@ export function ContentEditorMentionFloater({
     const [actualSelectionState, setSelectionState] = useState<{
         searchKey: string;
         index: number | null;
-        isFocusVisible: boolean;
     }>({
         searchKey: searchMentionOutput.key,
         index: null,
-        isFocusVisible: false,
     });
 
     const selectionState =
         actualSelectionState.searchKey !== searchMentionOutput.key ||
         (actualSelectionState.index !== null && actualSelectionState.index >= items.length)
-            ? {searchKey: searchMentionOutput.key, index: null, isFocusVisible: false}
+            ? {
+                  searchKey: searchMentionOutput.key,
+                  // Automatically select the first item if the user has started typing a search
+                  // query and there's at least one item.
+                  index: searchMentionOutput.queryText.length > 0 && items.length > 0 ? 0 : null,
+              }
             : actualSelectionState;
 
     if (selectionState !== actualSelectionState) setSelectionState(selectionState);
@@ -580,7 +578,6 @@ export function ContentEditorMentionFloater({
                             selectionState.index === items.length - 1
                                 ? 0
                                 : selectionState.index + 1,
-                        isFocusVisible: getIsFocusVisible(),
                     });
                 }
                 break;
@@ -603,7 +600,6 @@ export function ContentEditorMentionFloater({
                             selectionState.index === null || selectionState.index === 0
                                 ? items.length - 1
                                 : selectionState.index - 1,
-                        isFocusVisible: getIsFocusVisible(),
                     });
                 }
                 break;
@@ -624,7 +620,6 @@ export function ContentEditorMentionFloater({
                     setSelectionState({
                         searchKey: searchMentionOutput.key,
                         index: 0,
-                        isFocusVisible: getIsFocusVisible(),
                     });
                 }
                 break;
@@ -645,7 +640,6 @@ export function ContentEditorMentionFloater({
                     setSelectionState({
                         searchKey: searchMentionOutput.key,
                         index: items.length - 1,
-                        isFocusVisible: getIsFocusVisible(),
                     });
                 }
                 break;
@@ -783,7 +777,6 @@ export function ContentEditorMentionFloater({
                                                 isFirst={index === 0}
                                                 isLast={index === items.length - 1}
                                                 isClosing={isClosing}
-                                                isFocusVisible={selectionState.isFocusVisible}
                                                 isSelected={selectionState.index === index}
                                                 suppressHover={suppressHover}
                                                 action={item.action}
@@ -799,7 +792,6 @@ export function ContentEditorMentionFloater({
                                                 isFirst={index === 0}
                                                 isLast={index === items.length - 1}
                                                 isClosing={isClosing}
-                                                isFocusVisible={selectionState.isFocusVisible}
                                                 isSelected={selectionState.index === index}
                                                 suppressHover={suppressHover}
                                                 accountData={item.accountData}
@@ -815,7 +807,6 @@ export function ContentEditorMentionFloater({
                                                 isFirst={index === 0}
                                                 isLast={index === items.length - 1}
                                                 isClosing={isClosing}
-                                                isFocusVisible={selectionState.isFocusVisible}
                                                 isSelected={selectionState.index === index}
                                                 suppressHover={suppressHover}
                                                 entity={item.entity}
@@ -894,7 +885,6 @@ function ContentEditorMentionFloaterItemBase({
     isFirst,
     isLast,
     isSelected,
-    isFocusVisible,
     isClosing,
     suppressHover,
     children,
@@ -904,7 +894,6 @@ function ContentEditorMentionFloaterItemBase({
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean;
-    isFocusVisible: boolean;
     isClosing: boolean;
     suppressHover: boolean;
     children: ReactNode | ((props: {isPressed: boolean}) => ReactNode);
@@ -931,7 +920,7 @@ function ContentEditorMentionFloaterItemBase({
             const itemElement = assertExists(itemRef.current);
             assert(itemElement.offsetParent === menuElement);
 
-            if (!isSelected || !isFocusVisible) {
+            if (!isSelected) {
                 wasScrolledInRef.current = false;
                 return;
             }
@@ -969,12 +958,12 @@ function ContentEditorMentionFloaterItemBase({
         return () => {
             isCancelled = true;
         };
-    }, [isFirst, isFocusVisible, isLast, isSelected, menuRef]);
+    }, [isFirst, isLast, isSelected, menuRef]);
 
     return (
         <FocusRing
             offset="inset"
-            isVisible={isSelected && isFocusVisible && !isClosing}
+            isVisible={isSelected && !isClosing}
             shouldIgnoreFocusEvents={true}
         >
             <Box
@@ -1003,7 +992,6 @@ function ContentEditorMentionFloaterAccountItem({
     isFirst,
     isLast,
     isSelected,
-    isFocusVisible,
     isClosing,
     accountData,
     suppressHover,
@@ -1013,7 +1001,6 @@ function ContentEditorMentionFloaterAccountItem({
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean;
-    isFocusVisible: boolean;
     isClosing: boolean;
     accountData: AccountModelData;
     suppressHover: boolean;
@@ -1025,7 +1012,6 @@ function ContentEditorMentionFloaterAccountItem({
             isFirst={isFirst}
             isLast={isLast}
             isSelected={isSelected}
-            isFocusVisible={isFocusVisible}
             isClosing={isClosing}
             suppressHover={suppressHover}
             onPress={onPress}
@@ -1043,7 +1029,6 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isFirst,
     isLast,
     isSelected,
-    isFocusVisible,
     isClosing,
     suppressHover,
     entity,
@@ -1053,7 +1038,6 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean;
-    isFocusVisible: boolean;
     isClosing: boolean;
     suppressHover: boolean;
     entity: SearchEntityModel;
@@ -1077,7 +1061,6 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
             isFirst={isFirst}
             isLast={isLast}
             isSelected={isSelected}
-            isFocusVisible={isFocusVisible}
             isClosing={isClosing}
             suppressHover={suppressHover}
             onPress={onPress}
@@ -1136,7 +1119,6 @@ function ContentEditorMentionFloaterInsertItem({
     isFirst,
     isLast,
     isSelected,
-    isFocusVisible,
     isClosing,
     action,
     suppressHover,
@@ -1146,7 +1128,6 @@ function ContentEditorMentionFloaterInsertItem({
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean;
-    isFocusVisible: boolean;
     isClosing: boolean;
     action: ContentEditorInsertMenuAction;
     suppressHover: boolean;
@@ -1158,7 +1139,6 @@ function ContentEditorMentionFloaterInsertItem({
             isFirst={isFirst}
             isLast={isLast}
             isSelected={isSelected}
-            isFocusVisible={isFocusVisible}
             isClosing={isClosing}
             suppressHover={suppressHover}
             onPress={onPress}
