@@ -27,6 +27,7 @@ import {
 } from "~/client/web/content/internal/content_editor_mention_floater.js";
 import {ContentEditorPointerToolbar} from "~/client/web/content/internal/content_editor_pointer_toolbar.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/web/content/internal/helpers/get_marks_spanning_across_entire_range.js";
+import {FileInfoWithEntity} from "~/client/web/content/internal/iterate_file_infos_in_element.js";
 import {ContentEditorFloaterState} from "~/client/web/content/state/content_editor_floater_state.js";
 import {Box} from "~/client/web/design/box.js";
 import {useOutsidePress} from "~/client/web/design/helpers/use_outside_interaction.js";
@@ -43,6 +44,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
 export function ContentEditorFloater({
     platform,
@@ -56,6 +58,7 @@ export function ContentEditorFloater({
     setDecorationCallbacks,
     commentFileAttachmentTarget,
     mentionFloaterSectionOrder,
+    onPasteOrDropFiles,
 }: {
     platform: Platform;
     state: EditorState & {schema: ContentProsemirrorSchema};
@@ -77,6 +80,10 @@ export function ContentEditorFloater({
     >;
     commentFileAttachmentTarget: Memo<FileAttachmentTarget> | undefined;
     mentionFloaterSectionOrder: ContentEditorMentionFloaterSectionOrder;
+    // Optional callback to handle file entities when the content doesn't support file nodes.
+    onPasteOrDropFiles?: (
+        fileInfos: ReadonlyArray<FileInfoWithEntity>,
+    ) => SafeFloatingPromise<void>;
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
@@ -151,6 +158,7 @@ export function ContentEditorFloater({
                         setFloaterState({type: "PointerToolbar", previousState: floaterState})
                     }
                     onCloseWithAnimation={() => setFloaterState({...floaterState, isClosing: true})}
+                    onPasteOrDropFiles={onPasteOrDropFiles}
                 />
             );
         }

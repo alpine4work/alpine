@@ -1,7 +1,7 @@
 import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
 import {IconContext, MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {EditorState, Selection, TextSelection} from "prosemirror-state";
+import {EditorState, NodeSelection, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     Fragment,
@@ -23,11 +23,14 @@ import {
     ContentEditorInsertMenuAction,
     getContentEditorInsertMenuActions,
 } from "~/client/web/content/internal/get_content_editor_insert_menu_actions.js";
+import {FileInfoWithEntity} from "~/client/web/content/internal/iterate_file_infos_in_element.js";
 import {useSearchMentionState} from "~/client/web/content/internal/use_search_mention_state.js";
 import {
+    rememberContentEditorPosWhileLoading,
     setContentEditorQuickUndo,
     updateContentEditorReferences,
 } from "~/client/web/content/state/content_editor_state.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {Menu} from "~/client/web/design/menu.js";
@@ -35,6 +38,7 @@ import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js
 import {OverlayRef} from "~/client/web/design/overlay.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {useReporter} from "~/client/web/design/reporter.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {useConstant} from "~/client/web/helpers/lifecycle/use_constant.js";
@@ -61,10 +65,12 @@ import {
 } from "~/client/web/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -74,12 +80,16 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
+import {getFileEntityIfPossible} from "~/shared/rpc/files_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {deletedSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {
+    SearchMentionEntityId,
     isSearchDynamicEntityType,
     isSearchMentionEntityId,
+    parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
@@ -122,6 +132,7 @@ export function ContentEditorMentionFloater({
     sectionOrder,
     onCloseWithoutAnimation: onCloseWithoutAnimationFromProps,
     onCloseWithAnimation: onCloseWithAnimationFromProps,
+    onPasteOrDropFiles,
 }: {
     state: EditorState;
     viewRef: RefObject<
@@ -138,14 +149,143 @@ export function ContentEditorMentionFloater({
     sectionOrder: ContentEditorMentionFloaterSectionOrder;
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
+    // Optional callback to handle file entities when the content doesn't support file nodes
+    // (e.g. message inputs that support file attachments but not inline file previews).
+    onPasteOrDropFiles?: (
+        fileInfos: ReadonlyArray<FileInfoWithEntity>,
+    ) => SafeFloatingPromise<void>;
 }) {
     const platform = usePlatform();
+    const context = useAppContext();
+    const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const searchEntityRegistry = useSearchEntityRegistry();
 
     const overlayRef = useRef<OverlayRef>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const mergedMenuRef = useMergedRefs(menuRef, useScrollbar());
+
+    // Track which search entity is pending when inserting a file entity preview.
+    const [pendingEntityId, setPendingEntityId] = useState<SearchMentionEntityId | null>(null);
+
+    const tryToSaveSearchEntityMentionAsFileEntity = (insertFileEntityId: FileEntityId) => {
+        const view = assertExists(viewRef.current);
+        const schema = view.state.schema;
+
+        // If the schema doesn't support files (e.g. message content) then we don't
+        // want to insert a file entity preview. But if there's an `onAttachFileEntity`
+        // callback (message inputs) we want to call that.
+        if (!schema.nodes.fileRow || !schema.nodes.file) {
+            if (!onPasteOrDropFiles) return false;
+
+            // Set pending state for async operation
+            setPendingEntityId(insertFileEntityId);
+
+            // Attach file to input (e.g. message inputs that don't support file nodes)
+            onPasteOrDropFiles([
+                {
+                    type: "AttachFileEntity",
+                    spaceId: space.id,
+                    fileEntityId: insertFileEntityId,
+                },
+            ]).then(
+                () => {
+                    // Clear the mention text from the editor
+                    const transaction = view.state.tr.delete(range.from, range.to);
+                    view.dispatch(transaction);
+
+                    onCloseWithoutAnimation();
+                },
+                error => {
+                    // We only call `setPendingEntityId(null)` on error since on success we close
+                    // the mention floater (so the state is implicitly cleared).
+                    setPendingEntityId(null);
+
+                    const entityIdObject = parseSearchMentionEntityId(insertFileEntityId);
+                    reporter.displayError(
+                        `Couldn\u2019t add ${getSearchEntityNoun(entityIdObject.type)}`,
+                        error,
+                    );
+                },
+            );
+
+            // We kicked of a promise that will insert the file entity.
+            return true;
+        }
+
+        const $from = view.state.doc.resolve(range.from);
+        const paragraphStart = $from.before();
+
+        // Set pending state for async operation
+        setPendingEntityId(insertFileEntityId);
+
+        // Start loading the file entity data
+        const promise = getFileEntityIfPossible(context, {
+            spaceId: space.id,
+            fileEntityId: insertFileEntityId,
+        });
+
+        const finalPromise = promise
+            .then(({fileEntityResult}) => {
+                const paragraphStart = assertExists(getPos());
+
+                // Find the paragraph end from the mapped start position
+                const $paragraphStart = view.state.doc.resolve(paragraphStart);
+                const paragraphNode = $paragraphStart.nodeAfter;
+                if (!paragraphNode || paragraphNode.type.name !== "paragraph") return;
+
+                const paragraphEnd = paragraphStart + paragraphNode.nodeSize;
+
+                // Create the file row node
+                const fileRowNode = (
+                    $paragraphStart.parent.type.name === "tableCell"
+                        ? schema.nodes.fileRowTable!
+                        : schema.nodes.fileRow!
+                ).create(null, [schema.nodes.file!.create({fileId: insertFileEntityId})]);
+
+                const transaction = view.state.tr;
+
+                transaction.replaceWith(paragraphStart, paragraphEnd, fileRowNode);
+
+                // Make sure we select the file entity we just inserted.
+                transaction.setSelection(
+                    new NodeSelection(transaction.doc.resolve(paragraphStart + 1)),
+                );
+
+                // Replace the paragraph with the file row
+                updateContentEditorReferences(transaction, {
+                    type: "MergeBase",
+                    references: {
+                        ...emptyContentReferences,
+                        fileEntityById: new Map([[insertFileEntityId, fileEntityResult]]),
+                    },
+                });
+
+                view.dispatch(transaction);
+            })
+            .then(
+                () => {
+                    onCloseWithoutAnimation();
+                },
+                error => {
+                    // We only call `setPendingEntityId(null)` on error since on success we close
+                    // the mention floater (so the state is implicitly cleared).
+                    setPendingEntityId(null);
+
+                    const entityIdObject = parseSearchMentionEntityId(insertFileEntityId);
+                    reporter.displayError(
+                        `Couldn\u2019t add ${getSearchEntityNoun(entityIdObject.type)}`,
+                        error,
+                    );
+                },
+            );
+
+        // Remember the paragraph position while loading
+        const {getPos} = rememberContentEditorPosWhileLoading(view, paragraphStart, finalPromise);
+
+        // We kicked of a promise that will insert the file entity.
+        return true;
+    };
 
     const {
         onCloseWithoutAnimation,
@@ -224,10 +364,61 @@ export function ContentEditorMentionFloater({
         },
 
         saveSearchEntityMention: (entityData: SearchEntityModelData) => {
+            // Prevent double-clicks while loading
+            if (pendingEntityId !== null) return;
+
             assert(isSearchMentionEntityId(entityData.id));
 
             const view = assertExists(viewRef.current);
 
+            // Check if we should insert a file entity preview instead of an inline mention.
+            // Conditions:
+            // 1. Entity supports file preview (isFileEntityId)
+            // 2. Schema supports file nodes
+            // 3. Range is in an empty paragraph (paragraph only contains `@` + search text)
+            // 4. Paragraph is directly in doc or tableCell (not nested in other blocks)
+            const insertFileEntityId: FileEntityId | null = (() => {
+                if (!isFileEntityId(entityData.id)) return null;
+
+                const $from = view.state.doc.resolve(range.from);
+                const parentNode = $from.parent;
+
+                // Check if we're in a paragraph directly in doc or tableCell
+                if (parentNode.type.name !== "paragraph") return null;
+
+                // Check if paragraph only contains the mention text (@ + search query)
+                // The @ is at position 0 and the mention range covers the rest
+                const isEmptyParagraph =
+                    $from.parentOffset === 0 && // @ is at start of paragraph
+                    parentNode.content.size === range.to - range.from; // paragraph only has mention text
+
+                if (!isEmptyParagraph) return null;
+
+                const grandParentNode = $from.node(-1);
+
+                // Check if the paragraph can be replaced by a `fileRow`. (So that means we're
+                // in a `doc` or `tableCell` node most likely.)
+                if (
+                    grandParentNode.type.name !== "doc" &&
+                    grandParentNode.type.name !== "tableCell"
+                ) {
+                    return null;
+                }
+
+                return entityData.id;
+            })();
+
+            if (
+                insertFileEntityId !== null &&
+                // If this function returns true then we inserted a file entity! (Or we kicked
+                // off a promise that will insert a file entity.) If it returns false then we
+                // need to insert an inline mention.
+                tryToSaveSearchEntityMentionAsFileEntity(insertFileEntityId)
+            ) {
+                return;
+            }
+
+            // Default: insert inline mention
             const mention: ContentMention = {type: "SearchEntity", entityId: entityData.id};
 
             const transaction = updateContentEditorReferences(
@@ -852,6 +1043,7 @@ export function ContentEditorMentionFloater({
                                                 isLast={index === items.length - 1}
                                                 isClosing={isClosing}
                                                 isSelected={selectionState.index === index}
+                                                isPending={pendingEntityId === item.entity.id}
                                                 suppressHover={suppressHover}
                                                 entity={item.entity}
                                                 onPress={item.onPress}
@@ -1074,6 +1266,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isLast,
     isSelected,
     isClosing,
+    isPending,
     suppressHover,
     entity,
     onPress,
@@ -1083,6 +1276,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isLast: boolean;
     isSelected: boolean;
     isClosing: boolean;
+    isPending: boolean;
     suppressHover: boolean;
     entity: SearchEntityModel;
     onPress: () => void;
@@ -1099,6 +1293,9 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
 
     const paddingYPx = (searchEntityViewTitleLineHeightPx[spacingScale] - lineHeightPx) / 2;
 
+    // Delay showing the spinner to avoid flicker for fast operations.
+    const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
+
     return (
         <ContentEditorMentionFloaterItemBase
             menuRef={menuRef}
@@ -1109,7 +1306,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
             suppressHover={suppressHover}
             onPress={onPress}
         >
-            <Box display="flex" alignItems="flex-start">
+            <Box display="flex" alignItems="flex-start" width="full">
                 <SearchEntityViewTitlePrefix
                     icon={typeDisplay.icon}
                     media={entityData.media}
@@ -1118,6 +1315,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
                 <Box
                     fontSize={fontSize}
                     overflow="hidden"
+                    flexGrow="1"
                     style={{
                         lineHeight: `${lineHeightPx}px`,
                         paddingTop: paddingYPx,
@@ -1153,6 +1351,20 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
                             `${deletedSearchEntityTitle} ${getSearchEntityNoun(typeDisplay.type)}`
                           : null}
                 </Box>
+                {shouldShowPendingSpinner && (
+                    <Box
+                        display="flex"
+                        alignItems="center"
+                        paddingLeft="2"
+                        style={{height: searchEntityViewTitleLineHeightPx[spacingScale]}}
+                    >
+                        <SpinnerGap
+                            className={spinAnimationClassName}
+                            size={spacing["4"]}
+                            color={colorSchemeVars["grey-70"]}
+                        />
+                    </Box>
+                )}
             </Box>
         </ContentEditorMentionFloaterItemBase>
     );

@@ -136,8 +136,10 @@ import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_a
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {Id} from "~/shared/id/id.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
@@ -324,11 +326,11 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         addFiles: (
             spanName: string,
             fileInfos: ReadonlyArray<FileInfoWithEntity>,
-        ): {finally(listener: () => void): void} => {
+        ): SafeFloatingPromise<void> => {
             // Noop if we don't have an add file callback.
-            if (!onAddFile) return Promise.resolve();
+            if (!onAddFile) return voidSafeFloatingPromise;
 
-            if (fileInfos.length === 0) return Promise.resolve();
+            if (fileInfos.length === 0) return voidSafeFloatingPromise;
 
             // Make sure the input is focused when we add files. So the user can hit
             // "Enter" after dropping a file to send the message. This also has the effect
@@ -355,7 +357,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 reporter.displayError("Couldn\u2019t upload file", error);
             });
 
-            return promise;
+            // It's ok if this promise floats because we render a global loading indicator.
+            return promise as SafeFloatingPromise<void>;
         },
         drop: (dataTransfer: DataTransfer): {finally(listener: () => void): void} => {
             let hasHtmlFileInfos = false;
@@ -1300,12 +1303,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     onSend();
                                                 }}
                                                 onArrowUpKeyDown={onArrowUpKeyDown}
-                                                onPasteOrDropFiles={fileInfos => {
+                                                onPasteOrDropFiles={fileInfos =>
                                                     events.addFiles(
                                                         "<MessageInput> paste files",
                                                         fileInfos,
-                                                    );
-                                                }}
+                                                    )
+                                                }
                                                 // Don't render the default content editor mobile keyboard toolbar. We render
                                                 // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
                                                 withoutMobileKeyboardToolbar={true}

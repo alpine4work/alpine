@@ -96,10 +96,12 @@ import {
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
@@ -178,8 +180,8 @@ export function ContentEditorCommentInputFloater({
     const addFiles = (
         spanName: string,
         fileInfos: ReadonlyArray<FileInfoWithEntity>,
-    ): {finally(listener: () => void): void} => {
-        if (fileInfos.length === 0) return Promise.resolve();
+    ): SafeFloatingPromise<void> => {
+        if (fileInfos.length === 0) return voidSafeFloatingPromise;
 
         const promise = context.tracer.withSpan(spanName, async context => {
             await addMessageInputFiles(context, fileInfos, {
@@ -196,7 +198,8 @@ export function ContentEditorCommentInputFloater({
             reporter.displayError("Couldn\u2019t upload file", error);
         });
 
-        return promise;
+        // It's ok if this promise floats because we render a global loading indicator.
+        return promise as SafeFloatingPromise<void>;
     };
 
     const {dropTargetProps, dragOverlay} = useMessagingViewDropTarget({
@@ -314,7 +317,10 @@ function ContentEditorCommentInput({
     setCommentState: Dispatch<SetStateAction<ContentEditorState<MessageContentWithReferences>>>;
     files: ReadonlyArray<MessageInputFile>;
     setFiles: Dispatch<SetStateAction<ReadonlyArray<MessageInputFile>>>;
-    addFiles: (spanName: string, fileInfos: ReadonlyArray<FileInfoWithEntity>) => void;
+    addFiles: (
+        spanName: string,
+        fileInfos: ReadonlyArray<FileInfoWithEntity>,
+    ) => SafeFloatingPromise<void>;
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
@@ -667,12 +673,12 @@ function ContentEditorCommentInput({
                                         event.stopPropagation();
                                         assertExists(sendButtonRef.current).press();
                                     }}
-                                    onPasteOrDropFiles={fileInfos => {
+                                    onPasteOrDropFiles={fileInfos =>
                                         addFiles(
                                             "<ContentEditorCommentInputFloater> paste files",
                                             fileInfos,
-                                        );
-                                    }}
+                                        )
+                                    }
                                     // Don't render the default content editor mobile keyboard toolbar. We render
                                     // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
                                     withoutMobileKeyboardToolbar={true}

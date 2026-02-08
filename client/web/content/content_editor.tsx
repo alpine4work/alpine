@@ -215,6 +215,7 @@ import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
@@ -653,8 +654,13 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      *
      * For example `MessageContent` doesn't support files but `<MessageInput>` does
      * allow attaching files to a message.
+     *
+     * This is also called when selecting a file entity mention on an empty line in
+     * content that doesn't support file nodes.
      */
-    onPasteOrDropFiles?: (fileInfos: ReadonlyArray<FileInfoWithEntity>) => void;
+    onPasteOrDropFiles?: (
+        fileInfos: ReadonlyArray<FileInfoWithEntity>,
+    ) => SafeFloatingPromise<void>;
 
     /**
      * Custom `isBodyEmpty` prop. We'll consider the body empty if
@@ -905,6 +911,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         phantomSelections,
         fileAttachmentTarget,
         commentFileAttachmentTarget,
+        onPasteOrDropFiles,
         isBodyEmpty: isBodyEmptyFromProps,
         onSpellCheckIgnoreLint,
         spellCheckIgnoredLints,
@@ -2331,8 +2338,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             // Pass any files from this paste or drop we didn't handle to our parent
             // component.
-            if (temporaryPastedFileInfosForParent && temporaryPastedFileInfosForParent.length > 0) {
-                propsRef.current.onPasteOrDropFiles?.(temporaryPastedFileInfosForParent);
+            if (
+                temporaryPastedFileInfosForParent &&
+                temporaryPastedFileInfosForParent.length > 0 &&
+                propsRef.current.onPasteOrDropFiles
+            ) {
+                propsRef.current.onPasteOrDropFiles(temporaryPastedFileInfosForParent);
             }
 
             // We completely override ProseMirror's paste logic and implement our own. Our
@@ -2771,8 +2782,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             // Pass any files from this paste or drop we didn't handle to our parent
             // component.
-            if (temporaryPastedFileInfosForParent && temporaryPastedFileInfosForParent.length > 0) {
-                propsRef.current.onPasteOrDropFiles?.(temporaryPastedFileInfosForParent);
+            if (
+                temporaryPastedFileInfosForParent &&
+                temporaryPastedFileInfosForParent.length > 0 &&
+                propsRef.current.onPasteOrDropFiles
+            ) {
+                propsRef.current.onPasteOrDropFiles(temporaryPastedFileInfosForParent);
             }
 
             // We completely override ProseMirror's drop logic and implement our own. Our
@@ -4929,6 +4944,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 setDecorationCallbacks={setDecorationCallbacks}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
                 mentionFloaterSectionOrder={mentionFloaterSectionOrder}
+                onPasteOrDropFiles={onPasteOrDropFiles}
             />
             <ContentEditorFileToolbarController
                 state={unwrappedState}
