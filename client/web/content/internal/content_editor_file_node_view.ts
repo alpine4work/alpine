@@ -2,7 +2,7 @@ import {today} from "@internationalized/date";
 import {Node} from "prosemirror-model";
 import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
-import {MutableRefObject} from "react";
+import {RefObject} from "react";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {ContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
@@ -18,6 +18,7 @@ import {
 import {
     getContentEditorReferences,
     rememberContentEditorPosWhileLoading,
+    updateContentEditorReferences,
 } from "~/client/web/content/state/content_editor_state.js";
 import {layoutContentFile} from "~/client/web/content/state/content_file_layout.js";
 import {
@@ -25,6 +26,7 @@ import {
     resolveContentTableColumnWidthPx,
 } from "~/client/web/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {AppContext} from "~/client/web/context/app_context.js";
+import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {Reporter} from "~/client/web/design/reporter.js";
 import {ElementEventEmitter} from "~/client/web/helpers/element_event_emitter.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
@@ -41,21 +43,25 @@ import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {emptyContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
@@ -105,7 +111,7 @@ export function createContentEditorFileNodeViewConstructor({
         | Store<ContentFileEntityRenderers | null>;
     getAccessLevel: () => AccessLevel;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
-    draggingFileRef: MutableRefObject<{getPos: () => number | null} | null>;
+    draggingFileRef: RefObject<{getPos: () => number | null} | null>;
 }): NodeViewConstructor {
     return (node, view, getPos) => {
         let dom: HTMLElement;
@@ -119,6 +125,87 @@ export function createContentEditorFileNodeViewConstructor({
         let lastHtml: HtmlElementGenerator | null = null;
         let optimisticTableLayout: ContentEditorTableLayout | null = null;
         let cleanup: (() => void) | null = null;
+
+        const handleContextMenuAddFileEntityAction = (event: MouseEvent) => {
+            const fileId: FileId | FileEntityId | null = node.attrs.fileId;
+
+            if (!hasAccessLevel(getAccessLevel(), "Edit") || !fileId || !isFileEntityId(fileId))
+                return;
+
+            addContextMenuActions(event, [
+                [
+                    {
+                        label: "Turn into link",
+                        pressErrorTitle: "Couldn’t turn into link",
+                        onPress: async () => {
+                            const {schema} = view.state;
+
+                            const {references} = await getContentReferencesWithoutFiles(
+                                getContext(),
+                                {
+                                    spaceId: getSpaceId(),
+                                    referencedIds: {
+                                        ...emptyContentReferencedIds,
+                                        searchEntityIds: new Set([fileId]),
+                                    },
+                                },
+                            );
+
+                            const pos = getPos?.();
+                            if (pos === undefined) return;
+
+                            const $pos = view.state.doc.resolve(pos);
+                            if ($pos.nodeAfter?.type.name !== "file") return;
+
+                            const isFirstFileInParent = $pos.index() === 0;
+                            const isLastFileInParent = $pos.index() === $pos.parent.childCount - 1;
+
+                            const transaction = view.state.tr;
+
+                            const from = isFirstFileInParent ? pos - 1 : pos;
+                            const to = isLastFileInParent ? pos + 2 : pos + 1;
+
+                            transaction.replaceWith(
+                                from,
+                                to,
+                                schema.nodes.paragraph!.create(null, [
+                                    schema.nodes.mention!.create({
+                                        mention: cast<ContentMention>({
+                                            type: "SearchEntity",
+                                            entityId: fileId,
+                                        }),
+                                    }),
+                                ]),
+                            );
+
+                            updateContentEditorReferences(transaction, {
+                                type: "MergeBase",
+                                references,
+                            });
+
+                            // Search for the mention node we inserted and select it. It's hard to account
+                            // for every single edge case so we brute force it.
+                            for (let checkPos = from - 1; checkPos <= to + 1; checkPos++) {
+                                if (checkPos < 0) continue;
+                                if (checkPos > transaction.doc.nodeSize - 2) continue;
+
+                                const $checkPos = transaction.doc.resolve(checkPos);
+
+                                if (
+                                    $checkPos.nodeAfter?.type.name === "mention" &&
+                                    $checkPos.nodeAfter.attrs.mention.entityId === fileId
+                                ) {
+                                    transaction.setSelection(new NodeSelection($checkPos));
+                                    break;
+                                }
+                            }
+
+                            view.dispatch(transaction.scrollIntoView());
+                        },
+                    },
+                ],
+            ]);
+        };
 
         const updateFromState = () => {
             assert(!isDestroyed);
@@ -329,18 +416,41 @@ export function createContentEditorFileNodeViewConstructor({
                     };
 
                     if (isFileEntity) {
-                        cleanupBehavior = addContentFileEntityPreviewBehavior(getContext, dom, {
-                            spaceId,
-                            fileEntityId: fileId,
-                            fileEntityResult,
-                            fileEntityRenderers,
-                            navigate,
-                            getReporter,
-                            onShiftMouseDown,
-                            isLongPressDisabled,
-                            onLongPress,
-                            onDrag,
-                        });
+                        const actualCleanupBehavior = addContentFileEntityPreviewBehavior(
+                            getContext,
+                            dom,
+                            {
+                                spaceId,
+                                fileEntityId: fileId,
+                                fileEntityResult,
+                                fileEntityRenderers,
+                                navigate,
+                                getReporter,
+                                onShiftMouseDown,
+                                isLongPressDisabled,
+                                onLongPress,
+                                onDrag,
+                            },
+                        );
+
+                        // HACK: We want the "Convert to link" menu option to be placed below the "Copy
+                        // ${entityNoun} link" menu option. We accomplish this by adding an event
+                        // listener which adds the "Convert to link" menu action AFTER
+                        // `addContentFileEntityPreviewBehavior()` which will add another `contextmenu`
+                        // event listener which adds "Copy to ${entityNoun} link". Because this event
+                        // listener is added after `addContentFileEntityPreviewBehavior()` it will run
+                        // after any event listeners added by `addContentFileEntityPreviewBehavior()`
+                        // and so add our menu action beneath any added by
+                        // `addContentFileEntityPreviewBehavior()`.
+                        dom.addEventListener("contextmenu", handleContextMenuAddFileEntityAction);
+
+                        cleanupBehavior = () => {
+                            dom.removeEventListener(
+                                "contextmenu",
+                                handleContextMenuAddFileEntityAction,
+                            );
+                            actualCleanupBehavior();
+                        };
                     } else {
                         cleanupBehavior = addContentFilePreviewBehavior(getContext, dom, {
                             spaceId,

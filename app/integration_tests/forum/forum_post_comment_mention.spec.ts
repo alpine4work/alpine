@@ -219,6 +219,7 @@ test("if a name is ambiguous you get the full mention and pressing backspace wil
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
+    await page.getByRole("textbox", {name: "New comment"}).focus();
     await page.getByRole("textbox", {name: "New comment"}).type("@");
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
     await expect(page.getByText("Siobahn Roy")).toBeVisible();

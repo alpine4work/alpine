@@ -1323,6 +1323,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getCurrentAccountIfExists: () => spaceContextRef.current?.currentAccount ?? null,
+                getContext: () => assertExists(contextRef.current),
+                getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
                 onNavigate: to => navigateRef.current(to),
             }),
             fileRow: createContentEditorFileRowLikeNodeViewConstructor({

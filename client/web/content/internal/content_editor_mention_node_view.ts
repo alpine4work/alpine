@@ -4,19 +4,28 @@ import {To} from "react-router";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {handleContentLinkClick} from "~/client/web/content/internal/handle_content_link_click.js";
 import {renderContentMentionToHtml} from "~/client/web/content/render_content_mention_to_html.js";
-import {getContentEditorReferences} from "~/client/web/content/state/content_editor_state.js";
+import {
+    getContentEditorReferences,
+    updateContentEditorReferences,
+} from "~/client/web/content/state/content_editor_state.js";
 import {addParentScrollWhenPointerDownAndOverListener} from "~/client/web/content/state/parent_scroll_when_pointer_down_and_over_event.js";
+import {AppContext} from "~/client/web/context/app_context.js";
+import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {isModifiedPointerEvent} from "~/client/web/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/web/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {getFileEntityIfPossible} from "~/shared/rpc/files_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -24,15 +33,20 @@ export function createContentEditorMentionNodeViewConstructor({
     getRouteLayout,
     getSpaceId,
     getCurrentAccountIfExists,
+    getContext,
+    getAccessLevel,
     onNavigate,
 }: {
     getRouteLayout: () => RouteLayout;
     getSpaceId: () => SpaceId;
     getCurrentAccountIfExists: () => AccountModel | null;
+    getContext: () => AppContext;
+    getAccessLevel: () => AccessLevel;
     onNavigate: (to: To) => Promise<void>;
 }): NodeViewConstructor {
     return (node, view, getPos) => {
         const mention: ContentMention = node.attrs.mention;
+        const mentionEntityId = mention.type === "SearchEntity" ? mention.entityId : null;
 
         const routeLayout = getRouteLayout();
         const spaceId = getSpaceId();
@@ -147,6 +161,150 @@ export function createContentEditorMentionNodeViewConstructor({
                 maybeUpdateStyle();
             });
         }
+
+        dom.addEventListener("contextmenu", event => {
+            if (!hasAccessLevel(getAccessLevel(), "Edit")) return;
+
+            // Right-clicking on a mention selects the mention.
+            view.dispatch(
+                view.state.tr.setSelection(
+                    new NodeSelection(view.state.doc.resolve(assertExists(getPos()))),
+                ),
+            );
+
+            if (!view.hasFocus()) view.focus();
+
+            if (!mentionEntityId) return;
+            if (!isFileEntityId(mentionEntityId)) return;
+
+            const schema = view.state.schema;
+            if (!schema.nodes.fileRow || !schema.nodes.file) return;
+
+            addContextMenuActions(event, [
+                [
+                    {
+                        label: "Turn into preview",
+                        pressErrorTitle: "Couldn’t turn into preview",
+                        onPress: async () => {
+                            if (!hasAccessLevel(getAccessLevel(), "Edit")) return;
+
+                            const {fileEntityResult} = await getFileEntityIfPossible(getContext(), {
+                                spaceId: getSpaceId(),
+                                fileEntityId: mentionEntityId,
+                            });
+
+                            // Get the latest position for this mention node. If the doc changed while we
+                            // were loading the file entity this will be the mapped position.
+                            const pos = getPos();
+                            if (pos === undefined) return;
+
+                            const $pos = view.state.doc.resolve(pos);
+                            if ($pos.nodeAfter?.type.name !== "mention") return;
+
+                            let isInTableCell = false;
+
+                            for (let depth = $pos.depth; depth > 0; depth--) {
+                                const node = $pos.node(depth);
+                                if (node.type.name === "tableCell") {
+                                    isInTableCell = true;
+                                    break;
+                                }
+                            }
+
+                            const fileRowNode = (
+                                isInTableCell ? schema.nodes.fileRowTable! : schema.nodes.fileRow!
+                            ).create(null, [schema.nodes.file!.create({fileId: mentionEntityId})]);
+
+                            const transaction = view.state.tr;
+
+                            let from = pos;
+
+                            // Mention is at the start of our textblock.
+                            if ($pos.parentOffset === 0) {
+                                from -= 1;
+
+                                // If mention is at the start of all parent nodes going up the tree make sure
+                                // we include the parent node start in the replace. For example, if our mention
+                                // is at the start of an unordered list item in a block quote then we should
+                                // subtract 2.
+                                //
+                                // For example, in this state:
+                                //
+                                // ```
+                                // doc(
+                                //   quoteBlock(unorderedListItem(paragraph(mention, text("abc")))),
+                                // )
+                                // ```
+                                //
+                                // ...we should get this:
+                                //
+                                // ```
+                                // doc(
+                                //   fileRow(file),
+                                //   quoteBlock(unorderedListItem(paragraph(text("abc")))),
+                                // )
+                                // ```
+                                //
+                                // ...not this:
+                                //
+                                // ```
+                                // doc(
+                                //   quoteBlock(unorderedListItem(paragraph)),
+                                //   fileRow(file),
+                                //   quoteBlock(unorderedListItem(paragraph(text("abc")))),
+                                // )
+                                // ```
+                                for (let depth = $pos.depth; depth > 0; depth--) {
+                                    if ($pos.index(depth) === 0) {
+                                        from -= 1;
+                                    } else {
+                                        break;
+                                    }
+                                }
+                            }
+
+                            const to = pos + 1;
+
+                            transaction.replaceWith(from, to, fileRowNode);
+
+                            updateContentEditorReferences(transaction, {
+                                type: "MergeBase",
+                                references: {
+                                    ...emptyContentReferences,
+                                    fileEntityById: new Map([[mentionEntityId, fileEntityResult]]),
+                                },
+                            });
+
+                            // Search for the file node we inserted and select it. It's hard to account for
+                            // every single edge case so we brute force it. Some example edge cases:
+                            //
+                            // - Mention is at beginning of paragraph
+                            // - Mention is in the middle of a paragraph (so we split the paragraph)
+                            // - Mention is at beginning of a paragraph in a block quote
+                            // - Mention is in the middle of a paragraph in a block quote
+                            //
+                            // Now consider all these cases but in a table.
+                            for (let checkPos = from; checkPos <= to + $pos.depth; checkPos++) {
+                                if (checkPos < 0) continue;
+                                if (checkPos > transaction.doc.nodeSize - 2) continue;
+
+                                const $checkPos = transaction.doc.resolve(checkPos);
+
+                                if (
+                                    $checkPos.nodeAfter?.type.name === "file" &&
+                                    $checkPos.nodeAfter.attrs.fileId === mentionEntityId
+                                ) {
+                                    transaction.setSelection(new NodeSelection($checkPos));
+                                    break;
+                                }
+                            }
+
+                            view.dispatch(transaction.scrollIntoView());
+                        },
+                    },
+                ],
+            ]);
+        });
 
         return {
             dom,

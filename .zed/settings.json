@@ -1,0 +1,6 @@
+{
+    "tab_size": 4,
+    "prettier": {
+        "allowed": true,
+    },
+}
