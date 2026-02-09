@@ -15,18 +15,24 @@ import {
 import {colorSchemeVars, pulseAnimationClassName} from "~/client/web/styles/styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 
-export function SpaceBotListSettingsRouteShimmer() {
+export function SpaceIntegrationListSettingsRouteShimmer() {
     return (
         <SpaceSettingsRouteLayoutShimmer>
             <TextShimmer fontSize={spaceListSettingsHeadingFontSize} width="16" />
             <Spacer space={spaceListSettingsHeadingMarginBottom} />
-            <SpaceBotListSettingsRouteShimmerSettingsRow titleRagRight="0" taglineRagRight="6" />
-            <SpaceBotListSettingsRouteShimmerSettingsRow titleRagRight="2" taglineRagRight="0" />
+            <SpaceIntegrationListSettingsRouteShimmerSettingsRow
+                titleRagRight="0"
+                taglineRagRight="6"
+            />
+            <SpaceIntegrationListSettingsRouteShimmerSettingsRow
+                titleRagRight="2"
+                taglineRagRight="0"
+            />
         </SpaceSettingsRouteLayoutShimmer>
     );
 }
 
-function SpaceBotListSettingsRouteShimmerSettingsRow({
+function SpaceIntegrationListSettingsRouteShimmerSettingsRow({
     titleRagRight,
     taglineRagRight,
 }: {

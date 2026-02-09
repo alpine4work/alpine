@@ -1,5 +1,5 @@
 import {Outlet, useLocation, useNavigation} from "@remix-run/react";
-import {Bell, IconContext, Robot, User, Users} from "phosphor-react";
+import {Bell, IconContext, Plug, Robot, User, Users} from "phosphor-react";
 import {ReactNode} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
@@ -23,6 +23,7 @@ import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {hasIntegrationsSettingsFeature} from "~/shared/integrations/has_integrations_settings_feature.js";
 
 type SettingsRoute = keyof typeof titleBySettingsRoute;
 
@@ -32,6 +33,7 @@ const titleBySettingsRoute = {
     bots: "Bot settings",
     profile: "My profile settings",
     notifications: "Notification settings",
+    integrations: "Integrations settings",
 } as const;
 
 function parseSettingsRouteFromPathname(pathname: string): SettingsRoute {
@@ -309,6 +311,16 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                                         rootNavigate(`/s/${space.id}/settings/bots`);
                                     }}
                                 />
+                                {hasIntegrationsSettingsFeature(space.id) && (
+                                    <SettingsNavigationItem
+                                        icon={<Plug />}
+                                        label="Integrations"
+                                        isActive={nextRoute === "integrations"}
+                                        onPressStart={() => {
+                                            rootNavigate(`/s/${space.id}/settings/integrations`);
+                                        }}
+                                    />
+                                )}
                             </ul>
                         </nav>
                     </Box>,

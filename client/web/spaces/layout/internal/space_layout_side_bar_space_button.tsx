@@ -1,10 +1,10 @@
-import {ArrowsLeftRight, Gear, Plus, Robot, Users} from "phosphor-react";
+import {ArrowsLeftRight, Gear, Plug, Plus, Robot, Users} from "phosphor-react";
 import {useRef} from "react";
 import {useButton} from "react-aria";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
-import {MenuAction} from "~/client/web/design/menu.js";
+import {MenuAction, MenuSize} from "~/client/web/design/menu.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {OverlayTriggerButtonRef} from "~/client/web/design/overlay_trigger_button.js";
 import {LoudNotificationBadge} from "~/client/web/inbox/loud_notification_badge.js";
@@ -12,6 +12,8 @@ import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
 import {buttonStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {hasIntegrationsSettingsFeature} from "~/shared/integrations/has_integrations_settings_feature.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -72,6 +74,19 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                         await rootNavigate(`/s/${space.id}/settings/bots`);
                     },
                 },
+                ...(hasIntegrationsSettingsFeature(space.id)
+                    ? [
+                          {
+                              icon: <Plug />,
+                              size: cast<MenuSize>("lg"),
+                              label: "Integrations",
+                              pressErrorTitle: "Couldn\u2019t open integrations settings",
+                              onPress: async () => {
+                                  await rootNavigate(`/s/${space.id}/settings/integrations`);
+                              },
+                          },
+                      ]
+                    : []),
                 [
                     {
                         hasChildren: true,

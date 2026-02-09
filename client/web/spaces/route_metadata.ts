@@ -128,6 +128,12 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.settings.general": {
         errorTitle: "Couldn\u2019t open general settings",
     },
+    "routes/s.$spaceId.settings.integrations._index": {
+        errorTitle: "Couldn\u2019t open integrations settings",
+    },
+    "routes/s.$spaceId.settings.integrations.slack": {
+        errorTitle: "Couldn\u2019t open Slack integration settings",
+    },
     "routes/s.$spaceId.settings.people": {
         errorTitle: "Couldn\u2019t open people settings",
     },

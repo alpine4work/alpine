@@ -205,6 +205,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//shared/helpers:helpers",
     "//shared/helpers:helpers_core",
     "//shared/id:id",
+    "//shared/integrations:integrations",
     "//shared/messaging:messaging",
     "//shared/notifications:notifications",
     "//shared/opensearch:opensearch",

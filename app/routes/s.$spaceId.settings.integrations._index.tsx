@@ -1,11 +1,8 @@
 import {ShouldRevalidateFunction} from "@remix-run/router";
 import {assignInlineVars} from "@vanilla-extract/dynamic";
-import {CaretRight} from "phosphor-react";
+import {CaretRight, SlackLogo} from "phosphor-react";
 import {useState} from "react";
 import {usePress} from "react-aria";
-import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
-import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
-import {useBotSettingsAccount} from "~/client/web/bots/use_bot_settings_account.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {Link} from "~/client/web/design/link.js";
@@ -26,23 +23,13 @@ import {
     spaceListSettingsHeadingSettingsRowTitleMarginBottom,
 } from "~/client/web/styles/space_settings_shared_styles.js";
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
-import {
-    chatGptKnownBotId,
-    cursorKnownBotId,
-} from "~/server/bots/settings_default_known_bot_account_model_data.js";
-import {getBotSettingsAccount} from "~/server/bots/with_spaces/get_bot_settings_account.js";
-import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
-import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {BotSettingsAccountSchema} from "~/shared/bots/bot_settings_account_schema.js";
-import {SettingsDefaultKnownBotAccountModelDataBase} from "~/shared/bots/settings_default_known_bot_account_model_data_types.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {hasSlackIntegrationSettingsFeature} from "~/shared/integrations/has_slack_integration_settings_feature.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
-    chatGptBotAccount: BotSettingsAccountSchema,
-    cursorBotAccount: BotSettingsAccountSchema,
+    hasSlackIntegrationConfigured: Schema.boolean,
 });
 
 // We don't need to reload if the URL doesn't change.
@@ -56,62 +43,47 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
-    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
-
-    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-
-    const consistency: DynamoCacheReadConsistency = "StrongWithinCache";
-
-    const [chatGptBotAccount, cursorBotAccount] = await runAllPromises([
-        getBotSettingsAccount(context, spaceId, chatGptKnownBotId, {consistency}),
-        getBotSettingsAccount(context, spaceId, cursorKnownBotId, {consistency}),
-    ]);
-
+export async function loader() {
     return jsonWithSchema(LoaderSchema, {
-        chatGptBotAccount,
-        cursorBotAccount,
+        hasSlackIntegrationConfigured: false,
     });
 }
 
-export default function SpaceBotListSettingsRoute() {
-    const {chatGptBotAccount, cursorBotAccount} = useLoaderDataWithSchema(LoaderSchema);
+interface IntegrationData {
+    slug: string;
+    name: string;
+    tagline: string;
+    icon: React.ReactNode;
+    isConfigured: boolean;
+    isAvailable: boolean;
+}
 
-    const chatGptBot = {
-        accountData: useBotSettingsAccount(chatGptBotAccount),
-        tagline: "AI assistant powered by OpenAI\u2019s models",
+export default function SpaceIntegrationListSettingsRoute() {
+    const {hasSlackIntegrationConfigured} = useLoaderDataWithSchema(LoaderSchema);
+
+    const configuredIntegrations: Array<IntegrationData> = [];
+    const availableIntegrations: Array<IntegrationData> = [];
+
+    // NOTE (#slack-integration): Slack integration is currently feature flagged to only development.
+    const slackIntegration: IntegrationData = {
+        slug: "slack",
+        name: "Slack",
+        tagline: hasSlackIntegrationConfigured
+            ? "Connected to your Slack workspace"
+            : "Connect your Slack workspace",
+        icon: <SlackLogo size={spacing[spaceListSettingsHeadingSettingsRowAvatarSize]} />,
+        isConfigured: hasSlackIntegrationConfigured,
+        isAvailable: hasSlackIntegrationSettingsFeature(),
     };
-
-    const cursorBot = {
-        accountData: useBotSettingsAccount(cursorBotAccount),
-        tagline: "Coding agent that\u2019ll make changes for you",
-    };
-
-    const installedBots: Array<{
-        accountData: SettingsDefaultKnownBotAccountModelDataBase;
-        tagline: string;
-    }> = [];
-
-    const notInstalledBots: Array<{
-        accountData: SettingsDefaultKnownBotAccountModelDataBase;
-        tagline: string;
-    }> = [];
-
-    if (chatGptBot.accountData.space.state.type === "Active") {
-        installedBots.push(chatGptBot);
-    } else {
-        notInstalledBots.push(chatGptBot);
+    if (slackIntegration.isConfigured) {
+        configuredIntegrations.push(slackIntegration);
+    } else if (slackIntegration.isAvailable) {
+        availableIntegrations.push(slackIntegration);
     }
 
-    if (cursorBot.accountData.space.state.type === "Active") {
-        installedBots.push(cursorBot);
-    } else {
-        notInstalledBots.push(cursorBot);
-    }
-
-    const botFeedbackPrompt = (
+    const integrationFeedbackPrompt = (
         <Box fontSize="75" color="grey-60" userSelect="text">
-            Want a bot you don&#x2019;t see here? Let us know:{" "}
+            Want an integration you don’t see here? Let us know:{" "}
             <Link color="inherit" url="mailto:feedback@alpine.inc">
                 feedback@alpine.inc
             </Link>
@@ -127,26 +99,22 @@ export default function SpaceBotListSettingsRoute() {
                         fontStyle="bold"
                         userSelect="text"
                     >
-                        Installed
+                        Configured
                     </Box>
-                    {installedBots.length === 0 ? (
+                    {configuredIntegrations.length === 0 ? (
                         <Box fontSize="75" color="grey-60" userSelect="text">
-                            No bots installed.
+                            No integrations configured.
                         </Box>
-                    ) : notInstalledBots.length === 0 ? (
-                        botFeedbackPrompt
+                    ) : availableIntegrations.length === 0 ? (
+                        integrationFeedbackPrompt
                     ) : null}
                 </Box>
                 <Spacer space={spaceListSettingsHeadingMarginBottom} />
-                {installedBots.map(installedBot => (
-                    <SpaceBotSettingsRow
-                        key={installedBot.accountData.botId}
-                        accountData={installedBot.accountData}
-                        tagline={installedBot.tagline}
-                    />
+                {configuredIntegrations.map(integration => (
+                    <SpaceIntegrationSettingsRow key={integration.slug} integration={integration} />
                 ))}
             </Box>
-            {notInstalledBots.length > 0 && (
+            {availableIntegrations.length > 0 && (
                 <Box>
                     <Box display="flex" flexDirection="column" gap="1">
                         <Box
@@ -154,16 +122,15 @@ export default function SpaceBotListSettingsRoute() {
                             fontStyle="bold"
                             userSelect="text"
                         >
-                            Recommended
+                            Available
                         </Box>
-                        {botFeedbackPrompt}
+                        {integrationFeedbackPrompt}
                     </Box>
                     <Spacer space={spaceListSettingsHeadingMarginBottom} />
-                    {notInstalledBots.map(installedBot => (
-                        <SpaceBotSettingsRow
-                            key={installedBot.accountData.botId}
-                            accountData={installedBot.accountData}
-                            tagline={installedBot.tagline}
+                    {availableIntegrations.map(integration => (
+                        <SpaceIntegrationSettingsRow
+                            key={integration.slug}
+                            integration={integration}
                         />
                     ))}
                 </Box>
@@ -172,13 +139,7 @@ export default function SpaceBotListSettingsRoute() {
     );
 }
 
-function SpaceBotSettingsRow({
-    accountData,
-    tagline,
-}: {
-    accountData: SettingsDefaultKnownBotAccountModelDataBase;
-    tagline: string;
-}) {
+function SpaceIntegrationSettingsRow({integration}: {integration: IntegrationData}) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
@@ -192,7 +153,7 @@ function SpaceBotSettingsRow({
 
             setIsNavigating(true);
 
-            navigate(`/s/${space.id}/settings/bots/${accountData.botId}`).finally(() => {
+            navigate(`/s/${space.id}/settings/integrations/${integration.slug}`).finally(() => {
                 setIsNavigating(false);
             });
         },
@@ -230,26 +191,29 @@ function SpaceBotSettingsRow({
                         style={{top: -1}}
                     />
                 )}
-                <AccountAvatar
-                    account={accountData}
-                    size={spaceListSettingsHeadingSettingsRowAvatarSize}
-                    // Render just the avatar image. Don't render removed state transparency or the
-                    // bot icon (bot icon should be implied).
-                    withoutDecoration={true}
-                />
+                <Box
+                    width={spaceListSettingsHeadingSettingsRowAvatarSize}
+                    height={spaceListSettingsHeadingSettingsRowAvatarSize}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    color="grey-70"
+                >
+                    {integration.icon}
+                </Box>
                 <Box flexGrow="1">
                     <Box
                         fontSize={spaceListSettingsHeadingSettingsRowTitleFontSize}
                         fontStyle="semi-bold"
                     >
-                        {accountData.name}
+                        {integration.name}
                     </Box>
                     <Spacer space={spaceListSettingsHeadingSettingsRowTitleMarginBottom} />
                     <Box
                         fontSize={spaceListSettingsHeadingSettingsRowTaglineFontSize}
                         color="grey-50"
                     >
-                        {tagline}
+                        {integration.tagline}
                     </Box>
                 </Box>
                 <CaretRight size={spacing["4"]} color={colorSchemeVars["grey-60"]} />

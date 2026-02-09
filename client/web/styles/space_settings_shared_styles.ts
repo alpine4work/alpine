@@ -4,14 +4,14 @@ export const spaceSettingsMaxDesktopContentWidth = "128";
 export const spaceSettingsDesktopSidebarWidth = "48";
 export const spaceAvatarBorderRadius = "1";
 
-export const spaceBotListSettingsHeadingFontSize = "200";
-export const spaceBotListSettingsHeadingMarginBottom = "6";
-export const spaceBotListSettingsHeadingSettingsRowGap = "4";
-export const spaceBotListSettingsHeadingSettingsRowPaddingY = "4";
-export const spaceBotListSettingsHeadingSettingsRowAvatarSize = "12";
-export const spaceBotListSettingsHeadingSettingsRowTitleFontSize = "200";
-export const spaceBotListSettingsHeadingSettingsRowTitleMarginBottom = "0.5";
-export const spaceBotListSettingsHeadingSettingsRowTaglineFontSize = "75";
+export const spaceListSettingsHeadingFontSize = "200";
+export const spaceListSettingsHeadingMarginBottom = "6";
+export const spaceListSettingsHeadingSettingsRowGap = "4";
+export const spaceListSettingsHeadingSettingsRowPaddingY = "4";
+export const spaceListSettingsHeadingSettingsRowAvatarSize = "12";
+export const spaceListSettingsHeadingSettingsRowTitleFontSize = "200";
+export const spaceListSettingsHeadingSettingsRowTitleMarginBottom = "0.5";
+export const spaceListSettingsHeadingSettingsRowTaglineFontSize = "75";
 
 export const spaceBotSettingsHeadingGap = "4";
 export const spaceBotSettingsHeadingAvatarSize = addRemLengths("14", "1");
