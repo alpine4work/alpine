@@ -5551,12 +5551,44 @@ test("backspace from first to last in a gallery maintains file selection", () =>
     );
     expect(getSelection()).toEqual({type: "node", anchor: 3});
 
+    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
+    // the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
-        schema.node("doc", {}, [schema.node("paragraph"), schema.node("paragraph")]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("paragraph"),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
     );
     expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+});
+
+test("backspace on only file in a file row with no adjacent file row replaces it with a paragraph", () => {
+    const fileId = generateChronologicalId<FileId>();
+
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("divider"),
+                schema.node("fileRow", {}, [schema.node("file", {fileId})]),
+                schema.node("divider"),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(divider, fileRow(file), divider)");
+
+    // Position 2 is inside the fileRow, before the file node
+    dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(2))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(divider, paragraph, divider)");
+    expect(getSelection()).toEqual({type: "text", anchor: 2, head: 2});
 });
 
 test("backspace from last to first in a gallery maintains file selection", () => {
@@ -5733,10 +5765,18 @@ test("backspace from last to first in a gallery maintains file selection", () =>
     );
     expect(getSelection()).toEqual({type: "node", anchor: 3});
 
+    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
+    // the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
-        schema.node("doc", {}, [schema.node("paragraph"), schema.node("paragraph")]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("paragraph"),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
     );
     expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
 });
@@ -5895,17 +5935,20 @@ test("backspace from first to last in a gallery maintains file selection when su
     );
     expect(getSelection()).toEqual({type: "node", anchor: 5});
 
+    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
+    // the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("paragraph"),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
             .toJSON(),
     );
-    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+    expect(getSelection()).toEqual({type: "text", anchor: 5, head: 5});
 });
 
 test("backspace from last to first in a gallery maintains file selection when surrounded by list items", () => {
@@ -6082,17 +6125,20 @@ test("backspace from last to first in a gallery maintains file selection when su
     );
     expect(getSelection()).toEqual({type: "node", anchor: 5});
 
+    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
+    // the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("paragraph"),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
             .toJSON(),
     );
-    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+    expect(getSelection()).toEqual({type: "text", anchor: 5, head: 5});
 });
 
 test("delete from first to last in a gallery maintains file selection", () => {
@@ -6249,10 +6295,18 @@ test("delete from first to last in a gallery maintains file selection", () => {
     );
     expect(getSelection()).toEqual({type: "node", anchor: 3});
 
+    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
+    // the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
-        schema.node("doc", {}, [schema.node("paragraph"), schema.node("paragraph")]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("paragraph"),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
     );
     expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
 });
@@ -6431,10 +6485,18 @@ test("delete from last to first in a gallery maintains file selection", () => {
     );
     expect(getSelection()).toEqual({type: "node", anchor: 3});
 
+    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
+    // the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
-        schema.node("doc", {}, [schema.node("paragraph"), schema.node("paragraph")]).toJSON(),
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("paragraph"),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
     );
     expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
 });
@@ -8313,9 +8375,9 @@ test("pressing backspace in the last file in a table cell keeps the selection in
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2"), paragraph))), paragraph("foo"))',
     );
-    expect(getSelection()).toEqual({type: "text", anchor: 26, head: 26});
+    expect(getSelection()).toEqual({type: "text", anchor: 28, head: 28});
 });
 
 test("pressing delete in the last file in a table cell keeps the selection in the cell", async () => {
@@ -8360,9 +8422,9 @@ test("pressing delete in the last file in a table cell keeps the selection in th
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2"), paragraph))), paragraph("foo"))',
     );
-    expect(getSelection()).toEqual({type: "text", anchor: 26, head: 26});
+    expect(getSelection()).toEqual({type: "text", anchor: 28, head: 28});
 });
 
 test("pressing backspace in the first file in a table cell keeps the selection in the cell", async () => {
@@ -8407,7 +8469,7 @@ test("pressing backspace in the first file in a table cell keeps the selection i
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph, paragraph("b2")))), paragraph("foo"))',
     );
     expect(getSelection()).toEqual({type: "text", anchor: 24, head: 24});
 });
@@ -8454,7 +8516,7 @@ test("pressing delete in the first file in a table cell keeps the selection in t
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph, paragraph("b2")))), paragraph("foo"))',
     );
     expect(getSelection()).toEqual({type: "text", anchor: 24, head: 24});
 });

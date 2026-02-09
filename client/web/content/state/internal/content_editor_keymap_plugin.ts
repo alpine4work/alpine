@@ -663,6 +663,68 @@ export function buildContentEditorKeymapPlugin(
     const actuallyDeleteSelection =
         (isBackspace: boolean): Command =>
         (state, dispatch, view) => {
+            // If we're about to delete the only file in a file row and there's no previous file
+            // row to navigate to, replace the file row with an empty paragraph instead of deleting
+            // it entirely. This keeps the user's cursor in place rather than jumping to whatever
+            // content follows.
+            if (
+                state.selection instanceof NodeSelection &&
+                state.selection.node.type.name === "file" &&
+                state.selection.$anchor.parent.type.groups.includes("fileRowLike")
+            ) {
+                const fileRowLikeNode = state.selection.$anchor.parent;
+                const isOnlyFileInRow = fileRowLikeNode.childCount === 1;
+
+                if (isOnlyFileInRow) {
+                    // Check if there's an adjacent fileRowLike sibling (gallery context). If there
+                    // is, we should navigate to the nearest file in the gallery.
+                    let hasAdjacentFileRowLike = false;
+
+                    const fileRowLikeParentDepth = state.selection.$from.depth - 1;
+                    const fileRowLikeParentNode =
+                        state.selection.$from.node(fileRowLikeParentDepth);
+                    const fileRowLikeParentIndex =
+                        state.selection.$from.index(fileRowLikeParentDepth);
+
+                    // Check previous sibling
+                    if (fileRowLikeParentIndex > 0) {
+                        const previousSibling = fileRowLikeParentNode.child(
+                            fileRowLikeParentIndex - 1,
+                        );
+                        if (previousSibling.type.groups.includes("fileRowLike")) {
+                            hasAdjacentFileRowLike = true;
+                        }
+                    }
+                    // Check next sibling
+                    if (fileRowLikeParentIndex + 1 < fileRowLikeParentNode.childCount) {
+                        const nextSibling = fileRowLikeParentNode.child(fileRowLikeParentIndex + 1);
+                        if (nextSibling.type.groups.includes("fileRowLike")) {
+                            hasAdjacentFileRowLike = true;
+                        }
+                    }
+
+                    if (!hasAdjacentFileRowLike) {
+                        // Replace the file row with an empty paragraph.
+                        // $anchor.depth is the depth of the fileRow, so before($anchor.depth)
+                        // gives us the position right before the fileRow.
+                        const fileRowLikePos = state.selection.$anchor.before();
+                        const transaction = state.tr.replaceWith(
+                            fileRowLikePos,
+                            fileRowLikePos + fileRowLikeNode.nodeSize,
+                            state.schema.nodes.paragraph!.create(),
+                        );
+                        dispatch?.(
+                            transaction
+                                .setSelection(
+                                    TextSelection.create(transaction.doc, fileRowLikePos + 1),
+                                )
+                                .scrollIntoView(),
+                        );
+                        return true;
+                    }
+                }
+            }
+
             if (dispatch) {
                 const originalDispatch = dispatch;
 
