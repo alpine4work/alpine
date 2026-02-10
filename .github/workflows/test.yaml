@@ -105,7 +105,7 @@ jobs:
         # If tests pass and we're on the main branch then schedule a deploy by sending
         # a message to our job queue via lambda. This will make sure our commit is eventually
         # deployed.
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         needs: [integration-tests, unit-tests]
         steps:
             - name: Schedule deploy
