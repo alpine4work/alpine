@@ -15,6 +15,7 @@ DYNAMO_CORE_VISIBILITY = [
     "//server/feed",
     "//server/files/data",
     "//server/forum/data",
+    "//server/importer/notion",
     "//server/node",
     "//server/notifications/data",
     "//server/search/data/table",

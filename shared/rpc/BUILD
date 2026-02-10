@@ -20,6 +20,7 @@ ts_project(
         "//shared/forum",
         "//shared/helpers",
         "//shared/id",
+        "//shared/importer/notion",
         "//shared/messaging",
         "//shared/notifications",
         "//shared/prosemirror",

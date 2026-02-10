@@ -79,6 +79,14 @@ export async function processJob(
             await processSendPendingSubtleNotificationsForInboxJob(context, job);
             return;
         }
+        case "ValidateNotionImportAndExtractMetadata": {
+            // await processValidateNotionImportAndExtractMetadataJob(context, job);
+            return;
+        }
+        case "StartNotionImport": {
+            // await processStartNotionImportJob(context, job);
+            return;
+        }
         default:
             throw exhaustive(job);
     }

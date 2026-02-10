@@ -77,6 +77,7 @@ export function createAwsAppOrApiService(
         withStripeSecrets,
         withLogoDevSecrets,
         withCookieNameSuffixOption,
+        importUploadsBucketName,
     }: {
         serviceName: string;
         secretsName: string;
@@ -98,6 +99,7 @@ export function createAwsAppOrApiService(
         withStripeSecrets?: boolean;
         withLogoDevSecrets?: boolean;
         withCookieNameSuffixOption?: boolean;
+        importUploadsBucketName?: string;
     },
 ) {
     const launchTemplate = new LaunchTemplate(parentConstruct, "LaunchTemplate", {
@@ -379,6 +381,9 @@ export function createAwsAppOrApiService(
                 ? [
                       "--cookieNameSuffix=", // Cookie names don't have a suffix in production.
                   ]
+                : []),
+            ...(importUploadsBucketName
+                ? [`--importUploadsBucketName=${importUploadsBucketName}`]
                 : []),
         ],
         healthCheck: {

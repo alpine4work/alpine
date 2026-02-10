@@ -20,6 +20,7 @@ ts_project(
         "//server/dynamo/core",
         "//server/emails",
         "//server/helpers",
+        "//server/importer",
         "//server/jobs/core",
         "//server/opensearch",
         "//server/spaces/test_helpers",

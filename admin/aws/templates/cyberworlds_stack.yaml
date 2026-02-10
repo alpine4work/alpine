@@ -1598,6 +1598,44 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/NotificationsTable/Resource
+    NotionImporterTable695D7176:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+                - AttributeName: index1PartitionKey
+                  AttributeType: S
+                - AttributeName: index1SortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            GlobalSecondaryIndexes:
+                - IndexName: Index1
+                  KeySchema:
+                      - AttributeName: index1PartitionKey
+                        KeyType: HASH
+                      - AttributeName: index1SortKey
+                        KeyType: RANGE
+                  Projection:
+                      ProjectionType: KEYS_ONLY
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: NotionImporter
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/NotionImporterTable/Resource
     SearchEntitiesTableC54BE0E8:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -1777,6 +1815,158 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/TasksTable/Resource
+    ImportUploadsBucketECD42D88:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: cyberworlds-import-uploads
+            CorsConfiguration:
+                CorsRules:
+                    - AllowedHeaders:
+                          - Content-Type
+                          - Content-Length
+                      AllowedMethods:
+                          - PUT
+                      AllowedOrigins:
+                          - https://alpine.inc
+                          - https://www.alpine.inc
+                      MaxAge: 3600
+            LifecycleConfiguration:
+                Rules:
+                    - ExpirationInDays: 7
+                      Status: Enabled
+            PublicAccessBlockConfiguration:
+                BlockPublicAcls: true
+                BlockPublicPolicy: true
+                IgnorePublicAcls: true
+                RestrictPublicBuckets: true
+            Tags:
+                - Key: aws-cdk:auto-delete-objects
+                  Value: "true"
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImportUploads/Bucket/Resource
+    ImportUploadsBucketPolicyA73B5FE3:
+        Type: AWS::S3::BucketPolicy
+        Properties:
+            Bucket:
+                Ref: ImportUploadsBucketECD42D88
+            PolicyDocument:
+                Statement:
+                    - Action: s3:*
+                      Condition:
+                          Bool:
+                              aws:SecureTransport: "false"
+                      Effect: Deny
+                      Principal:
+                          AWS: "*"
+                      Resource:
+                          - Fn::GetAtt:
+                                - ImportUploadsBucketECD42D88
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ImportUploadsBucketECD42D88
+                                        - Arn
+                                  - /*
+                    - Action: s3:*
+                      Condition:
+                          NumericLessThan:
+                              s3:TlsVersion: 1.2
+                      Effect: Deny
+                      Principal:
+                          AWS: "*"
+                      Resource:
+                          - Fn::GetAtt:
+                                - ImportUploadsBucketECD42D88
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ImportUploadsBucketECD42D88
+                                        - Arn
+                                  - /*
+                    - Action:
+                          - s3:DeleteObject*
+                          - s3:GetBucket*
+                          - s3:List*
+                          - s3:PutBucketPolicy
+                      Effect: Allow
+                      Principal:
+                          AWS:
+                              Fn::GetAtt:
+                                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                                  - Arn
+                      Resource:
+                          - Fn::GetAtt:
+                                - ImportUploadsBucketECD42D88
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ImportUploadsBucketECD42D88
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImportUploads/Bucket/Policy/Resource
+    ImportUploadsBucketAutoDeleteObjectsCustomResourceD3B2AEB9:
+        Type: Custom::S3AutoDeleteObjects
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+                    - Arn
+            BucketName:
+                Ref: ImportUploadsBucketECD42D88
+        DependsOn:
+            - ImportUploadsBucketPolicyA73B5FE3
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImportUploads/Bucket/AutoDeleteObjectsCustomResource/Default
+    CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+            ManagedPolicyArns:
+                - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+    CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+        Type: AWS::Lambda::Function
+        Properties:
+            Code:
+                S3Bucket:
+                    Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
+                S3Key: faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip
+            Timeout: 900
+            MemorySize: 128
+            Handler: index.handler
+            Role:
+                Fn::GetAtt:
+                    - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                    - Arn
+            Runtime: nodejs20.x
+            Description:
+                Fn::Join:
+                    - ""
+                    - - "Lambda function for auto-deleting objects in "
+                      - Ref: ImportUploadsBucketECD42D88
+                      - " S3 bucket."
+        DependsOn:
+            - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+            aws:asset:path: asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6
+            aws:asset:property: Code
     TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -2176,6 +2366,9 @@ Resources:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
+                                - NotionImporterTable695D7176
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -2266,6 +2459,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotionImporterTable695D7176
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -3056,6 +3255,9 @@ Resources:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
+                                - NotionImporterTable695D7176
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -3146,6 +3348,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotionImporterTable695D7176
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -3275,6 +3483,34 @@ Resources:
                           - ecs:ListTasks
                       Effect: Allow
                       Resource: "*"
+                    - Action:
+                          - s3:Abort*
+                          - s3:PutObject
+                          - s3:PutObjectLegalHold
+                          - s3:PutObjectRetention
+                          - s3:PutObjectTagging
+                          - s3:PutObjectVersionTagging
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - Fn::GetAtt:
+                                      - ImportUploadsBucketECD42D88
+                                      - Arn
+                                - /*
+                Version: 2012-10-17
+            PolicyName: AppServiceTaskDefinitionTaskRoleDefaultPolicyCC6226E3
+            Roles:
+                - Ref: AppServiceTaskDefinitionTaskRole4C9D7E3B
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    AppServiceTaskDefinitionTaskRoleOverflowPolicy18D7D266A:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            Description: Part of the policies for CyberworldsStack/AppService/TaskDefinition/TaskRole
+            Path: /
+            PolicyDocument:
+                Statement:
                     - Action: ses:SendEmail
                       Effect: Allow
                       Resource:
@@ -3291,19 +3527,6 @@ Resources:
                                   - Ref: AWS::AccountId
                                   - :identity/
                                   - Ref: SesEmailIdentity8E702B39
-                Version: 2012-10-17
-            PolicyName: AppServiceTaskDefinitionTaskRoleDefaultPolicyCC6226E3
-            Roles:
-                - Ref: AppServiceTaskDefinitionTaskRole4C9D7E3B
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/TaskDefinition/TaskRole/DefaultPolicy/Resource
-    AppServiceTaskDefinitionTaskRoleOverflowPolicy18D7D266A:
-        Type: AWS::IAM::ManagedPolicy
-        Properties:
-            Description: Part of the policies for CyberworldsStack/AppService/TaskDefinition/TaskRole
-            Path: /
-            PolicyDocument:
-                Statement:
                     - Action:
                           - dynamodb:BatchGetItem
                           - dynamodb:ConditionCheckItem
@@ -3393,6 +3616,10 @@ Resources:
                       - --logoDevSecretKey=$LOGO_DEV_SECRET_KEY
                       - --logoDevPublishableKey=$LOGO_DEV_PUBLISHABLE_KEY
                       - --cookieNameSuffix=
+                      - Fn::Join:
+                            - ""
+                            - - --importUploadsBucketName=
+                              - Ref: ImportUploadsBucketECD42D88
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -4161,6 +4388,9 @@ Resources:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
+                                - NotionImporterTable695D7176
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -4251,6 +4481,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotionImporterTable695D7176
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -5170,6 +5406,9 @@ Resources:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
+                                - NotionImporterTable695D7176
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -5260,6 +5499,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotionImporterTable695D7176
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -5380,21 +5625,6 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
-                    - Action: ses:SendEmail
-                      Effect: Allow
-                      Resource:
-                          - Fn::Join:
-                                - ""
-                                - - "arn:aws:ses:us-east-1:"
-                                  - Ref: AWS::AccountId
-                                  - :configuration-set/
-                                  - Ref: SesConfigurationSet74E7EAAF
-                          - Fn::Join:
-                                - ""
-                                - - "arn:aws:ses:us-east-1:"
-                                  - Ref: AWS::AccountId
-                                  - :identity/
-                                  - Ref: SesEmailIdentity8E702B39
                     - Action:
                           - ec2:DescribeNetworkInterfaces
                           - ecs:DescribeContainerInstances
@@ -5415,6 +5645,36 @@ Resources:
             Path: /
             PolicyDocument:
                 Statement:
+                    - Action: ses:SendEmail
+                      Effect: Allow
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:ses:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :configuration-set/
+                                  - Ref: SesConfigurationSet74E7EAAF
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:ses:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :identity/
+                                  - Ref: SesEmailIdentity8E702B39
+                    - Action:
+                          - s3:GetBucket*
+                          - s3:GetObject*
+                          - s3:List*
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - ImportUploadsBucketECD42D88
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ImportUploadsBucketECD42D88
+                                        - Arn
+                                  - /*
                     - Action:
                           - firehose:PutRecord
                           - firehose:PutRecordBatch
@@ -5502,6 +5762,10 @@ Resources:
                       - --webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY
                       - --webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY
                       - --githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --importUploadsBucketName=
+                              - Ref: ImportUploadsBucketECD42D88
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -5904,6 +6168,9 @@ Resources:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
+                                - NotionImporterTable695D7176
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -5994,6 +6261,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotionImporterTable695D7176
                                         - Arn
                                   - /index/*
                           - Fn::Join:

@@ -1,3 +1,4 @@
+import {S3Client} from "@aws-sdk/client-s3";
 import {createRequestHandler} from "@remix-run/node";
 import {ServerRoute} from "@remix-run/server-runtime";
 import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
@@ -53,6 +54,9 @@ import {
     UnknownActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
+import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
+import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
@@ -315,6 +319,19 @@ async function createAppService({
         apnsContextModule = new ApnsContextModule(apnsConnectionPool);
     }
 
+    let importerContextModule: ImporterContextModuleBase;
+    if (process.env.NODE_ENV === "production") {
+        importerContextModule = new ImporterContextModule({
+            s3Client: new S3Client({}),
+            bucketName: assertExists(
+                options.importUploadsBucketName,
+                "`importUploadsBucketName` option is required in production",
+            ),
+        });
+    } else {
+        importerContextModule = new ImporterDevelopmentContextModule();
+    }
+
     let logoDevContextModule: LogoDevContextModuleBase;
     if (process.env.NODE_ENV === "production") {
         logoDevContextModule = new LogoDevContextModule({
@@ -414,6 +431,7 @@ async function createAppService({
                       vapidPrivateKey: webPushVapidPrivateKey,
                   }),
         billing: billingContextModule,
+        importer: importerContextModule,
         logoDev: logoDevContextModule,
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),

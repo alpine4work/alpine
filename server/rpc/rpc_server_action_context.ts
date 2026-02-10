@@ -3,6 +3,7 @@ import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.j
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
@@ -20,5 +21,6 @@ export type RpcServerActionExtraContextModules = {
     apns: ApnsContextModuleBase;
     webPush: WebPushContextModule;
     billing: BillingContextModuleBase;
+    importer: ImporterContextModuleBase;
     logoDev: LogoDevContextModuleBase;
 };

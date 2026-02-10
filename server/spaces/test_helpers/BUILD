@@ -13,6 +13,7 @@ ts_project(
         "//server/billing",
         "//server/emails",
         "//server/forum/data",
+        "//server/importer",
         "//server/spaces",
         "//server/tokens",
         "//shared/accounts",

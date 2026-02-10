@@ -7,6 +7,7 @@ import {ServerSystemActionContextModules} from "~/server/context/server_action_c
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {WebPushContextModuleBase} from "~/server/context/web_push_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
@@ -22,6 +23,7 @@ type AppServiceExtraContextModules = {
     files: FilesContextModuleBase;
     r2: CloudflareR2ContextModule;
     billing: BillingContextModuleBase;
+    importer: ImporterContextModuleBase;
     logoDev: LogoDevContextModuleBase;
 };
 

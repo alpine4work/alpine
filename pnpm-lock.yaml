@@ -813,6 +813,9 @@ importers:
       fast-glob:
         specifier: ^3.3.1
         version: 3.3.3
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.2
       find-my-way:
         specifier: ^9.3.0
         version: 9.3.0
@@ -6028,6 +6031,9 @@ packages:
 
   fb-watchman@2.0.1:
     resolution: {integrity: sha512-DkPJKQeY6kKwmuMretBhr7G6Vodr7bFwDYTXIkfG1gjvNpaxBTQV3PbXg6bR1c1UP4jPOX0jHUbbHANL9vRjVg==}
+
+  fflate@0.8.2:
+    resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
 
   file-entry-cache@6.0.1:
     resolution: {integrity: sha512-7Gps/XWymbLk2QLYK4NzpMOrYjMhdIxXuIvy2QBsLE6ljuodKvdkWs/cpyJJ3CVIVpH0Oi1Hvg1ovbMzLdFBBg==}
@@ -16301,6 +16307,8 @@ snapshots:
   fb-watchman@2.0.1:
     dependencies:
       bser: 2.1.1
+
+  fflate@0.8.2: {}
 
   file-entry-cache@6.0.1:
     dependencies:

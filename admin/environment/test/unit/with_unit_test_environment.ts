@@ -51,6 +51,7 @@ import {
     UnknownActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {TestImporterContextModule} from "~/server/importer/importer_context_module_test.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -632,6 +633,7 @@ export function actuallyCreateUnitTestEnvironment(
             dangerouslyEscalateToSystemContext: escalateToSystemContext,
         }),
         billing: new BillingNoopDevelopmentContextModule(),
+        importer: new TestImporterContextModule(),
     });
 
     const helpers: TestActualContextHelpers<TestContextModules> = {

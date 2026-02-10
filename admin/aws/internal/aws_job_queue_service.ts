@@ -26,6 +26,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsImportUploadsData} from "~/admin/aws/internal/aws_import_uploads_data.js";
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
@@ -47,6 +48,7 @@ export class AwsJobQueueService extends Construct {
             ses,
             taskRealtimeService,
             observability,
+            importUploads,
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
@@ -57,6 +59,7 @@ export class AwsJobQueueService extends Construct {
             ses: AwsSes;
             taskRealtimeService: AwsTaskRealtimeService;
             observability: AwsObservability;
+            importUploads: AwsImportUploadsData;
         },
     ) {
         super(parentConstruct, "JobQueueService");
@@ -326,6 +329,7 @@ export class AwsJobQueueService extends Construct {
                 "--webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY",
                 "--webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY",
                 "--githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY",
+                `--importUploadsBucketName=${importUploads.bucketName}`,
             ],
             healthCheck: {
                 command: [
@@ -343,6 +347,9 @@ export class AwsJobQueueService extends Construct {
         opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendAndReceiveJobQueueMessages(taskDefinition.taskRole);
         ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);
+
+        // Grant read access to the import uploads bucket for processing Notion imports.
+        importUploads.grantRead(taskDefinition.taskRole);
 
         // Allow writing to the tracer event stream.
         observability.grantPutToTracerEventStream(taskDefinition.taskRole);

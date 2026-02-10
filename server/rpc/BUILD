@@ -39,6 +39,8 @@ ts_project(
         "//server/files/data",
         "//server/forum/data",
         "//server/helpers",
+        "//server/importer",
+        "//server/importer/notion",
         "//server/language_models/core",
         "//server/messaging/helpers",
         "//server/notifications/data",

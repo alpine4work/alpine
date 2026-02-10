@@ -1,3 +1,4 @@
+import {S3Client} from "@aws-sdk/client-s3";
 import {createAppAuth as createGithubAppAuth} from "@octokit/auth-app";
 import fs from "fs-extra";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
@@ -42,6 +43,8 @@ import {
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
+import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
+import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {
     JobQueueServiceProcessContext,
@@ -105,6 +108,7 @@ export const options = {
     githubAppClientId: {type: "string"},
     githubAppClientSecret: {type: "string"},
     githubAppInstallationId: {type: "string"},
+    importUploadsBucketName: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
@@ -338,6 +342,16 @@ export async function run({
                 : new TraceOnlyEmailContextModule(),
         botWebhook: new BotWebhookContextModule(tokenAgent),
         webPush: webPushContextModule,
+        importer:
+            process.env.NODE_ENV === "production"
+                ? new ImporterContextModule({
+                      s3Client: new S3Client({}),
+                      bucketName: assertExists(
+                          options.importUploadsBucketName,
+                          "`importUploadsBucketName` option is required in production",
+                      ),
+                  })
+                : new ImporterDevelopmentContextModule(),
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

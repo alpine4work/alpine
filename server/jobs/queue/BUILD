@@ -17,6 +17,7 @@ ts_project(
         "//server/deploy/data",
         "//server/emails",
         "//server/feed",
+        "//server/importer/notion",
         "//server/jobs/core",
         "//server/jobs/queue/consumer",
         "//server/language_models/all_mini_lm_l6_v2",

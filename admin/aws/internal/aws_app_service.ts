@@ -4,6 +4,7 @@ import {PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsImportUploadsData} from "~/admin/aws/internal/aws_import_uploads_data.js";
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
@@ -24,6 +25,7 @@ export class AwsAppService extends Construct {
             ses: AwsSes;
             taskRealtimeService: AwsTaskRealtimeService;
             observability: AwsObservability;
+            importUploads: AwsImportUploadsData;
         },
     ) {
         super(parentConstruct, "AppService");
@@ -62,9 +64,14 @@ export class AwsAppService extends Construct {
             withStripeSecrets: true,
             withLogoDevSecrets: true,
             withCookieNameSuffixOption: true,
+            importUploadsBucketName: options.importUploads.bucketName,
         });
 
         options.ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);
+
+        // Grant upload access to the import uploads bucket for creating presigned
+        // PutObject URLs for Notion imports.
+        options.importUploads.grantUpload(taskDefinition.taskRole);
 
         // TODO(ifitzsimmons, 2025-12-18): This is a temporary workaround to allow the App service
         // to read the Bots table for the `internal/bots` page. One day, we should have better

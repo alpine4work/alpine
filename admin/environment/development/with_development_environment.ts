@@ -41,6 +41,7 @@ import {
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
@@ -249,6 +250,7 @@ export async function withDevelopmentEnvironment<Value>(
             resourceServiceUrl: `http://localhost:${resourcesDevPort}`,
         }),
         billing: new BillingNoopDevelopmentContextModule(),
+        importer: new ImporterDevelopmentContextModule(),
         r2: new CloudflareR2ContextModule(cloudflareClient),
         logoDev:
             env.LOGO_DEV_SECRET_KEY && env.LOGO_DEV_PUBLISHABLE_KEY
