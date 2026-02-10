@@ -60,6 +60,7 @@ export const options = {
     logoDevSecretKey: {type: "string"},
     logoDevPublishableKey: {type: "string"},
     cookieNameSuffix: {type: "string"},
+    importUploadsBucketName: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
