@@ -5,6 +5,7 @@ ts_project(
     test_deps = ["//shared/documents"],
     visibility = ["//server:__subpackages__"],
     deps = [
+        "//:node_modules/immer",
         "//:node_modules/prosemirror-model",
         "//server/api/markdown",
         "//shared/api",

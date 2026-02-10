@@ -372,6 +372,33 @@ test("can read a created document", async () => {
     });
 });
 
+test("system actor can create document with createFeedEntry: false", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const content = schema.node("doc", {}, [
+        schema.node("title", {}, [schema.text("System Created Doc")]),
+        schema.node("paragraph", {}, [schema.text("Hello from system!")]),
+    ]);
+    assert(isDocumentContent(content));
+
+    const result = await createDocument(space.systemAction(), {
+        spaceId: space.id,
+        creatorId: session.account.id,
+        content,
+        createFeedEntry: false,
+    });
+
+    expect(result.creator).toEqual({
+        id: session.account.id,
+        fromBotAccountId: null,
+    });
+
+    // Verify the document was created and is readable
+    const doc = await getDocumentContent(session.action(), result.id);
+    expect(doc.content.toJSON()).toEqual(content.toJSON());
+});
+
 test("can update a document with a single step", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();

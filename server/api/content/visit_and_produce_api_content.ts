@@ -1,5 +1,6 @@
 import {Draft, produce} from "immer";
-import {ApiContentVisitor, visitApiContent} from "~/server/agents/internal/visit_api_content.js";
+
+import {ApiContentVisitor, visitApiContent} from "~/server/api/content/visit_api_content.js";
 import {
     ApiContent,
     ApiContentBlockElement,

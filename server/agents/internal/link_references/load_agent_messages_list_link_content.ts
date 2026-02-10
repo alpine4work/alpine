@@ -24,7 +24,7 @@ import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {visitDraftApiContent} from "~/server/agents/internal/visit_and_produce_api_content.js";
+import {visitDraftApiContent} from "~/server/api/content/visit_and_produce_api_content.js";
 import {
     ApiContentResponse,
     ApiMessageRoomTarget,

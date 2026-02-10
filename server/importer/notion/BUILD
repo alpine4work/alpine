@@ -8,8 +8,12 @@ exports_files([
 
 ts_project(
     name = "notion",
+    test_data = glob(
+        ["test_fixtures/**"],
+    ),
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/importer/notion/test_helpers",
     ],
     visibility = [
         "//admin:__subpackages__",
@@ -30,6 +34,7 @@ ts_project(
         "//server/jobs/core",
         "//server/spaces",
         "//shared/access",
+        "//shared/api",
         "//shared/documents",
         "//shared/error",
         "//shared/feed",

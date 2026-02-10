@@ -2,7 +2,7 @@ import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o2
 import {RootContent} from "mdast";
 import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {visitApiContent} from "~/server/agents/internal/visit_api_content.js";
+import {visitApiContent} from "~/server/api/content/visit_api_content.js";
 import {
     ApiContent,
     ApiMessageContentPayloadParentResponse,

@@ -1,3 +1,4 @@
+import {TestLocalJobSender} from "~/admin/environment/test/unit/test_local_job_sender.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createNotionImport} from "~/server/importer/notion/create_notion_import.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
@@ -85,6 +86,47 @@ test("startNotionImport transitions from Validated to ProcessQueued", async () =
 
     expect(importItem).toMatchObject({
         status: {type: "ProcessQueued"},
+    });
+});
+
+test("startNotionImport sends a StartNotionImport job", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const {notionImportId} = await createNotionImport(session.action(), {
+        spaceId: space.id,
+        contentType: "application/zip",
+        contentLength: 1024,
+    });
+
+    // Manually set status to Validated
+    await NotionImporterTable.updateItem(
+        context,
+        {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
+        item => ({
+            ...assertExists(item),
+            status: {type: "Validated" as const},
+            workspaceName: "Test Workspace",
+            teamspaceImportOptions: [],
+        }),
+    );
+
+    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+        await startNotionImport(session.action(), {
+            spaceId: space.id,
+            notionImportId,
+            teamspaceImportOptions: [],
+        });
+    });
+
+    expect(sentJobs).toHaveLength(1);
+    expect(sentJobs[0]).toMatchObject({
+        job: {
+            type: "StartNotionImport",
+            spaceId: space.id,
+            notionImportId,
+        },
+        delaySeconds: 0,
     });
 });
 

@@ -1,0 +1,124 @@
+import {strFromU8} from "fflate";
+
+import {fromApiContent} from "~/server/api/content/from_api_content.js";
+import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
+import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {findNotionImportUnzippedFileKey} from "~/server/importer/notion/internal/find_notion_import_unzipped_file_key.js";
+import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
+import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {
+    ApiContent,
+    ApiContentBlockElement,
+} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    DocumentContentProsemirrorSchema,
+    assertDocumentContent,
+} from "~/shared/documents/document_content_schema.js";
+import {AccountId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+
+export interface CreateNotionImportCsvDatabaseDocumentOptions {
+    spaceId: SpaceId;
+    creatorId: AccountId;
+    documentId: DocumentId;
+    parentId: DocumentId;
+    csvPath: string;
+    unzippedFiles: Record<string, Uint8Array>;
+    isPublic: boolean;
+    inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
+}
+
+/**
+ * Create a document for a root-level CSV-only database.
+ * This creates a synthetic document that contains:
+ * - Parent link to the teamspace root document
+ * - The CSV content as a table
+ * - Links to child documents
+ *
+ * @see README.md "Teamspace Root Documents" section for root-level CSV databases
+ *     that need synthetic documents.
+ * @see README.md "Database Children and Cell Linking" section for how cell
+ *     content is converted to links.
+ */
+export async function createNotionImportCsvDatabaseDocument(
+    context: ServerSystemActionContext,
+    options: CreateNotionImportCsvDatabaseDocumentOptions,
+): Promise<void> {
+    const {
+        spaceId,
+        creatorId,
+        documentId,
+        parentId,
+        csvPath,
+        unzippedFiles,
+        isPublic,
+        inlineDatabaseChildren,
+    } = options;
+
+    // Find the CSV file in the unzipped files
+    const fileKey = findNotionImportUnzippedFileKey(unzippedFiles, csvPath);
+    if (!fileKey) return;
+
+    const fileContent = unzippedFiles[fileKey];
+    if (!fileContent) return;
+
+    const csvContent = strFromU8(fileContent);
+
+    // Extract title from CSV path
+    const title = parseNotionImportFileName(csvPath.split("/").pop() ?? "")?.title ?? "Untitled";
+
+    // Build API content directly
+    const elements: Array<ApiContentBlockElement> = [];
+
+    // Add parent document link as a paragraph with mention
+    elements.push({
+        type: "Paragraph",
+        elements: [
+            {type: "Text", text: "Parent document: "},
+            {type: "Mention", target: {type: "Document", id: parentId}},
+        ],
+    });
+
+    // Convert CSV to API table with cell mentions
+    const childTitleToDocumentId =
+        inlineDatabaseChildren.get(csvPath) ?? new Map<string, DocumentId>();
+    const tableContent = notionImportCsvToApiContent(csvContent, childTitleToDocumentId);
+    if (tableContent) {
+        elements.push(tableContent);
+    }
+
+    // Note: We don't add a "Child documents" section for databases.
+    // The children are database rows and they already appear as cell mentions in the table.
+
+    const apiContent: ApiContent = {elements};
+
+    // Convert API content to ProseMirror document
+    const bodyContent = fromApiContent(DocumentContentProsemirrorSchema, apiContent);
+
+    // Create access policy
+    const accessPolicy: AccessPolicy = {
+        accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
+        defaultGrant: isPublic ? {level: "Edit"} : null,
+        urlGrant: null,
+    };
+
+    // Build the document content with title
+    const titleNode = DocumentContentProsemirrorSchema.node("title", {}, [
+        DocumentContentProsemirrorSchema.text(title),
+    ]);
+
+    const bodyNodes = bodyContent.content.content;
+
+    const documentContent = assertDocumentContent(
+        DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [titleNode, ...bodyNodes]),
+    );
+
+    // Create the document
+    await createDocument(context, {
+        id: documentId,
+        spaceId,
+        creatorId,
+        content: documentContent,
+        createFeedEntry: false,
+    });
+}

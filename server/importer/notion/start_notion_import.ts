@@ -55,10 +55,9 @@ export async function startNotionImport(
         },
     );
 
-    // TODO
-    // context.jobs.send({
-    //     type: "StartNotionImport",
-    //     spaceId,
-    //     notionImportId,
-    // });
+    context.jobs.send({
+        type: "StartNotionImport",
+        spaceId,
+        notionImportId,
+    });
 }

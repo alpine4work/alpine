@@ -23,6 +23,7 @@ import {
     ServerActionContext,
     ServerBotActionContext,
     ServerSessionActionContext,
+    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {
     ServerMinimalActionContext,
@@ -362,21 +363,61 @@ function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
 
 /*
  * Creates a new document with no history using the initial content provided.
+ *
+ * When called with a `ServerSystemActionContext`, authorization checks are
+ * skipped and `creatorId` and `content` are required.
+ *
+ * Set `createFeedEntry` to `false` to skip sending feed jobs, which is
+ * useful for bulk operations like imports.
  */
 export async function createDocument(
+    context: ServerSystemActionContext,
+    options: {
+        id?: DocumentId;
+        spaceId: SpaceId;
+        creatorId: AccountId;
+        content: DocumentContent;
+        consistency?: DynamoCacheReadConsistency;
+        createFeedEntry?: boolean;
+    },
+): Promise<{
+    id: DocumentId;
+    createdTime: Date;
+    version: number;
+    creator: {id: AccountId; fromBotAccountId: AccountId | null};
+}>;
+export async function createDocument(
     context: ServerAccountActionContext,
+    options: {
+        id?: DocumentId;
+        spaceId: SpaceId;
+        creatorId?: AccountId;
+        content?: DocumentContent;
+        consistency?: DynamoCacheReadConsistency;
+        createFeedEntry?: boolean;
+    },
+): Promise<{
+    id: DocumentId;
+    createdTime: Date;
+    version: number;
+    creator: {id: AccountId; fromBotAccountId: AccountId | null};
+}>;
+export async function createDocument(
+    context: ServerAccountActionContext | ServerSystemActionContext,
     {
         id: documentId = generateId<DocumentId>(),
         spaceId,
         creatorId,
         content,
         consistency,
+        createFeedEntry = true,
     }: {
         id?: DocumentId;
         spaceId: SpaceId;
         creatorId?: AccountId;
         content?: DocumentContent;
         consistency?: DynamoCacheReadConsistency;
+        createFeedEntry?: boolean;
     },
 ): Promise<{
     id: DocumentId;
@@ -384,39 +425,51 @@ export async function createDocument(
     version: number;
     creator: {id: AccountId; fromBotAccountId: AccountId | null};
 }> {
-    if (
-        creatorId &&
-        context.actor.type !== "Bot" &&
-        creatorId !== context.actor.getPossiblyBotAccountId()
-    ) {
-        throw new PermissionDeniedError(
-            "Only bots can create documents on behalf of other accounts",
-        );
-    }
+    if (context.actor.type !== "System") {
+        const accountContext = context as Exclude<typeof context, ServerSystemActionContext>;
 
-    creatorId ??= context.actor.getPossiblyBotAccountId();
+        if (
+            creatorId &&
+            context.actor.type !== "Bot" &&
+            creatorId !== context.actor.getPossiblyBotAccountId()
+        ) {
+            throw new PermissionDeniedError(
+                "Only bots can create documents on behalf of other accounts",
+            );
+        }
 
-    if (!content && context.actor.type === "Bot") {
-        // We need a special function for creating documents that were created by
-        // bots. A document created by a non-bot always gives manage access to the
-        // human that created the document. Bots are different. If we gave access
-        // only to account that created the document (the bot) no other users would
-        // be able to read the document.
-        content = await createEmptyDocumentContentForBot(
-            context as ServerBotActionContext,
+        creatorId ??= context.actor.getPossiblyBotAccountId();
+
+        if (!content && context.actor.type === "Bot") {
+            // We need a special function for creating documents that were
+            // created by bots. A document created by a non-bot always gives
+            // manage access to the human that created the document. Bots are
+            // different. If we gave access only to account that created the
+            // document (the bot) no other users would be able to read the
+            // document.
+            content = await createEmptyDocumentContentForBot(
+                context as ServerBotActionContext,
+                spaceId,
+            );
+        }
+
+        content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId());
+
+        await authorizeSpaceAccess(context, spaceId);
+
+        await validateAccessPolicyUpdateForServer(
+            accountContext,
             spaceId,
+            null,
+            content.attrs.accessPolicy,
+            {consistency},
         );
     }
 
-    content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId());
-
-    await authorizeSpaceAccess(context, spaceId);
+    assert(creatorId != null, "creatorId is required for system actors");
+    assert(content != null, "content is required for system actors");
 
     const accessPolicy: AccessPolicy = content.attrs.accessPolicy;
-
-    await validateAccessPolicyUpdateForServer(context, spaceId, null, accessPolicy, {
-        consistency,
-    });
 
     const createdTime = new Date();
     const version = 0;
@@ -428,6 +481,14 @@ export async function createDocument(
         updatedTraits: {type: "Any"},
     };
 
+    // Even though we mark this document as hasAddedFeedCandidateEntry if
+    // it's shared, imports only create feed entries for the top level item.
+    // This avoids a wall of thousands of documents. While
+    // hasAddedFeedCandidateEntry: true is not technically the truth, we
+    // don't want to recreate the feed entry if a user unshares and reshares
+    // an imported document. This means if you import a section of documents
+    // as private, and choose to share them publicly later, it WILL create
+    // feed entries.
     const hasAddedFeedCandidateEntry = !!accessPolicy.defaultGrant;
 
     const creator = {
@@ -459,7 +520,7 @@ export async function createDocument(
         }),
     ]);
 
-    {
+    if (createFeedEntry) {
         const entry: FeedEntry = {
             type: "Document",
             documentId,
@@ -469,12 +530,14 @@ export async function createDocument(
             event: "Created",
         };
 
-        // If we created a public document then we immediately add it to the feed.
+        // If we created a public document then we immediately add it to
+        // the feed.
         //
-        // We wait 15min before adding to the feed so the user has time to type in the
-        // document. That way if the user opens their feed they don't see an empty
-        // document. Also, we have to wait a bit for the document content preview to be
-        // generated anyway or else we'll only have the document's title.
+        // We wait 15min before adding to the feed so the user has time to
+        // type in the document. That way if the user opens their feed they
+        // don't see an empty document. Also, we have to wait a bit for the
+        // document content preview to be generated anyway or else we'll
+        // only have the document's title.
         if (hasAddedFeedCandidateEntry) {
             context.jobs.send(
                 {
@@ -486,8 +549,8 @@ export async function createDocument(
                 {delaySeconds: 15 * 60},
             );
         }
-        // If we're creating a private document then only add an entry to the
-        // creator account's personal feed.
+        // If we're creating a private document then only add an entry to
+        // the creator account's personal feed.
         else {
             context.jobs.send(
                 {
@@ -515,22 +578,26 @@ export async function createDocument(
         {delaySeconds: newIndexSearchEntityJob.delaySeconds},
     );
 
-    context.process.waitUntil(
-        // Special interaction that adds a bunch more points then normal interactions.
-        // So newly created documents are always easily accessible in the search
-        // affinity list.
-        markSearchAffinityCreateDocumentEntityInteraction(
-            // NOTE(ifitzsimmons, #2026-01-30): This is an `async` job that runs after
-            // `createDocument()` returns. We don't need to expect strong read consistency
-            // here.
-            context.dynamo.unexpectStrongReadConsistency(),
-            {
-                spaceId,
-                documentId,
-                creatorId,
-            },
-        ),
-    );
+    if (context.actor.type !== "System") {
+        const accountContext = context as Exclude<typeof context, ServerSystemActionContext>;
+
+        context.process.waitUntil(
+            // Special interaction that adds a bunch more points then normal
+            // interactions. So newly created documents are always easily
+            // accessible in the search affinity list.
+            markSearchAffinityCreateDocumentEntityInteraction(
+                // NOTE(ifitzsimmons, #2026-01-30): This is an `async` job
+                // that runs after `createDocument()` returns. We don't need
+                // to expect strong read consistency here.
+                accountContext.dynamo.unexpectStrongReadConsistency(),
+                {
+                    spaceId,
+                    documentId,
+                    creatorId,
+                },
+            ),
+        );
+    }
 
     return {
         id: documentId,
