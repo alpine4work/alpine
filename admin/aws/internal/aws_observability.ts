@@ -1,6 +1,13 @@
 import {Duration, Stack, Tags} from "aws-cdk-lib";
 import {CfnDatabase, CfnTable} from "aws-cdk-lib/aws-glue";
-import {IGrantable, PolicyStatement, Role, ServicePrincipal, User} from "aws-cdk-lib/aws-iam";
+import {
+    IGrantable,
+    PolicyDocument,
+    PolicyStatement,
+    Role,
+    ServicePrincipal,
+    User,
+} from "aws-cdk-lib/aws-iam";
 import {Stream as KinesisDataStream, StreamEncryption, StreamMode} from "aws-cdk-lib/aws-kinesis";
 import {CfnDeliveryStream, DeliveryStream, IDeliveryStream} from "aws-cdk-lib/aws-kinesisfirehose";
 import {Bucket} from "aws-cdk-lib/aws-s3";
@@ -134,6 +141,22 @@ export class AwsObservability extends Construct {
         // Create Firehose IAM role for S3 delivery
         const s3FirehoseRole = new Role(this, "S3FirehoseRole", {
             assumedBy: new ServicePrincipal("firehose.amazonaws.com"),
+            inlinePolicies: {
+                // NOTE(ifitzsimmons): We need to create this inline because
+                // CloudFormation will start deploying the firehose stream as soon
+                // as the IAM role is created (and potentially before the policies)
+                // are applied. However, in order to create a Firehose stream that
+                // consumes the Kinesis stream, it needs to be able to describe the
+                // stream.
+                default: new PolicyDocument({
+                    statements: [
+                        new PolicyStatement({
+                            actions: ["kinesis:DescribeStream"],
+                            resources: [this._tracerEventStream.streamArn],
+                        }),
+                    ],
+                }),
+            },
         });
 
         this._loggingBucket.grantWrite(s3FirehoseRole);
@@ -152,6 +175,11 @@ export class AwsObservability extends Construct {
         );
 
         // Firehose delivery stream for S3 with Parquet format conversion
+        // TODO(ifitzsimmons): We should use the L2 DeliveryStream construct instead of
+        // CfnDeliveryStream. We need to update our CDK version and will likely need to
+        // use the AWS CDK Toolkit to manage deploys [1].
+        //
+        // [1]: https://app.graphite.com/github/pr/cyberworlds/cyberworlds/1190/Add-infra-for-tracer-events-in-S3-and-start-sending-events-from-AWS-services#comment-PRRC_kwDOH2ktg86mAm3e
         new CfnDeliveryStream(this, "TracerS3FirehoseDeliveryStream", {
             deliveryStreamName: this._tracerEventS3FirehoseStreamName,
             deliveryStreamType: "KinesisStreamAsSource",
