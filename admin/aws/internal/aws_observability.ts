@@ -154,6 +154,15 @@ export class AwsObservability extends Construct {
                             actions: ["kinesis:DescribeStream"],
                             resources: [this._tracerEventStream.streamArn],
                         }),
+                        // https://repost.aws/knowledge-center/kinesis-firehose-convert-record-formats
+                        new PolicyStatement({
+                            actions: ["glue:GetDatabase", "glue:GetTable", "glue:GetTableVersion"],
+                            resources: [
+                                `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:catalog`,
+                                glueDatabase.getAtt("Arn").toString(),
+                                glueTable.getAtt("Arn").toString(),
+                            ],
+                        }),
                     ],
                 }),
             },
