@@ -277,7 +277,7 @@ test("bot can create document on behalf of another account", async () => {
 
     expect(result.creator).toEqual({
         id: adminSession.account.id,
-        fromBotAccountId: botAccount.id,
+        from: {type: "Bot", accountId: botAccount.id},
     });
 });
 
@@ -307,7 +307,7 @@ test("non-bot can create document with own creatorId", async () => {
 
     expect(result.creator).toEqual({
         id: session.account.id,
-        fromBotAccountId: null,
+        from: null,
     });
 });
 
@@ -387,11 +387,12 @@ test("system actor can create document with createFeedEntry: false", async () =>
         creatorId: session.account.id,
         content,
         createFeedEntry: false,
+        from: {type: "Importer", source: {type: "Notion"}},
     });
 
     expect(result.creator).toEqual({
         id: session.account.id,
-        fromBotAccountId: null,
+        from: {type: "Importer", source: {type: "Notion"}},
     });
 
     // Verify the document was created and is readable

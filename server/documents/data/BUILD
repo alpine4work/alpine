@@ -18,6 +18,7 @@ ts_project(
         "documents_actions_test": {"size": "medium"},
         "documents_actions_slow_test": {"size": "medium"},
         "document_table_messaging_test": {"size": "medium"},
+        "documents_table_test": {},
     },
     visibility = [
         "//admin:__subpackages__",

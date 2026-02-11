@@ -50,9 +50,26 @@ export const FeedEntrySchema = Schema.union({
         sharerId: Schema.id<AccountId>(),
         creator: Schema.object({
             id: Schema.id<AccountId>().nullable(),
-            fromBotAccountId: Schema.id<AccountId>().nullable(),
+            from: Schema.union({
+                Bot: Schema.object({
+                    type: Schema.value("Bot"),
+                    accountId: Schema.id<AccountId>(),
+                }),
+                Importer: Schema.object({
+                    type: Schema.value("Importer"),
+                    source: Schema.union({
+                        Notion: Schema.object({
+                            type: Schema.value("Notion"),
+                        }),
+                    }),
+                }),
+            })
+                .wrapOriginalPropertyInUnionVariant("Bot", "accountId", {})
+                .nullable()
+                .default(null)
+                .originalPropertyKey("fromBotAccountId"),
         })
-            .wrapOriginalPropertyInObject("id", {fromBotAccountId: null})
+            .wrapOriginalPropertyInObject("id", {from: null})
             .originalPropertyKey("creatorId"),
         event: FeedEntryEventSchema,
     }),

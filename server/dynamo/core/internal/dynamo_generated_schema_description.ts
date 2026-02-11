@@ -4337,6 +4337,21 @@ export const dynamoGeneratedSchemaDescription: {
                                                         }
                                                     },
                                                     "optional": true
+                                                },
+                                                "from": {
+                                                    "valueSchema": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "Bot"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "optional": true
                                                 }
                                             }
                                         },
@@ -6775,7 +6790,22 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "type": "Id"
                                                                             }
                                                                         },
-                                                                        "optional": false
+                                                                        "optional": true
+                                                                    },
+                                                                    "from": {
+                                                                        "valueSchema": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "Bot"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "optional": true
                                                                     }
                                                                 }
                                                             },

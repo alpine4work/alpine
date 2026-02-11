@@ -214,6 +214,7 @@ export async function convertExtractedNotionDataToEntities(
                 creatorId: startedByAccountId,
                 content: documentContent,
                 createFeedEntry: false,
+                from: {type: "Importer", source: {type: "Notion"}},
             });
 
             // Increment the imported count

@@ -114,6 +114,10 @@ import {
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {
+    DocumentCreatorFrom,
+    DocumentCreatorFromImporterType,
+} from "~/shared/documents/document_creator_from.js";
+import {
     createDocumentCommentNotFoundError,
     createDocumentCommentThreadNotFoundError,
     createDocumentNotFoundError,
@@ -379,12 +383,13 @@ export async function createDocument(
         content: DocumentContent;
         consistency?: DynamoCacheReadConsistency;
         createFeedEntry?: boolean;
+        from: DocumentCreatorFromImporterType;
     },
 ): Promise<{
     id: DocumentId;
     createdTime: Date;
     version: number;
-    creator: {id: AccountId; fromBotAccountId: AccountId | null};
+    creator: {id: AccountId; from: DocumentCreatorFrom | null};
 }>;
 export async function createDocument(
     context: ServerAccountActionContext,
@@ -395,12 +400,13 @@ export async function createDocument(
         content?: DocumentContent;
         consistency?: DynamoCacheReadConsistency;
         createFeedEntry?: boolean;
+        from?: never;
     },
 ): Promise<{
     id: DocumentId;
     createdTime: Date;
     version: number;
-    creator: {id: AccountId; fromBotAccountId: AccountId | null};
+    creator: {id: AccountId; from: DocumentCreatorFrom | null};
 }>;
 export async function createDocument(
     context: ServerAccountActionContext | ServerSystemActionContext,
@@ -411,6 +417,7 @@ export async function createDocument(
         content,
         consistency,
         createFeedEntry = true,
+        from,
     }: {
         id?: DocumentId;
         spaceId: SpaceId;
@@ -418,15 +425,22 @@ export async function createDocument(
         content?: DocumentContent;
         consistency?: DynamoCacheReadConsistency;
         createFeedEntry?: boolean;
+        from?: DocumentCreatorFrom;
     },
 ): Promise<{
     id: DocumentId;
     createdTime: Date;
     version: number;
-    creator: {id: AccountId; fromBotAccountId: AccountId | null};
+    creator: {id: AccountId; from: DocumentCreatorFrom | null};
 }> {
     if (context.actor.type !== "System") {
         const accountContext = context as Exclude<typeof context, ServerSystemActionContext>;
+
+        if (from != null) {
+            throw new PermissionDeniedError(
+                "Only system actors can specify the \u2018from\u2019 field when creating documents",
+            );
+        }
 
         if (
             creatorId &&
@@ -493,7 +507,11 @@ export async function createDocument(
 
     const creator = {
         id: creatorId,
-        fromBotAccountId: context.actor.type === "Bot" ? context.actor.getBotAccountId() : null,
+        from:
+            from ??
+            (context.actor.type === "Bot"
+                ? {type: "Bot" as const, accountId: context.actor.getBotAccountId()}
+                : null),
     };
 
     await DynamoTableSchema.executeTransaction(context, [
@@ -1552,7 +1570,7 @@ export async function getDocumentContent(
     createdTime: Date;
     version: number;
     content: DocumentContent;
-    creator: {id: AccountId | null; fromBotAccountId: AccountId | null};
+    creator: {id: AccountId | null; from: DocumentCreatorFrom | null};
     stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
     updateContentPreview: (context: ServerActionContext) => Promise<void>;
 }> {
@@ -1566,7 +1584,7 @@ export async function getDocumentContent(
         content: internalDocument.content,
         creator: {
             id: internalDocument.attributes.creator.id,
-            fromBotAccountId: internalDocument.attributes.creator.fromBotAccountId,
+            from: internalDocument.attributes.creator.from,
         },
         // It doesn't violate our permission policy for documents to return this. Since
         // commenters can call `getDocumentContentSteps()` and manually compute for
@@ -2199,7 +2217,7 @@ export class DocumentContentCacheForUpdate {
         readonly spaceId: SpaceId;
         readonly creator: {
             readonly id: AccountId | null;
-            readonly fromBotAccountId: AccountId | null;
+            readonly from: DocumentCreatorFrom | null;
         };
         readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
         readonly stepCountByAccountId: DocumentStepCountByAccountId;
@@ -2431,7 +2449,7 @@ type DocumentContentCacheForUpdateEntry = {
     readonly spaceId: SpaceId;
     readonly creator: {
         readonly id: AccountId | null;
-        readonly fromBotAccountId: AccountId | null;
+        readonly from: DocumentCreatorFrom | null;
     };
     readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
     readonly stepCountByAccountId: DocumentStepCountByAccountId;

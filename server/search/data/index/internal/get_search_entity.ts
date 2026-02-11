@@ -73,6 +73,7 @@ import {
 } from "~/shared/content/message_content_schema.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {DocumentCreatorFrom} from "~/shared/documents/document_creator_from.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
@@ -398,7 +399,10 @@ class SearchEntityReadState {
         createdTime: Date;
         version: number;
         content: DocumentContent;
-        creator: {id: AccountId | null; fromBotAccountId: AccountId | null};
+        creator: {
+            id: AccountId | null;
+            from: DocumentCreatorFrom | null;
+        };
         stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
         updateContentPreview: (context: ServerActionContext) => Promise<void>;
     }> {
@@ -1348,8 +1352,8 @@ async function getDocumentSearchEntity(
 
         contributorIds.set(creator.id, contributorType);
 
-        if (creator.fromBotAccountId !== null && creator.fromBotAccountId !== creator.id) {
-            contributorIds.set(creator.fromBotAccountId, contributorType);
+        if (creator.from?.type === "Bot" && creator.from.accountId !== creator.id) {
+            contributorIds.set(creator.from.accountId, contributorType);
         }
     }
 

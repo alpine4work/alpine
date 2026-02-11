@@ -120,5 +120,6 @@ export async function createNotionImportCsvDatabaseDocument(
         creatorId,
         content: documentContent,
         createFeedEntry: false,
+        from: {type: "Importer", source: {type: "Notion"}},
     });
 }

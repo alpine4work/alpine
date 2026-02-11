@@ -172,6 +172,7 @@ export async function createNotionImportTeamspaceRootDocument(
         creatorId,
         content: documentContent,
         createFeedEntry: false,
+        from: {type: "Importer", source: {type: "Notion"}},
     });
 
     // Send feed entry for teamspace document (feed filters by access)
@@ -182,7 +183,7 @@ export async function createNotionImportTeamspaceRootDocument(
         sharerId: creatorId,
         creator: {
             id: creatorId,
-            fromBotAccountId: null,
+            from: {type: "Importer", source: {type: "Notion"}},
         },
         event: "Created",
     };

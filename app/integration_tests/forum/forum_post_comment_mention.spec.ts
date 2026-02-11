@@ -226,7 +226,7 @@ test("if a name is ambiguous you get the full mention and pressing backspace wil
     await page.getByRole("textbox", {name: "New comment"}).type("Emily 1");
     await expect(page.getByText("Siobahn Roy")).toBeHidden();
     if (!isMobile) {
-        await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
+        // First item is auto-selected when typing, so just press Enter
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
         // NOTE(calebmer): In CI mobile doesn't seem to like `ArrowDown`?

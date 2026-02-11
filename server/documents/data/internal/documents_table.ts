@@ -13,6 +13,7 @@ import {
     DocumentWithOptionalTitleContentSchema,
     dangerousLegacyDefaultDocumentAccessPolicy,
 } from "~/shared/documents/document_content_schema.js";
+import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_from.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
@@ -235,10 +236,20 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * The creator of the document. They're automatically subscribed to new comment
                          */
                         creator: Schema.object({
+                            // The ID of the account that created this document
                             id: Schema.id<AccountId>().nullable().default(null),
-                            fromBotAccountId: Schema.id<AccountId>().nullable().default(null),
+                            // If this document was created by something else, on behalf of the
+                            // account ID.
+                            from: DocumentCreatorFromSchema.wrapOriginalPropertyInUnionVariant(
+                                "Bot",
+                                "accountId",
+                                {},
+                            )
+                                .nullable()
+                                .default(null)
+                                .originalPropertyKey("fromBotAccountId"),
                         })
-                            .wrapOriginalPropertyInObject("id", {fromBotAccountId: null})
+                            .wrapOriginalPropertyInObject("id", {from: null})
                             .originalPropertyKey("ownerId"),
 
                         /**
