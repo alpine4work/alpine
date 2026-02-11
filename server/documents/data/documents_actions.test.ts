@@ -311,6 +311,43 @@ test("non-bot can create document with own creatorId", async () => {
     });
 });
 
+test("non-system actor cannot specify 'from' field", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(
+        // @ts-expect-error
+        createDocument(session.action(), {
+            spaceId: space.id,
+            from: {type: "Importer", source: {type: "Notion"}},
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Only system actors can specify the ‘from’ field when creating documents",
+        ),
+    );
+});
+
+test("bot cannot specify 'from' field", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    const botAccount = await TestBot.createAndInstantiate(adminSession);
+    const chat = await TestChat.get(adminSession, botAccount);
+    const botAction = botAccount.action({type: "Chat", chatId: chat.id});
+
+    await expect(
+        // @ts-expect-error
+        createDocument(botAction, {
+            spaceId: space.id,
+            from: {type: "Importer", source: {type: "Notion"}},
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Only system actors can specify the ‘from’ field when creating documents",
+        ),
+    );
+});
+
 test("bot-created document has correct access policy for humans in scope", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});

@@ -1,3 +1,4 @@
+import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_from.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     AccountId,
@@ -50,21 +51,11 @@ export const FeedEntrySchema = Schema.union({
         sharerId: Schema.id<AccountId>(),
         creator: Schema.object({
             id: Schema.id<AccountId>().nullable(),
-            from: Schema.union({
-                Bot: Schema.object({
-                    type: Schema.value("Bot"),
-                    accountId: Schema.id<AccountId>(),
-                }),
-                Importer: Schema.object({
-                    type: Schema.value("Importer"),
-                    source: Schema.union({
-                        Notion: Schema.object({
-                            type: Schema.value("Notion"),
-                        }),
-                    }),
-                }),
-            })
-                .wrapOriginalPropertyInUnionVariant("Bot", "accountId", {})
+            from: DocumentCreatorFromSchema.wrapOriginalPropertyInUnionVariant(
+                "Bot",
+                "accountId",
+                {},
+            )
                 .nullable()
                 .default(null)
                 .originalPropertyKey("fromBotAccountId"),
