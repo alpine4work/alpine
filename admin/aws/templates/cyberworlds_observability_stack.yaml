@@ -318,17 +318,21 @@ Resources:
                                 - glue:GetTableVersion
                             Effect: Allow
                             Resource:
-                                - Fn::GetAtt:
-                                      - AwsObservabilityTracerEventsGlueDatabase61FCF08E
-                                      - Arn
-                                - Fn::GetAtt:
-                                      - AwsObservabilityTracerEventsGlueTableF3156455
-                                      - Arn
                                 - Fn::Join:
                                       - ""
                                       - - "arn:aws:glue:us-east-1:"
                                         - Ref: AWS::AccountId
                                         - :catalog
+                                - Fn::Join:
+                                      - ""
+                                      - - "arn:aws:glue:us-east-1:"
+                                        - Ref: AWS::AccountId
+                                        - :database/tracer_events
+                                - Fn::Join:
+                                      - ""
+                                      - - "arn:aws:glue:us-east-1:"
+                                        - Ref: AWS::AccountId
+                                        - :table/tracer_events/events
                       Version: 2012-10-17
                   PolicyName: default
         Metadata:

@@ -138,6 +138,8 @@ export class AwsObservability extends Construct {
         });
         glueTable.addDependency(glueDatabase);
 
+        const baseGlueArn = `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}`;
+
         // Create Firehose IAM role for S3 delivery
         const s3FirehoseRole = new Role(this, "S3FirehoseRole", {
             assumedBy: new ServicePrincipal("firehose.amazonaws.com"),
@@ -158,9 +160,9 @@ export class AwsObservability extends Construct {
                         new PolicyStatement({
                             actions: ["glue:GetDatabase", "glue:GetTable", "glue:GetTableVersion"],
                             resources: [
-                                `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:catalog`,
-                                glueDatabase.getAtt("Arn").toString(),
-                                glueTable.getAtt("Arn").toString(),
+                                `${baseGlueArn}:catalog`,
+                                `${baseGlueArn}:database/${this._tracerEventGlueDatabaseName}`,
+                                `${baseGlueArn}:table/${this._tracerEventGlueDatabaseName}/${glueTableName}`,
                             ],
                         }),
                     ],
