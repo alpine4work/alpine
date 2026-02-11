@@ -450,6 +450,13 @@ Outputs:
                 - Arn
         Export:
             Name: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+    ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D:
+        Value:
+            Fn::GetAtt:
+                - AwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1E
+                - Arn
+        Export:
+            Name: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
     ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2:
         Value:
             Ref: AwsObservabilityTracerEventStream25E3CD65

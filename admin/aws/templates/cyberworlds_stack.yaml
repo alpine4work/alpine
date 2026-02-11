@@ -2588,6 +2588,12 @@ Resources:
                       Effect: Allow
                       Resource:
                           Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                    - Action:
+                          - firehose:PutRecord
+                          - firehose:PutRecordBatch
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                 Version: 2012-10-17
             PolicyName: TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             Roles:

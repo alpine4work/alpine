@@ -387,6 +387,10 @@ export class AwsTaskRealtimeService extends Construct {
         opensearch.grantReadWriteData(this.taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(this.taskDefinition.taskRole);
         observability.grantPutToTracerEventStream(this.taskDefinition.taskRole);
+        // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for now
+        // in order to unblock CI. Without it, CloudFormation tries to delete the exported
+        // resource but stops since it is used in other stacks
+        observability.grantPutToTracerHoneycombFirehoseDeliveryStream(this.taskDefinition.taskRole);
 
         for (let partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++) {
             new AwsTaskRealtimeServicePartition(this, {

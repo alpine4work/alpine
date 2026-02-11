@@ -241,6 +241,11 @@ export class AwsObservability extends Construct {
         this._tracerEventStream.grantWrite(grantee);
     }
 
+    // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for now
+    public grantPutToTracerHoneycombFirehoseDeliveryStream(grantee: IGrantable) {
+        this._tracerHoneycombFirehoseDeliveryStream.grantPutRecords(grantee);
+    }
+
     public installCloudWatchAgent(construct: IConstruct) {
         Tags.of(construct).add("CloudWatchAgent", "true");
     }
