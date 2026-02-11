@@ -112,6 +112,7 @@ jobs:
                       --edgeServiceUrl=https://alpine.inc \
                       --resourceServiceUrl=https://resources.alpine.inc \
                       --honeycombApiKey=${{ secrets.DEPLOY_HONEYCOMB_API_KEY }} \
+                      --tracerEventStreamName=tracer-events \
                       --cloudflareR2AccessKeyId=${{ secrets.DEPLOY_CLOUDFLARE_R2_ACCESS_KEY_ID }} \
                       --cloudflareR2SecretAccessKey=${{ secrets.DEPLOY_CLOUDFLARE_R2_SECRET_ACCESS_KEY }} \
                       --cloudflareWorkersToken=${{ secrets.DEPLOY_CLOUDFLARE_WORKERS_TOKEN }} \
