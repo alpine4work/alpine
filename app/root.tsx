@@ -647,6 +647,14 @@ export default function Root() {
             data-spacing={spacingScale}
             data-color={getColorSchemeWithoutListeningIfBrowser()}
             data-engine={clientInfo.renderingEngine.toLowerCase()}
+            // `SpaceThemeColorManager` sets `data-theme` before React hydrates. To avoid
+            // hydration mismatches, read the current DOM value for the initial
+            // client render.
+            data-theme={
+                typeof document !== "undefined"
+                    ? (document.documentElement.getAttribute("data-theme") ?? undefined)
+                    : undefined
+            }
             // This property is set by `<SpacingScaleInitialAppRenderMismatchScript>`
             // before React hydrates and removed after we set the spacing scale. To prevent
             // hydration warnings, for initial client render check if this property exists
@@ -744,6 +752,14 @@ function RootErrorBoundaryWrapper() {
             data-spacing={spacingScale}
             data-color={getColorSchemeWithoutListeningIfBrowser()}
             data-engine={clientInfo.renderingEngine.toLowerCase()}
+            // `SpaceThemeColorManager` sets `data-theme` before React hydrates. To avoid
+            // hydration mismatches, read the current DOM value for the initial
+            // client render.
+            data-theme={
+                typeof document !== "undefined"
+                    ? (document.documentElement.getAttribute("data-theme") ?? undefined)
+                    : undefined
+            }
             // This property is set by `<SpacingScaleInitialAppRenderMismatchScript>`
             // before React hydrates and removed after we set the spacing scale. To prevent
             // hydration warnings, for initial client render check if this property exists

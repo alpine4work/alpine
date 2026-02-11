@@ -69,7 +69,7 @@ import {
 import {SpaceLayoutWebMobileTabBar} from "~/client/web/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {SpaceContextProvider} from "~/client/web/spaces/space_context_provider.js";
-import {ThemeColorManager} from "~/client/web/spaces/theme_color_manager.js";
+import {SpaceThemeColorManager} from "~/client/web/spaces/space_theme_color_manager.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
@@ -895,7 +895,7 @@ export default function SpaceLayoutRoute() {
                                     : loaderData.currentAccountWithoutSpace
                             }
                         >
-                            <ThemeColorManager />
+                            <SpaceThemeColorManager />
                             <TaskRealtimeClientContextProvider
                                 spaceId={spaceId}
                                 currentAccountId={

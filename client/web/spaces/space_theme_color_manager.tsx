@@ -16,7 +16,7 @@ import {safe, safeAlphanumericString} from "~/shared/helpers/string/safe_string.
  *
  * Should be placed inside a space context provider.
  */
-export function ThemeColorManager() {
+export function SpaceThemeColorManager() {
     const {space} = useSpaceContext();
 
     useEffect(() => {
