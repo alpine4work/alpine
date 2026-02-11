@@ -5,7 +5,7 @@ import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

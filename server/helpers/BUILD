@@ -8,8 +8,10 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@smithy/types",
         "//:node_modules/@types/jest",
         "//:node_modules/@types/json-stable-stringify",
+        "//:node_modules/aws4fetch",
         "//:node_modules/cookie",
         "//:node_modules/json-stable-stringify",
         "//server/tokens",

@@ -112,6 +112,10 @@ const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
 const dynamoLocalLogsPath = joinPath(devEnvPaths.log, "dynamo");
 const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
 
+// TODO(ifitzsimmons, #local-kinesis): Once we build a local Kinesis environment, we'll
+// need to pass in the actual stream name. Until then, we'll use a fixed stream name.
+const kinesisStreamName = "tracer-events";
+
 const opensearchLocalConfigPath = joinPath(devEnvPaths.config, "opensearch");
 const opensearchLocalDataPath = joinPath(devEnvPaths.data, "opensearch");
 const opensearchLocalLogsPath = joinPath(devEnvPaths.log, "opensearch");
@@ -392,6 +396,7 @@ async function createArtifacts() {
                 `--cursorLocalUnscopedApiKey=${cursorUnscopedApiKeyPath}`,
                 `--mockChatGptLocalUnscopedApiKey=${mockChatGptUnscopedApiKeyPath}`,
                 `--cookieNameSuffix=${devEnvPathsNameSuffix}`,
+                `--kinesisStreamName=${kinesisStreamName}`,
                 ...(logoDevSecretKey ? [`--logoDevSecretKey=${logoDevSecretKey}`] : []),
                 ...(logoDevPublishableKey
                     ? [`--logoDevPublishableKey=${logoDevPublishableKey}`]
@@ -436,6 +441,7 @@ async function createArtifacts() {
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
                 `--cookieNameSuffix=${devEnvPathsNameSuffix}`,
+                `--kinesisStreamName=${kinesisStreamName}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -467,6 +473,7 @@ async function createArtifacts() {
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${resourcesDevInspectorPort}`,
                 `--corsTrustedOrigins=${corsTrustedOrigins}`,
+                `--kinesisStreamName=${kinesisStreamName}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -503,6 +510,7 @@ async function createArtifacts() {
                 `--fileProcessorLightJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
                 `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
                 `--inspectorPort=${taskRealtimeDevInspectorPort}`,
+                `--kinesisStreamName=${kinesisStreamName}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -540,6 +548,7 @@ async function createArtifacts() {
                 `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
+                `--kinesisStreamName=${kinesisStreamName}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -574,6 +583,7 @@ async function createArtifacts() {
                 `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--temporaryDirectoryPath=${fileProcessorServiceTemporaryDirectoryPath}`,
+                `--kinesisStreamName=${kinesisStreamName}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
                 `--sqsLocalPort=${sqsLocalPort}`,
             ],
@@ -613,6 +623,7 @@ async function createArtifacts() {
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
+                `--kinesisStreamName=${kinesisStreamName}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -644,6 +655,7 @@ async function createArtifacts() {
                 `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,
                 `--openAiDevApiKey=${openAiDevApiKey}`,
                 `--inspectorPort=${agentsDevInspectorPort}`,
+                `--kinesisStreamName=${kinesisStreamName}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
                 ...(cursorAgentSmeeWebhookUrl
                     ? [`--cursorAgentSmeeWebhookUrl=${cursorAgentSmeeWebhookUrl}`]

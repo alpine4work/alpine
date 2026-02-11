@@ -1,12 +1,13 @@
-import {HoneycombDataset, HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
+import {KinesisClient} from "~/server/kinesis/kinesis_client.js";
+import {HoneycombDataset, TracerClient} from "~/server/tracer/tracer_client.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {writeTracerEventToFileInDev} from "~/shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
- * Create a tracer for a service running in a server Cloudflare
- * Workers environment.
+ * Create a tracer for a service running in a server or Cloudflare Workers environment.
  */
 export function createServerTracer(options: {
     serviceName: TracerServiceName;
@@ -26,6 +27,7 @@ export function createServerTracerAndHoneycombClient({
     honeycombApiKey,
     waitUntil,
     honeycombDataset,
+    kinesisTracerStreamOptions,
 }: {
     serviceName: TracerServiceName;
     jsHost: TracerEventJsHost;
@@ -34,7 +36,12 @@ export function createServerTracerAndHoneycombClient({
     honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
     honeycombDataset: HoneycombDataset;
-}): [TracerRoot, HoneycombTracerClient | null] {
+    /**
+     * There is no local Kinesis stream so we don't need to pass in a stream name
+     * for dev/test environments. See ##local-kinesis TODOs for more.
+     */
+    kinesisTracerStreamOptions?: {streamName: string; awsSigner: AwsRequestSigner};
+}): [TracerRoot, TracerClient | null] {
     const tracer = TracerRoot.new({
         serviceName,
         jsHost,
@@ -51,12 +58,21 @@ export function createServerTracerAndHoneycombClient({
         },
     });
 
+    const kinesisClient = kinesisTracerStreamOptions
+        ? new KinesisClient(
+              "https://kinesis.us-east-1.amazonaws.com",
+              kinesisTracerStreamOptions.streamName,
+              kinesisTracerStreamOptions.awsSigner,
+          )
+        : undefined;
+
     const honeycombClient = honeycombApiKey
-        ? new HoneycombTracerClient({
+        ? new TracerClient({
               apiKey: honeycombApiKey,
               tracer,
               waitUntil,
               dataset: honeycombDataset,
+              kinesis: kinesisClient,
           })
         : null;
 

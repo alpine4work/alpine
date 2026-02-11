@@ -1,9 +1,13 @@
+import {KinesisClient, KinesisPutRecordsRequestEntry} from "~/server/kinesis/kinesis_client.js";
 import {DataLossError, UnavailableError, UnknownError} from "~/shared/error/error.js";
 import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
+import {generateId} from "~/shared/id/id.js";
+import {TraceId} from "~/shared/id/types/id_types.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
@@ -12,7 +16,7 @@ export type HoneycombDataset = "tracer" | "lifecycle" | "resource-service";
 /**
  * Client we use for sending our tracer events to Honeycomb.
  */
-export class HoneycombTracerClient {
+export class TracerClient {
     /**
      * The API key we use for communicating with Honeycomb.
      */
@@ -35,6 +39,11 @@ export class HoneycombTracerClient {
      */
     private readonly _dataset: HoneycombDataset;
 
+    /**
+     * The Kinesis client we use for sending events to Kinesis.
+     */
+    private readonly _kinesis: KinesisClient | undefined;
+
     private _scheduledEventBatch: {
         events: Array<TracerEvent>;
         flush: () => Promise<void>;
@@ -45,16 +54,24 @@ export class HoneycombTracerClient {
         tracer,
         dataset,
         waitUntil,
+        kinesis,
     }: {
         apiKey: string;
         tracer: TracerRoot;
         dataset: HoneycombDataset;
         waitUntil: (promise: Promise<void>) => void;
+        // TODO(ifitzsimmons, ##local-kinesis): In order to convert our log architecture
+        // such that all events go through Kinesis and are then forwarded to Honeycomb,
+        // we need to figure out how to represent this in our local environment. In
+        // the meantime, we are only using Kinesis to get our log data into S3, so
+        // this process is only necessary in production.
+        kinesis?: KinesisClient;
     }) {
         this._apiKey = apiKey;
         this._tracer = tracer;
         this._dataset = dataset;
         this._waitUntil = waitUntil;
+        this._kinesis = kinesis;
     }
 
     /**
@@ -95,70 +112,15 @@ export class HoneycombTracerClient {
                 // Clear so the next `sendEvent()` schedules a new event batch.
                 this._scheduledEventBatch = null;
 
-                await retryWithExponentialBackoff(async retry => {
-                    try {
-                        let bodyString = JSON.stringify(
-                            events.map(event => ({
-                                time: new Date(event.time).toISOString(),
-                                data: event.getFlatData(),
-                            })),
-                        );
-
-                        // Detect `?sig=` URL search params and redact them before sending events to
-                        // Honeycomb. `?sig=` parameters would allow a developer to look at any users
-                        // files without their permission just by looking at logs. The value of `?sig=`
-                        // is a detached JWS (see `dangerouslySignUrl()`). So look for any
-                        // base64 characters or `.`.
-                        //
-                        // Also if we see an [AWS S3 signed URL][1] we want to redact the amazon
-                        // signature.
-                        //
-                        // [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
-                        bodyString = bodyString.replaceAll(
-                            /([?&](?:sig|X-Amz-Signature)=)[A-Za-z0-9+/\-_=.]+/gi,
-                            `$1${debugRedactedString}`,
-                        );
-
-                        // eslint-disable-next-line cyberworlds/no-global-fetch
-                        const response = await fetch(
-                            `https://api.honeycomb.io/1/batch/${this._dataset}`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "x-honeycomb-team": this._apiKey,
-                                    "content-type": "application/json",
-                                },
-                                body: bodyString,
-                            },
-                        );
-
-                        if (response.status >= 400) {
-                            retry(
-                                new DataLossError(
-                                    `Failed to send event batch to Honeycomb (status code: ${response.status})`,
-                                ),
-                            );
-                            return;
-                        }
-
-                        const eventResponses: Array<{status: number; error?: string}> =
-                            await response.json();
-                        for (const eventResponse of eventResponses) {
-                            if (eventResponse.status >= 400) {
-                                this._tracer.logException(
-                                    "Failed to send event to Honeycomb",
-                                    new DataLossError(
-                                        `Failed to send event to Honeycomb${
-                                            eventResponse.error ? `: ${eventResponse.error}` : ""
-                                        } (status code: ${eventResponse.status})`,
-                                    ),
-                                );
-                            }
-                        }
-                    } catch (error) {
-                        retry(error);
-                    }
-                });
+                await runAllPromises([
+                    sendEventsToHoneycomb(this._tracer, this._apiKey, this._dataset, events),
+                    // TODO(ifitzsimmons, #local-kinesis): In order to convert our log architecture
+                    // such that all events go through Kinesis and are then forwarded to Honeycomb,
+                    // we need to figure out how to represent this in our local environment. In
+                    // the meantime, we are only using Kinesis to get our log data into S3, so
+                    // this process is only necessary in production.
+                    this._kinesis ? sendEventsToKinesis(this._tracer, this._kinesis, events) : null,
+                ]);
             })().catch(error => {
                 throw DataLossError.from(error, "Failed to send event batch to Honeycomb");
             });
@@ -246,5 +208,123 @@ export class HoneycombTracerClient {
                 throw new UnknownError(message);
             }
         }
+    }
+}
+
+async function sendEventsToHoneycomb(
+    tracer: TracerRoot,
+    apiKey: string,
+    dataset: HoneycombDataset,
+    events: Array<TracerEvent>,
+) {
+    return retryWithExponentialBackoff(async retry => {
+        try {
+            let bodyString = JSON.stringify(
+                events.map(event => ({
+                    time: new Date(event.time).toISOString(),
+                    data: event.getFlatData(),
+                })),
+            );
+
+            // Detect `?sig=` URL search params and redact them before sending events to
+            // Honeycomb. `?sig=` parameters would allow a developer to look at any users
+            // files without their permission just by looking at logs. The value of `?sig=`
+            // is a detached JWS (see `dangerouslySignUrl()`). So look for any
+            // base64 characters or `.`.
+            //
+            // Also if we see an [AWS S3 signed URL][1] we want to redact the amazon
+            // signature.
+            //
+            // [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
+            bodyString = bodyString.replaceAll(
+                /([?&](?:sig|X-Amz-Signature)=)[A-Za-z0-9+/\-_=.]+/gi,
+                `$1${debugRedactedString}`,
+            );
+
+            // eslint-disable-next-line cyberworlds/no-global-fetch
+            const response = await fetch(`https://api.honeycomb.io/1/batch/${dataset}`, {
+                method: "POST",
+                headers: {
+                    "x-honeycomb-team": apiKey,
+                    "content-type": "application/json",
+                },
+                body: bodyString,
+            });
+
+            if (response.status >= 400) {
+                retry(
+                    new DataLossError(
+                        `Failed to send event batch to Honeycomb (status code: ${response.status})`,
+                    ),
+                );
+                return;
+            }
+
+            const eventResponses: Array<{status: number; error?: string}> = await response.json();
+            for (const eventResponse of eventResponses) {
+                if (eventResponse.status >= 400) {
+                    tracer.logException(
+                        "Failed to send event to Honeycomb",
+                        new DataLossError(
+                            `Failed to send event to Honeycomb${
+                                eventResponse.error ? `: ${eventResponse.error}` : ""
+                            } (status code: ${eventResponse.status})`,
+                        ),
+                    );
+                }
+            }
+        } catch (error) {
+            retry(error);
+        }
+    });
+}
+
+async function sendEventsToKinesis(
+    tracer: TracerRoot,
+    kinesis: KinesisClient,
+    events: Array<TracerEvent>,
+) {
+    try {
+        await retryWithExponentialBackoff(async retry => {
+            try {
+                const kinesisRecords = events.map((event): KinesisPutRecordsRequestEntry => {
+                    let eventString = JSON.stringify(event);
+                    eventString = eventString.replaceAll(
+                        /([?&](?:sig|X-Amz-Signature)=)[A-Za-z0-9+/\-_=.]+/gi,
+                        `$1${debugRedactedString}`,
+                    );
+                    return {
+                        data: new TextEncoder().encode(eventString),
+                        partitionKey:
+                            tracer.getRoot().sharedEventData.trace?.traceId ||
+                            generateId<TraceId>(),
+                    };
+                });
+
+                const result = await kinesis.PutRecords(tracer, kinesisRecords);
+
+                if (result.failedRecordCount > 0) {
+                    for (const record of result.records) {
+                        if (!record.errorCode) continue;
+
+                        tracer.logException(
+                            "Failed to send event to Kinesis",
+                            new DataLossError(
+                                `Failed to send event to Kinesis${
+                                    record.errorMessage ? `: ${record.errorMessage}` : ""
+                                } (error code: ${record.errorCode})`,
+                            ),
+                        );
+                    }
+                }
+            } catch (error) {
+                retry(error);
+            }
+        });
+    } catch (error) {
+        tracer.logException(
+            "Failed to send events to Kinesis",
+            new DataLossError("Failed to send events to Kinesis", {cause: error}),
+        );
     }
 }

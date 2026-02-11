@@ -195,6 +195,7 @@ export class AwsFileProcessorService extends Construct {
                 sqs,
                 secret,
                 loadBalancer: this.fileProcessorServiceLoadBalancer,
+                observability,
             });
         this.legacyFileProcessorServiceTargetGroup = legacyFileProcessorServiceTargetGroup;
 
@@ -216,6 +217,7 @@ export class AwsFileProcessorService extends Construct {
         sqs,
         secret,
         loadBalancer,
+        observability,
     }: {
         vpc: Vpc;
         ecsCluster: AwsEcsCluster;
@@ -224,6 +226,7 @@ export class AwsFileProcessorService extends Construct {
         sqs: AwsSqs;
         secret: ISecret;
         loadBalancer: ApplicationLoadBalancer;
+        observability: AwsObservability;
     }) {
         // File processing needs a lot of memory so we need larger instance sizes than
         // other services. We've found image resizing particularly quickly runs out of
@@ -399,6 +402,7 @@ export class AwsFileProcessorService extends Construct {
                 `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${sqs.getFileProcessorLightJobQueueUrl()}`,
                 "--honeycombApiKey=$HONEYCOMB_API_KEY",
+                `--kinesisTracerStreamName=${observability.tracerEventStreamName}`,
                 `--cloudflareAccountId=${cloudflareAccountId}`,
                 `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,
                 `--cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY`,

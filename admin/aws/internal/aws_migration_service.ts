@@ -86,6 +86,7 @@ export class AwsMigrationService extends Construct {
                 `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${sqs.getFileProcessorLightJobQueueUrl()}`,
                 "--honeycombApiKey=$HONEYCOMB_API_KEY",
+                `--tracerEventStreamName=${observability.tracerEventStreamName}`,
                 `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                 // When you execute the ECS `RunTask` action to start migration service, you
                 // must provide these environment variables in `containerOverrides`. Each run of

@@ -1,5 +1,5 @@
 import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";

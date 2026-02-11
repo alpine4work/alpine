@@ -2582,11 +2582,12 @@ Resources:
                                 - SqsJobQueue62388F96
                                 - Arn
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                 Version: 2012-10-17
             PolicyName: TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             Roles:
@@ -2625,6 +2626,10 @@ Resources:
                             - - --fileProcessorLightJobQueueUrl=
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --tracerEventStreamName=
+                              - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
                       - --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
                       - --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
@@ -3471,11 +3476,12 @@ Resources:
                                 - SqsJobQueue62388F96
                                 - Arn
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action:
                           - ec2:DescribeNetworkInterfaces
                           - ecs:DescribeContainerInstances
@@ -3483,21 +3489,6 @@ Resources:
                           - ecs:ListTasks
                       Effect: Allow
                       Resource: "*"
-                    - Action:
-                          - s3:Abort*
-                          - s3:PutObject
-                          - s3:PutObjectLegalHold
-                          - s3:PutObjectRetention
-                          - s3:PutObjectTagging
-                          - s3:PutObjectVersionTagging
-                      Effect: Allow
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - ImportUploadsBucketECD42D88
-                                      - Arn
-                                - /*
                 Version: 2012-10-17
             PolicyName: AppServiceTaskDefinitionTaskRoleDefaultPolicyCC6226E3
             Roles:
@@ -3527,6 +3518,21 @@ Resources:
                                   - Ref: AWS::AccountId
                                   - :identity/
                                   - Ref: SesEmailIdentity8E702B39
+                    - Action:
+                          - s3:Abort*
+                          - s3:PutObject
+                          - s3:PutObjectLegalHold
+                          - s3:PutObjectRetention
+                          - s3:PutObjectTagging
+                          - s3:PutObjectVersionTagging
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - Fn::GetAtt:
+                                      - ImportUploadsBucketECD42D88
+                                      - Arn
+                                - /*
                     - Action:
                           - dynamodb:BatchGetItem
                           - dynamodb:ConditionCheckItem
@@ -3595,6 +3601,10 @@ Resources:
                                     - GroupId
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
                       - --cohereApiKey=$COHERE_API_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --tracerEventStreamName=
+                              - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - --cloudflareAccountId=d496846050bfc973d24617456c59242b
                       - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
                       - --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
@@ -4604,11 +4614,12 @@ Resources:
                                 - SqsJobQueue62388F96
                                 - Arn
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action:
                           - ec2:DescribeNetworkInterfaces
                           - ecs:DescribeContainerInstances
@@ -4666,6 +4677,10 @@ Resources:
                                     - GroupId
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
                       - --cohereApiKey=$COHERE_API_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --tracerEventStreamName=
+                              - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - --cloudflareAccountId=d496846050bfc973d24617456c59242b
                       - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
                       - --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
@@ -5676,11 +5691,12 @@ Resources:
                                         - Arn
                                   - /*
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                 Version: 2012-10-17
             Roles:
                 - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
@@ -5741,6 +5757,10 @@ Resources:
                                     - GroupId
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
                       - --cohereApiKey=$COHERE_API_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --tracerEventStreamName=
+                              - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - --githubAppId=$GITHUB_APP_ID
                       - --githubAppClientId=$GITHUB_APP_CLIENT_ID
                       - --githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET
@@ -6384,11 +6404,12 @@ Resources:
                                 - SqsJobQueue62388F96
                                 - Arn
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                 Version: 2012-10-17
             PolicyName: MigrationServiceTaskDefinitionTaskRoleDefaultPolicy0D3E0F49
             Roles:
@@ -6420,6 +6441,10 @@ Resources:
                             - - --fileProcessorLightJobQueueUrl=
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --tracerEventStreamName=
+                              - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - Fn::Join:
                             - ""
                             - - --opensearchDomainEndpoint=
@@ -6798,11 +6823,12 @@ Resources:
             PolicyDocument:
                 Statement:
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -6887,6 +6913,8 @@ Resources:
                               - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
                     JOB_QUEUE_URL:
                         Ref: SqsJobQueue62388F96
+                    KINESIS_TRACER_STREAM_NAME:
+                        Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                     NODE_ENV: production
                     RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/server/files/processor/resize_file/resize_file_lambda_binary.runfiles
@@ -6993,11 +7021,12 @@ Resources:
             PolicyDocument:
                 Statement:
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -7083,6 +7112,8 @@ Resources:
                               - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
                     JOB_QUEUE_URL:
                         Ref: SqsJobQueue62388F96
+                    KINESIS_TRACER_STREAM_NAME:
+                        Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                     NODE_ENV: production
                     RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/server/files/processor/resize_avatar/resize_avatar_lambda_binary.runfiles
@@ -7189,11 +7220,12 @@ Resources:
             PolicyDocument:
                 Statement:
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -7294,6 +7326,8 @@ Resources:
                               - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
                     JOB_QUEUE_URL:
                         Ref: SqsJobQueue62388F96
+                    KINESIS_TRACER_STREAM_NAME:
+                        Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                     NODE_ENV: production
                     RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/server/files/processor/process_file/process_file_lambda_binary.runfiles
@@ -7402,11 +7436,12 @@ Resources:
             PolicyDocument:
                 Statement:
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -7507,6 +7542,8 @@ Resources:
                               - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
                     JOB_QUEUE_URL:
                         Ref: SqsJobQueue62388F96
+                    KINESIS_TRACER_STREAM_NAME:
+                        Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                     NODE_ENV: production
                     RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/server/files/processor/process_file/process_file_lambda_binary.runfiles
@@ -7837,6 +7874,10 @@ Resources:
                             - - --fileProcessorLightJobQueueUrl=
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --kinesisTracerStreamName=
+                              - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - --cloudflareAccountId=d496846050bfc973d24617456c59242b
                       - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
                       - --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
@@ -8149,11 +8190,12 @@ Resources:
             PolicyDocument:
                 Statement:
                     - Action:
-                          - firehose:PutRecord
-                          - firehose:PutRecordBatch
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -8220,6 +8262,8 @@ Resources:
                         Ref: SqsFileProcessorHeavyJobQueueA7996724
                     EDGE_SERVICE_URL: https://alpine.inc
                     RESOURCE_SERVICE_URL: https://resources.alpine.inc
+                    KINESIS_TRACER_STREAM_NAME:
+                        Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                     RUNFILES: /var/task/admin/lambda/schedule_deploy/schedule_deploy_lambda_binary.runfiles
             PackageType: Image
             Role:

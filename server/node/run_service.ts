@@ -1,11 +1,13 @@
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import cluster, {Worker} from "cluster";
 import inspector from "inspector";
 import * as os from "os";
 import process from "process";
 import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {HoneycombDataset, HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
+import {HoneycombDataset, TracerClient} from "~/server/tracer/tracer_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -65,7 +67,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             options: ServiceOptions<Options>;
             tracer: TracerRoot;
             startupSpan: TracerSpan;
-            honeycombClient: HoneycombTracerClient | null;
+            honeycombClient: TracerClient | null;
             shutdownManager: ShutdownManager;
             workerIndex: number;
         }) => Promise<void>;
@@ -90,6 +92,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             allowPositionals: false,
             options: {
                 honeycombApiKey: {type: "string"},
+                kinesisTracerStreamName: {type: "string"},
                 inspectorPort: {type: "string"},
                 ...serviceModuleResult?.value?.options,
             },
@@ -124,6 +127,11 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         const honeycombApiKey: string | undefined = (parsedOptions.values as any).honeycombApiKey;
         if (!honeycombApiKey && process.env.NODE_ENV === "production")
             throw new InternalError("Must provide `honeycombApiKey` option in production");
+
+        const kinesisTracerStreamName: string | undefined = (parsedOptions.values as any)
+            .kinesisTracerStreamName;
+        if (!kinesisTracerStreamName && process.env.NODE_ENV === "production")
+            throw new InternalError("Must provide `kinesisTracerStreamName` option in production");
 
         let awsTracerSharedData:
             | {
@@ -189,6 +197,13 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             awsEcsTaskId: awsTracerSharedData?.ecsTaskId,
             honeycombApiKey,
             honeycombDataset,
+            kinesisTracerStreamOptions:
+                process.env.NODE_ENV === "production"
+                    ? {
+                          streamName: assertExists(kinesisTracerStreamName),
+                          awsSigner: new AwsRequestSigner(defaultProvider()),
+                      }
+                    : undefined,
             waitUntil: promise => {
                 shutdownManager.registerWaitUntilPromise(
                     promise.catch(error => {

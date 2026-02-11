@@ -1,4 +1,5 @@
 import {S3Client} from "@aws-sdk/client-s3";
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {createAppAuth as createGithubAppAuth} from "@octokit/auth-app";
 import fs from "fs-extra";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
@@ -41,7 +42,7 @@ import {
     ActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
 import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
@@ -171,7 +172,7 @@ export async function run({
             : null,
     ]);
 
-    const awsSigner = new AwsRequestSigner();
+    const awsSigner = new AwsRequestSigner(defaultProvider());
     void awsSigner.prefetchState(startupSpan);
 
     const basicProcessContext = Context.new(

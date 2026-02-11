@@ -19,6 +19,7 @@ ts_project(
         "//:node_modules/yaml",
         "//admin/crawl",
         "//admin/cron",
+        "//admin/glue",
         "//server/dynamo/core",
         "//server/helpers/node",
         "//server/jobs/core",
@@ -26,6 +27,7 @@ ts_project(
         "//shared/error",
         "//shared/files",
         "//shared/helpers",
+        "//shared/schema",
     ],
 )
 

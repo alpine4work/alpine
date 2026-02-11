@@ -36,11 +36,11 @@ import {
     avatarsBindingName,
     avatarsBucketName,
 } from "~/server/helpers/avatars_cloudflare_r2_bucket_name.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {
     filesBindingName,
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";

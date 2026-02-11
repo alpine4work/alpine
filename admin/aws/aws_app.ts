@@ -30,7 +30,7 @@ export async function createAwsApp() {
     const observabilityStack = new Stack(app, "CyberworldsObservabilityStack", {
         env: {region: "us-east-1"},
     });
-    const observability = AwsObservability.new(observabilityStack);
+    const observability = new AwsObservability(observabilityStack);
 
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
     const {importDynamo, importSqs} = await addAwsResources(stack, {

@@ -1,4 +1,5 @@
 import {S3Client} from "@aws-sdk/client-s3";
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {createRequestHandler} from "@remix-run/node";
 import {ServerRoute} from "@remix-run/server-runtime";
 import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
@@ -53,7 +54,7 @@ import {
     SystemActorContextModule,
     UnknownActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
@@ -228,7 +229,7 @@ async function createAppService({
         runAllPromises(contentCodeBlockLanguages.map(language => language.getParser())),
     ]);
 
-    const awsSigner = new AwsRequestSigner();
+    const awsSigner = new AwsRequestSigner(defaultProvider());
     if (!startupSpan) {
         assert(process.env.NODE_ENV !== "production", "`startupSpan` is required in production");
     } else {

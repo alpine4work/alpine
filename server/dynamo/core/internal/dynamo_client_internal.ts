@@ -4,7 +4,7 @@ import type * as types from "@aws-sdk/client-dynamodb";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {dynamoClientGetItemTestCounter} from "~/server/dynamo/core/dynamo_client_get_item_test_counter.js";
 import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo_error.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/tracer_event_data_dynamo.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {DeadlineExceededError, InternalError, UnavailableError} from "~/shared/error/error.js";

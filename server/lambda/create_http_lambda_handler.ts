@@ -1,6 +1,7 @@
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {APIGatewayProxyEvent, APIGatewayProxyHandler, Context as LambdaContext} from "aws-lambda";
 import {ServerSecrets} from "~/server/aws/server_secrets_schema.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createLambdaTracerAndHoneycombClient} from "~/server/lambda/helpers/create_lambda_tracer_and_honeycomb_client.js";
 import {
     LambdaActionContext,
@@ -12,11 +13,11 @@ import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js"
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
-import {HoneycombDataset, HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {
     createTraceServerResponseHandleSpanName,
     startTracerSpanFromPropagationContextHeader,
 } from "~/server/tracer/trace_server_response.js";
+import {HoneycombDataset, TracerClient} from "~/server/tracer/tracer_client.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
@@ -29,6 +30,16 @@ const honeycombApiKey =
     process.env.NODE_ENV !== "production"
         ? process.env.HONEYCOMB_API_KEY
         : assertExists(process.env.HONEYCOMB_API_KEY, "HONEYCOMB_API_KEY is required");
+
+const kinesisTracerStreamName =
+    process.env.NODE_ENV !== "production"
+        ? // TODO(ifitzsimmons, #local-kinesis): We don't have a local Kinesis stream at the moment,
+          // but when we do, this will always be required
+          (process.env.KINESIS_TRACER_STREAM_NAME ?? "")
+        : assertExists(
+              process.env.KINESIS_TRACER_STREAM_NAME,
+              "KINESIS_TRACER_STREAM_NAME is required",
+          );
 
 export function createHttpLambdaHandler({
     handleRequest,
@@ -58,7 +69,7 @@ export function createHttpLambdaHandler({
     serviceName: TokenServiceName;
     honeycombDataset: HoneycombDataset;
 }): APIGatewayProxyHandler {
-    const awsSigner = new AwsRequestSigner();
+    const awsSigner = new AwsRequestSigner(defaultProvider());
     let tokenAgentAndOptionsPromise: Promise<{
         tokenAgent: TokenAgent;
         options: LambdaActionContextOptions;
@@ -71,7 +82,7 @@ export function createHttpLambdaHandler({
         const promiseWaiter = new PromiseWaiter();
         let span: TracerSpan | null = null;
         let finishSpan: (() => void) | null = null;
-        let honeycombTracerClient: HoneycombTracerClient | null = null;
+        let honeycombTracerClient: TracerClient | null = null;
 
         try {
             const url = getUrl(event);
@@ -91,6 +102,8 @@ export function createHttpLambdaHandler({
                 promiseWaiter,
                 honeycombApiKey,
                 honeycombDataset,
+                kinesisTracerStreamName,
+                awsSigner,
             });
             ({span, finishSpan} = getSpanForRequest(tracer, request, route));
 
@@ -248,7 +261,7 @@ function intoHttpReponse(error: unknown) {
 
 function finishSpanAndFlushHoneycombEvents(
     finishSpan: (() => void) | null,
-    honeycombTracerClient: HoneycombTracerClient | null,
+    honeycombTracerClient: TracerClient | null,
     promiseWaiter: PromiseWaiter,
 ) {
     finishSpan?.();

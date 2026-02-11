@@ -16,7 +16,7 @@ export type TracerEventFlatData = {
  * programming languages, observability vendors, and (perhaps most importantly)
  * [OpenTelemetry semantic conventions][1].
  *
- * [1]: https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/trace/semantic_conventions
+ * [1]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/trace.md
  */
 export function buildTracerEventFlatData(
     nestedDataList: LinkedList<TracerEventDataBase>,

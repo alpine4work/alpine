@@ -1,6 +1,6 @@
 import {join as joinPath} from "path";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
@@ -17,6 +17,7 @@ export const serverBasicProcessContextOptions = {
     fileProcessorJobQueueUrl: {type: "string"},
     edgeServiceUrl: {type: "string"},
     resourceServiceUrl: {type: "string"},
+    kinesisTracerStreamName: {type: "string"},
     fileProcessorHeavyJobQueueUrl: {type: "string"},
     fileProcessorLightJobQueueUrl: {type: "string"},
 } as const;

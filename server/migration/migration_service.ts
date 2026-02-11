@@ -1,3 +1,4 @@
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     ChatInjectionContextModule,
@@ -8,7 +9,7 @@ import {
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {finishInitializingDynamoTableSchemas} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {allMigrations} from "~/server/migration/all_migrations.js";
 import {
     createServerBasicProcessContextModules,
@@ -103,7 +104,7 @@ export async function run({
         throw new InvalidArgumentError(quote`Migration named ${migrationString} not found`);
     }
 
-    const awsSigner = new AwsRequestSigner();
+    const awsSigner = new AwsRequestSigner(defaultProvider());
     void awsSigner.prefetchState(startupSpan);
 
     const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);

@@ -1,9 +1,10 @@
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {
     CdkCustomResourceEvent,
     CdkCustomResourceResponse,
     Context as LambdaContext,
 } from "aws-lambda";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {deploySearchEntityIndexes} from "~/server/search/data/index/search_entity_index.js";
@@ -63,7 +64,7 @@ export async function handler(
             },
         });
 
-        const signer = new AwsRequestSigner();
+        const signer = new AwsRequestSigner(defaultProvider());
         const client = new OpensearchClient({
             url: `https://${opensearchDomainEndpoint}`,
             signer,

@@ -1,10 +1,11 @@
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {startLambdaLocal} from "~/admin/lambda/local/start_lambda_local.js";
 import {handleInternalMiniflareGetObject} from "~/server/files/processor/file_processor_service_server.js";
 import {processFileJob} from "~/server/files/processor/process_file/process_file_lambda.js";
 import {processFile} from "~/server/files/processor/process_file.js";
 import {handleResizeAvatarRequest} from "~/server/files/processor/resize_avatar/handle_resize_avatar_request.js";
 import {handleResizeFileRequest} from "~/server/files/processor/resize_file/handle_resize_file_request.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {ProcessFileJobDescription} from "~/server/jobs/core/job_description.js";
 import {LambdaSystemActionContext} from "~/server/lambda/create_lambda_job_queue_consumer_handler.js";
 import {
@@ -49,7 +50,7 @@ export async function run({
         options,
     });
 
-    const awsSigner = new AwsRequestSigner();
+    const awsSigner = new AwsRequestSigner(defaultProvider());
     void awsSigner.prefetchState(startupSpan);
 
     const promiseWaiter = new PromiseWaiter();

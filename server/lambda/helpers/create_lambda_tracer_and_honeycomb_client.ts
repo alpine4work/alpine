@@ -1,4 +1,6 @@
-import {HoneycombDataset, HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
+import {KinesisClient} from "~/server/kinesis/kinesis_client.js";
+import {HoneycombDataset, TracerClient} from "~/server/tracer/tracer_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -13,13 +15,17 @@ export function createLambdaTracerAndHoneycombClient({
     promiseWaiter,
     honeycombApiKey,
     honeycombDataset,
+    kinesisTracerStreamName,
+    awsSigner,
 }: {
     serviceName: TracerServiceName;
     jsHost: TracerEventJsHost;
     promiseWaiter: PromiseWaiter;
     honeycombApiKey?: string;
     honeycombDataset?: HoneycombDataset;
-}): [TracerRoot, HoneycombTracerClient | null] {
+    kinesisTracerStreamName: string;
+    awsSigner: AwsRequestSigner;
+}): [TracerRoot, TracerClient | null] {
     // If a Honeycomb API key is not provided in production then we get no logging
     // from our service.
     if (!honeycombApiKey && process.env.NODE_ENV === "production")
@@ -42,7 +48,7 @@ export function createLambdaTracerAndHoneycombClient({
     });
 
     const honeycombClient = honeycombApiKey
-        ? new HoneycombTracerClient({
+        ? new TracerClient({
               apiKey: honeycombApiKey,
               tracer,
               waitUntil: promise => {
@@ -58,6 +64,11 @@ export function createLambdaTracerAndHoneycombClient({
               dataset: assertExists(
                   honeycombDataset,
                   "Must provide `honeycombDataset` when `honeycombApiKey` is provided",
+              ),
+              kinesis: new KinesisClient(
+                  "https://kinesis.us-east-1.amazonaws.com",
+                  kinesisTracerStreamName,
+                  awsSigner,
               ),
           })
         : null;

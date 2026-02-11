@@ -15,6 +15,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@aws-sdk/credential-provider-node",
         "//:node_modules/@smithy/types",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
@@ -24,6 +25,7 @@ ts_project(
         "//:node_modules/fs-extra",
         "//:node_modules/ws",
         "//server/context",
+        "//server/helpers",
         "//server/dynamo/core",
         "//server/helpers/node",
         "//server/jobs/core",

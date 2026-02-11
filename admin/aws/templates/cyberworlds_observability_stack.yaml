@@ -131,7 +131,169 @@ Resources:
                       - "true"
         Metadata:
             aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/InstallAndManageCloudWatchAgent
-    AwsObservabilityFirehoseRoleE95FF0FC:
+    AwsObservabilityTracerEventStream25E3CD65:
+        Type: AWS::Kinesis::Stream
+        Properties:
+            Name: tracer-events
+            RetentionPeriodHours: 24
+            StreamEncryption:
+                EncryptionType: KMS
+                KeyId: alias/aws/kinesis
+            StreamModeDetails:
+                StreamMode: ON_DEMAND
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerEventStream/Resource
+    AwsObservabilityKinesisStreamPutsUserC08897E7:
+        Type: AWS::IAM::User
+        Properties:
+            UserName: kinesis-stream-puts-user
+        Metadata:
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/KinesisStreamPutsUser/Resource
+    AwsObservabilityKinesisStreamPutsUserDefaultPolicy580637AD:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - AwsObservabilityTracerEventStream25E3CD65
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: AwsObservabilityKinesisStreamPutsUserDefaultPolicy580637AD
+            Users:
+                - Ref: AwsObservabilityKinesisStreamPutsUserC08897E7
+        Metadata:
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/KinesisStreamPutsUser/DefaultPolicy/Resource
+    AwsObservabilityTracerEventsGlueDatabase61FCF08E:
+        Type: AWS::Glue::Database
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseInput:
+                Description: Database for tracer event data stored in Parquet format
+                Name: tracer_events
+        Metadata:
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerEventsGlueDatabase
+    AwsObservabilityTracerEventsGlueTableF3156455:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: tracer_events
+            TableInput:
+                Description: Tracer events in Parquet format
+                Name: events
+                Parameters:
+                    classification: parquet
+                StorageDescriptor:
+                    Columns:
+                        - Name: name
+                          Type: string
+                        - Name: duration_ms
+                          Type: double
+                        - Name: service
+                          Type: struct<name:string>
+                        - Name: meta
+                          Type: struct<annotation_type:string,untrusted:boolean,client_time_offset_ms:double>
+                        - Name: trace
+                          Type: struct<trace_id:string,span_id:string,parent_id:string,link:struct<span_id:string,trace_id:string>>
+                        - Name: js
+                          Type: struct<realm_id:string,host:string,node_env:string>
+                        - Name: net
+                          Type: struct<sock:struct<family:string,peer:struct<name:string,addr:string,port:string>,host:struct<name:string,addr:string,port:string>>>
+                        - Name: http
+                          Type: struct<method:string,status_code:int,flavor:string,user_agent:string,request:struct<header:struct<accept:string,accept_charset:string,accept_encoding:string,accept_language:string,access_control_request_method:string,access_control_request_headers:string,cache_control:string,connection:string,content_encoding:string,content_type:string,content_length:int,date:string,forwarded:string,host:string,origin:string,pragma:string,prefer:string,trailer:string,transfer_encoding:string,upgrade:string,via:string,warning:string,x_requested_with:string,x_forwarded_for:string,x_forwarded_host:string,x_forwarded_proto:string,x_http_method_override:string,x_request_id:string,accept_ch:string,accept_ranges:string,age:string,allow:string,alt_svc:string,content_disposition:string,content_language:string,expires:string,last_modified:string,preference_applied:string,referer:string,retry_after:string,server:string,strict_transport_security:string,vary:string,content_security_policy:string,x_content_security_policy:string,x_webkit_csp:string,permissions_policy:string,timing_allow_origin:string,x_powered_by:string,x_ua_compatible:string,x_xss_protection:string,content_md5:string,x_amz_date:string,x_amz_content_sha256:string,x_amz_id_2:string,x_amz_request_id:string,cf_connecting_ip:string,cf_connecting_ipv6:string,cf_ew_via:string,cf_pseudo_ipv4:string,cf_ray:string,cf_ipcountry:string,cdn_loop:string,cf_worker:string,cf_cache_status:string,apns_push_type:string,apns_id:string,apns_expiration:string,apns_priority:string,apns_topic:string,apns_collapse_id:string,apns_unique_id:string,x_remix_catch:string,x_remix_error:string,x_remix_redirect:string,x_remix_reload_document:string,x_remix_revalidate:string,x_remix_status:string,cyberworlds_durable_object_id_name:string,cyberworlds_durable_object_if_initialized:string,cyberworlds_space_id_hint:string,cyberworlds_route:string,cyberworlds_transient_error:string>,obfuscated_cookie_header:string>,response:struct<header:struct<accept:string,accept_charset:string,accept_encoding:string,accept_language:string,access_control_request_method:string,access_control_request_headers:string,cache_control:string,connection:string,content_encoding:string,content_type:string,content_length:int,date:string,forwarded:string,host:string,origin:string,pragma:string,prefer:string,trailer:string,transfer_encoding:string,upgrade:string,via:string,warning:string,x_requested_with:string,x_forwarded_for:string,x_forwarded_host:string,x_forwarded_proto:string,x_http_method_override:string,x_request_id:string,accept_ch:string,accept_ranges:string,age:string,allow:string,alt_svc:string,content_disposition:string,content_language:string,expires:string,last_modified:string,preference_applied:string,referer:string,retry_after:string,server:string,strict_transport_security:string,vary:string,content_security_policy:string,x_content_security_policy:string,x_webkit_csp:string,permissions_policy:string,timing_allow_origin:string,x_powered_by:string,x_ua_compatible:string,x_xss_protection:string,content_md5:string,x_amz_date:string,x_amz_content_sha256:string,x_amz_id_2:string,x_amz_request_id:string,cf_connecting_ip:string,cf_connecting_ipv6:string,cf_ew_via:string,cf_pseudo_ipv4:string,cf_ray:string,cf_ipcountry:string,cdn_loop:string,cf_worker:string,cf_cache_status:string,apns_push_type:string,apns_id:string,apns_expiration:string,apns_priority:string,apns_topic:string,apns_collapse_id:string,apns_unique_id:string,x_remix_catch:string,x_remix_error:string,x_remix_redirect:string,x_remix_reload_document:string,x_remix_revalidate:string,x_remix_status:string,cyberworlds_durable_object_id_name:string,cyberworlds_durable_object_if_initialized:string,cyberworlds_space_id_hint:string,cyberworlds_route:string,cyberworlds_transient_error:string>,obfuscated_set_cookie_header:string>,url:string,resend_count:int,scheme:string,target:string,route:string,search:struct<create:string,focus:string,show:string,scroll:string,consistency:string,message:string,comment:string,comments:string,inbox:string,file:string,variant:string,width:string,limit:string,cursor:string,from:string>,client_ip:string,service:struct<name:string>,fetch_duration_ms:double>
+                        - Name: exception
+                          Type: struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>,is_original:string,original:struct<time:string,trace_id:string,span_id:string>,aggregated1:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>,aggregated2:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>,aggregated3:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>,aggregated4:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>,aggregated5:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>>
+                        - Name: common
+                          Type: struct<type:string,branch:string,count:int,is_blocking:boolean,did_nothing:boolean,process_duration_ms:double,delay_duration_ms:double,was_cached:boolean,width:double,height:double,content_length:int>
+                        - Name: context
+                          Type: struct<handler:string,actor:string,account_id:string,space_id:string,bot_id:string,bot_account_id:string,without_space_access:boolean,web_socket_connection_id:string,task_id:string,task_collection_id:string,document_id:string,channel_id:string,post_id:string,chat_id:string,file_id:string,peek:struct<above_document_id:string,above_channel_id:string,above_post_id:string,above_chat_id:string,above_task_id:string,above_task_collection_id:string>,migration:string,route:string,platform:string,spacing_scale:string,route_layout:string,rendering_engine:string>
+                        - Name: dynamodb
+                          Type: struct<action:string,table_name:string,consistent_read:boolean,consumed_capacity:struct<accounts:struct<read_capacity_units:double,write_capacity_units:double>,alpha_access:struct<read_capacity_units:double,write_capacity_units:double>,bot_webhook_events:struct<read_capacity_units:double,write_capacity_units:double>,bots:struct<read_capacity_units:double,write_capacity_units:double>,chat:struct<read_capacity_units:double,write_capacity_units:double>,deploy:struct<read_capacity_units:double,write_capacity_units:double>,documents:struct<read_capacity_units:double,write_capacity_units:double>,feed:struct<read_capacity_units:double,write_capacity_units:double>,files:struct<read_capacity_units:double,write_capacity_units:double>,forum:struct<read_capacity_units:double,write_capacity_units:double>,forum_realtime:struct<read_capacity_units:double,write_capacity_units:double>,inbox:struct<read_capacity_units:double,write_capacity_units:double>,notifications:struct<read_capacity_units:double,write_capacity_units:double>,notion_importer:struct<read_capacity_units:double,write_capacity_units:double>,search_entities:struct<read_capacity_units:double,write_capacity_units:double>,spaces:struct<read_capacity_units:double,write_capacity_units:double>,spell_check:struct<read_capacity_units:double,write_capacity_units:double>,task_actions:struct<read_capacity_units:double,write_capacity_units:double>,tasks:struct<read_capacity_units:double,write_capacity_units:double>,accounts_index1:struct<read_capacity_units:double,write_capacity_units:double>,bots_index1:struct<read_capacity_units:double,write_capacity_units:double>,chat_index1:struct<read_capacity_units:double,write_capacity_units:double>,files_index1:struct<read_capacity_units:double,write_capacity_units:double>,forum_realtime_index1:struct<read_capacity_units:double,write_capacity_units:double>,inbox_index1:struct<read_capacity_units:double,write_capacity_units:double>,inbox_index2:struct<read_capacity_units:double,write_capacity_units:double>,notifications_index1:struct<read_capacity_units:double,write_capacity_units:double>,notion_importer_index1:struct<read_capacity_units:double,write_capacity_units:double>,search_entities_index1:struct<read_capacity_units:double,write_capacity_units:double>,search_entities_index2:struct<read_capacity_units:double,write_capacity_units:double>,search_entities_index3:struct<read_capacity_units:double,write_capacity_units:double>,search_entities_index4:struct<read_capacity_units:double,write_capacity_units:double>,task_actions_index1:struct<read_capacity_units:double,write_capacity_units:double>,total_read_capacity_units:double,total_write_capacity_units:double>,table:struct<0:struct<partition_type:string,partition:struct<accounts:struct<sort_range_type:string>,account,account_email_address,session,stripe_customer,try_on_desktop_email_opt_out,sent_try_on_desktop_email:struct<sort_range_type:string>>>,1:struct<partition_type:string,partition:struct<alpha_access:struct<sort_range_type:string>,alpha_configuration,alpha_access_requests:struct<sort_range_type:string>>>,2:struct<partition_type:string,partition:struct<bot_webhook_events:struct<sort_range_type:string>,bot_space:struct<sort_range_type:string>>>,3:struct<partition_type:string,partition:struct<bots:struct<sort_range_type:string>,bot,api_key,space:struct<sort_range_type:string>>>,4:struct<partition_type:string,partition:struct<chat:struct<sort_range_type:string>>>,5:struct<partition_type:string,partition:struct<deploy:struct<sort_range_type:string>>>,6:struct<partition_type:string,partition:struct<documents:struct<sort_range_type:string>,document,document_comment_thread:struct<sort_range_type:string>>>,7:struct<partition_type:string,partition:struct<feed:struct<sort_range_type:string>,feed_candidates,feed_account_candidates,feed:struct<sort_range_type:string>>>,8:struct<partition_type:string,partition:struct<files:struct<sort_range_type:string>,space,file:struct<sort_range_type:string>>>,9:struct<partition_type:string,partition:struct<forum:struct<sort_range_type:string>,channel,post,account:struct<sort_range_type:string>>>,10:struct<partition_type:string,partition:struct<forum_realtime:struct<sort_range_type:string>,channel,post,realtime,graveyard:struct<sort_range_type:string>>>,11:struct<partition_type:string,partition:struct<inbox:struct<sort_range_type:string>,account,inbox,realtime,graveyard:struct<sort_range_type:string>>>,12:struct<partition_type:string,partition:struct<notifications:struct<sort_range_type:string>,inbox,push_targets:struct<sort_range_type:string>>>,13:struct<partition_type:string,partition:struct<notion_importer:struct<sort_range_type:string>,import:struct<sort_range_type:string>>>,14:struct<partition_type:string,partition:struct<search_entities:struct<sort_range_type:string>,account,space_channels,space_task_collections,index_search_entity_embedding_chunks_job:struct<sort_range_type:string>>>,15:struct<partition_type:string,partition:struct<spaces:struct<sort_range_type:string>,space,auto_add_accounts_from_email_domain,account,bot:struct<sort_range_type:string>>>,16:struct<partition_type:string,partition:struct<spell_check:struct<sort_range_type:string>,ignored_lint,realtime,graveyard:struct<sort_range_type:string>>>,17:struct<partition_type:string,partition:struct<task_actions:struct<sort_range_type:string>>>,18:struct<partition_type:string,partition:struct<tasks:struct<sort_range_type:string>,account,task_collection,task,task_grid_view_expansion_state:struct<sort_range_type:string>>>>,condition_expression:string,update_expression:string,batch_size:int,query:struct<key_condition_expression:string,index_name:string,scan_index_forward:boolean,limit:int,has_exclusive_start_key:boolean,scanned_count:int>,scan:struct<index_name:string,limit:int,has_exclusive_start_key:boolean,scanned_count:int>,transact_write:struct<items:string,item_count:int,client_request_token:string>,transact_get:struct<size:int>,exception:struct<type:string,cancellation_reasons:string>>
+                        - Name: aws
+                          Type: struct<credentials:struct<expiration_time:string>,ses:struct<message_id:string>,sqs:struct<queue_name:string,message_id:string,visibility_timeout:double,wait_time_seconds:double,max_number_of_messages:int,message_count:int,approximate_receive_count:int>,ecs:struct<task_id:string,cluster:string,task_definition_family:string,task_count:int,container_instance_count:int>,cloudformation:struct<logical_resource_id:string,physical_resource_id:string,resource_type:string,start_status:string,start_status_reason:string,error_status:string,error_status_reason:string,finish_status:string,finish_status_reason:string>,eventbridge:struct<scheduler:struct<name:string,group_name:string,target:string,arn:string,expression:string,expression_time_zone:string,max_flexible_time_window_minutes:int,start_date:string,end_date:string>>,ec2:struct<instance_id:string,security_group_id:string,instance_count:int>>
+                        - Name: email
+                          Type: struct<template:string,source:string>
+                        - Name: web_socket
+                          Type: struct<connection_id:string,message_type:string>
+                        - Name: content
+                          Type: struct<collaborative:struct<version:int,start_version:int,end_version:int,step_count:int,client_version:int,client_step_count:int>>
+                        - Name: notifications
+                          Type: struct<event_type:string,event_id:string,email_digest:struct<ineligible_reason:string,send_time:string>>
+                        - Name: tasks
+                          Type: struct<actions:string,action_count:int,action_transaction_id:string,action_transaction_count:int,action_history_segment_count:int>
+                        - Name: opensearch
+                          Type: struct<routing:string,query:string,sort:string,get:struct<found:boolean,id:string,seq_no:int,primary_term:int>,mget:struct<count:int,found_count:int,routings:string,ids:string,seq_nos:string,primary_terms:string>,index:struct<id:string,if_seq_no:int,if_primary_term:int,seq_no:int,primary_term:int>,bulk:struct<count:int,routings:string,ids:string,actions:string,if_seq_nos:string,if_primary_terms:string,seq_nos:string,primary_terms:string>,search:struct<hit_count:int>>
+                        - Name: jobs
+                          Type: struct<type:string,queue_name:string,delay_seconds:double,queue_duration_ms:double,will_retry:boolean,consumer:struct<start_fiber_count:int,end_fiber_count:int,max_fiber_count:int>>
+                        - Name: cohere
+                          Type: struct<text_count:int,model:string,input_type:string,token_count:int>
+                        - Name: migration
+                          Type: struct<segment_index:int,total_segment_count:int>
+                        - Name: apns
+                          Type: struct<connection_id:string,error_reason:string>
+                        - Name: web_push
+                          Type: struct<subscription_endpoint_origin:string,browser_id:string,response_status_code:int>
+                        - Name: cloudflare
+                          Type: struct<r2:struct<action:string,bucket:string,object:struct<key:string,content_type:string,content_length:int>,multipart_upload:struct<id:string,part_number:int,part_content_length:int,total_part_count:int>>,wrangler:struct<attempt:int>,d1:struct<action:string,database_name:string>>
+                        - Name: github
+                          Type: struct<compare_url:string,workflow:struct<run:struct<id:int,number:int,attempt:int,url:string,commit:string>>>
+                        - Name: deploy
+                          Type: struct<active_commit:string,ongoing_deployment_commit:string,dispatched_deployment_commit:string,new_commit:string,zoned_time:string,is_time_deployable:boolean>
+                        - Name: file
+                          Type: struct<content_type:string,content_length:int,job_type:string,job_reason:string,processor_type:string,created_time:string,alternative:struct<content_type:string,content_length:int,content_length_ratio:double>,preview:struct<content_type:string,content_length:int,content_length_ratio:double,image_width:int,image_height:int,image_scale:double,image_has_alpha:boolean,image_video_duration_ms:double,audio_duration_ms:double,code_content_length:int>,processing:struct<alternative_duration_ms:double,image_preview_size_duration_ms:double,image_preview_placeholder_duration_ms:double,image_preview_content_duration_ms:double,image_preview_video_duration_duration_ms:double,audio_preview_duration_duration_ms:double,audio_preview_metadata_duration_ms:double,code_preview_content_duration_ms:double,image_preview_video_duration_to_alternative_processing_duration_ratio:double>,avatar:struct<resize:struct<quality:int,resized_content_length:int,resized_to_original_content_length_ratio:double,request:struct<height:int,width:int,max_content_length:int>>>>
+                        - Name: space
+                          Type: struct<members:struct<invite:struct<send:struct<existing_account_id:string,new_account_id:string>,invalid_email_address_count:int,rejected_as_spam_email_address_count:int,already_member_email_address_count:int,invited_email_address_count:int,unexpected_failure_email_address_count:int>>>
+                        - Name: libreoffice
+                          Type: struct<output_filter:string>
+                        - Name: ffmpeg
+                          Type: struct<codecs:string>
+                        - Name: sharp
+                          Type: struct<avif:struct<quality:int,effort:int>,input_content_length:int,output_content_length:int>
+                        - Name: edge
+                          Type: struct<app_service_duration_ms:double>
+                        - Name: openai
+                          Type: struct<model:string,responses:struct<id:string,prompt_cache_key:string,safety_identifier:string,status:string,incomplete_details:struct<reason:string>,usage:struct<input_tokens:int,cached_input_tokens:int,output_tokens:int,reasoning_output_tokens:int,total_tokens:int>>>
+                        - Name: agents
+                          Type: struct<schedule:struct<event:struct<time:string,execution_time:string,queue_duration_ms:double,type:string>>,request:struct<account_id:string,provider:string,model:string,used_millicents:int,usage_window:struct<limit_millicents:int,used_millicents:int,is_past_total_usage_limit:boolean,is_past_downgrade_usage_limit:boolean,window_type:string,age_ms:int,reset:boolean,started_time:string,previous_started_time:string,previous_used_millicents:int>>>
+                        - Name: billing
+                          Type: struct<created_stripe_customer:boolean,stripe_customer_id:string,stripe_event:struct<type:string,id:string,processed:boolean,dollar_amount:double>>
+                        - Name: auth
+                          Type: struct<sign_in:struct<failed_attempt_count:int,minutes_until_expiration:int,hours_until_unlocked:int>,sign_up:struct<auto_add_accounts_from_email_domain:string>>
+                        - Name: reaction
+                          Type: struct<character:struct<type:string,variant:string>>
+                        - Name: logo_dev
+                          Type: struct<query:string,name:string,domain:string,description:string,colors:string>
+                        - Name: feed
+                          Type: struct<was_created:boolean,entry_count:int,has_more_entries:boolean,search_entity_count:int>
+                        - Name: cursor
+                          Type: struct<cloud_agents:struct<webhook:struct<id:string,event:string>>>
+                    InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsObservabilityLoggingBucketC446D7D1
+                              - /tracer/events/parquet/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsObservabilityTracerEventsGlueDatabase61FCF08E
+        Metadata:
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerEventsGlueTable
+    AwsObservabilityS3FirehoseRoleE276D682:
         Type: AWS::IAM::Role
         Properties:
             AssumeRolePolicyDocument:
@@ -142,8 +304,8 @@ Resources:
                           Service: firehose.amazonaws.com
                 Version: 2012-10-17
         Metadata:
-            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/FirehoseRole/Resource
-    AwsObservabilityFirehoseRoleDefaultPolicy42386280:
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/S3FirehoseRole/Resource
+    AwsObservabilityS3FirehoseRoleDefaultPolicyF66EC14C:
         Type: AWS::IAM::Policy
         Properties:
             PolicyDocument:
@@ -168,61 +330,83 @@ Resources:
                                         - Arn
                                   - /*
                     - Action:
-                          - secretsmanager:DescribeSecret
-                          - secretsmanager:GetSecretValue
+                          - kinesis:DescribeStream
+                          - kinesis:DescribeStreamConsumer
+                          - kinesis:DescribeStreamSummary
+                          - kinesis:GetRecords
+                          - kinesis:GetShardIterator
+                          - kinesis:ListShards
+                          - kinesis:ListStreams
+                          - kinesis:SubscribeToShard
                       Effect: Allow
                       Resource:
-                          Fn::Join:
-                              - ""
-                              - - "arn:aws:secretsmanager:us-east-1:"
-                                - Ref: AWS::AccountId
-                                - :secret:TracerEventStreamSecrets-??????
+                          Fn::GetAtt:
+                              - AwsObservabilityTracerEventStream25E3CD65
+                              - Arn
+                    - Action:
+                          - glue:GetTable
+                          - glue:GetTableVersion
+                          - glue:GetTableVersions
+                      Effect: Allow
+                      Resource:
+                          - arn:aws:glue:*:*:catalog
+                          - arn:aws:glue:*:*:database/tracer_events
+                          - arn:aws:glue:*:*:table/tracer_events/events
                 Version: 2012-10-17
-            PolicyName: AwsObservabilityFirehoseRoleDefaultPolicy42386280
+            PolicyName: AwsObservabilityS3FirehoseRoleDefaultPolicyF66EC14C
             Roles:
-                - Ref: AwsObservabilityFirehoseRoleE95FF0FC
+                - Ref: AwsObservabilityS3FirehoseRoleE276D682
         Metadata:
-            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/FirehoseRole/DefaultPolicy/Resource
-    AwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1E:
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/S3FirehoseRole/DefaultPolicy/Resource
+    AwsObservabilityTracerS3FirehoseDeliveryStreamD517087D:
         Type: AWS::KinesisFirehose::DeliveryStream
         Properties:
-            DeliveryStreamName: tracer-events
-            DeliveryStreamType: DirectPut
-            HttpEndpointDestinationConfiguration:
-                EndpointConfiguration:
-                    AccessKey:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:TracerEventStreamSecrets:SecretString:honeycombApiKey::}}
-                    Name: Honeycomb Tracer Events Destination
-                    Url: https://api.honeycomb.io/1/kinesis_events/tracer
-                S3BackupMode: AllData
-                S3Configuration:
-                    BucketARN:
-                        Fn::GetAtt:
-                            - AwsObservabilityLoggingBucketC446D7D1
-                            - Arn
-                    Prefix: tracer/events/raw
-                    RoleARN:
-                        Fn::GetAtt:
-                            - AwsObservabilityFirehoseRoleE95FF0FC
-                            - Arn
-                SecretsManagerConfiguration:
+            DeliveryStreamName: tracer-events-s3
+            DeliveryStreamType: KinesisStreamAsSource
+            ExtendedS3DestinationConfiguration:
+                BucketARN:
+                    Fn::GetAtt:
+                        - AwsObservabilityLoggingBucketC446D7D1
+                        - Arn
+                BufferingHints:
+                    IntervalInSeconds: 300
+                    SizeInMBs: 128
+                CompressionFormat: UNCOMPRESSED
+                DataFormatConversionConfiguration:
                     Enabled: true
-                    RoleARN:
-                        Fn::GetAtt:
-                            - AwsObservabilityFirehoseRoleE95FF0FC
-                            - Arn
-                    SecretARN:
-                        Fn::Join:
-                            - ""
-                            - - "arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:TracerEventStreamSecrets
+                    InputFormatConfiguration:
+                        Deserializer:
+                            OpenXJsonSerDe: {}
+                    OutputFormatConfiguration:
+                        Serializer:
+                            ParquetSerDe: {}
+                    SchemaConfiguration:
+                        CatalogId:
+                            Ref: AWS::AccountId
+                        DatabaseName: tracer_events
+                        Region: us-east-1
+                        RoleARN:
+                            Fn::GetAtt:
+                                - AwsObservabilityS3FirehoseRoleE276D682
+                                - Arn
+                        TableName: events
+                ErrorOutputPrefix: tracer/events/parquet-errors/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/!{firehose:error-output-type}/
+                Prefix: tracer/events/parquet/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/
+                RoleARN:
+                    Fn::GetAtt:
+                        - AwsObservabilityS3FirehoseRoleE276D682
+                        - Arn
+            KinesisStreamSourceConfiguration:
+                KinesisStreamARN:
+                    Fn::GetAtt:
+                        - AwsObservabilityTracerEventStream25E3CD65
+                        - Arn
+                RoleARN:
+                    Fn::GetAtt:
+                        - AwsObservabilityS3FirehoseRoleE276D682
+                        - Arn
         Metadata:
-            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerHoneycombFirehoseDeliveryStream
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerS3FirehoseDeliveryStream
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
@@ -237,13 +421,18 @@ Outputs:
                 - Arn
         Export:
             Name: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityLoggingBucketC446D7D1ArnDA3B976C
-    ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D:
+    ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7:
         Value:
             Fn::GetAtt:
-                - AwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1E
+                - AwsObservabilityTracerEventStream25E3CD65
                 - Arn
         Export:
-            Name: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
+            Name: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+    ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2:
+        Value:
+            Ref: AwsObservabilityTracerEventStream25E3CD65
+        Export:
+            Name: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
     ExportsOutputRefAwsObservabilityLoggingBucketC446D7D1C2D1E43D:
         Value:
             Ref: AwsObservabilityLoggingBucketC446D7D1

@@ -213,6 +213,9 @@ export class AwsLambdaBase extends Construct {
             EDGE_SERVICE_URL: "https://alpine.inc",
             RESOURCE_SERVICE_URL: "https://resources.alpine.inc",
             ...(options.honeycombApiKey ? {HONEYCOMB_API_KEY: options.honeycombApiKey} : {}),
+            ...(options.observability?.tracerEventStreamName
+                ? {KINESIS_TRACER_STREAM_NAME: options.observability.tracerEventStreamName}
+                : {}),
         };
     }
 

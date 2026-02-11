@@ -1,59 +1,51 @@
-import {Duration, Tags} from "aws-cdk-lib";
-import {IGrantable, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
-import {CfnDeliveryStream, DeliveryStream, IDeliveryStream} from "aws-cdk-lib/aws-kinesisfirehose";
-import {Bucket, IBucket} from "aws-cdk-lib/aws-s3";
-import {Secret} from "aws-cdk-lib/aws-secretsmanager";
+import {Duration, Stack, Tags} from "aws-cdk-lib";
+import {CfnDatabase, CfnTable} from "aws-cdk-lib/aws-glue";
+import {IGrantable, PolicyStatement, Role, ServicePrincipal, User} from "aws-cdk-lib/aws-iam";
+import {Stream as KinesisDataStream, StreamEncryption, StreamMode} from "aws-cdk-lib/aws-kinesis";
+import {CfnDeliveryStream} from "aws-cdk-lib/aws-kinesisfirehose";
+import {Bucket} from "aws-cdk-lib/aws-s3";
 import {CfnAssociation, ParameterTier, StringParameter} from "aws-cdk-lib/aws-ssm";
 import {Construct, IConstruct} from "constructs";
 import {cloudwatchAgentConfig} from "~/admin/aws/internal/cloudwatch_agent_config.js";
+import {generateTracerEventGlueSchema} from "~/admin/glue/generate_tracer_event_glue_schema.js";
 
 /**
  * Construct to set up shared observability resources for our infrastructure and services.
  *
- * - Creates a shared S3 bucket for storing logs and raw tracer events. Logs should be stored under the
- * the `logsBucketPrefix` and tracer events should be stored under the `tracerEventBucketPrefix` to
- * ensure the correct lifecycle rules are applied.
+ * - Creates a shared S3 bucket for storing logs and tracer events. Logs should be stored under
+ * the `logsBucketPrefix` and tracer events should be stored under the `tracerEventBucketPrefix`
+ * to ensure the correct lifecycle rules are applied.
  *
- * - Sets up a Kinesis Data Firehose delivery stream for sending tracer events to Honeycomb and
- * S3. You must grant your IAM role permission to write to the firehose delivery stream.
+ * - Sets up a Kinesis Data Stream as the entry point for tracer events. Services write to this
+ * stream which, for now, provides the data to single Firehose delivery stream:
+ * - S3 delivery stream - Converts records to Parquet format for efficient querying
  *
- * - Sets up a Systems Manager association that will install, configure, and start the CloudWatch Agent
- * on any instance tagged with `CloudWatchAgent=true`.
+ * Eventually we will add support for a Honeycomb delivery stream (see #local-kinesis TODOs).
+ *
+ * - Sets up a Systems Manager association that will install, configure, and start the CloudWatch
+ * Agent on any instance tagged with `CloudWatchAgent=true`. This is used to collect metrics and
+ * logs from the instance and send them to CloudWatch.
  */
-export class AwsObservability {
-    public readonly loggingBucket: IBucket;
-    public readonly tracerEventStream: IDeliveryStream;
-    public readonly logsBucketPrefix: string;
-    public readonly tracerEventBucketPrefix: string;
-    public readonly tracerEventStreamName: string;
+export class AwsObservability extends Construct {
+    private readonly _logsBucketPrefix = "logs/";
+    private readonly _tracerEventBucketPrefix = "tracer/events";
+    private readonly _tracerEventS3FirehoseStreamName = "tracer-events-s3";
+    private readonly _tracerEventGlueDatabaseName = "tracer_events";
 
-    // These are static so they can be accessed by the `new` method, but aren't intended to be used
-    // publicly outside of the class. You should use the instance properties instead.
-    static _logsBucketPrefix = "logs/";
-    static _tracerEventBucketPrefix = "tracer/events";
-    static _tracerEventStreamName = "tracer-events";
+    private readonly _loggingBucket: Bucket;
+    private readonly _tracerEventStream: KinesisDataStream;
 
-    private constructor(loggingBucket: IBucket, tracerEventStream: IDeliveryStream) {
-        this.loggingBucket = loggingBucket;
-        this.tracerEventStream = tracerEventStream;
+    constructor(parentConstruct: Construct) {
+        super(parentConstruct, "AwsObservability");
 
-        // Make our static properties accessible to the instance.
-        this.logsBucketPrefix = AwsObservability._logsBucketPrefix;
-        this.tracerEventBucketPrefix = AwsObservability._tracerEventBucketPrefix;
-        this.tracerEventStreamName = AwsObservability._tracerEventStreamName;
-    }
-
-    public static new(parentConstruct: Construct): AwsObservability {
-        const construct = new Construct(parentConstruct, "AwsObservability");
-
-        const loggingBucket = new Bucket(construct, "LoggingBucket", {
+        this._loggingBucket = new Bucket(this, "LoggingBucket", {
             bucketName: "cyberworlds-observability-logs",
             versioned: false,
             lifecycleRules: [{expiration: Duration.days(90), prefix: this._logsBucketPrefix}],
         });
 
         const cloudwatchAgentConfigParameter = new StringParameter(
-            construct,
+            this,
             "CloudWatchAgentConfigParam",
             {
                 parameterName: "AmazonCloudWatch-linux-config",
@@ -67,7 +59,7 @@ export class AwsObservability {
         // This document installs the CloudWatch Agent package, configures it using an SSM parameter,
         // and starts it. Any instance tagged with `CloudWatchAgent=true` will be targeted by this
         // association.
-        new CfnAssociation(construct, "InstallAndManageCloudWatchAgent", {
+        new CfnAssociation(this, "InstallAndManageCloudWatchAgent", {
             name: "AWSQuickSetupType-InstallAndManageCloudWatchAgent",
             targets: [
                 {
@@ -83,60 +75,158 @@ export class AwsObservability {
             },
         });
 
-        const secrets = Secret.fromSecretNameV2(
-            construct,
-            "SecretsImport",
-            "TracerEventStreamSecrets",
-        );
-
-        const firehoseRole = new Role(construct, "FirehoseRole", {
-            assumedBy: new ServicePrincipal("firehose.amazonaws.com"),
+        // Create the Kinesis Data Stream as the entry point for tracer events. Services write
+        // records to this stream, and it fans out to multiple Firehose delivery streams.
+        this._tracerEventStream = new KinesisDataStream(this, "TracerEventStream", {
+            streamName: "tracer-events",
+            streamMode: StreamMode.ON_DEMAND,
+            encryption: StreamEncryption.MANAGED,
         });
 
-        loggingBucket.grantWrite(firehoseRole);
-        secrets.grantRead(firehoseRole);
+        const user = createUserForKinesisStreamPuts(this, this._tracerEventStream);
+        this._tracerEventStream.grantWrite(user);
 
-        const tracerFirehoseDeliveryStreamCfn = new CfnDeliveryStream(
-            construct,
-            "TracerHoneycombFirehoseDeliveryStream",
-            {
-                deliveryStreamName: this._tracerEventStreamName,
-                deliveryStreamType: "DirectPut",
-                httpEndpointDestinationConfiguration: {
-                    endpointConfiguration: {
-                        url: "https://api.honeycomb.io/1/kinesis_events/tracer",
-                        name: "Honeycomb Tracer Events Destination",
-                        accessKey: secrets.secretValueFromJson("honeycombApiKey").unsafeUnwrap(),
-                    },
-                    s3BackupMode: "AllData",
-                    s3Configuration: {
-                        bucketArn: loggingBucket.bucketArn,
-                        roleArn: firehoseRole.roleArn,
-                        prefix: `${this._tracerEventBucketPrefix}/raw`,
-                    },
-                    secretsManagerConfiguration: {
-                        enabled: true,
-                        roleArn: firehoseRole.roleArn,
-                        secretArn: secrets.secretArn,
+        // Create Glue database and table for the Parquet schema. Firehose uses this schema
+        // to convert JSON records to Parquet format.
+        const glueDatabase = new CfnDatabase(this, "TracerEventsGlueDatabase", {
+            catalogId: Stack.of(this).account,
+            databaseInput: {
+                name: this._tracerEventGlueDatabaseName,
+                description: "Database for tracer event data stored in Parquet format",
+            },
+        });
+
+        const glueTableName = "events";
+        const glueTable = new CfnTable(this, "TracerEventsGlueTable", {
+            catalogId: Stack.of(this).account,
+            databaseName: this._tracerEventGlueDatabaseName,
+            tableInput: {
+                name: glueTableName,
+                description: "Tracer events in Parquet format",
+                tableType: "EXTERNAL_TABLE",
+                parameters: {
+                    classification: "parquet",
+                },
+                // NOTE(ifitzsimmons): This is absolutely derived from Stack Overflow [1]
+                // [1]: https://stackoverflow.com/questions/71213512/how-to-add-serde-parameters-in-cdk
+                storageDescriptor: {
+                    columns: [...generateTracerEventGlueSchema()],
+                    location: `s3://${this._loggingBucket.bucketName}/${this._tracerEventBucketPrefix}/parquet/`,
+                    inputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+                    outputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+                    serdeInfo: {
+                        serializationLibrary:
+                            "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+                        parameters: {
+                            "serialization.format": "1",
+                        },
                     },
                 },
             },
+        });
+        glueTable.addDependency(glueDatabase);
+
+        // Create Firehose IAM role for S3 delivery
+        const s3FirehoseRole = new Role(this, "S3FirehoseRole", {
+            assumedBy: new ServicePrincipal("firehose.amazonaws.com"),
+        });
+
+        this._loggingBucket.grantWrite(s3FirehoseRole);
+        this._tracerEventStream.grantRead(s3FirehoseRole);
+
+        // Grant Glue permissions for schema access during Parquet conversion
+        s3FirehoseRole.addToPolicy(
+            new PolicyStatement({
+                actions: ["glue:GetTable", "glue:GetTableVersion", "glue:GetTableVersions"],
+                resources: [
+                    `arn:aws:glue:*:*:catalog`,
+                    `arn:aws:glue:*:*:database/tracer_events`,
+                    `arn:aws:glue:*:*:table/tracer_events/events`,
+                ],
+            }),
         );
 
-        const tracerFirehoseDeliveryStream = DeliveryStream.fromDeliveryStreamArn(
-            construct,
-            "TracerEventsHoneycombFirehoseDeliveryStream",
-            tracerFirehoseDeliveryStreamCfn.attrArn,
-        );
+        // Firehose delivery stream for S3 with Parquet format conversion
+        new CfnDeliveryStream(this, "TracerS3FirehoseDeliveryStream", {
+            deliveryStreamName: this._tracerEventS3FirehoseStreamName,
+            deliveryStreamType: "KinesisStreamAsSource",
+            kinesisStreamSourceConfiguration: {
+                kinesisStreamArn: this._tracerEventStream.streamArn,
+                roleArn: s3FirehoseRole.roleArn,
+            },
+            extendedS3DestinationConfiguration: {
+                bucketArn: this._loggingBucket.bucketArn,
+                roleArn: s3FirehoseRole.roleArn,
+                prefix: `${this._tracerEventBucketPrefix}/parquet/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/`,
+                errorOutputPrefix: `${this._tracerEventBucketPrefix}/parquet-errors/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/!{firehose:error-output-type}/`,
+                bufferingHints: {
+                    intervalInSeconds: 300, // 5 minutes
+                    sizeInMBs: 128, // 128MB
+                },
+                compressionFormat: "UNCOMPRESSED", // Parquet handles its own compression
+                dataFormatConversionConfiguration: {
+                    enabled: true,
+                    inputFormatConfiguration: {
+                        deserializer: {
+                            openXJsonSerDe: {},
+                        },
+                    },
+                    outputFormatConfiguration: {
+                        serializer: {
+                            parquetSerDe: {},
+                        },
+                    },
+                    schemaConfiguration: {
+                        catalogId: Stack.of(this).account,
+                        databaseName: this._tracerEventGlueDatabaseName,
+                        tableName: glueTableName,
+                        roleArn: s3FirehoseRole.roleArn,
+                        region: Stack.of(this).region,
+                    },
+                },
+            },
+        });
+    }
 
-        return new AwsObservability(loggingBucket, tracerFirehoseDeliveryStream);
+    public get loggingBucket(): Bucket {
+        return this._loggingBucket;
+    }
+
+    public get logsBucketPrefix(): string {
+        return this._logsBucketPrefix;
+    }
+
+    public get tracerEventStreamName(): string {
+        return this._tracerEventStream.streamName;
     }
 
     public grantPutToTracerEventStream(grantee: IGrantable) {
-        this.tracerEventStream.grantPutRecords(grantee);
+        this._tracerEventStream.grantWrite(grantee);
     }
 
     public installCloudWatchAgent(construct: IConstruct) {
         Tags.of(construct).add("CloudWatchAgent", "true");
     }
+}
+
+/**
+ * IMPORTANT: This creates the user but DOES NOT CREATE THE ACCESS KEYS.
+ *
+ * You must manually go to the console, find the user, generate access keys,
+ * and then set the access key ID and secret access key as secret variables
+ * in Cloudflare (and whatever other external services we may need)
+ */
+function createUserForKinesisStreamPuts(parentConstruct: Construct, stream: KinesisDataStream) {
+    const user = new User(parentConstruct, "KinesisStreamPutsUser", {
+        userName: "kinesis-stream-puts-user",
+    });
+
+    user.addToPolicy(
+        new PolicyStatement({
+            actions: ["kinesis:PutRecords"],
+            resources: [stream.streamArn],
+        }),
+    );
+
+    return user;
 }

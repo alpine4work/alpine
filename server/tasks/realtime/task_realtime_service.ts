@@ -1,4 +1,5 @@
 import {WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     ChatInjectionContextModule,
@@ -14,7 +15,7 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {
     createServerBasicProcessContextModules,
     serverBasicProcessContextOptions,
@@ -135,7 +136,7 @@ export async function run({
         options,
     });
 
-    const awsSigner = new AwsRequestSigner();
+    const awsSigner = new AwsRequestSigner(defaultProvider());
     void awsSigner.prefetchState(startupSpan);
 
     const processContext = Context.new({

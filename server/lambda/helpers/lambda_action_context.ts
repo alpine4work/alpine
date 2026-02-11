@@ -8,7 +8,7 @@ import {
 } from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     createServerBasicProcessContextModulesWithoutShutdownManager,
@@ -36,7 +36,7 @@ export type LambdaActionContextOptions = ServiceOptions<typeof lambdaActionConte
 export const lambdaActionContextOptions = {
     temporaryDirectoryPath: {type: "string"},
     ...serviceTokenAgentOptions,
-    ...serverBasicProcessContextOptions,
+    ...omitObject(serverBasicProcessContextOptions, ["kinesisTracerStreamName"]),
     ...omitObject(serviceCloudflareR2Options, ["fileProcessorServiceUrl"]),
     honeycombApiKey: {type: "string", optional: true},
 } as const;

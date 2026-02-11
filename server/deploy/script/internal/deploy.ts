@@ -15,7 +15,7 @@ import {deployAws} from "~/server/deploy/script/internal/deploy_aws.js";
 import {deployCloudflareWorkers} from "~/server/deploy/script/internal/deploy_cloudflare_workers.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {TracerClient} from "~/server/tracer/tracer_client.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {UnavailableError, UnknownError} from "~/shared/error/error.js";
@@ -61,7 +61,7 @@ export async function deploy(
         workflowRunId: number;
         workflowRunNumber: number;
         workflowRunAttempt: number;
-        honeycombClient: HoneycombTracerClient;
+        honeycombClient: TracerClient;
         cloudflareAccountId: string;
         cloudflareWorkersToken: string;
     },
@@ -193,7 +193,7 @@ async function actuallyDeploy(
         commitSha: string;
         workflowRunId: number;
         workflowRunNumber: number;
-        honeycombClient: HoneycombTracerClient;
+        honeycombClient: TracerClient;
         cloudflareAccountId: string;
         cloudflareWorkersToken: string;
     },

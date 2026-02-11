@@ -308,6 +308,7 @@ export class AwsJobQueueService extends Construct {
                 `--taskRealtimeServiceSecurityGroupId=${taskRealtimeService.securityGroup.securityGroupId}`,
                 "--honeycombApiKey=$HONEYCOMB_API_KEY",
                 "--cohereApiKey=$COHERE_API_KEY",
+                `--tracerEventStreamName=${observability.tracerEventStreamName}`,
                 "--githubAppId=$GITHUB_APP_ID",
                 "--githubAppClientId=$GITHUB_APP_CLIENT_ID",
                 "--githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET",

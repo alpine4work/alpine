@@ -1,7 +1,8 @@
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {Handler, Context as LambdaContext, SQSEvent, SQSRecord} from "aws-lambda";
 import {ServerSecrets} from "~/server/aws/server_secrets_schema.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {getJobQueueConsumerHandleSpanName} from "~/server/jobs/core/get_job_queue_consumer_handle_span_name.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
@@ -17,7 +18,7 @@ import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js"
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
-import {HoneycombDataset} from "~/server/tracer/honeycomb_tracer_client.js";
+import {HoneycombDataset} from "~/server/tracer/tracer_client.js";
 import {Context} from "~/shared/context/context.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -32,6 +33,16 @@ const honeycombApiKey =
     process.env.NODE_ENV !== "production"
         ? process.env.HONEYCOMB_API_KEY
         : assertExists(process.env.HONEYCOMB_API_KEY, "HONEYCOMB_API_KEY is required");
+
+const kinesisTracerStreamName =
+    // TODO(ifitzsimmons, #local-kinesis): We don't have a local Kinesis stream at the moment,
+    // but when we do, this will always be required
+    process.env.NODE_ENV !== "production"
+        ? (process.env.KINESIS_TRACER_STREAM_NAME ?? "")
+        : assertExists(
+              process.env.KINESIS_TRACER_STREAM_NAME,
+              "KINESIS_TRACER_STREAM_NAME is required",
+          );
 
 export type LambdaSystemActionContext = Context<
     LambdaActionContextModules & {actor: SystemActorContextModule}
@@ -52,7 +63,7 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
     serviceSecretsSchema: Schema<ServerSecrets>;
     honeycombDataset: HoneycombDataset;
 }): Handler<SQSEvent, {batchItemFailures: BatchItemFailures}> {
-    const awsSigner = new AwsRequestSigner();
+    const awsSigner = new AwsRequestSigner(defaultProvider());
     let tokenAgentAndOptionsPromise: Promise<{
         tokenAgent: TokenAgent;
         options: LambdaActionContextOptions;
@@ -70,6 +81,8 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
                 promiseWaiter,
                 honeycombApiKey,
                 honeycombDataset,
+                kinesisTracerStreamName,
+                awsSigner,
             });
             ({span: parentSpan, finishSpan: finishParentSpan} = tracer
                 .getRoot()

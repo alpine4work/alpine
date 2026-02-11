@@ -1,4 +1,3 @@
-import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {AwsCredentialIdentity, Provider} from "@smithy/types";
 import {AwsClient} from "aws4fetch";
 import {InternalError} from "~/shared/error/error.js";
@@ -29,9 +28,7 @@ export class AwsRequestSigner {
         client: AwsClient;
     }> | null = null;
 
-    constructor(
-        credentials: AwsCredentialIdentity | Provider<AwsCredentialIdentity> = defaultProvider(),
-    ) {
+    constructor(credentials: AwsCredentialIdentity | Provider<AwsCredentialIdentity>) {
         this._credentialsProvider =
             typeof credentials === "function" ? credentials : async () => credentials;
     }

@@ -1,3 +1,4 @@
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import os from "os";
 import {
     createServiceCloudflareR2ContextModule,
@@ -7,7 +8,7 @@ import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {FileProcessorProcessContext} from "~/server/files/data/file_processor_context.js";
 import {createFileProcessorServiceServer} from "~/server/files/processor/file_processor_service_server.js";
 import {processFile} from "~/server/files/processor/process_file.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {
@@ -66,7 +67,7 @@ export async function run({
         }
     }
 
-    const awsSigner = new AwsRequestSigner();
+    const awsSigner = new AwsRequestSigner(defaultProvider());
     void awsSigner.prefetchState(startupSpan);
 
     const tokenAgent = await createServiceTokenAgent({

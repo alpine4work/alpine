@@ -11,6 +11,9 @@ ts_project(
     deps = [
         "//:node_modules/@types/fs-extra",
         "//:node_modules/fs-extra",
+        "//server/helpers",
+        "//server/kinesis",
+        "//shared/context",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

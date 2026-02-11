@@ -1,3 +1,4 @@
+import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {apiPaths} from "~/server/api/internal/api_paths.js";
 import {ApiServiceProcessContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createApiServiceServer} from "~/server/api/internal/shared/api_service_server.js";
@@ -28,7 +29,7 @@ import {
     ActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
@@ -111,7 +112,7 @@ export async function run({
         options,
     });
 
-    const awsSigner = new AwsRequestSigner();
+    const awsSigner = new AwsRequestSigner(defaultProvider());
     void awsSigner.prefetchState(startupSpan);
 
     const languageModel =

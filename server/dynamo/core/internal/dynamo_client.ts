@@ -15,7 +15,7 @@ import {
     DynamoClientDebugItemTypes,
     DynamoClientInternal,
 } from "~/server/dynamo/core/internal/dynamo_client_internal.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {BatchContextModule, ContextBatcherBase} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";

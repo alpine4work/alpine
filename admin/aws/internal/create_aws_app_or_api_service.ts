@@ -349,6 +349,7 @@ export function createAwsAppOrApiService(
             `--taskRealtimeServiceSecurityGroupId=${taskRealtimeService.securityGroup.securityGroupId}`,
             "--honeycombApiKey=$HONEYCOMB_API_KEY",
             "--cohereApiKey=$COHERE_API_KEY",
+            `--tracerEventStreamName=${observability.tracerEventStreamName}`,
             `--cloudflareAccountId=${cloudflareAccountId}`,
             `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,
             `--cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY`,
