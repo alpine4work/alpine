@@ -1074,26 +1074,6 @@ describe("processStartNotionImportJob", () => {
             expect(importItem.importedCount).toBeGreaterThanOrEqual(2);
         });
 
-        test("JJ-Test-Flat.zip and JJ-Test-Nested.zip produce the same results", async () => {
-            const space1 = await TestSpace.create(context);
-            const session1 = await space1.createSession({role: "Admin"});
-            const flat = await importedFixtureSpaceItemsToString(
-                space1,
-                session1,
-                "JJ-Test-Flat.zip",
-            );
-
-            const space2 = await TestSpace.create(context);
-            const session2 = await space2.createSession({role: "Admin"});
-            const nested = await importedFixtureSpaceItemsToString(
-                space2,
-                session2,
-                "JJ-Test-Nested.zip",
-            );
-
-            expect(flat).toBe(nested);
-        });
-
         /**
          * Helper to run a fixture file through the importer and return a sanitized
          * snapshot string of all document contents.
@@ -1118,8 +1098,49 @@ describe("processStartNotionImportJob", () => {
             };
         }
 
+        // Only snap one since we're asserting they're the same below
+        test("Workspace-Flat.zip snapshot", testFixtureSnapshot("Workspace-Flat.zip"));
+        test("Workspace-Flat.zip and Workspace-Nested.zip produce the same results", async () => {
+            const space1 = await TestSpace.create(context);
+            const session1 = await space1.createSession({role: "Admin"});
+            const flat = await importedFixtureSpaceItemsToString(
+                space1,
+                session1,
+                "Workspace-Flat.zip",
+            );
+
+            const space2 = await TestSpace.create(context);
+            const session2 = await space2.createSession({role: "Admin"});
+            const nested = await importedFixtureSpaceItemsToString(
+                space2,
+                session2,
+                "Workspace-Nested.zip",
+            );
+
+            expect(flat).toBe(nested);
+        });
+
+        // Only snap one since we're asserting they're the same below
         test("JJ-Test-Flat.zip snapshot", testFixtureSnapshot("JJ-Test-Flat.zip"));
-        test("JJ-Test-Nested.zip snapshot", testFixtureSnapshot("JJ-Test-Nested.zip"));
+        test("JJ-Test-Flat.zip and JJ-Test-Nested.zip produce the same results", async () => {
+            const space1 = await TestSpace.create(context);
+            const session1 = await space1.createSession({role: "Admin"});
+            const flat = await importedFixtureSpaceItemsToString(
+                space1,
+                session1,
+                "JJ-Test-Flat.zip",
+            );
+
+            const space2 = await TestSpace.create(context);
+            const session2 = await space2.createSession({role: "Admin"});
+            const nested = await importedFixtureSpaceItemsToString(
+                space2,
+                session2,
+                "JJ-Test-Nested.zip",
+            );
+
+            expect(flat).toBe(nested);
+        });
 
         test("converts .md links with parentheses in filename to mentions", async () => {
             const space = await TestSpace.create(context);
