@@ -1704,6 +1704,17 @@ export function DocumentContentEditor({
                 spaceId,
             ],
         ),
+        contextMenuExtraBottom:
+            initialDocument?.creator.from?.type === "Importer" ? (
+                <>
+                    <Box paddingX="1" paddingY="1">
+                        <Box width="full" borderBottom="grey-5" />
+                    </Box>
+                    <Box paddingX="2" paddingY="1.5" fontSize="50" color="grey-50">
+                        {`Imported from ${initialDocument.creator.from.source.type} on ${initialDocument.createdTime.toLocaleDateString(undefined, {month: "short", day: "numeric", year: "numeric"})}`}
+                    </Box>
+                </>
+            ) : undefined,
         // Don't render the share button if the account doesn't have space access. They
         // won't be allowed to see the names of accounts in the share dialog.
         shareButton: currentAccount

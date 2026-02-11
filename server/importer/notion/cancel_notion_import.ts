@@ -17,7 +17,7 @@ export async function cancelNotionImport(
     context: ServerSessionActionContext & {importer: ImporterContextModuleBase},
     {spaceId, notionImportId}: {spaceId: SpaceId; notionImportId: NotionImportId},
 ): Promise<void> {
-    await authorizeSpaceAccess(context, spaceId, "Admin");
+    await authorizeSpaceAccess(context, spaceId, "Member");
 
     const currentAccountId = context.actor.getAccountId();
 

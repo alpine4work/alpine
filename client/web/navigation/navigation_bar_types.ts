@@ -113,6 +113,12 @@ export type NavigationBarProps = {
     readonly menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
 
     /**
+     * Extra content to render at the bottom of the context menu. Useful for
+     * displaying metadata like "Imported from..." text.
+     */
+    readonly contextMenuExtraBottom?: ReactNode;
+
+    /**
      * Offset between the menu button and its menu. Defaults to
      * `defaultTooltipOffset` (same as every other `<MenuButton>`). Generally, you
      * shouldn't configure this so we maintain spacing consistency across the

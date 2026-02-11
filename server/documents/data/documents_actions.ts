@@ -1518,6 +1518,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             createdTime: attributes.createdTime,
             spaceId: attributes.spaceId,
             version: attributes.version,
+            creator: {from: attributes.creator.from},
             content: {
                 // If the user doesn't have comment access then we need to strip all comment
                 // marks from the document's content. Since it's a security policy violation if

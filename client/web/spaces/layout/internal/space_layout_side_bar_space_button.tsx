@@ -10,16 +10,17 @@ import {OverlayTriggerButtonRef} from "~/client/web/design/overlay_trigger_butto
 import {LoudNotificationBadge} from "~/client/web/inbox/loud_notification_badge.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
 import {buttonStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {hasIntegrationsSettingsFeature} from "~/shared/integrations/has_integrations_settings_feature.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {SpaceModel} from "~/shared/spaces/space_model.js";
 
-export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
-    const context = useAppContext();
+export function SpaceLayoutSideBarSpaceButton() {
+    const {space} = useSpaceContextAndRequireSpaceAccess();
     const rootNavigate = useRootNavigate();
+    const context = useAppContext();
     const menuButtonRef = useRef<OverlayTriggerButtonRef>(null);
 
     const buttonRef = useRef<HTMLButtonElement>(null);

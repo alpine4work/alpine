@@ -25,7 +25,7 @@ export async function startNotionImport(
         teamspaceImportOptions: NotionImportItem["teamspaceImportOptions"];
     },
 ): Promise<void> {
-    await authorizeSpaceAccess(context, spaceId, "Admin");
+    await authorizeSpaceAccess(context, spaceId, "Member");
 
     await NotionImporterTable.updateItem(
         context,

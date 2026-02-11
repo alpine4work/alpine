@@ -131,6 +131,9 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.settings.integrations._index": {
         errorTitle: "Couldn\u2019t open integrations settings",
     },
+    "routes/s.$spaceId.settings.integrations.import.notion": {
+        errorTitle: "Couldn\u2019t open Notion import settings",
+    },
     "routes/s.$spaceId.settings.integrations.slack": {
         errorTitle: "Couldn\u2019t open Slack integration settings",
     },

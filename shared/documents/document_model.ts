@@ -4,6 +4,7 @@ import {
     DocumentWithOptionalTitleContentWithReferencesSchema,
 } from "~/shared/documents/document_content_references.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_from.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isId} from "~/shared/id/id.js";
@@ -119,6 +120,17 @@ export class DocumentModel
             createdTime: Schema.date,
             version: Schema.integer,
             content: DocumentContentWithReferencesSchema,
+            /**
+             * The creator of the document.
+             */
+            creator: Schema.object({
+                /**
+                 * What created this document on behalf of the creator, if anything.
+                 * For example, if imported from Notion this will be
+                 * `{type: "Importer", source: {type: "Notion"}}`.
+                 */
+                from: DocumentCreatorFromSchema.nullable(),
+            }),
         }),
     )
     implements DocumentPreviewInterface

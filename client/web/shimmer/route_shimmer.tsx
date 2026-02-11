@@ -29,6 +29,7 @@ import {SpaceBotSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_
 import {SpaceGeneralSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_general_settings_route_shimmer.js";
 import {SpaceIntegrationListSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_integrations_list_settings_route_shimmer.js";
 import {SpaceNotificationsSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_notification_settings_route_shimmer.js";
+import {SpaceNotionImportSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_notion_import_settings_route_shimmer.js";
 import {SpacePeopleSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_people_settings_route_shimmer.js";
 import {SpaceProfileSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_profile_settings_route_shimmer.js";
 import {MessageShimmer} from "~/client/web/shimmer/message_shimmer.js";
@@ -252,6 +253,9 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.settings.general": {component: SpaceGeneralSettingsRouteShimmer},
     "routes/s.$spaceId.settings.integrations._index": {
         component: SpaceIntegrationListSettingsRouteShimmer,
+    },
+    "routes/s.$spaceId.settings.integrations.import.notion": {
+        component: SpaceNotionImportSettingsRouteShimmer,
     },
 
     "routes/s.$spaceId.settings.people": {component: SpacePeopleSettingsRouteShimmer},

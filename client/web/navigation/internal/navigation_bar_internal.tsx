@@ -147,6 +147,7 @@ export function NavigationBar({
     subtitle,
     menuActions,
     menuOffset,
+    contextMenuExtraBottom,
     contextMenuActions,
     shareButton,
     withWideRouteLayoutShareMenuItem,
@@ -181,6 +182,7 @@ export function NavigationBar({
     subtitle: ReactNode | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     menuOffset: Spacing | undefined;
+    contextMenuExtraBottom: ReactNode;
     contextMenuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     shareButton: NavigationBarShareButtonProps | undefined;
     withWideRouteLayoutShareMenuItem: boolean;
@@ -1106,6 +1108,7 @@ export function NavigationBar({
                             subtitle={subtitle}
                             menuActions={menuActions}
                             menuOffset={menuOffset}
+                            contextMenuExtraBottom={contextMenuExtraBottom}
                             contextMenuActions={contextMenuActions}
                             shareButton={shareButton}
                             withWideRouteLayoutShareMenuItem={withWideRouteLayoutShareMenuItem}

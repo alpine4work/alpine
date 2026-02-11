@@ -72,6 +72,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         subtitle,
         menuActions = emptyArray,
         menuOffset = defaultTooltipOffset,
+        contextMenuExtraBottom,
         contextMenuActions = emptyArray,
         shareButton,
         withWideRouteLayoutShareMenuItem,
@@ -96,6 +97,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         subtitle?: ReactNode;
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         menuOffset?: Spacing;
+        contextMenuExtraBottom?: ReactNode;
         contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
         shareButton?: NavigationBarShareButtonProps;
         withWideRouteLayoutShareMenuItem?: boolean;
@@ -493,6 +495,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                         <NavigationBarContentMoreButton
                                             menuActions={menuActions}
                                             menuOffset={menuOffset}
+                                            extraBottom={contextMenuExtraBottom}
                                             shareButton={
                                                 routeLayout !== "wide" ||
                                                 withWideRouteLayoutShareMenuItem
@@ -514,10 +517,12 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
 function NavigationBarContentMoreButton({
     menuActions,
     menuOffset,
+    extraBottom,
     shareButton,
 }: {
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     menuOffset: Spacing;
+    extraBottom: ReactNode;
     shareButton: NavigationBarShareButtonProps | undefined;
 }) {
     const platform = usePlatform();
@@ -613,6 +618,7 @@ function NavigationBarContentMoreButton({
                                           })
                                         : menuActions
                                 }
+                                extraBottom={extraBottom}
                             />
                         )}
                     </Box>

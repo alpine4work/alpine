@@ -15,14 +15,12 @@ import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Get a single Notion import by ID.
- *
- * Only admins and owners can view imports.
  */
 export async function getNotionImport(
     context: ServerActionContext,
     {spaceId, notionImportId}: {spaceId: SpaceId; notionImportId: NotionImportId},
 ): Promise<NotionImportItem | null> {
-    await authorizeSpaceAccess(context, spaceId, "Admin");
+    await authorizeSpaceAccess(context, spaceId, "Member");
 
     const item = await NotionImporterTable.getItemIfExists(context, {
         partitionType: "Import",
@@ -40,8 +38,6 @@ export async function getNotionImport(
 /**
  * Get all Notion imports for a space.
  *
- * Only admins and owners can view imports.
- *
  * Filters out in-progress imports (not Success or Failed) that were started by
  * other users. This prevents users from seeing each other's in-progress imports
  * while still showing their own and all completed/failed imports.
@@ -50,7 +46,7 @@ export async function getAllNotionImportsForSpace(
     context: ServerSessionActionContext,
     {spaceId}: {spaceId: SpaceId},
 ): Promise<Array<NotionImportItem>> {
-    await authorizeSpaceAccess(context, spaceId, "Admin");
+    await authorizeSpaceAccess(context, spaceId, "Member");
 
     const currentAccountId = context.actor.getAccountId();
 

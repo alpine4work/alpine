@@ -85,7 +85,7 @@ export function SpaceLayoutSideBar({
                     alignItems="center"
                     gap="3"
                 >
-                    <SpaceLayoutSideBarSpaceButton space={space} />
+                    <SpaceLayoutSideBarSpaceButton />
                     <Box display="flex" flexDirection="column" alignItems="center" gap="2">
                         <IconButton
                             size="lg"

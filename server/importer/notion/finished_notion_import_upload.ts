@@ -43,7 +43,7 @@ export async function finishedNotionImportUpload(
         notionImportId: NotionImportId;
     },
 ): Promise<void> {
-    await authorizeSpaceAccess(context, spaceId, "Admin");
+    await authorizeSpaceAccess(context, spaceId, "Member");
 
     // First, get the import to check its state and get the import key.
     const importItem = await NotionImporterTable.getItem(context, {

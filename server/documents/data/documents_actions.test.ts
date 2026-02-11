@@ -7560,6 +7560,7 @@ test("getting a document with optional comments strips comments if the actor onl
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 4,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7595,6 +7596,7 @@ test("getting a document with optional comments strips comments if the actor onl
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 4,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7630,6 +7632,7 @@ test("getting a document with optional comments strips comments if the actor onl
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 4,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7657,6 +7660,7 @@ test("getting a document with optional comments strips comments if the actor onl
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 4,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7694,6 +7698,7 @@ test("getting a document with optional comments strips comments if the actor onl
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 4,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7731,6 +7736,7 @@ test("getting a document with optional comments strips comments if the actor onl
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 4,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7958,6 +7964,7 @@ test("can get a document with references as actors that don\u2019t have access t
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 14,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -8120,6 +8127,7 @@ test("can get a document with references as actors that don\u2019t have access t
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 15,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node(
@@ -8243,6 +8251,7 @@ test("can get a document with references as actors that don\u2019t have access t
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 15,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node(
@@ -8348,6 +8357,7 @@ test("can get a document with references as actors that don\u2019t have access t
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 15,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node(
@@ -8454,6 +8464,7 @@ test("can get a document with references as actors that don\u2019t have access t
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 15,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node(
@@ -8565,6 +8576,7 @@ test("can get a document with references as actors that don\u2019t have access t
             spaceId: space.id,
             createdTime: expect.any(Date),
             version: 15,
+            creator: {from: null},
             content: {
                 doc: assertDocumentContent(
                     schema.node(

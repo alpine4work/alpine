@@ -26,7 +26,7 @@ export async function createNotionImport(
         contentLength: number;
     },
 ): Promise<{notionImportId: NotionImportId; presignedUploadUrl: string; importKey: string}> {
-    await authorizeSpaceAccess(context, spaceId, "Admin");
+    await authorizeSpaceAccess(context, spaceId, "Member");
 
     const notionImportId = generateId<NotionImportId>();
     const importKey = createImportUploadKey({spaceId, type: "notion", importId: notionImportId});

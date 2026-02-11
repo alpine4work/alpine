@@ -1,12 +1,13 @@
 import {ShouldRevalidateFunction} from "@remix-run/router";
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {CaretRight, SlackLogo} from "phosphor-react";
-import {useState} from "react";
+import {useMemo, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {Link} from "~/client/web/design/link.js";
 import {Spacer} from "~/client/web/design/spacer.js";
+import {NotionIcon} from "~/client/web/icons/notion_icon.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
@@ -25,8 +26,10 @@ import {
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {hasSlackIntegrationSettingsFeature} from "~/shared/integrations/has_slack_integration_settings_feature.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {hasNotionImportFeature} from "~/shared/spaces/has_notion_import_feature.js";
 
 const LoaderSchema = Schema.object({
     hasSlackIntegrationConfigured: Schema.boolean,
@@ -58,11 +61,33 @@ interface IntegrationData {
     isAvailable: boolean;
 }
 
+interface ImporterData {
+    slug: string;
+    name: string;
+    tagline: string;
+    icon: React.ReactNode;
+    isAvailable: (spaceId: SpaceId) => boolean;
+}
+
+const availableImporters: Array<ImporterData> = [
+    {
+        slug: "import/notion",
+        name: "Notion",
+        tagline: "Import documents from Notion",
+        icon: <NotionIcon size={spacing[spaceListSettingsHeadingSettingsRowAvatarSize]} />,
+        isAvailable: hasNotionImportFeature,
+    },
+];
+
 export default function SpaceIntegrationListSettingsRoute() {
     const {hasSlackIntegrationConfigured} = useLoaderDataWithSchema(LoaderSchema);
+    const {space} = useSpaceContextAndRequireSpaceAccess();
 
     const configuredIntegrations: Array<IntegrationData> = [];
     const availableIntegrations: Array<IntegrationData> = [];
+    const importers: Array<ImporterData> = useMemo(() => {
+        return availableImporters.filter(importer => importer.isAvailable(space.id));
+    }, [space.id]);
 
     // NOTE (#slack-integration): Slack integration is currently feature flagged to only development.
     const slackIntegration: IntegrationData = {
@@ -132,6 +157,26 @@ export default function SpaceIntegrationListSettingsRoute() {
                             key={integration.slug}
                             integration={integration}
                         />
+                    ))}
+                </Box>
+            )}
+            {importers.length > 0 && (
+                <Box>
+                    <Box display="flex" flexDirection="column" gap="1">
+                        <Box
+                            fontSize={spaceListSettingsHeadingFontSize}
+                            fontStyle="bold"
+                            userSelect="text"
+                        >
+                            Import
+                        </Box>
+                        <Box fontSize="75" color="grey-60" userSelect="text">
+                            Import data from other services
+                        </Box>
+                    </Box>
+                    <Spacer space={spaceListSettingsHeadingMarginBottom} />
+                    {importers.map(importer => (
+                        <SpaceImporterSettingsRow key={importer.slug} importer={importer} />
                     ))}
                 </Box>
             )}
@@ -214,6 +259,89 @@ function SpaceIntegrationSettingsRow({integration}: {integration: IntegrationDat
                         color="grey-50"
                     >
                         {integration.tagline}
+                    </Box>
+                </Box>
+                <CaretRight size={spacing["4"]} color={colorSchemeVars["grey-60"]} />
+            </Box>
+        </FocusRing>
+    );
+}
+
+function SpaceImporterSettingsRow({importer}: {importer: ImporterData}) {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
+    const navigate = useNavigate();
+    const {space} = useSpaceContextAndRequireSpaceAccess();
+
+    const [isNavigating, setIsNavigating] = useState(false);
+
+    const {isPressed, pressProps} = usePress({
+        onPress: () => {
+            if (isNavigating) return;
+
+            setIsNavigating(true);
+
+            navigate(`/s/${space.id}/settings/integrations/${importer.slug}`).finally(() => {
+                setIsNavigating(false);
+            });
+        },
+    });
+
+    return (
+        <FocusRing offset="border" insetX="-4">
+            <Box
+                {...pressProps}
+                tabIndex={0}
+                position="relative"
+                zIndex="0"
+                display="flex"
+                alignItems="center"
+                gap={spaceListSettingsHeadingSettingsRowGap}
+                paddingY={spaceListSettingsHeadingSettingsRowPaddingY}
+                cursor="pointer"
+                style={{
+                    ...(isPressed
+                        ? assignInlineVars({[backgroundColorVar]: colorSchemeVars["grey-5"]})
+                        : {}),
+                    boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                }}
+            >
+                {isPressed && (
+                    <Box
+                        position="absolute"
+                        zIndex="-10"
+                        top="0"
+                        bottom="0"
+                        left={routeLayout === "wide" ? "-4" : `-${screenPaddingX[platform]}`}
+                        right={routeLayout === "wide" ? "-4" : `-${screenPaddingX[platform]}`}
+                        borderRadius={routeLayout === "wide" ? "1.5" : undefined}
+                        backgroundColor="grey-5"
+                        style={{top: -1}}
+                    />
+                )}
+                <Box
+                    width={spaceListSettingsHeadingSettingsRowAvatarSize}
+                    height={spaceListSettingsHeadingSettingsRowAvatarSize}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    color="grey-70"
+                >
+                    {importer.icon}
+                </Box>
+                <Box flexGrow="1">
+                    <Box
+                        fontSize={spaceListSettingsHeadingSettingsRowTitleFontSize}
+                        fontStyle="semi-bold"
+                    >
+                        {importer.name}
+                    </Box>
+                    <Spacer space={spaceListSettingsHeadingSettingsRowTitleMarginBottom} />
+                    <Box
+                        fontSize={spaceListSettingsHeadingSettingsRowTaglineFontSize}
+                        color="grey-50"
+                    >
+                        {importer.tagline}
                     </Box>
                 </Box>
                 <CaretRight size={spacing["4"]} color={colorSchemeVars["grey-60"]} />
