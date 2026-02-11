@@ -407,6 +407,28 @@ Resources:
                         - Arn
         Metadata:
             aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerS3FirehoseDeliveryStream
+    AwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1E:
+        Type: AWS::KinesisFirehose::DeliveryStream
+        Properties:
+            DeliveryStreamName: tracer-events
+            DeliveryStreamType: DirectPut
+            HttpEndpointDestinationConfiguration:
+                EndpointConfiguration:
+                    Name: Honeycomb Tracer Events Destination
+                    Url: https://api.honeycomb.io/1/kinesis_events/tracer
+                S3BackupMode: AllData
+                S3Configuration:
+                    BucketARN:
+                        Fn::GetAtt:
+                            - AwsObservabilityLoggingBucketC446D7D1
+                            - Arn
+                    Prefix: tracer/events/raw
+                    RoleARN:
+                        Fn::GetAtt:
+                            - AwsObservabilityS3FirehoseRoleE276D682
+                            - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerHoneycombFirehoseDeliveryStream
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:

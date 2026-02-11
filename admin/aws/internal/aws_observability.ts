@@ -2,7 +2,7 @@ import {Duration, Stack, Tags} from "aws-cdk-lib";
 import {CfnDatabase, CfnTable} from "aws-cdk-lib/aws-glue";
 import {IGrantable, PolicyStatement, Role, ServicePrincipal, User} from "aws-cdk-lib/aws-iam";
 import {Stream as KinesisDataStream, StreamEncryption, StreamMode} from "aws-cdk-lib/aws-kinesis";
-import {CfnDeliveryStream} from "aws-cdk-lib/aws-kinesisfirehose";
+import {CfnDeliveryStream, DeliveryStream, IDeliveryStream} from "aws-cdk-lib/aws-kinesisfirehose";
 import {Bucket} from "aws-cdk-lib/aws-s3";
 import {CfnAssociation, ParameterTier, StringParameter} from "aws-cdk-lib/aws-ssm";
 import {Construct, IConstruct} from "constructs";
@@ -34,6 +34,11 @@ export class AwsObservability extends Construct {
 
     private readonly _loggingBucket: Bucket;
     private readonly _tracerEventStream: KinesisDataStream;
+
+    // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for now
+    // in order to unblock CI. Without it, CloudFormation tries to delete the exported
+    // resource but stops since it is used in other stacks
+    private readonly _tracerHoneycombFirehoseDeliveryStream: IDeliveryStream;
 
     constructor(parentConstruct: Construct) {
         super(parentConstruct, "AwsObservability");
@@ -186,6 +191,38 @@ export class AwsObservability extends Construct {
                 },
             },
         });
+
+        // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for now
+        // in order to unblock CI. Without it, CloudFormation tries to delete the exported
+        // resource but stops since it is used in other stacks
+        {
+            const tracerFirehoseDeliveryStreamCfn = new CfnDeliveryStream(
+                this,
+
+                "TracerHoneycombFirehoseDeliveryStream",
+                {
+                    deliveryStreamName: "tracer-events",
+                    deliveryStreamType: "DirectPut",
+                    httpEndpointDestinationConfiguration: {
+                        endpointConfiguration: {
+                            url: "https://api.honeycomb.io/1/kinesis_events/tracer",
+                            name: "Honeycomb Tracer Events Destination",
+                        },
+                        s3BackupMode: "AllData",
+                        s3Configuration: {
+                            bucketArn: this._loggingBucket.bucketArn,
+                            roleArn: s3FirehoseRole.roleArn,
+                            prefix: `${this._tracerEventBucketPrefix}/raw`,
+                        },
+                    },
+                },
+            );
+            this._tracerHoneycombFirehoseDeliveryStream = DeliveryStream.fromDeliveryStreamArn(
+                this,
+                "TracerEventsHoneycombFirehoseDeliveryStream",
+                tracerFirehoseDeliveryStreamCfn.attrArn,
+            );
+        }
     }
 
     public get loggingBucket(): Bucket {
