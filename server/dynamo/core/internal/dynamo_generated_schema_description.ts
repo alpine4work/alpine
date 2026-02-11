@@ -1444,6 +1444,16 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             },
                                                                             "optional": false
                                                                         },
+                                                                        "level": {
+                                                                            "valueSchema": {
+                                                                                "type": "Enum",
+                                                                                "values": [
+                                                                                    "Space",
+                                                                                    "SpaceAccount"
+                                                                                ]
+                                                                            },
+                                                                            "optional": true
+                                                                        },
                                                                         "placeholder": {
                                                                             "valueSchema": {
                                                                                 "type": "String"
@@ -1578,6 +1588,42 @@ export const dynamoGeneratedSchemaDescription: {
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {
                                 "botId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "values": {
+                                        "valueSchema": {
+                                            "type": "Map",
+                                            "keySchema": {
+                                                "type": "String"
+                                            },
+                                            "valueSchema": {
+                                                "type": "Unknown"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "AccountBotSettingsValues": {
+                            "id": 1,
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "botId": {
+                                    "type": "Id"
+                                },
+                                "accountId": {
                                     "type": "Id"
                                 }
                             },

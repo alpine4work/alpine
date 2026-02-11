@@ -179,6 +179,60 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/spaces/{id}/accounts/{accountId}/bots/{botId}/settings": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["SpaceId"];
+                    readonly accountId: components["schemas"]["AccountId"];
+                    readonly botId: components["schemas"]["BotId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["SpaceId"];
+                        readonly accountId: components["schemas"]["AccountId"];
+                        readonly botId: components["schemas"]["BotId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly settings: {
+                                    readonly values: {
+                                        readonly [key: string]: unknown;
+                                    };
+                                    readonly space: {
+                                        readonly values: {
+                                            readonly [key: string]: unknown;
+                                        };
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/chats/{id}": {
             readonly parameters: {
                 readonly query?: never;
@@ -1800,27 +1854,6 @@ export namespace ApiSpecification {
             readonly SpaceId: IdTypes.SpaceId;
             readonly TaskId: IdTypes.TaskId;
             readonly TaskCollectionId: IdTypes.TaskCollectionId;
-            readonly AccountPath: `/accounts/${IdTypes.AccountId}`;
-            readonly ChannelPath: `/channels/${IdTypes.ChannelId}`;
-            readonly ChatPath: `/chats/${IdTypes.ChatId}`;
-            readonly ChatMessagePath: `/chats/${IdTypes.ChatId}/messages/${number}`;
-            readonly ChatMessagesListPath: `/chats/${IdTypes.ChatId}/messages`;
-            readonly DocumentPath: `/documents/${IdTypes.DocumentId}`;
-            readonly DocumentMessagePath: `/documents/${IdTypes.DocumentId}/threads/${IdTypes.DocumentCommentThreadId}/messages/${number}`;
-            readonly DocumentThreadPath: `/documents/${IdTypes.DocumentId}/threads/${IdTypes.DocumentCommentThreadId}`;
-            readonly DocumentThreadMessagesListPath: `/documents/${IdTypes.DocumentId}/threads/${IdTypes.DocumentCommentThreadId}/messages`;
-            readonly PostPath: `/posts/${IdTypes.PostId}`;
-            readonly PostMessagePath: `/posts/${IdTypes.PostId}/messages/${number}`;
-            readonly PostMessagesListPath: `/posts/${IdTypes.PostId}/messages`;
-            readonly TaskPath: `/tasks/${IdTypes.TaskId}`;
-            readonly TaskCollectionPath: `/task-collections/${IdTypes.TaskCollectionId}`;
-            readonly TaskMessagePath: `/tasks/${IdTypes.TaskId}/messages/${number}`;
-            readonly TaskMessagesListPath: `/tasks/${IdTypes.TaskId}/messages`;
-            readonly MessagesListPath:
-                | components["schemas"]["ChatMessagesListPath"]
-                | components["schemas"]["DocumentThreadMessagesListPath"]
-                | components["schemas"]["PostMessagesListPath"]
-                | components["schemas"]["TaskMessagesListPath"];
             readonly AccountMentionTarget: {
                 /**
                  * @description discriminator enum property added by openapi-typescript

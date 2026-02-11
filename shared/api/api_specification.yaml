@@ -129,6 +129,48 @@ paths:
                                                 type: object
                                                 additionalProperties: true
 
+    /spaces/{id}/accounts/{accountId}/bots/{botId}/settings:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+            - name: botId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/BotId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [settings]
+                                additionalProperties: false
+                                properties:
+                                    settings:
+                                        type: object
+                                        required: [values, space]
+                                        additionalProperties: false
+                                        properties:
+                                            values:
+                                                type: object
+                                                additionalProperties: true
+                                            space:
+                                                type: object
+                                                required: [values]
+                                                additionalProperties: false
+                                                properties:
+                                                    values:
+                                                        type: object
+                                                        additionalProperties: true
+
     /chats/{id}:
         parameters:
             - name: id
@@ -1362,87 +1404,6 @@ components:
         TaskCollectionId:
             type: string
             pattern: ^{{idRegExp}}$
-
-        # =========================================================================== #
-        #                                    Paths                                    #
-        # =========================================================================== #
-        #
-        # Ordered alphabetically assuming `Path` isn't appended as a suffix. e.g.
-        # `TaskPath` comes before `TaskCollectionPath` even though `C` comes before `P`
-        # in the alphabet.
-        #
-        # Path unions (e.g. `MessageRoomPath`) are last.
-
-        AccountPath:
-            type: string
-            pattern: ^/accounts/{{idRegExp}}$
-
-        ChannelPath:
-            type: string
-            pattern: ^/channels/{{idRegExp}}$
-
-        ChatPath:
-            type: string
-            pattern: ^/chats/{{idRegExp}}$
-
-        ChatMessagePath:
-            type: string
-            pattern: ^/chats/{{idRegExp}}/messages/{{integerRegExp}}$
-
-        ChatMessagesListPath:
-            type: string
-            pattern: ^/chats/{{idRegExp}}/messages$
-
-        DocumentPath:
-            type: string
-            pattern: ^/documents/{{idRegExp}}$
-
-        DocumentMessagePath:
-            type: string
-            pattern: ^/documents/{{idRegExp}}/threads/{{idRegExp}}/messages/{{integerRegExp}}$
-
-        DocumentThreadPath:
-            type: string
-            pattern: ^/documents/{{idRegExp}}/threads/{{idRegExp}}$
-
-        DocumentThreadMessagesListPath:
-            type: string
-            pattern: ^/documents/{{idRegExp}}/threads/{{idRegExp}}/messages$
-
-        PostPath:
-            type: string
-            pattern: ^/posts/{{idRegExp}}$
-
-        PostMessagePath:
-            type: string
-            pattern: ^/posts/{{idRegExp}}/messages/{{integerRegExp}}$
-
-        PostMessagesListPath:
-            type: string
-            pattern: ^/posts/{{idRegExp}}/messages$
-
-        TaskPath:
-            type: string
-            pattern: ^/tasks/{{idRegExp}}$
-
-        TaskCollectionPath:
-            type: string
-            pattern: ^/task-collections/{{idRegExp}}$
-
-        TaskMessagePath:
-            type: string
-            pattern: ^/tasks/{{idRegExp}}/messages/{{integerRegExp}}$
-
-        TaskMessagesListPath:
-            type: string
-            pattern: ^/tasks/{{idRegExp}}/messages$
-
-        MessagesListPath:
-            oneOf:
-                - $ref: "#/components/schemas/ChatMessagesListPath"
-                - $ref: "#/components/schemas/DocumentThreadMessagesListPath"
-                - $ref: "#/components/schemas/PostMessagesListPath"
-                - $ref: "#/components/schemas/TaskMessagesListPath"
 
         # =========================================================================== #
         #                               Mention targets                               #
@@ -2813,7 +2774,6 @@ components:
         # Search results have the following shared properties:
         #
         # - `type` (required)
-        # - `path` (required)
         # - `title` (optional)
         # - `bodyMatch` (optional)
         SearchResult:

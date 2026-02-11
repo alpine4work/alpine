@@ -122,7 +122,7 @@ export default function SpaceProfileSettingsRoute() {
 
     return (
         <>
-            <Box display="flex" flexDirection="column" gap="6" width="full">
+            <Box display="flex" flexDirection="column" gap="8" width="full">
                 <Box gap="6" display="flex" alignItems="center" justifyContent="space-between">
                     <label
                         htmlFor={nameTextInputId}

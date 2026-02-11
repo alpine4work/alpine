@@ -3,7 +3,7 @@ import {
     chatGptKnownBotId,
     cursorKnownBotId,
 } from "~/server/bots/settings_default_known_bot_account_model_data.js";
-import {BotSpaceSettingsSchema} from "~/shared/bots/bot_space_settings_schema.js";
+import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContent} from "~/shared/content/simple_content_schema.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -11,7 +11,7 @@ import {BotId} from "~/shared/id/types/id_types.js";
 
 export type KnownBotSettings = {
     readonly description: SimpleContent;
-    readonly schema: BotSpaceSettingsSchema;
+    readonly schema: BotSettingsSchema;
 };
 
 // IMPORTANT: Whenever you update these settings you must run the
@@ -48,8 +48,22 @@ Start by setting up Cursor Cloud Agents in [Cursor\u2019s web dashboard](https:/
                         "cloudAgentApiKey",
                         {
                             type: "String",
+                            level: "Space",
                             label: "Cloud Agents API key",
                             hint: "Create key in Cursor\u2019s web dashboard",
+                            placeholder:
+                                "key_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                            isCode: true,
+                            isSecret: true,
+                        },
+                    ],
+                    [
+                        "accountCloudAgentApiKey",
+                        {
+                            type: "String",
+                            level: "SpaceAccount",
+                            label: "Personal Cloud Agents API key",
+                            hint: "Override default API key for your agents (optional)",
                             placeholder:
                                 "key_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                             isCode: true,
@@ -60,6 +74,7 @@ Start by setting up Cursor Cloud Agents in [Cursor\u2019s web dashboard](https:/
                         "githubRepositoryUrl",
                         {
                             type: "String",
+                            level: "Space",
                             label: "GitHub repository URL",
                             hint: "e.g. https://github.com/your-org/your-repo",
                             placeholder: "https://github.com/your-org/your-repo",

@@ -2,7 +2,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
-import {BotSpaceSettingsSchemaSchema} from "~/shared/bots/bot_space_settings_schema.js";
+import {BotSettingsSchemaSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentSchema} from "~/shared/content/simple_content_schema.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {ApiKey} from "~/shared/id/api_key.js";
@@ -77,11 +77,11 @@ export const BotsTable = DynamoTableSchema.new({
                         description: SimpleContentSchema,
 
                         /**
-                         * Schema for the bot's space-specific settings. We render inputs on the
-                         * bot settings page for each of these settings. The bot has access to its
-                         * space settings through the API.
+                         * Schema for the bot's space-specific and account-specific settings. We
+                         * render inputs on the bot settings page for each of these settings. The
+                         * bot has access to its settings through the API.
                          */
-                        schema: BotSpaceSettingsSchemaSchema.default({properties: emptyMap}),
+                        schema: BotSettingsSchemaSchema.default({properties: emptyMap}),
                     }),
                 },
             ],
@@ -164,7 +164,21 @@ export const BotsTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         /**
                          * The dynamic space settings values for the bot that match the structure from
-                         * `spaceSchema`.
+                         * `schema`.
+                         */
+                        values: Schema.map(IdentifierStringSchema, Schema.unknown()),
+                    }),
+                },
+                {
+                    name: "AccountBotSettingsValues",
+                    sortKeyAttributes: {
+                        botId: DynamoKeyAttributeSchema.id<BotId>(),
+                        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+                    },
+                    attributes: Schema.object({
+                        /**
+                         * The dynamic account settings values for the bot that match the structure
+                         * from `schema`.
                          */
                         values: Schema.map(IdentifierStringSchema, Schema.unknown()),
                     }),

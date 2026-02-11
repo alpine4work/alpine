@@ -176,3 +176,6 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 - Avoid testing unrelated behavior. Each test should be testing only one thing.
 - Aim for one `expect()` per test. Use `expect().toMatchObject()` and `expect.objectContaining()`
   for testing multiple properties in an object.
+- Prefer asserting on specific error messages (e.g. `expect().toThrow("...")`) instead of error
+  classes (e.g. `expect().toThrow(PermissionDeniedError)`) to ensure the correct error path is
+  exercised.

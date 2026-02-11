@@ -173,6 +173,16 @@ export function createFontStyles({
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
         },
+        "truncate-extra-bold": {
+            fontFamily: interFontFamily,
+            fontWeight: 700,
+            fontStyle: "normal",
+            fontFeatureSettings: '"calt" off',
+            fontSynthesis: "none",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+        },
         "truncate-code": {
             fontFamily: commitMonoFontFamily,
             fontWeight: 350,

@@ -22,6 +22,7 @@ test("creates space settings item when none exists", async () => {
                     "apiKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "API Key",
                         hint: null,
                         placeholder: "",
@@ -36,13 +37,14 @@ test("creates space settings item when none exists", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
-    const result = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "apiKey",
-        "my-api-key",
-    );
+    await bot.instantiate(adminSession);
+
+    const result = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "my-api-key",
+    });
 
     expect(result.values.get("apiKey")).toEqual("my-api-key");
     expect(result.valuesVersion).toEqual(1);
@@ -63,6 +65,7 @@ test("updates existing property value", async () => {
                     "apiKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "API Key",
                         hint: null,
                         placeholder: "",
@@ -77,23 +80,23 @@ test("updates existing property value", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
+    await bot.instantiate(adminSession);
+
     // Set initial value
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "apiKey",
-        "initial-value",
-    );
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "initial-value",
+    });
 
     // Update to new value
-    const result = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "apiKey",
-        "updated-value",
-    );
+    const result = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "updated-value",
+    });
 
     expect(result.values.get("apiKey")).toEqual("updated-value");
     expect(result.valuesVersion).toEqual(2);
@@ -114,6 +117,7 @@ test("throws PermissionDeniedError when non-admin calls", async () => {
                     "apiKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "API Key",
                         hint: null,
                         placeholder: "",
@@ -129,14 +133,52 @@ test("throws PermissionDeniedError when non-admin calls", async () => {
     const memberSession = await space.createSession({role: "Member"});
 
     await expect(
-        updateBotSpaceSettingsPropertyValue(
-            memberSession.action(),
-            space.id,
-            bot.id,
-            "apiKey",
-            "my-value",
-        ),
+        updateBotSpaceSettingsPropertyValue(memberSession.action(), {
+            spaceId: space.id,
+            botId: bot.id,
+            propertyKey: "apiKey",
+            propertyValue: "my-value",
+        }),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("throws FailedPreconditionError when bot is not installed in the space", async () => {
+    const bot = await TestBot.create(context, {name: "Test Bot"});
+
+    await BotsTable.createItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "SettingsSchema",
+        botId: bot.id,
+        description: emptySimpleContent,
+        schema: {
+            properties: new Map([
+                [
+                    "apiKey",
+                    {
+                        type: "String",
+                        level: "Space",
+                        label: "API Key",
+                        hint: null,
+                        placeholder: "",
+                        isCode: true,
+                        isSecret: false,
+                    },
+                ],
+            ]),
+        },
+    });
+
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+
+    await expect(
+        updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+            spaceId: space.id,
+            botId: bot.id,
+            propertyKey: "apiKey",
+            propertyValue: "my-api-key",
+        }),
+    ).rejects.toThrow("Bot is not installed in the space");
 });
 
 test("throws FailedPreconditionError for undefined property", async () => {
@@ -153,6 +195,7 @@ test("throws FailedPreconditionError for undefined property", async () => {
                     "validProperty",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Valid",
                         hint: null,
                         placeholder: "...",
@@ -167,15 +210,57 @@ test("throws FailedPreconditionError for undefined property", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
+    await bot.instantiate(adminSession);
+
     await expect(
-        updateBotSpaceSettingsPropertyValue(
-            adminSession.action(),
-            space.id,
-            bot.id,
-            "invalidProperty",
-            "some-value",
-        ),
+        updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+            spaceId: space.id,
+            botId: bot.id,
+            propertyKey: "invalidProperty",
+            propertyValue: "some-value",
+        }),
     ).rejects.toThrow("Property not found in bot settings schema");
+});
+
+test("throws FailedPreconditionError for account-level property", async () => {
+    const bot = await TestBot.create(context, {name: "Test Bot"});
+
+    await BotsTable.createItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "SettingsSchema",
+        botId: bot.id,
+        description: emptySimpleContent,
+        schema: {
+            properties: new Map([
+                [
+                    "accountApiKey",
+                    {
+                        type: "String",
+                        level: "SpaceAccount",
+                        label: "Account API Key",
+                        hint: null,
+                        placeholder: "",
+                        isCode: true,
+                        isSecret: true,
+                    },
+                ],
+            ]),
+        },
+    });
+
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+
+    await bot.instantiate(adminSession);
+
+    await expect(
+        updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+            spaceId: space.id,
+            botId: bot.id,
+            propertyKey: "accountApiKey",
+            propertyValue: "account-key",
+        }),
+    ).rejects.toThrow("Property is not a space-level bot setting");
 });
 
 test("throws FailedPreconditionError for non-string value", async () => {
@@ -192,6 +277,7 @@ test("throws FailedPreconditionError for non-string value", async () => {
                     "apiKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "API Key",
                         hint: null,
                         placeholder: "",
@@ -206,8 +292,15 @@ test("throws FailedPreconditionError for non-string value", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
+    await bot.instantiate(adminSession);
+
     await expect(
-        updateBotSpaceSettingsPropertyValue(adminSession.action(), space.id, bot.id, "apiKey", 123),
+        updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+            spaceId: space.id,
+            botId: bot.id,
+            propertyKey: "apiKey",
+            propertyValue: 123,
+        }),
     ).rejects.toThrow("Property value must be a string according to bot settings schema");
 });
 
@@ -225,6 +318,7 @@ test("correctly calculates secretPropertyKeysWithValues after update", async () 
                     "secretKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Secret Key",
                         hint: null,
                         placeholder: "",
@@ -239,25 +333,25 @@ test("correctly calculates secretPropertyKeysWithValues after update", async () 
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
+    await bot.instantiate(adminSession);
+
     // Set non-empty secret value
-    const resultWithValue = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "secretKey",
-        "my-secret-value",
-    );
+    const resultWithValue = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "my-secret-value",
+    });
 
     expect(resultWithValue.secretPropertyKeysWithValues.has("secretKey")).toEqual(true);
 
     // Set empty string value (treated as not configured)
-    const resultWithEmpty = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "secretKey",
-        "",
-    );
+    const resultWithEmpty = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "",
+    });
 
     expect(resultWithEmpty.secretPropertyKeysWithValues.has("secretKey")).toEqual(false);
 });
@@ -276,6 +370,7 @@ test("valuesVersion is 1 after first update", async () => {
                     "apiKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "API Key",
                         hint: null,
                         placeholder: "",
@@ -290,13 +385,14 @@ test("valuesVersion is 1 after first update", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
-    const result = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "apiKey",
-        "my-value",
-    );
+    await bot.instantiate(adminSession);
+
+    const result = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "my-value",
+    });
 
     expect(result.valuesVersion).toEqual(1);
 });
@@ -315,6 +411,7 @@ test("valuesVersion increments on subsequent updates", async () => {
                     "apiKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "API Key",
                         hint: null,
                         placeholder: "",
@@ -329,34 +426,33 @@ test("valuesVersion increments on subsequent updates", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
+    await bot.instantiate(adminSession);
+
     // First update
-    const result1 = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "apiKey",
-        "value-1",
-    );
+    const result1 = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "value-1",
+    });
     expect(result1.valuesVersion).toEqual(1);
 
     // Second update
-    const result2 = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "apiKey",
-        "value-2",
-    );
+    const result2 = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "value-2",
+    });
     expect(result2.valuesVersion).toEqual(2);
 
     // Third update
-    const result3 = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "apiKey",
-        "value-3",
-    );
+    const result3 = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "value-3",
+    });
     expect(result3.valuesVersion).toEqual(3);
 });
 
@@ -374,6 +470,7 @@ test("returns all updated values in response", async () => {
                     "property1",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Property 1",
                         hint: null,
                         placeholder: "...",
@@ -385,6 +482,7 @@ test("returns all updated values in response", async () => {
                     "property2",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Property 2",
                         hint: null,
                         placeholder: "...",
@@ -396,6 +494,7 @@ test("returns all updated values in response", async () => {
                     "property3",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Property 3",
                         hint: null,
                         placeholder: "...",
@@ -410,37 +509,36 @@ test("returns all updated values in response", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
+    await bot.instantiate(adminSession);
+
     // Update first property
-    const result1 = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "property1",
-        "value1",
-    );
+    const result1 = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "property1",
+        propertyValue: "value1",
+    });
     expect(result1.values.size).toEqual(1);
     expect(result1.values.get("property1")).toEqual("value1");
 
     // Update second property
-    const result2 = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "property2",
-        "value2",
-    );
+    const result2 = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "property2",
+        propertyValue: "value2",
+    });
     expect(result2.values.size).toEqual(2);
     expect(result2.values.get("property1")).toEqual("value1");
     expect(result2.values.get("property2")).toEqual("value2");
 
     // Update third property
-    const result3 = await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "property3",
-        "value3",
-    );
+    const result3 = await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "property3",
+        propertyValue: "value3",
+    });
     expect(result3.values.size).toEqual(3);
     expect(result3.values.get("property1")).toEqual("value1");
     expect(result3.values.get("property2")).toEqual("value2");

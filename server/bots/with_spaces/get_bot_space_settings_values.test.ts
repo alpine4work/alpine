@@ -24,6 +24,7 @@ test("returns empty values when no space settings exist", async () => {
                     "apiKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "API Key",
                         hint: null,
                         placeholder: "",
@@ -60,6 +61,7 @@ test("returns all values for admin user", async () => {
                     "secretKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Secret Key",
                         hint: null,
                         placeholder: "",
@@ -71,6 +73,7 @@ test("returns all values for admin user", async () => {
                     "publicUrl",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Public URL",
                         hint: null,
                         placeholder: "",
@@ -85,21 +88,21 @@ test("returns all values for admin user", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
+    await bot.instantiate(adminSession);
+
     // Set values using updateBotSpaceSettingsPropertyValue
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "secretKey",
-        "my-secret-value",
-    );
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "publicUrl",
-        "https://example.com",
-    );
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "my-secret-value",
+    });
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "publicUrl",
+        propertyValue: "https://example.com",
+    });
 
     const settings = await getBotSpaceSettingsValues(adminSession.action(), space.id, bot.id);
 
@@ -123,6 +126,7 @@ test("hides secret property values from non-admin members", async () => {
                     "secretKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Secret Key",
                         hint: null,
                         placeholder: "",
@@ -134,6 +138,7 @@ test("hides secret property values from non-admin members", async () => {
                     "publicUrl",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Public URL",
                         hint: null,
                         placeholder: "",
@@ -149,21 +154,21 @@ test("hides secret property values from non-admin members", async () => {
     const adminSession = await space.createSession({role: "Admin"});
     const memberSession = await space.createSession({role: "Member"});
 
+    await bot.instantiate(adminSession);
+
     // Admin sets secret and public values
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "secretKey",
-        "my-secret-value",
-    );
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "publicUrl",
-        "https://example.com",
-    );
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "my-secret-value",
+    });
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "publicUrl",
+        propertyValue: "https://example.com",
+    });
 
     // Member fetches settings
     const settings = await getBotSpaceSettingsValues(memberSession.action(), space.id, bot.id);
@@ -195,6 +200,7 @@ test("bot can see its own secret settings", async () => {
                     "secretKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Secret Key",
                         hint: null,
                         placeholder: "",
@@ -209,17 +215,16 @@ test("bot can see its own secret settings", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
-    // Set secret value as admin
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "secretKey",
-        "my-secret-value",
-    );
-
     // Instantiate the bot in the space
     const botAccount = await bot.instantiate(adminSession);
+
+    // Set secret value as admin
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "my-secret-value",
+    });
 
     // Get settings as the bot itself
     const settings = await getBotSpaceSettingsValues(botAccount.action(), space.id, bot.id);
@@ -247,6 +252,7 @@ test("bot cannot see other bot\u2019s secret settings", async () => {
                     "secretKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Secret Key",
                         hint: null,
                         placeholder: "",
@@ -270,18 +276,17 @@ test("bot cannot see other bot\u2019s secret settings", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
-    // Set botA's secret value as admin
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        botA.id,
-        "secretKey",
-        "botA-secret-value",
-    );
-
     // Instantiate both bots in the space
     await botA.instantiate(adminSession);
     const botBAccount = await botB.instantiate(adminSession);
+
+    // Set botA's secret value as admin
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: botA.id,
+        propertyKey: "secretKey",
+        propertyValue: "botA-secret-value",
+    });
 
     // Get botA's settings as botB
     const settings = await getBotSpaceSettingsValues(botBAccount.action(), space.id, botA.id);
@@ -310,6 +315,7 @@ test("members can see which secret properties have values without seeing values"
                     "secretKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Secret Key",
                         hint: null,
                         placeholder: "",
@@ -325,14 +331,15 @@ test("members can see which secret properties have values without seeing values"
     const adminSession = await space.createSession({role: "Admin"});
     const memberSession = await space.createSession({role: "Member"});
 
+    await bot.instantiate(adminSession);
+
     // Set secret value as admin
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "secretKey",
-        "my-secret-value",
-    );
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "my-secret-value",
+    });
 
     // Get settings as member
     const settings = await getBotSpaceSettingsValues(memberSession.action(), space.id, bot.id);
@@ -358,6 +365,7 @@ test("members can see which secret properties have values (excluding empty strin
                     "secretKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Secret Key",
                         hint: null,
                         placeholder: "",
@@ -373,23 +381,23 @@ test("members can see which secret properties have values (excluding empty strin
     const adminSession = await space.createSession({role: "Admin"});
     const memberSession = await space.createSession({role: "Member"});
 
+    await bot.instantiate(adminSession);
+
     // Set secret value as admin
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "secretKey",
-        "my-secret-value",
-    );
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "my-secret-value",
+    });
 
     // Set secret value as admin again
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "secretKey",
-        "",
-    );
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "",
+    });
 
     // Get settings as member
     const settings = await getBotSpaceSettingsValues(memberSession.action(), space.id, bot.id);
@@ -437,6 +445,7 @@ test("returns non-secret values for members correctly", async () => {
                     "secretKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Secret Key",
                         hint: null,
                         placeholder: "",
@@ -448,6 +457,7 @@ test("returns non-secret values for members correctly", async () => {
                     "publicUrl",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Public URL",
                         hint: null,
                         placeholder: "",
@@ -463,21 +473,21 @@ test("returns non-secret values for members correctly", async () => {
     const adminSession = await space.createSession({role: "Admin"});
     const memberSession = await space.createSession({role: "Member"});
 
+    await bot.instantiate(adminSession);
+
     // Set both values as admin
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "secretKey",
-        "my-secret-value",
-    );
-    await updateBotSpaceSettingsPropertyValue(
-        adminSession.action(),
-        space.id,
-        bot.id,
-        "publicUrl",
-        "https://example.com",
-    );
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "my-secret-value",
+    });
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "publicUrl",
+        propertyValue: "https://example.com",
+    });
 
     // Get as member
     const settings = await getBotSpaceSettingsValues(memberSession.action(), space.id, bot.id);

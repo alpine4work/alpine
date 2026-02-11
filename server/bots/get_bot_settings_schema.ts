@@ -2,7 +2,7 @@ import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {initialBotSettingsItem} from "~/server/bots/internal/initial_bot_settings_item.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {BotSpaceSettingsSchema} from "~/shared/bots/bot_space_settings_schema.js";
+import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {SimpleContentWithReferences} from "~/shared/content/simple_content_schema.js";
 import {BotId} from "~/shared/id/types/id_types.js";
@@ -20,7 +20,7 @@ export async function getBotSettingsSchema(
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     description: SimpleContentWithReferences;
-    schema: BotSpaceSettingsSchema;
+    schema: BotSettingsSchema;
 }> {
     const botItem =
         (await BotsTable.getItemIfExists(

@@ -266,53 +266,64 @@ async function getCursorBotSettings({
     apiClient,
     spaceId,
     botId,
+    accountId,
 }: {
     env: AgentServiceEnv;
     span: TracerSpan;
     apiClient: ApiClient;
     spaceId: SpaceId;
     botId: BotId;
+    accountId: AccountId;
 }) {
-    const {
-        data: {settings},
-    } = await apiClient.get(span, "/spaces/{id}/bots/{botId}/settings", {
-        params: {
-            path: {
-                id: spaceId,
-                botId,
-            },
-        },
-    });
+    const response = await apiClient.get(
+        span,
+        "/spaces/{id}/accounts/{accountId}/bots/{botId}/settings",
+        {params: {path: {id: spaceId, accountId, botId}}},
+    );
 
-    if (
-        !hasOwnProperty(settings.values, "cloudAgentApiKey") ||
-        typeof settings.values.cloudAgentApiKey !== "string" ||
-        settings.values.cloudAgentApiKey.length === 0
-    ) {
+    const {settings} = response.data;
+
+    const accountCloudAgentApiKey =
+        hasOwnProperty(settings.values, "accountCloudAgentApiKey") &&
+        typeof settings.values.accountCloudAgentApiKey === "string" &&
+        settings.values.accountCloudAgentApiKey.length > 0
+            ? settings.values.accountCloudAgentApiKey
+            : null;
+
+    const spaceCloudAgentApiKey =
+        hasOwnProperty(settings.space.values, "cloudAgentApiKey") &&
+        typeof settings.space.values.cloudAgentApiKey === "string" &&
+        settings.space.values.cloudAgentApiKey.length > 0
+            ? settings.space.values.cloudAgentApiKey
+            : null;
+
+    const cloudAgentApiKey = accountCloudAgentApiKey ?? spaceCloudAgentApiKey;
+
+    if (!cloudAgentApiKey) {
         throw new FailedPreconditionError("Missing `cloudAgentApiKey` string in bot settings", {
             displayMessage: errorDisplayMessage`Please add a Cursor Cloud Agents API key in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)}.`,
         });
     }
 
-    if (
-        !hasOwnProperty(settings.values, "githubRepositoryUrl") ||
-        typeof settings.values.githubRepositoryUrl !== "string" ||
-        settings.values.githubRepositoryUrl.length === 0
-    ) {
+    const githubRepositoryUrl = hasOwnProperty(settings.space.values, "githubRepositoryUrl")
+        ? settings.space.values.githubRepositoryUrl
+        : undefined;
+
+    if (typeof githubRepositoryUrl !== "string" || githubRepositoryUrl.length === 0) {
         throw new FailedPreconditionError("Missing `githubRepositoryUrl` string in bot settings", {
             displayMessage: errorDisplayMessage`Please add a GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)}.`,
         });
     }
 
-    if (!/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(settings.values.githubRepositoryUrl)) {
+    if (!/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(githubRepositoryUrl)) {
         throw new FailedPreconditionError("Invalid `githubRepositoryUrl` string in bot settings", {
-            displayMessage: errorDisplayMessage`\u201C${settings.values.githubRepositoryUrl}\u201D isn\u2019t a valid GitHub repository URL. Make sure your GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)} is formatted as \u201Chttps://github.com/your-org/your-repo\u201D.`,
+            displayMessage: errorDisplayMessage`\u201C${githubRepositoryUrl}\u201D isn\u2019t a valid GitHub repository URL. Make sure your GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)} is formatted as \u201Chttps://github.com/your-org/your-repo\u201D.`,
         });
     }
 
     return {
-        cloudAgentApiKey: settings.values.cloudAgentApiKey,
-        githubRepositoryUrl: settings.values.githubRepositoryUrl,
+        cloudAgentApiKey,
+        githubRepositoryUrl,
     };
 }
 
@@ -459,6 +470,7 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
             apiClient: request.apiClient,
             spaceId: request.spaceId,
             botId: request.botId,
+            accountId: request.event.authorId,
         }),
         isOneOnOneChat(span, request).then(isOneOnOneChat =>
             loadInitialAgentMessagesContent({
@@ -819,6 +831,7 @@ async function handleCursorAgentAddFollowUpFirstPartyWebhook({
             apiClient: request.apiClient,
             spaceId: request.spaceId,
             botId: request.botId,
+            accountId: request.event.authorId,
         }),
         getAgentMessagesBetweenIndexes(
             span,

@@ -3,6 +3,7 @@ import {createTestApiServer} from "~/server/api/internal/test_helpers/create_tes
 // eslint-disable-next-line cyberworlds/no-internal-imports
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {updateBotSpaceAccountSettingsPropertyValue} from "~/server/bots/with_spaces/update_bot_space_account_settings_property_value.js";
 import {updateBotSpaceSettingsPropertyValue} from "~/server/bots/with_spaces/update_bot_space_settings_property_value.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -238,6 +239,7 @@ test("can read own bot settings", async () => {
                     "apiKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "API Key",
                         hint: null,
                         placeholder: "",
@@ -249,6 +251,7 @@ test("can read own bot settings", async () => {
                     "publicUrl",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Public URL",
                         hint: null,
                         placeholder: "",
@@ -260,20 +263,18 @@ test("can read own bot settings", async () => {
         },
     });
 
-    await updateBotSpaceSettingsPropertyValue(
-        session.action(),
-        space.id,
-        botAccount.bot.id,
-        "apiKey",
-        "test-api-key-value",
-    );
-    await updateBotSpaceSettingsPropertyValue(
-        session.action(),
-        space.id,
-        botAccount.bot.id,
-        "publicUrl",
-        "https://example.com",
-    );
+    await updateBotSpaceSettingsPropertyValue(session.action(), {
+        spaceId: space.id,
+        botId: botAccount.bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "test-api-key-value",
+    });
+    await updateBotSpaceSettingsPropertyValue(session.action(), {
+        spaceId: space.id,
+        botId: botAccount.bot.id,
+        propertyKey: "publicUrl",
+        propertyValue: "https://example.com",
+    });
 
     const apiKey = await botAccount.createApiKey(session);
 
@@ -313,6 +314,7 @@ test("can read other bot settings (which hides secrets)", async () => {
                     "apiKey",
                     {
                         type: "String",
+                        level: "Space",
                         label: "API Key",
                         hint: null,
                         placeholder: "",
@@ -324,6 +326,7 @@ test("can read other bot settings (which hides secrets)", async () => {
                     "publicUrl",
                     {
                         type: "String",
+                        level: "Space",
                         label: "Public URL",
                         hint: null,
                         placeholder: "",
@@ -335,20 +338,18 @@ test("can read other bot settings (which hides secrets)", async () => {
         },
     });
 
-    await updateBotSpaceSettingsPropertyValue(
-        session.action(),
-        space.id,
-        bot1Account.bot.id,
-        "apiKey",
-        "test-api-key-value",
-    );
-    await updateBotSpaceSettingsPropertyValue(
-        session.action(),
-        space.id,
-        bot1Account.bot.id,
-        "publicUrl",
-        "https://example.com",
-    );
+    await updateBotSpaceSettingsPropertyValue(session.action(), {
+        spaceId: space.id,
+        botId: bot1Account.bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "test-api-key-value",
+    });
+    await updateBotSpaceSettingsPropertyValue(session.action(), {
+        spaceId: space.id,
+        botId: bot1Account.bot.id,
+        propertyKey: "publicUrl",
+        propertyValue: "https://example.com",
+    });
 
     const apiKey = await bot2Account.createApiKey(session);
 
@@ -367,6 +368,270 @@ test("can read other bot settings (which hides secrets)", async () => {
             },
         },
     });
+});
+
+test("can read bot space and account settings values for an account", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const memberSession = await space.createSession({role: "Member"});
+
+    const botAccount = await TestBot.createAndInstantiate(session);
+
+    await BotsTable.createItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "SettingsSchema",
+        botId: botAccount.bot.id,
+        description: emptySimpleContent,
+        schema: {
+            properties: new Map([
+                [
+                    "apiKey",
+                    {
+                        type: "String",
+                        level: "SpaceAccount",
+                        label: "API Key",
+                        hint: null,
+                        placeholder: "",
+                        isCode: true,
+                        isSecret: true,
+                    },
+                ],
+                [
+                    "publicUrl",
+                    {
+                        type: "String",
+                        level: "Space",
+                        label: "Public URL",
+                        hint: null,
+                        placeholder: "",
+                        isCode: false,
+                        isSecret: false,
+                    },
+                ],
+            ]),
+        },
+    });
+
+    await updateBotSpaceSettingsPropertyValue(session.action(), {
+        spaceId: space.id,
+        botId: botAccount.bot.id,
+        propertyKey: "publicUrl",
+        propertyValue: "https://example.com",
+    });
+
+    await updateBotSpaceAccountSettingsPropertyValue(memberSession.action(), {
+        spaceId: space.id,
+        accountId: memberSession.account.id,
+        botId: botAccount.bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "account-api-key",
+    });
+
+    const apiKey = await botAccount.createApiKey(memberSession);
+
+    expect(
+        await server.GET(
+            `/spaces/${space.id}/accounts/${memberSession.account.id}/bots/${botAccount.bot.id}/settings`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        ),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            settings: {
+                values: {
+                    apiKey: "account-api-key",
+                },
+                space: {
+                    values: {
+                        publicUrl: "https://example.com",
+                    },
+                },
+            },
+        },
+    });
+});
+
+test("can read bot account settings for another account in the same space", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    const memberSession = await space.createSession({role: "Member"});
+    const otherSession = await space.createSession({role: "Member"});
+
+    const botAccount = await TestBot.createAndInstantiate(adminSession);
+
+    await BotsTable.createItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "SettingsSchema",
+        botId: botAccount.bot.id,
+        description: emptySimpleContent,
+        schema: {
+            properties: new Map([
+                [
+                    "apiKey",
+                    {
+                        type: "String",
+                        level: "SpaceAccount",
+                        label: "API Key",
+                        hint: null,
+                        placeholder: "",
+                        isCode: true,
+                        isSecret: true,
+                    },
+                ],
+                [
+                    "publicUrl",
+                    {
+                        type: "String",
+                        level: "Space",
+                        label: "Public URL",
+                        hint: null,
+                        placeholder: "",
+                        isCode: false,
+                        isSecret: false,
+                    },
+                ],
+            ]),
+        },
+    });
+
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: botAccount.bot.id,
+        propertyKey: "publicUrl",
+        propertyValue: "https://example.com",
+    });
+
+    await updateBotSpaceAccountSettingsPropertyValue(otherSession.action(), {
+        spaceId: space.id,
+        accountId: otherSession.account.id,
+        botId: botAccount.bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "other-account-api-key",
+    });
+
+    const apiKey = await botAccount.createApiKey(memberSession);
+
+    expect(
+        await server.GET(
+            `/spaces/${space.id}/accounts/${otherSession.account.id}/bots/${botAccount.bot.id}/settings`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        ),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            settings: {
+                values: {
+                    apiKey: "other-account-api-key",
+                },
+                space: {
+                    values: {
+                        publicUrl: "https://example.com",
+                    },
+                },
+            },
+        },
+    });
+});
+
+test("can\u2019t read bot account settings for a different bot", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+
+    const botAccount = await TestBot.createAndInstantiate(adminSession);
+    const otherBotAccount = await TestBot.createAndInstantiate(adminSession);
+
+    await BotsTable.createItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "SettingsSchema",
+        botId: botAccount.bot.id,
+        description: emptySimpleContent,
+        schema: {
+            properties: new Map([
+                [
+                    "apiKey",
+                    {
+                        type: "String",
+                        level: "SpaceAccount",
+                        label: "API Key",
+                        hint: null,
+                        placeholder: "",
+                        isCode: true,
+                        isSecret: true,
+                    },
+                ],
+            ]),
+        },
+    });
+
+    await updateBotSpaceAccountSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        accountId: adminSession.account.id,
+        botId: botAccount.bot.id,
+        propertyKey: "apiKey",
+        propertyValue: "admin-api-key",
+    });
+
+    const apiKey = await otherBotAccount.createApiKey(adminSession);
+
+    const response = await server.GET(
+        `/spaces/${space.id}/accounts/${adminSession.account.id}/bots/${botAccount.bot.id}/settings`,
+        {
+            headers: {authorization: `bearer ${apiKey}`},
+        },
+    );
+
+    expect(response.status).toEqual(403);
+    expect(response.body.error.message).toContain(
+        "Bot can only access account settings for its own bot",
+    );
+});
+
+test("can\u2019t read bot account settings for an account outside the space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const botAccount = await TestBot.createAndInstantiate(session);
+
+    await BotsTable.createItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "SettingsSchema",
+        botId: botAccount.bot.id,
+        description: emptySimpleContent,
+        schema: {
+            properties: new Map([
+                [
+                    "apiKey",
+                    {
+                        type: "String",
+                        level: "SpaceAccount",
+                        label: "API Key",
+                        hint: null,
+                        placeholder: "",
+                        isCode: true,
+                        isSecret: true,
+                    },
+                ],
+            ]),
+        },
+    });
+
+    const apiKey = await botAccount.createApiKey(session);
+
+    const response = await server.GET(
+        `/spaces/${otherSpace.id}/accounts/${generateId<AccountId>()}/bots/${botAccount.bot.id}/settings`,
+        {
+            headers: {authorization: `bearer ${apiKey}`},
+        },
+    );
+
+    expect(response.status).toEqual(403);
 });
 
 test("can\u2019t read bot settings for space bot doesn\u2019t have access to", async () => {

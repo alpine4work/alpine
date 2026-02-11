@@ -1,27 +1,5 @@
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 
-export type ApiAccountPath = ApiSpecification.components["schemas"]["AccountPath"];
-
-export type ApiChannelPath = ApiSpecification.components["schemas"]["ChannelPath"];
-
-export type ApiChatPath = ApiSpecification.components["schemas"]["ChatPath"];
-
-export type ApiChatMessagePath = ApiSpecification.components["schemas"]["ChatMessagePath"];
-
-export type ApiDocumentPath = ApiSpecification.components["schemas"]["DocumentPath"];
-
-export type ApiDocumentMessagePath = ApiSpecification.components["schemas"]["DocumentMessagePath"];
-
-export type ApiPostPath = ApiSpecification.components["schemas"]["PostPath"];
-
-export type ApiPostMessagePath = ApiSpecification.components["schemas"]["PostMessagePath"];
-
-export type ApiTaskPath = ApiSpecification.components["schemas"]["TaskPath"];
-
-export type ApiTaskMessagePath = ApiSpecification.components["schemas"]["TaskMessagePath"];
-
-export type ApiTaskCollectionPath = ApiSpecification.components["schemas"]["TaskCollectionPath"];
-
 export type ApiMessageRoomTarget = ApiSpecification.components["schemas"]["MessageRoomTarget"];
 
 export type ApiMentionTarget = ApiSpecification.components["schemas"]["MentionTarget"];

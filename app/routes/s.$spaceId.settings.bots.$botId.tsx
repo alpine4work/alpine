@@ -39,19 +39,24 @@ import {
 } from "~/client/web/styles/space_settings_shared_styles.js";
 import {pointerEventsNoneNotInheritedClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {getBotSettingsAccount} from "~/server/bots/with_spaces/get_bot_settings_account.js";
-import {getBotSpaceSettingsValues} from "~/server/bots/with_spaces/get_bot_space_settings_values.js";
+import {getBotSpaceAndSpaceAccountSettingsValues} from "~/server/bots/with_spaces/get_bot_space_and_space_account_settings_values.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {BotSettingsAccountSchema} from "~/shared/bots/bot_settings_account_schema.js";
 import {
-    BotSpaceSettingsSchemaSchema,
-    BotSpaceSettingsSchemaStringProperty,
-} from "~/shared/bots/bot_space_settings_schema.js";
+    BotSettingsSchemaSchema,
+    BotSettingsSchemaStringProperty,
+} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentWithReferencesSchema} from "~/shared/content/simple_content_schema.js";
+import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {updateBotSpaceSettingsPropertyValue} from "~/shared/rpc/bots_rpc_definitions.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {
+    updateBotSpaceAccountSettingsPropertyValue,
+    updateBotSpaceSettingsPropertyValue,
+} from "~/shared/rpc/bots_rpc_definitions.js";
 import {
     addSpaceAccount,
     instantiateBotSpaceAccount,
@@ -64,10 +69,16 @@ const LoaderSchema = Schema.object({
     botAccount: BotSettingsAccountSchema,
     botSettings: Schema.object({
         description: SimpleContentWithReferencesSchema,
-        schema: BotSpaceSettingsSchemaSchema,
+        schema: BotSettingsSchemaSchema,
+    }),
+    botSpaceSettings: Schema.object({
         valuesVersion: Schema.integer,
         values: Schema.map(Schema.string, Schema.unknown()),
         secretPropertyKeysWithValues: Schema.set(Schema.string),
+    }),
+    botSpaceAccountSettings: Schema.object({
+        valuesVersion: Schema.integer,
+        values: Schema.map(Schema.string, Schema.unknown()),
     }),
 });
 
@@ -87,18 +98,40 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
     const botId = deserializeBotIdForLoader(params.botId);
 
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const accountId = context.actor.getAccountId();
 
     const [botAccount, botSettings] = await runAllPromises([
         getBotSettingsAccount(context, spaceId, botId, {consistency: "StrongWithinCache"}),
-        getBotSpaceSettingsValues(context, spaceId, botId, {consistency: "StrongWithinCache"}),
+        getBotSpaceAndSpaceAccountSettingsValues(context, spaceId, accountId, botId, {
+            consistency: "StrongWithinCache",
+        }),
     ]);
 
-    return jsonWithSchema(LoaderSchema, {botAccount, botSettings});
+    return jsonWithSchema(LoaderSchema, {
+        botAccount,
+        botSettings: {
+            description: botSettings.description,
+            schema: botSettings.schema,
+        },
+        botSpaceSettings: {
+            valuesVersion: botSettings.spaceValuesVersion,
+            values: botSettings.spaceValues,
+            secretPropertyKeysWithValues: botSettings.spaceSecretPropertyKeysWithValues,
+        },
+        botSpaceAccountSettings: {
+            valuesVersion: botSettings.accountValuesVersion,
+            values: botSettings.accountValues,
+        },
+    });
 }
 
 export default function SpaceBotSettingsRoute() {
-    const {botAccount: botAccountFromLoader, botSettings: botSettingsFromLoader} =
-        useLoaderDataWithSchema(LoaderSchema);
+    const {
+        botAccount: botAccountFromLoader,
+        botSettings,
+        botSpaceSettings: botSpaceSettingsFromLoader,
+        botSpaceAccountSettings: botSpaceAccountSettingsFromLoader,
+    } = useLoaderDataWithSchema(LoaderSchema);
 
     const [botAccount, setBotAccount] = useStateWithDependencies(
         () => botAccountFromLoader,
@@ -108,17 +141,28 @@ export default function SpaceBotSettingsRoute() {
         [botAccountFromLoader],
     );
 
-    const {description: botSettingsDescription, schema: botSettingsSchema} = botSettingsFromLoader;
-
-    const [botSettingsValues, setBotSettingsValues] = useState<{
+    const [botSpaceSettingsValues, setBotSpaceSettingsValues] = useState<{
         valuesVersion: number;
         values: ReadonlyMap<string, SchemaSerializedValue>;
         secretPropertyKeysWithValues: ReadonlySet<string>;
-    }>(botSettingsFromLoader);
+    }>(botSpaceSettingsFromLoader);
+
+    const [botSpaceAccountSettingsValues, setBotSpaceAccountSettingsValues] = useState<{
+        valuesVersion: number;
+        values: ReadonlyMap<string, SchemaSerializedValue>;
+    }>(botSpaceAccountSettingsFromLoader);
 
     // If we got new values from loader data then update our state.
-    if (botSettingsValues.valuesVersion < botSettingsFromLoader.valuesVersion) {
-        setBotSettingsValues(botSettingsFromLoader);
+    if (botSpaceSettingsValues.valuesVersion < botSpaceSettingsFromLoader.valuesVersion) {
+        setBotSpaceSettingsValues(botSpaceSettingsFromLoader);
+    }
+
+    // If we got new values from loader data then update our state.
+    if (
+        botSpaceAccountSettingsValues.valuesVersion <
+        botSpaceAccountSettingsFromLoader.valuesVersion
+    ) {
+        setBotSpaceAccountSettingsValues(botSpaceAccountSettingsFromLoader);
     }
 
     const context = useAppContext();
@@ -136,6 +180,20 @@ export default function SpaceBotSettingsRoute() {
 
     const isInstalled =
         botAccount.type === "Exists" && botAccountData.space.state.type === "Active";
+
+    const botSpaceSettingsSchemaPropertyEntries = Array.from(
+        filterIterable(
+            botSettings.schema.properties,
+            ([, propertySchema]) => propertySchema.level === "Space",
+        ),
+    );
+
+    const botSpaceAccountSettingsSchemaPropertyEntries = Array.from(
+        filterIterable(
+            botSettings.schema.properties,
+            ([, propertySchema]) => propertySchema.level === "SpaceAccount",
+        ),
+    );
 
     return (
         <Box>
@@ -264,49 +322,126 @@ export default function SpaceBotSettingsRoute() {
                 </Box>
             </Box>
             <Spacer space={spaceBotSettingsHeadingMarginBottom} />
-            <ContentView content={botSettingsDescription} />
-            {!hasAdminAccess && (
-                <>
-                    <Spacer space="4" />
-                    <Box userSelect="text" color="grey-50" fontSize="50">
-                        Only admins can edit bot settings. Ask an admin to make changes.
-                    </Box>
-                </>
-            )}
-            {botSettingsSchema.properties.size > 0 && (
-                <Box paddingTop="14" display="flex" flexDirection="column" gap="6">
-                    {Array.from(botSettingsSchema.properties, ([propertyKey, propertySchema]) => (
-                        <SpaceBotSettingsStringProperty
-                            key={propertyKey}
-                            isDisabled={!hasAdminAccess || !isInstalled}
-                            propertySchema={propertySchema}
-                            propertyValue={botSettingsValues.values.get(propertyKey)}
-                            isSecretPropertyWithValue={botSettingsValues.secretPropertyKeysWithValues.has(
-                                propertyKey,
-                            )}
-                            updatePropertyValue={async propertyValue => {
-                                const newBotSettingsValues =
-                                    await updateBotSpaceSettingsPropertyValue(context, {
-                                        spaceId: space.id,
-                                        botId,
-                                        propertyKey,
-                                        propertyValue,
-                                    });
+            <ContentView content={botSettings.description} />
+            <Box
+                display="flex"
+                flexDirection="column"
+                gap="24"
+                style={{paddingTop: addRemLengths("16", "2")}}
+            >
+                {botSpaceSettingsSchemaPropertyEntries.length > 0 && (
+                    <Box display="flex" flexDirection="column" gap="8">
+                        <Box
+                            display="flex"
+                            alignItems="baseline"
+                            justifyContent="space-between"
+                            paddingBottom="1.5"
+                            borderBottom="grey-5"
+                        >
+                            <Box fontSize="300" fontStyle="bold" userSelect="text">
+                                Space settings
+                            </Box>
+                            <Box color="grey-50" fontSize="50" userSelect="text">
+                                Only admins can edit these
+                            </Box>
+                        </Box>
+                        <Box display="flex" flexDirection="column" gap="7">
+                            {botSpaceSettingsSchemaPropertyEntries.map(
+                                ([propertyKey, propertySchema]) => (
+                                    <SpaceBotSettingsStringProperty
+                                        key={propertyKey}
+                                        isDisabled={!hasAdminAccess || !isInstalled}
+                                        propertySchema={propertySchema}
+                                        propertyValue={botSpaceSettingsValues.values.get(
+                                            propertyKey,
+                                        )}
+                                        isSecretPropertyWithValue={botSpaceSettingsValues.secretPropertyKeysWithValues.has(
+                                            propertyKey,
+                                        )}
+                                        updatePropertyValue={async propertyValue => {
+                                            const newBotSpaceSettingsValues =
+                                                await updateBotSpaceSettingsPropertyValue(context, {
+                                                    spaceId: space.id,
+                                                    botId,
+                                                    propertyKey,
+                                                    propertyValue,
+                                                });
 
-                                setBotSettingsValues(oldBotSettingsValues => {
-                                    if (
-                                        oldBotSettingsValues.valuesVersion <
-                                        newBotSettingsValues.valuesVersion
-                                    ) {
-                                        return newBotSettingsValues;
-                                    }
-                                    return oldBotSettingsValues;
-                                });
-                            }}
-                        />
-                    ))}
-                </Box>
-            )}
+                                            setBotSpaceSettingsValues(oldBotSpaceSettingsValues => {
+                                                if (
+                                                    oldBotSpaceSettingsValues.valuesVersion <
+                                                    newBotSpaceSettingsValues.valuesVersion
+                                                ) {
+                                                    return newBotSpaceSettingsValues;
+                                                }
+                                                return oldBotSpaceSettingsValues;
+                                            });
+                                        }}
+                                    />
+                                ),
+                            )}
+                        </Box>
+                    </Box>
+                )}
+                {botSpaceAccountSettingsSchemaPropertyEntries.length > 0 && (
+                    <Box display="flex" flexDirection="column" gap="7">
+                        <Box
+                            display="flex"
+                            alignItems="baseline"
+                            justifyContent="space-between"
+                            paddingBottom="1.5"
+                            borderBottom="grey-5"
+                        >
+                            <Box fontSize="300" fontStyle="bold" userSelect="text">
+                                Your settings
+                            </Box>
+                            <Box color="grey-50" fontSize="50" userSelect="text">
+                                Only you can see and edit these
+                            </Box>
+                        </Box>
+                        <Box display="flex" flexDirection="column" gap="8">
+                            {botSpaceAccountSettingsSchemaPropertyEntries.map(
+                                ([propertyKey, propertySchema]) => (
+                                    <SpaceBotSettingsStringProperty
+                                        key={propertyKey}
+                                        isDisabled={!isInstalled}
+                                        propertySchema={propertySchema}
+                                        propertyValue={botSpaceAccountSettingsValues.values.get(
+                                            propertyKey,
+                                        )}
+                                        isSecretPropertyWithValue={false}
+                                        updatePropertyValue={async propertyValue => {
+                                            const newBotSpaceAccountSettingsValues =
+                                                await updateBotSpaceAccountSettingsPropertyValue(
+                                                    context,
+                                                    {
+                                                        spaceId: space.id,
+                                                        botId,
+                                                        accountId: currentAccount.id,
+                                                        propertyKey,
+                                                        propertyValue,
+                                                    },
+                                                );
+
+                                            setBotSpaceAccountSettingsValues(
+                                                oldBotSpaceAccountSettingsValues => {
+                                                    if (
+                                                        oldBotSpaceAccountSettingsValues.valuesVersion <
+                                                        newBotSpaceAccountSettingsValues.valuesVersion
+                                                    ) {
+                                                        return newBotSpaceAccountSettingsValues;
+                                                    }
+                                                    return oldBotSpaceAccountSettingsValues;
+                                                },
+                                            );
+                                        }}
+                                    />
+                                ),
+                            )}
+                        </Box>
+                    </Box>
+                )}
+            </Box>
         </Box>
     );
 }
@@ -319,7 +454,7 @@ function SpaceBotSettingsStringProperty({
     updatePropertyValue,
 }: {
     isDisabled: boolean;
-    propertySchema: BotSpaceSettingsSchemaStringProperty;
+    propertySchema: BotSettingsSchemaStringProperty;
     propertyValue: SchemaSerializedValue | undefined;
     isSecretPropertyWithValue: boolean;
     updatePropertyValue: (propertyValue: SchemaSerializedValue) => Promise<void>;
@@ -370,10 +505,10 @@ function SpaceBotSettingsStringProperty({
                 height="10"
                 gap="6"
                 display="flex"
-                alignItems="center"
+                alignItems="flex-start"
                 justifyContent="space-between"
             >
-                <Box>
+                <Box style={{minWidth: 0}}>
                     <label
                         htmlFor={inputId}
                         className={sprinkles({
@@ -409,6 +544,7 @@ function SpaceBotSettingsStringProperty({
                     position="relative"
                     width="full"
                     maxWidth="48"
+                    flexShrink="0"
                     ref={useConfirmSaveAfterLosingFocus({
                         shouldConfirmSave: value !== null,
                         isConfirmingSave: shouldShowConfirmSaveDialog,

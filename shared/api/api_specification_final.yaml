@@ -113,6 +113,55 @@ paths:
                                                 additionalProperties: true
                 default:
                     $ref: "#/components/responses/Error"
+    /spaces/{id}/accounts/{accountId}/bots/{botId}/settings:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/SpaceId"
+            - name: accountId
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/AccountId"
+            - name: botId
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/BotId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - settings
+                                additionalProperties: false
+                                properties:
+                                    settings:
+                                        type: object
+                                        required:
+                                            - values
+                                            - space
+                                        additionalProperties: false
+                                        properties:
+                                            values:
+                                                type: object
+                                                additionalProperties: true
+                                            space:
+                                                type: object
+                                                required:
+                                                    - values
+                                                additionalProperties: false
+                                                properties:
+                                                    values:
+                                                        type: object
+                                                        additionalProperties: true
+                default:
+                    $ref: "#/components/responses/Error"
     /chats/{id}:
         parameters:
             - name: id
@@ -1425,60 +1474,6 @@ components:
         TaskCollectionId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        AccountPath:
-            type: string
-            pattern: ^/accounts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        ChannelPath:
-            type: string
-            pattern: ^/channels/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        ChatPath:
-            type: string
-            pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        ChatMessagePath:
-            type: string
-            pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
-        ChatMessagesListPath:
-            type: string
-            pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
-        DocumentPath:
-            type: string
-            pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        DocumentMessagePath:
-            type: string
-            pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
-        DocumentThreadPath:
-            type: string
-            pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        DocumentThreadMessagesListPath:
-            type: string
-            pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
-        PostPath:
-            type: string
-            pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        PostMessagePath:
-            type: string
-            pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
-        PostMessagesListPath:
-            type: string
-            pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
-        TaskPath:
-            type: string
-            pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        TaskCollectionPath:
-            type: string
-            pattern: ^/task-collections/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        TaskMessagePath:
-            type: string
-            pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
-        TaskMessagesListPath:
-            type: string
-            pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
-        MessagesListPath:
-            oneOf:
-                - $ref: "#/components/schemas/ChatMessagesListPath"
-                - $ref: "#/components/schemas/DocumentThreadMessagesListPath"
-                - $ref: "#/components/schemas/PostMessagesListPath"
-                - $ref: "#/components/schemas/TaskMessagesListPath"
         AccountMentionTarget:
             type: object
             required:

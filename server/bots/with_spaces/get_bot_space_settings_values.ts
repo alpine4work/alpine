@@ -6,7 +6,7 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {BotSpaceSettingsSchema} from "~/shared/bots/bot_space_settings_schema.js";
+import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentWithReferences} from "~/shared/content/simple_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -32,7 +32,7 @@ export async function getBotSpaceSettingsValues(
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     description: SimpleContentWithReferences;
-    schema: BotSpaceSettingsSchema;
+    schema: BotSettingsSchema;
     valuesVersion: number;
     values: ReadonlyMap<string, SchemaSerializedValue>;
     secretPropertyKeysWithValues: Set<string>;
@@ -66,6 +66,7 @@ export async function getBotSpaceSettingsValues(
     // add string values to this set if the string is non-empty.
     if (spaceSettingsItem) {
         for (const [propertyKey, propertySchema] of settings.schema.properties) {
+            if (propertySchema.level !== "Space") continue;
             if (!propertySchema.isSecret) continue;
 
             const value = spaceSettingsItem.values.get(propertyKey);
@@ -94,6 +95,7 @@ export async function getBotSpaceSettingsValues(
     // They can see which secret properties have values, however.
     if (spaceSettingsItem) {
         for (const [propertyKey, propertySchema] of settings.schema.properties) {
+            if (propertySchema.level !== "Space") continue;
             if (propertySchema.isSecret) continue;
 
             const propertyValue = spaceSettingsItem.values.get(propertyKey);

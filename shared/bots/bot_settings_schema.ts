@@ -6,23 +6,42 @@ import {
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * Schema for the bot's space-specific settings. We use this to render inputs
- * on the bot settings page and these inputs update a JSON object that matches
- * the shape of this schema.
+ * Schema for the bot's settings. We use this to render inputs on the bot
+ * settings page and these inputs update a JSON object that matches the shape
+ * of this schema.
  *
  * `properties` is a `Map` since order matters! We render properties in the
  * order they're defined in the UI.
  */
-export type BotSpaceSettingsSchema = SchemaType<typeof BotSpaceSettingsSchemaSchema>;
+export type BotSettingsSchema = SchemaType<typeof BotSettingsSchemaSchema>;
 
-export type BotSpaceSettingsSchemaStringProperty = SchemaType<
-    typeof BotSpaceSettingsSchemaStringPropertySchema
+export type BotSettingsSchemaStringProperty = SchemaType<
+    typeof BotSettingsSchemaStringPropertySchema
 >;
 
-export const BotSpaceSettingsSchemaStringPropertySchema = Schema.object({
+export type BotSettingsSchemaPropertyLevel = SchemaType<
+    typeof BotSettingsSchemaPropertyLevelSchema
+>;
+const BotSettingsSchemaPropertyLevelSchema = Schema.enum(["Space", "SpaceAccount"]);
+
+export const BotSettingsSchemaStringPropertySchema = Schema.object({
     type: Schema.value("String"),
+
+    /**
+     * The human-readable name of this setting we show in the settings UI.
+     */
     label: LabelStringSchema,
+
+    /**
+     * Short single line hint text we render under the label. If it's longer than
+     * the available space in the UI we truncate.
+     */
     hint: LabelStringWithoutMaxLengthSchema.maxLength(128).nullable(),
+
+    /**
+     * Is this setting shared for the space or private to the account?
+     */
+    level: BotSettingsSchemaPropertyLevelSchema.default("Space"),
 
     /**
      * Placeholder rendered when the text input is empty.
@@ -42,14 +61,14 @@ export const BotSpaceSettingsSchemaStringPropertySchema = Schema.object({
     isSecret: Schema.boolean,
 });
 
-export const BotSpaceSettingsSchemaSchema = Schema.object({
+export const BotSettingsSchemaSchema = Schema.object({
     // TODO(calebmer, #public-api): The public API should represent this as an
     // array. So ordering is not lost for languages that don't parse JSON objects
     // into an ordered struct.
     properties: Schema.map(
         IdentifierStringSchema,
         Schema.union({
-            String: BotSpaceSettingsSchemaStringPropertySchema,
+            String: BotSettingsSchemaStringPropertySchema,
         }),
     ),
 });
