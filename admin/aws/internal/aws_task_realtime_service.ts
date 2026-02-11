@@ -309,7 +309,7 @@ export class AwsTaskRealtimeService extends Construct {
                 `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${sqs.getFileProcessorLightJobQueueUrl()}`,
                 "--honeycombApiKey=$HONEYCOMB_API_KEY",
-                `--tracerEventStreamName=${observability.tracerEventStreamName}`,
+                `--kinesisTracerStreamName=${observability.tracerEventStreamName}`,
                 "--appServicePublicKey=$APP_SERVICE_PUBLIC_KEY",
                 "--edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                 "--taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY",

@@ -2628,7 +2628,7 @@ Resources:
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
                       - Fn::Join:
                             - ""
-                            - - --tracerEventStreamName=
+                            - - --kinesisTracerStreamName=
                               - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
                       - --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
@@ -3603,7 +3603,7 @@ Resources:
                       - --cohereApiKey=$COHERE_API_KEY
                       - Fn::Join:
                             - ""
-                            - - --tracerEventStreamName=
+                            - - --kinesisTracerStreamName=
                               - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - --cloudflareAccountId=d496846050bfc973d24617456c59242b
                       - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
@@ -4679,7 +4679,7 @@ Resources:
                       - --cohereApiKey=$COHERE_API_KEY
                       - Fn::Join:
                             - ""
-                            - - --tracerEventStreamName=
+                            - - --kinesisTracerStreamName=
                               - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - --cloudflareAccountId=d496846050bfc973d24617456c59242b
                       - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
@@ -5759,7 +5759,7 @@ Resources:
                       - --cohereApiKey=$COHERE_API_KEY
                       - Fn::Join:
                             - ""
-                            - - --tracerEventStreamName=
+                            - - --kinesisTracerStreamName=
                               - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - --githubAppId=$GITHUB_APP_ID
                       - --githubAppClientId=$GITHUB_APP_CLIENT_ID
@@ -6443,7 +6443,7 @@ Resources:
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
                       - Fn::Join:
                             - ""
-                            - - --tracerEventStreamName=
+                            - - --kinesisTracerStreamName=
                               - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
                       - Fn::Join:
                             - ""
