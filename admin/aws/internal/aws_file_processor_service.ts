@@ -441,6 +441,9 @@ export class AwsFileProcessorService extends Construct {
         // Disallow queries so you can't read all files for a space.
         dynamo.grantReadWriteDataForTable(taskDefinition.taskRole, "Files", {disallowQuery: true});
 
+        // Allow writing to the tracer event stream.
+        observability.grantPutToTracerEventStream(taskDefinition.taskRole);
+
         const service = new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
             taskDefinition,

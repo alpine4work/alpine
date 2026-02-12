@@ -7847,6 +7847,13 @@ Resources:
                                         - FilesTable1399FAA4
                                         - Arn
                                   - /index/*
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                 Version: 2012-10-17
             PolicyName: FileProcessorServiceTaskDefinitionTaskRoleDefaultPolicy620C2920
             Roles:
