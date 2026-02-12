@@ -2,6 +2,9 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "kinesis",
+    test_deps = [
+        "//shared/tracer/dev",
+    ],
     visibility = [
         "//admin:__subpackages__",
         "//app:__subpackages__",

@@ -307,7 +307,10 @@ async function sendEventsToKinesis(
                     for (const record of result.records) {
                         if (!record.errorCode) continue;
 
-                        tracer.logException(
+                        // TODO(ifitzsimmons): Set up CloudWatch alerts that notify us when
+                        // it sees `DataLossError`s.
+                        // eslint-disable-next-line no-console
+                        console.error(
                             "Failed to send event to Kinesis",
                             new DataLossError(
                                 `Failed to send event to Kinesis${
@@ -322,6 +325,8 @@ async function sendEventsToKinesis(
             }
         });
     } catch (error) {
+        // TODO(ifitzsimmons): Set up CloudWatch alerts that notify us when
+        // it sees `DataLossError`s.
         // eslint-disable-next-line no-console
         console.error(error);
     }

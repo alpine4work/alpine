@@ -126,6 +126,7 @@ export class KinesisClient {
     public async PutRecords(
         tracer: TracerBase,
         records: ReadonlyArray<KinesisPutRecordsRequestEntry>,
+        maxRetryAttemptCount?: number,
     ): Promise<KinesisPutRecordsOutput> {
         if (this._isLocal) return {failedRecordCount: 0, records: []};
 
@@ -144,7 +145,7 @@ export class KinesisClient {
             // A shard can handle up to 1000 writes per second. By serializing these
             // requests and running within `retryWithExponentialBackoff`, we should
             // ensure that we don't throttle the shard.
-            const result = await this._putRecordsChunk(tracer, chunk);
+            const result = await this._putRecordsChunk(tracer, chunk, maxRetryAttemptCount);
             failedRecordCount += result.failedRecordCount;
             allRecords.push(...result.records);
             encryptionType = result.encryptionType ?? encryptionType;
@@ -155,99 +156,172 @@ export class KinesisClient {
 
     /**
      * Sends a single chunk of records to Kinesis. The chunk must be at most 500 records.
+     * Retries only failed records with retryable error codes.
      */
-    private _putRecordsChunk(
+    private async _putRecordsChunk(
         tracer: TracerBase,
         records: ReadonlyArray<KinesisPutRecordsRequestEntry>,
+        maxRetryAttemptCount?: number,
     ): Promise<KinesisPutRecordsOutput> {
-        return retryWithExponentialBackoff(retry => {
-            const spanName = `Kinesis PutRecords ${this._streamName}`;
+        // Records still pending. On each retry, we only send records that failed
+        // with retryable errors. We track the previous error so we can report it
+        // if we exhaust retries.
+        let pendingRecords: Array<{
+            record: KinesisPutRecordsRequestEntry;
+            previousError?: {errorCode: string; errorMessage?: string};
+        }> = records.map(record => ({record}));
 
-            return tracer.withSpan(spanName, async span => {
-                // Convert records to the format expected by the Kinesis API.
-                // Data must be base64-encoded.
-                const apiRecords = records.map(record => ({
-                    Data: encodeBase64(record.data),
-                    PartitionKey: record.partitionKey,
-                }));
+        // Accumulate results across retry attempts.
+        const allResults: Array<KinesisPutRecordsResultEntry> = [];
+        let encryptionType: "NONE" | "KMS" | undefined;
 
-                let request = new Request(this._url, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/x-amz-json-1.1",
-                        "X-Amz-Target": "Kinesis_20131202.PutRecords",
-                    },
-                    body: JSON.stringify({
-                        StreamName: this._streamName,
-                        Records: apiRecords,
-                    }),
-                });
+        try {
+            return await retryWithExponentialBackoff(
+                retry => {
+                    const spanName = `Kinesis PutRecords ${this._streamName}`;
 
-                request = await this._signer.sign(request, span);
+                    return tracer.withSpan(spanName, async span => {
+                        const apiRecords = pendingRecords.map(({record}) => ({
+                            Data: encodeBase64(record.data),
+                            PartitionKey: record.partitionKey,
+                        }));
 
-                let response;
+                        let request = new Request(this._url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/x-amz-json-1.1",
+                                "X-Amz-Target": "Kinesis_20131202.PutRecords",
+                            },
+                            body: JSON.stringify({
+                                StreamName: this._streamName,
+                                Records: apiRecords,
+                            }),
+                        });
 
-                try {
-                    // eslint-disable-next-line cyberworlds/no-global-fetch
-                    response = await fetch(request).catch(error => {
-                        // Classify network errors as unavailable.
-                        throw new UnavailableError(
-                            error instanceof Error ? error.message : String(error),
-                        );
+                        request = await this._signer.sign(request, span);
+
+                        let response;
+
+                        try {
+                            // eslint-disable-next-line cyberworlds/no-global-fetch
+                            response = await fetch(request).catch(error => {
+                                // Classify network errors as unavailable.
+                                throw new UnavailableError(
+                                    error instanceof Error ? error.message : String(error),
+                                );
+                            });
+                        } catch (error) {
+                            throw retry(error);
+                        }
+
+                        // API Response elements
+                        // https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecords.html#API_PutRecords_ResponseElements
+                        const output: {
+                            FailedRecordCount?: number;
+                            Records?: Array<{
+                                SequenceNumber?: string;
+                                ShardId?: string;
+                                ErrorCode?: string;
+                                ErrorMessage?: string;
+                            }>;
+                            EncryptionType?: "NONE" | "KMS";
+                            __type?: string;
+                            message?: string;
+                        } = await response.json();
+
+                        if (response.status !== 200) {
+                            // Extract error type from response.
+                            let errorType = output.__type;
+                            if (typeof errorType === "string" && errorType.includes("#")) {
+                                errorType = errorType.split("#")[1];
+                            }
+
+                            const error = new DataLossError(
+                                `Kinesis PutRecords failed: ${errorType ?? "Unknown"} - ${output.message ?? "No message"}`,
+                            );
+
+                            // Retry on 5xx errors or throttling.
+                            if (
+                                response.status >= 500 ||
+                                errorType === "ProvisionedThroughputExceededException" ||
+                                errorType === "KMSThrottlingException"
+                            ) {
+                                throw retry(error);
+                            }
+
+                            throw error;
+                        }
+
+                        encryptionType = output.EncryptionType ?? encryptionType;
+
+                        // Process results and identify records that need to be retried.
+                        const outputRecords = output.Records ?? [];
+                        const retryableRecords: typeof pendingRecords = [];
+
+                        for (let i = 0; i < pendingRecords.length; i++) {
+                            const pendingRecord = pendingRecords[i]!;
+                            const outputRecord = outputRecords[i];
+                            const errorCode = outputRecord?.ErrorCode;
+
+                            // Check if this record failed with a retryable error. See Kinesis PutRecords Errors [1].
+                            //
+                            // [1]: https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecords.html#API_PutRecords_Errors
+                            if (
+                                errorCode === "ProvisionedThroughputExceededException" ||
+                                errorCode === "InternalFailureException"
+                            ) {
+                                retryableRecords.push({
+                                    record: pendingRecord.record,
+                                    previousError: {
+                                        errorCode,
+                                        errorMessage: outputRecord?.ErrorMessage,
+                                    },
+                                });
+                            } else {
+                                // Success or non-retryable failure.
+                                allResults.push({
+                                    sequenceNumber: outputRecord?.SequenceNumber,
+                                    shardId: outputRecord?.ShardId,
+                                    errorCode: outputRecord?.ErrorCode,
+                                    errorMessage: outputRecord?.ErrorMessage,
+                                });
+                            }
+                        }
+
+                        // If there are retryable failures, update pendingRecords and retry.
+                        if (retryableRecords.length > 0) {
+                            pendingRecords = retryableRecords;
+                            throw retry(
+                                new DataLossError(
+                                    `Kinesis PutRecords partial failure: ${retryableRecords.length} records failed with retryable errors`,
+                                ),
+                            );
+                        }
+
+                        return {
+                            failedRecordCount: allResults.filter(r => r.errorCode).length,
+                            records: allResults,
+                            encryptionType,
+                        };
                     });
-                } catch (error) {
-                    throw retry(error);
-                }
+                },
+                {maxAttemptCount: maxRetryAttemptCount},
+            );
+        } catch {
+            // Retries exhausted. Add remaining pending records as failures using
+            // their last error response from Kinesis.
+            for (const {previousError} of pendingRecords) {
+                allResults.push({
+                    errorCode: previousError?.errorCode ?? "UnknownError",
+                    errorMessage: previousError?.errorMessage ?? "UnknownError",
+                });
+            }
 
-                // API Response elements
-                // https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecords.html#API_PutRecords_ResponseElements
-                const output: {
-                    FailedRecordCount?: number;
-                    Records?: Array<{
-                        SequenceNumber?: string;
-                        ShardId?: string;
-                        ErrorCode?: string;
-                        ErrorMessage?: string;
-                    }>;
-                    EncryptionType?: "NONE" | "KMS";
-                    __type?: string;
-                    message?: string;
-                } = await response.json();
-
-                if (response.status !== 200) {
-                    // Extract error type from response.
-                    let errorType = output.__type;
-                    if (typeof errorType === "string" && errorType.includes("#")) {
-                        errorType = errorType.split("#")[1];
-                    }
-
-                    const error = new DataLossError(
-                        `Kinesis PutRecords failed: ${errorType ?? "Unknown"} - ${output.message ?? "No message"}`,
-                    );
-
-                    // Retry on 5xx errors or throttling.
-                    if (
-                        response.status >= 500 ||
-                        errorType === "ProvisionedThroughputExceededException" ||
-                        errorType === "KMSThrottlingException"
-                    ) {
-                        throw retry(error);
-                    }
-
-                    throw error;
-                }
-
-                return {
-                    failedRecordCount: output.FailedRecordCount ?? 0,
-                    records: (output.Records ?? []).map(record => ({
-                        sequenceNumber: record.SequenceNumber,
-                        shardId: record.ShardId,
-                        errorCode: record.ErrorCode,
-                        errorMessage: record.ErrorMessage,
-                    })),
-                    encryptionType: output.EncryptionType,
-                };
-            });
-        });
+            return {
+                failedRecordCount: allResults.filter(r => r.errorCode).length,
+                records: allResults,
+                encryptionType,
+            };
+        }
     }
 }
