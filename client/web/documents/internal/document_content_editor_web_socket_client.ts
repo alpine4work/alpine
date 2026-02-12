@@ -12,6 +12,7 @@ import {
     WebSocketClientProcedures,
     WebSocketClientState,
 } from "~/client/web/web_socket/web_socket_client.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -96,7 +97,7 @@ export class DocumentContentEditorWebSocketClient {
     >;
 
     public readonly documentId: DocumentId;
-    public readonly withoutComments: boolean;
+    public readonly accessLevel: AccessLevel;
     private readonly _getContext: () => AppContext;
     private readonly _addGlobalLoadingIndicator: (
         promise: Promise<void>,
@@ -127,7 +128,7 @@ export class DocumentContentEditorWebSocketClient {
         getContext,
         addGlobalLoadingIndicator,
         documentId,
-        withoutComments,
+        accessLevel,
         initialState,
     }: {
         getContext: () => AppContext;
@@ -136,18 +137,18 @@ export class DocumentContentEditorWebSocketClient {
             indicator: GlobalLoadingIndicator,
         ) => void;
         documentId: DocumentId;
-        withoutComments: boolean;
+        accessLevel: AccessLevel;
         initialState: DocumentContentEditorState;
     }) {
         this.documentId = documentId;
-        this.withoutComments = withoutComments;
+        this.accessLevel = accessLevel;
         this._getContext = getContext;
         this._addGlobalLoadingIndicator = addGlobalLoadingIndicator;
         this._client = new WebSocketClient(
             getContext,
             "DocumentCollaborationService",
             DocumentCollaborationProtocol,
-            `/api/durable-objects/documents/${documentId}${withoutComments ? "/view" : ""}`,
+            `/api/durable-objects/documents/${documentId}?access=${accessLevel}`,
         );
         this._state = new ValueStore(initialState);
 

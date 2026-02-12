@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test";
+import {Locator, Page, expect, test} from "@playwright/test";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
@@ -6,8 +6,25 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 const {context, services} = createTestServices();
+
+async function getMessageInputDropPosition(pageOrLocator: Page | Locator) {
+    const messageInputBox = assertExists(
+        await (
+            "addInitScript" in pageOrLocator
+                ? // `addInitScript` should only be available on `Page`, not `Locator`.
+                  pageOrLocator.getByTestId("MessageInputDropTarget")
+                : pageOrLocator
+        ).boundingBox(),
+    );
+
+    return {
+        clientX: Math.round(messageInputBox.x + messageInputBox.width / 2),
+        clientY: Math.round(messageInputBox.y + messageInputBox.height / 2),
+    };
+}
 
 test("can drop files into chat", async ({context: browserContext, page}) => {
     const space = await TestSpace.create(context);
@@ -44,7 +61,7 @@ test("can drop files into chat", async ({context: browserContext, page}) => {
         return dataTransfer;
     }, file1Contents.toString("hex"));
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
@@ -52,13 +69,12 @@ test("can drop files into chat", async ({context: browserContext, page}) => {
         page.getByTestId(`MessageView:${chat.id}:1`).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("dragenter", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("dragenter", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file1DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
@@ -66,13 +82,12 @@ test("can drop files into chat", async ({context: browserContext, page}) => {
         page.getByTestId(`MessageView:${chat.id}:1`).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("drop", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("drop", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file1DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
@@ -85,7 +100,7 @@ test("can drop files into chat", async ({context: browserContext, page}) => {
     await expect(
         page.getByTestId(`MessageView:${chat.id}:1`).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
@@ -127,17 +142,16 @@ test("can drop files into chat", async ({context: browserContext, page}) => {
         [file2Contents.toString("hex"), file3Contents.toString("hex")],
     );
 
-    await page.getByTestId("MessagingView").dispatchEvent("dragenter", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("dragenter", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file2AndFile3DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page.getByTestId(`MessageView:${chat.id}:1`).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:application/pdf"),
     ).toBeHidden();
@@ -155,13 +169,12 @@ test("can drop files into chat", async ({context: browserContext, page}) => {
             .getByTestId("ContentFilePreview:image/svg+xml"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("drop", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("drop", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file2AndFile3DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId(`MessageView:${chat.id}:1`).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
@@ -199,7 +212,7 @@ test("can drop files into chat", async ({context: browserContext, page}) => {
             .getByTestId("ContentFilePreview:image/svg+xml"),
     ).toBeVisible();
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId(`MessageView:${chat.id}:1`).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
@@ -246,29 +259,27 @@ test("can remove files after dropping them into chat", async ({context: browserC
         return dataTransfer;
     }, file1Contents.toString("hex"));
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("dragenter", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("dragenter", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file1DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("drop", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("drop", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file1DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
@@ -293,29 +304,27 @@ test("can remove files after dropping them into chat", async ({context: browserC
         return dataTransfer;
     }, file2Contents.toString("hex"));
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("dragenter", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("dragenter", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file2DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("drop", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("drop", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file2DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
@@ -387,29 +396,27 @@ test("can drop file into new chat then change account recipients", async ({
         return dataTransfer;
     }, file1Contents.toString("hex"));
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("dragenter", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("dragenter", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file1DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("drop", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("drop", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file1DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
@@ -475,29 +482,27 @@ test("can drop file into new chat then change account recipients", async ({
         return dataTransfer;
     }, file2Contents.toString("hex"));
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("dragenter", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("dragenter", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file2DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").dispatchEvent("drop", {
-        clientX: 640,
-        clientY: 360,
+    await page.getByTestId("MessageInputDropTarget").dispatchEvent("drop", {
+        ...(await getMessageInputDropPosition(page)),
         dataTransfer: file2DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
@@ -645,29 +650,27 @@ test("can drag file we didn\u2019t upload from document into new chat", async ({
         dataTransfer: file2DataTransfer,
     });
 
-    await expect(page1.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page1.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page1.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page1.getByTestId("MessagingView").dispatchEvent("dragenter", {
-        clientX: 945,
-        clientY: 268,
+    await page1.getByTestId("MessageInputDropTarget").dispatchEvent("dragenter", {
+        ...(await getMessageInputDropPosition(page1)),
         dataTransfer: file2DataTransfer,
     });
 
-    await expect(page1.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page1.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page1.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page1.getByTestId("MessagingView").dispatchEvent("drop", {
-        clientX: 945,
-        clientY: 268,
+    await page1.getByTestId("MessageInputDropTarget").dispatchEvent("drop", {
+        ...(await getMessageInputDropPosition(page1)),
         dataTransfer: file2DataTransfer,
     });
 
-    await expect(page1.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page1.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page1.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
@@ -759,29 +762,37 @@ test("can drag file from message input in new chat to another new chat", async (
         return dataTransfer;
     }, file1Contents.toString("hex"));
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").first().dispatchEvent("dragenter", {
-        clientX: 480,
-        clientY: 311,
-        dataTransfer: file1DataTransfer,
-    });
+    await page
+        .getByTestId("MessageInputDropTarget")
+        .first()
+        .dispatchEvent("dragenter", {
+            ...(await getMessageInputDropPosition(
+                page.getByTestId("MessageInputDropTarget").first(),
+            )),
+            dataTransfer: file1DataTransfer,
+        });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").first().dispatchEvent("drop", {
-        clientX: 480,
-        clientY: 311,
-        dataTransfer: file1DataTransfer,
-    });
+    await page
+        .getByTestId("MessageInputDropTarget")
+        .first()
+        .dispatchEvent("drop", {
+            ...(await getMessageInputDropPosition(
+                page.getByTestId("MessageInputDropTarget").first(),
+            )),
+            dataTransfer: file1DataTransfer,
+        });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
@@ -799,7 +810,7 @@ test("can drag file from message input in new chat to another new chat", async (
             dataTransfer: file2DataTransfer,
         });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").first().getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
@@ -807,13 +818,17 @@ test("can drag file from message input in new chat to another new chat", async (
         page.getByTestId("MessageInput").last().getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").last().dispatchEvent("dragenter", {
-        clientX: 923,
-        clientY: 384,
-        dataTransfer: file2DataTransfer,
-    });
+    await page
+        .getByTestId("MessageInputDropTarget")
+        .last()
+        .dispatchEvent("dragenter", {
+            ...(await getMessageInputDropPosition(
+                page.getByTestId("MessageInputDropTarget").last(),
+            )),
+            dataTransfer: file2DataTransfer,
+        });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeVisible();
     await expect(
         page.getByTestId("MessageInput").first().getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
@@ -821,13 +836,17 @@ test("can drag file from message input in new chat to another new chat", async (
         page.getByTestId("MessageInput").last().getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("MessagingView").last().dispatchEvent("drop", {
-        clientX: 923,
-        clientY: 384,
-        dataTransfer: file2DataTransfer,
-    });
+    await page
+        .getByTestId("MessageInputDropTarget")
+        .last()
+        .dispatchEvent("drop", {
+            ...(await getMessageInputDropPosition(
+                page.getByTestId("MessageInputDropTarget").last(),
+            )),
+            dataTransfer: file2DataTransfer,
+        });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").first().getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();

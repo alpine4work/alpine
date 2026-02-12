@@ -13,7 +13,6 @@ import {
 } from "react";
 import {MessageInputFile} from "~/client/web/content/messaging/add_message_input_files.js";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
-import {useMessagingViewDropTarget} from "~/client/web/content/messaging/use_messaging_view_drop_target.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/web/design/scrollbar.js";
@@ -205,7 +204,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         randomSeedForShimmer,
         isMessageCreationDisabled,
         fileAttachmentTarget,
-        withAttachFileBeforeCreateMessage = false,
+        withAttachFileBeforeCreateMessage,
         getMessagesFromStart,
         getMessagesFromEnd,
         backfillMessages,
@@ -597,24 +596,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
-    //
-    // Unless we are replying to a message or editing a message. Then we should
-    // anchor to the message in question. Similar code also exists in
-    // `post_list_view.tsx` and `document_comment_thread_list_view.tsx`. If we
-    // update the code here we also probably need to update there.
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
-        isPinned: true,
-        getAnchorPosition: useEvent(oldVisibleRect => {
-            // NOTE(calebmer, 2024-07-16): We used to anchor chat view scroll to the
-            // message the user was replying to or editing. However, in practice this felt
-            // janky to me. Scrolling wasn't predictable when swiping to reply to a
-            // message! I think consistency is likely the better user experience here.
-            //
-            // To look at the old message anchoring code, git blame this comment to see the
-            // commit where I remove it.
-
-            return {top: oldVisibleRect.bottom, height: 0};
-        }),
+        getAnchorPosition: useEvent(oldVisibleRect => ({
+            top: oldVisibleRect.bottom,
+            height: 0,
+            isPinned: true,
+        })),
     });
 
     const handleSetMessageReaction: Memo<OnSetMessageReactionFunction<RoomKey>> = useCallback(
@@ -715,16 +702,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         ],
     );
 
-    const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
-        isDisabled: messageEditing.state.isEditing,
-        onDrop: event => assertExists(inputRef.current).drop(event.dataTransfer),
-    });
-
     return (
         <>
             {modals}
             <div
-                {...dropTargetProps}
                 data-testid="MessagingView"
                 className={sprinkles({
                     position: "relative",
@@ -735,7 +716,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     flexDirection: "column",
                 })}
             >
-                {dragOverlay}
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={elementRef}

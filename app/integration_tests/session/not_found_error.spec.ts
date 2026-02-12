@@ -224,20 +224,6 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This task doesn\u2019t exist")).toBeVisible();
         });
     },
-    "tasks.$taskId.comments._index": () => {
-        test("not found error for route `tasks.$taskId.comments`", async ({
-            page,
-            context: browserContext,
-        }) => {
-            const space = await TestSpace.create(context);
-            const session = await space.createSession();
-
-            await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/tasks/${generateId()}/comments`);
-
-            await expect(page.getByText("This task doesn\u2019t exist")).toBeVisible();
-        });
-    },
     "tasks.$taskId.comments.$index.reactions": () => {
         test("not found error for route `tasks.$taskId.comments.$index.reactions`", async ({
             page,

@@ -48,6 +48,7 @@ export function getContentEditorScrollAnchorPosition<Content extends ContentWith
                     return {
                         top: anchorPosition.top,
                         height: anchorPosition.bottom - anchorPosition.top,
+                        isPinned: false,
                     };
                 }
             }
@@ -67,5 +68,6 @@ export function getContentEditorScrollAnchorPosition<Content extends ContentWith
     return {
         top: coords.top - paragraphLineHeight,
         height: coords.bottom - coords.top + paragraphLineHeight * 2,
+        isPinned: false,
     };
 }

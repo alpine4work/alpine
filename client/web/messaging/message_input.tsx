@@ -72,6 +72,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     messageStartOfSentenceNoun?: string;
     placeholder?: string;
     isNotBottomBar?: boolean;
+    alwaysRegisterBottomBarFrame?: boolean;
     messages: MessageList<Message>;
     isMessageCreationDisabled?: boolean;
     onUpdateMessages: (update: (messages: MessageList<Message>) => MessageList<Message>) => void;
@@ -81,6 +82,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
         fileIds: ReadonlyArray<FileId | FileEntityId>;
     }) => Promise<void>;
     fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
+    ensureFileAttachmentTarget?: () => Promise<FileAttachmentTarget>;
     withAttachFileBeforeCreateMessage?: boolean;
     messageEditing: MessageEditing<RoomKey>;
     postRoom?: PostModel;
@@ -118,12 +120,14 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         messageStartOfSentenceNoun,
         placeholder,
         isNotBottomBar = false,
+        alwaysRegisterBottomBarFrame = false,
         messages,
         isMessageCreationDisabled,
         onUpdateMessages,
         createMessage,
         fileAttachmentTarget,
-        withAttachFileBeforeCreateMessage = false,
+        ensureFileAttachmentTarget,
+        withAttachFileBeforeCreateMessage,
         messageEditing,
         postRoom,
         documentCommentThreadRoom,
@@ -359,23 +363,27 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             runPromiseWithoutAwaiting(async () => {
                 try {
                     const promise = (async () => {
-                        // If we were configured to attach files right before creating a message
-                        // (instead of when the file was added to the message input) then run our
-                        // attach calls now.
-                        if (withAttachFileBeforeCreateMessage && fileAttachmentTarget !== null) {
+                        const ensuredFileAttachmentTarget = await ensureFileAttachmentTarget?.();
+
+                        const actualFileAttachmentTarget =
+                            fileAttachmentTarget ?? ensuredFileAttachmentTarget;
+
+                        // If there are any files that haven't been attached yet, attach them now.
+                        if (actualFileAttachmentTarget) {
                             await runAllPromises(
                                 inputFiles.map(async inputFile => {
                                     if (inputFile.type !== "File") return;
+                                    if (!inputFile.shouldAttachBeforeCreate) return;
 
                                     if (inputFile.attachmentTarget === "Uploader") {
                                         await attachFileAsUploader(context, {
                                             spaceId: space.id,
                                             fileId: inputFile.file.id,
-                                            target: fileAttachmentTarget,
+                                            target: actualFileAttachmentTarget,
                                         });
                                     } else if (
                                         !isDeepEqual(
-                                            fileAttachmentTarget,
+                                            actualFileAttachmentTarget,
                                             inputFile.attachmentTarget,
                                         )
                                     ) {
@@ -383,7 +391,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                             spaceId: space.id,
                                             fileId: inputFile.file.id,
                                             fromTarget: inputFile.attachmentTarget,
-                                            toTarget: fileAttachmentTarget,
+                                            toTarget: actualFileAttachmentTarget,
                                         });
                                     }
                                 }),
@@ -526,6 +534,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 onShowTypingIndicator={onShowTypingIndicator}
                 onHideTypingIndicator={onHideTypingIndicator}
                 isBottomBar={!isNotBottomBar}
+                alwaysRegisterBottomBarFrame={alwaysRegisterBottomBarFrame}
                 data-testid={dataTestId}
                 withMobileMaxHeight={withMobileMaxHeight}
                 // Hide the top border if there are no messages. (For example, when we're

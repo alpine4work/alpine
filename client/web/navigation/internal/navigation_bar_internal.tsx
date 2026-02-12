@@ -56,6 +56,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 /**
  * After the user has stopped scrolling then this timeout elapses, we will
@@ -200,7 +201,7 @@ export function NavigationBar({
     contentCover: ReactNode | undefined;
     onMobileClose: (() => void) | undefined;
     onMobileCancel: (() => void) | undefined;
-    defaultPreviousRoute: string | undefined;
+    defaultPreviousRoute: MaybeThunk<string> | undefined;
 }) {
     const platform = usePlatform();
 

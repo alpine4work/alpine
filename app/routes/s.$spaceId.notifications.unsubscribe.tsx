@@ -98,7 +98,7 @@ export default function NotificationsUnsubscribeRoute() {
                     ) : (
                         <Box display="flex" alignItems="center" gap="2">
                             <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
-                            Unsubscribing...
+                            Unsubscribing…
                         </Box>
                     )}
                 </Box>

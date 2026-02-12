@@ -16,6 +16,7 @@ import {
     WebSocketClientProcedures,
     WebSocketClientState,
 } from "~/client/web/web_socket/web_socket_client.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -98,6 +99,8 @@ export function getInitialTaskNotesContentEditorState({
  */
 export class TaskDetailNotesContentEditorWebSocketClient {
     public readonly taskId: TaskId;
+    public readonly accessLevel: AccessLevel;
+
     public static readonly procedureNames = [
         "backfillComments",
         "createComment",
@@ -112,6 +115,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             WebSocketProtocolProceduresType<typeof TaskNotesCollaborationProtocol>
         >
     >;
+
     private readonly _displayError: (title: string, error: unknown) => void;
     private readonly _getContext: () => AppContext;
     private readonly _addGlobalLoadingIndicator: (
@@ -136,6 +140,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         getContext,
         addGlobalLoadingIndicator,
         taskId,
+        accessLevel,
         displayError,
         initialState,
     }: {
@@ -145,17 +150,19 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             indicator: GlobalLoadingIndicator,
         ) => void;
         taskId: TaskId;
+        accessLevel: AccessLevel;
         displayError: (title: string, error: unknown) => void;
         initialState: TaskNotesContentEditorState;
     }) {
         this.taskId = taskId;
+        this.accessLevel = accessLevel;
         this._getContext = getContext;
         this._addGlobalLoadingIndicator = addGlobalLoadingIndicator;
         this._client = new WebSocketClient(
             getContext,
             "TaskNotesCollaborationService",
             TaskNotesCollaborationProtocol,
-            `/api/durable-objects/task-notes/${taskId}`,
+            `/api/durable-objects/task-notes/${taskId}?access=${accessLevel}`,
         );
         assert(initialState.extra.taskId === taskId);
         this._state = new ValueStore(initialState);

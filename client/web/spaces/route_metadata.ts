@@ -149,9 +149,6 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.tasks.$taskId._index": {
         errorTitle: "Couldn\u2019t open task",
     },
-    "routes/s.$spaceId.tasks.$taskId.comments._index": {
-        errorTitle: "Couldn\u2019t open task",
-    },
     "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": {
         errorTitle: "Couldn\u2019t open comment reactions",
     },

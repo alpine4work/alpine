@@ -599,9 +599,12 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await expect(page.getByTestId("PeekStack").getByLabel("Collections")).toBeHidden();
         }
 
-        await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
-
         if (hasAccessLevel(accessLevel, "Comment")) {
+            await expect(page.getByRole("textbox", {name: "New comment"})).toBeVisible();
+            await expect(page.getByText("Test task comment")).toBeVisible();
+
+            await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
+
             await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
 
             if (hasAccessLevel(accessLevel, "Edit")) {
@@ -610,17 +613,15 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
                 await expect(page.getByRole("menuitem", {name: "Mark closed"})).toBeHidden();
             }
 
+            await page.keyboard.press("Escape");
+        } else {
             await expect(page.getByRole("textbox", {name: "New comment"})).toBeHidden();
             await expect(page.getByText("Test task comment")).toBeHidden();
 
-            await page.getByRole("menuitem", {name: "Comments"}).click();
+            await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
 
-            await expect(page.getByRole("textbox", {name: "New comment"})).toBeVisible();
-            await expect(page.getByText("Test task comment")).toBeVisible();
-        } else {
             await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
             await expect(page.getByRole("menuitem", {name: "Mark closed"})).toBeHidden();
-            await expect(page.getByRole("menuitem", {name: "Comments"})).toBeHidden();
 
             await page.keyboard.press("Escape");
         }
@@ -694,10 +695,7 @@ test("can comment on task with comment only access", async ({
         .first()
         .click();
 
-    await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
-
-    await page.getByRole("menuitem", {name: "Comment"}).click();
-
+    await expect(page.getByRole("textbox", {name: "New comment"})).toBeVisible();
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await page.getByRole("textbox", {name: "New comment"}).fill("Test task comment");
@@ -728,12 +726,12 @@ test("can switch other account access level between comment and view in realtime
     await collection.access.grant(session2, session1, "Comment");
 
     await services.signIn(browserContext2a, session2);
-    await page2a.goto(`/s/${space.id}/tasks/${task.id}?comments=show`);
+    await page2a.goto(`/s/${space.id}/tasks/${task.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/tasks/${task.id}?comments=show`);
+    await page1.goto(`/s/${space.id}/tasks/${task.id}`);
 
     const browserContext2b = await browser.newContext();
     await services.signIn(browserContext2b, session2);
@@ -764,21 +762,6 @@ test("can switch other account access level between comment and view in realtime
     await expect(page1.getByText("Test task comment")).toBeHidden();
     await expect(page2a.getByText("Test task comment")).toBeVisible();
 
-    await page1.getByRole("button", {name: "More"}).click();
-    await expect(page1.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
-    await expect(page1.getByRole("menuitem", {name: "Comments"})).toBeHidden();
-    await page1.keyboard.press("Escape");
-
-    // TODO(calebmer, 2025-01-29): If we don't reload then React doesn't re-render
-    // the component when switching back from view access level to comment access
-    // level even though the store is updating. I think this is a React bug.
-    await page1.reload();
-
-    await page1.getByRole("button", {name: "More"}).click();
-    await expect(page1.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
-    await expect(page1.getByRole("menuitem", {name: "Comments"})).toBeHidden();
-    await page1.keyboard.press("Escape");
-
     await page2b
         .getByTestId(`ShareOverlayAccountGrant:${session1.account.id}`)
         .getByRole("button", {name: "can view"})
@@ -793,14 +776,6 @@ test("can switch other account access level between comment and view in realtime
 
     await expect(page1.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeVisible();
     await expect(page2a.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeVisible();
-    await expect(page1.getByText("Test task comment")).toBeHidden();
-    await expect(page2a.getByText("Test task comment")).toBeVisible();
-
-    await page1.getByRole("button", {name: "More"}).click();
-    await expect(page1.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
-    await expect(page1.getByRole("menuitem", {name: "Comments"})).toBeVisible();
-    await page1.getByRole("menuitem", {name: "Comments"}).click();
-
     await expect(page1.getByText("Test task comment")).toBeVisible();
     await expect(page2a.getByText("Test task comment")).toBeVisible();
 

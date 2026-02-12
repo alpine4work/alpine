@@ -32,3 +32,4 @@ export const undefinedStore = new ConstStore(undefined);
 export const trueStore = new ConstStore(true);
 export const falseStore = new ConstStore(false);
 export const emptyArrayStore = new ConstStore(emptyArray);
+export const zeroStore = new ConstStore(0);

@@ -11,7 +11,6 @@ import {ChatBrandBigIcon} from "~/client/web/icons/brand/chat_brand_big_icon.js"
 import {DocumentBrandBigIcon} from "~/client/web/icons/brand/document_brand_big_icon.js";
 import {PostBrandBigIcon} from "~/client/web/icons/brand/post_brand_big_icon.js";
 import {TaskBrandBigIcon} from "~/client/web/icons/brand/task_brand_big_icon.js";
-import {peekMaxHeight} from "~/client/web/peek/peek_stack.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
@@ -36,6 +35,7 @@ import {
     feedCreateSectionMinHeight,
     feedCreateSectionSuggestedHeadingMarginBottom,
 } from "~/client/web/styles/feed_shared_styles.js";
+import {peekMaxHeight} from "~/client/web/styles/peek_shared_styles.js";
 import {searchAffinityEntityViewMinHeightPx} from "~/client/web/styles/search_shared_styles.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";

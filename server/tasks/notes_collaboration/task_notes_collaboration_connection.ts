@@ -20,6 +20,7 @@ import {
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {
     ContentReferencedIds,
     getContentReferencedIdsForNode,
@@ -78,6 +79,7 @@ export type TaskNotesCollaborationEventStub =
       };
 
 export class TaskNotesCollaborationConnection {
+    public readonly accessLevel: AccessLevel;
     private readonly _contentManager: TaskNotesCollaborationContentManager;
     public readonly closeWithError: (context: WorkerProcessContext, error: unknown) => void;
     private readonly _mutex = new Mutex();
@@ -85,6 +87,7 @@ export class TaskNotesCollaborationConnection {
     private readonly _messagingConnection: MessagingRealtimeConnection<TaskId, TaskCommentModel>;
 
     constructor({
+        accessLevel,
         connectionId,
         accountId,
         contentManager,
@@ -93,6 +96,7 @@ export class TaskNotesCollaborationConnection {
         sendEventToOthers,
         iterateOtherConnections,
     }: {
+        accessLevel: AccessLevel;
         contentManager: TaskNotesCollaborationContentManager;
         closeWithError: (context: WorkerProcessContext, error: unknown) => void;
         connectionId: WebSocketConnectionId;
@@ -107,9 +111,12 @@ export class TaskNotesCollaborationConnection {
         ) => void;
         iterateOtherConnections: () => Iterable<TaskNotesCollaborationConnection>;
     }) {
+        this.accessLevel = accessLevel;
         this._contentManager = contentManager;
         this.closeWithError = closeWithError;
 
+        // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
+        // once clients are connecting with the right `AccessLevel`.
         this._editAccessPromiseResolver = createPromiseResolver();
 
         // Can ignore uncaught exceptions. They'll be thrown if the user tries to
@@ -151,6 +158,7 @@ export class TaskNotesCollaborationConnection {
     public async authorize(context: WorkerSessionActionContext) {
         const {editResult} = await authorizeTaskAccess(context, {
             taskId: this._contentManager.taskId,
+            expectedAccessLevel: this.accessLevel,
         });
 
         // If the edit access promise resolver has not settled yet (e.g. when we

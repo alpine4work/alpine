@@ -57,6 +57,7 @@ import {OutOfRangeError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 export type NavigationBarContentRef = {
     getElement(): HTMLElement;
@@ -112,7 +113,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleLeftSlop?: Spacing;
         desktopAdditionalActions?: ReactNode;
         withoutMobileBackButton?: boolean;
-        defaultPreviousRoute?: string;
+        defaultPreviousRoute?: MaybeThunk<string>;
         onMobileClose?: () => void;
         onMobileCancel?: () => void;
     },
@@ -201,7 +202,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         if (navigationState.hasPreviousLocation) {
             navigate(-1);
         } else if (defaultPreviousRoute) {
-            void navigate(defaultPreviousRoute);
+            if (typeof defaultPreviousRoute === "function") {
+                void navigate(defaultPreviousRoute());
+            } else {
+                void navigate(defaultPreviousRoute);
+            }
         } else {
             throw new OutOfRangeError("No previous page in browser history");
         }

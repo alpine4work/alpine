@@ -1,5 +1,5 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {flushSync} from "react-dom";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
@@ -14,8 +14,6 @@ import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
-import {getInitialAppRenderPlatform} from "~/client/web/remix/platform_context.js";
-import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
@@ -32,19 +30,19 @@ import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/c
 import {unknownTaskQueryFromServerRetentionPeriodMs} from "~/client/web/tasks/core/task_realtime_client.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/web/tasks/get_task_grid_view_load_query_limit.js";
-import {TaskDetailAndCommentsView} from "~/client/web/tasks/task_detail_and_comments_view.js";
+import {TaskDetailView} from "~/client/web/tasks/task_detail_view.js";
+import {taskDetailViewLoadMoreChildTasksLimit} from "~/client/web/tasks/task_detail_view_load_more_child_tasks_limit.js";
+import {TaskGridViewDndContext} from "~/client/web/tasks/task_grid_view_dnd_context.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {
-    getTaskNotesContentAndOptionalInitialComments,
-    getTaskNotesContentIfExists,
-} from "~/server/tasks/data/task_table.js";
+import {getTaskNotesContentAndOptionalInitialCommentsIfExists} from "~/server/tasks/data/task_table.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -86,7 +84,10 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskRealtimeLoadQueriesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {addFallbackToTaskTitle, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
-import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
+import {
+    ServerSynchronizationCheckpointSchema,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,
@@ -98,7 +99,7 @@ const LoaderSchema = Schema.object({
         commentCount: Schema.integer,
         comments: Schema.array(TaskCommentModel.schema()),
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),
-    }).nullable(),
+    }),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
     isFavorite: Schema.boolean,
     initialFieldsAssignee: AccountModel.schema.nullable(),
@@ -115,14 +116,10 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
     const url = new URL(request.url);
 
-    const clientInfo = context.loader.getClientInfo();
-    const platform = getInitialAppRenderPlatform(clientInfo);
-
     const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId)).ok;
 
     const createSearchParam = url.searchParams.get("create");
     const isCreatingTask = createSearchParam !== null;
-    const showComments = !isCreatingTask && url.searchParams.get("comments") === "show";
     const showInboxEntry = url.searchParams.get("inbox") === "show";
 
     const childrenQuery: {
@@ -131,7 +128,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
     } = {
-        limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
+        limit: taskDetailViewLoadMoreChildTasksLimit,
 
         filters: {
             displayStatusFilter: {
@@ -208,19 +205,10 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 collectionIds: [],
             }),
         ),
-        showComments && platform !== "mobile"
-            ? getTaskNotesContentAndOptionalInitialComments(context, {
-                  taskId,
-                  commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-              })
-            : getTaskNotesContentIfExists(context, taskId).then(notes =>
-                  notes
-                      ? {
-                            notes,
-                            initialComments: null,
-                        }
-                      : null,
-              ),
+        getTaskNotesContentAndOptionalInitialCommentsIfExists(context, {
+            taskId,
+            commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+        }),
         isSpaceAccessAuthorized && showInboxEntry
             ? getInboxEntry(context.actor.authorizeSession(), {
                   spaceId,
@@ -277,7 +265,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 loadQueriesOutput?.queries[0]?.gridViewExpansionState ?? null,
             notesVersion: task?.notes.version ?? 0,
             notesContent: task?.notes.content ?? emptyTaskNotesContentWithReferences,
-            initialComments: task?.initialComments ?? null,
+            initialComments: task?.initialComments ?? {
+                checkpoint: generateServerSynchronizationCheckpoint(),
+                commentCount: 0,
+                comments: emptyArray,
+                otherReferencedComments: emptyArray,
+            },
             inboxEntry,
             isFavorite,
             initialFieldsAssignee,
@@ -326,10 +319,6 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     nextUrl.searchParams.delete("focus");
     currentUrl.searchParams.delete("focus");
 
-    // Used to open comments:
-    nextUrl.searchParams.delete("comments");
-    currentUrl.searchParams.delete("comments");
-
     return nextUrl.toString() !== currentUrl.toString();
 };
 
@@ -345,7 +334,6 @@ export default function TaskRoute() {
 
     const createSearchParam = searchParams.get("create");
     const isCreatingTask = createSearchParam !== null;
-    const showComments = !isCreatingTask && searchParams.get("comments") === "show";
 
     const [shouldInitiallyFocus] = useState(searchParams.get("focus") === "");
 
@@ -401,8 +389,6 @@ export default function TaskRoute() {
         childrenQueryFromLoader ??
         newlyCreatedTaskSubscriptionAndChildrenQuery?.childrenQuery ??
         null;
-
-    const routeLayout = useRouteLayout();
 
     // Retain our queries so they aren't destroyed while we're using them.
     useEffect(() => {
@@ -465,55 +451,6 @@ export default function TaskRoute() {
     const affinityManager = useTaskClientStoreSearchAffinityManager(
         taskSubscription ? `Task:${taskId}` : null,
     );
-
-    const setShowComments = useCallback(
-        (showComments: boolean) => {
-            setSearchParams(
-                searchParams => {
-                    const newSearchParams = new URLSearchParams(searchParams);
-
-                    if (showComments) {
-                        newSearchParams.set("comments", "show");
-                    } else {
-                        newSearchParams.delete("comments");
-                    }
-
-                    return newSearchParams;
-                },
-                {
-                    replace: true,
-                    // Don't revalidate when updating search params from here. We can't use the
-                    // stable `shouldRevalidate` route function because if the user navigates to
-                    // a new URL we want to load new data and re-render the route.
-                    unstable_shouldRevalidate: false,
-                },
-            );
-        },
-        [setSearchParams],
-    );
-
-    // Can't show comments in narrow route layouts. So clear the `showComments`
-    // search param if we have it.
-    useEffect(() => {
-        if (showComments && routeLayout === "narrow") {
-            setShowComments(false);
-        }
-    }, [routeLayout, setShowComments, showComments]);
-
-    // We keep track in `localStorage` of whether comments were opened in wide
-    // `routeLayout` task detail views so that when the user navigates back to the
-    // task detail view we can preserve the comment open/close state.
-    //
-    // We read this state in `convertPeekPathToSpacePath()`.
-    useEffect(() => {
-        if (routeLayout === "narrow") return;
-
-        if (!showComments) {
-            localStorage.removeItem(`cyberworlds/taskShowComments/${taskId}`);
-        } else {
-            localStorage.setItem(`cyberworlds/taskShowComments/${taskId}`, "true");
-        }
-    }, [routeLayout, showComments, taskId]);
 
     const defaultInitialFields = useMemo(
         (): TaskQueryNormalizedFiltersInitialFields => ({
@@ -749,26 +686,26 @@ export default function TaskRoute() {
             maxWidth: "full",
             sidebarRightWidth: taskDetailViewCommentSidebarWidth,
         },
-        <TaskDetailAndCommentsView
-            // Remount when the `TaskId` changes.
-            key={taskId}
-            taskId={taskId}
-            store={store}
-            taskSubscription={taskSubscription}
-            childrenQuery={childrenQuery}
-            initialChildrenGridViewExpansionState={initialChildrenGridViewExpansionState}
-            initialFields={initialFieldsModel}
-            initialIsFavorite={initialIsFavorite}
-            initialNotesVersion={initialNotesVersion}
-            initialNotesContent={initialNotesContent}
-            commitActionTransactionAndCreateIfNeeded={commitActionTransactionAndCreateIfNeeded}
-            affinityManager={affinityManager}
-            shouldInitiallyFocus={shouldInitiallyFocus}
-            showComments={showComments && routeLayout !== "narrow"}
-            onShowCommentsChange={setShowComments}
-            initialComments={initialComments}
-            initialScrollToCommentIndex={initialScrollToCommentIndex}
-        />,
+        <TaskGridViewDndContext store={store}>
+            <TaskDetailView
+                // Remount when the `TaskId` changes.
+                key={taskId}
+                taskId={taskId}
+                store={store}
+                taskSubscription={taskSubscription}
+                childrenQuery={childrenQuery}
+                initialChildrenGridViewExpansionState={initialChildrenGridViewExpansionState}
+                initialFields={initialFieldsModel}
+                initialIsFavorite={initialIsFavorite}
+                initialNotesVersion={initialNotesVersion}
+                initialNotesContent={initialNotesContent}
+                commitActionTransactionAndCreateIfNeeded={commitActionTransactionAndCreateIfNeeded}
+                affinityManager={affinityManager}
+                shouldInitiallyFocus={shouldInitiallyFocus}
+                initialComments={initialComments}
+                initialScrollToCommentIndex={initialScrollToCommentIndex}
+            />
+        </TaskGridViewDndContext>,
     );
 }
 

@@ -45,7 +45,7 @@ import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
     getTaskNotesContent,
-    getTaskNotesContentAndOptionalInitialComments,
+    getTaskNotesContentAndOptionalInitialCommentsIfExists,
     getTaskNotesContentWithoutReferences,
     getTaskNotificationSubscribers,
     getTaskOwnerIfPossible,
@@ -20063,7 +20063,7 @@ test("returns null for users that only have view access when trying to get initi
     const comment2 = await task.createComment(creatorSession, "test3");
 
     await expect(
-        getTaskNotesContentAndOptionalInitialComments(assigneeSession.action(), {
+        getTaskNotesContentAndOptionalInitialCommentsIfExists(assigneeSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
@@ -20148,14 +20148,14 @@ test("returns null for users that only have view access when trying to get initi
     });
 
     await expect(
-        getTaskNotesContentAndOptionalInitialComments(unauthorizedSession.action(), {
+        getTaskNotesContentAndOptionalInitialCommentsIfExists(unauthorizedSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        getTaskNotesContentAndOptionalInitialComments(viewerSession.action(), {
+        getTaskNotesContentAndOptionalInitialCommentsIfExists(viewerSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
@@ -20171,7 +20171,7 @@ test("returns null for users that only have view access when trying to get initi
     });
 
     await expect(
-        getTaskNotesContentAndOptionalInitialComments(commenterSession.action(), {
+        getTaskNotesContentAndOptionalInitialCommentsIfExists(commenterSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
@@ -20256,7 +20256,7 @@ test("returns null for users that only have view access when trying to get initi
     });
 
     await expect(
-        getTaskNotesContentAndOptionalInitialComments(editorSession.action(), {
+        getTaskNotesContentAndOptionalInitialCommentsIfExists(editorSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
@@ -20341,7 +20341,7 @@ test("returns null for users that only have view access when trying to get initi
     });
 
     await expect(
-        getTaskNotesContentAndOptionalInitialComments(manageSession.action(), {
+        getTaskNotesContentAndOptionalInitialCommentsIfExists(manageSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
@@ -20426,7 +20426,7 @@ test("returns null for users that only have view access when trying to get initi
     });
 
     await expect(
-        getTaskNotesContentAndOptionalInitialComments(creatorSession.action(), {
+        getTaskNotesContentAndOptionalInitialCommentsIfExists(creatorSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
@@ -20888,7 +20888,7 @@ test("authorizing task access after getting task as session actor is cached", as
 
         expect(getCount()).toEqual(0);
 
-        await getTaskNotesContentAndOptionalInitialComments(actionContext, {
+        await getTaskNotesContentAndOptionalInitialCommentsIfExists(actionContext, {
             taskId: task.id,
             commentsLimit: 100,
         });

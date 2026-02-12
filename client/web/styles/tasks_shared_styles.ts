@@ -1,9 +1,12 @@
+import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
+import {peekControlsHeight, peekMaxHeight} from "~/client/web/styles/peek_shared_styles.js";
 import {
     contentStyles,
     fontSizes,
     navigationBarStyles,
     tasksStyles,
 } from "~/client/web/styles/styles.js";
+import {allPlatforms} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     Spacing,
@@ -102,6 +105,21 @@ export const taskRowTitleInputPaddingYPx = createObjectFromKeys(
 export const taskGridViewPaddingBottomWithNext = "6";
 export const taskGridViewPaddingBottomWithoutNext = "12";
 
+export const taskGridViewMoreUnloadedTasksHeight = addRemLengths(
+    taskRowViewMinHeight,
+    taskRowViewMinHeight,
+    taskRowViewMinHeight,
+    "4",
+    "6",
+    "4",
+);
+
+export const taskGridViewExplicitLoadMoreButtonHeight = addRemLengths(
+    taskRowViewMinHeight,
+    taskRowViewMinHeight,
+    taskGridViewPaddingBottomWithoutNext,
+);
+
 export const taskCardViewMinHeight = "5.375rem";
 export const taskCardViewMaxWidth = "96";
 
@@ -152,7 +170,7 @@ export const taskDetailViewMainMinHeightPx = createObjectFromKeys(
             addRemLengths(
                 navigationBarStyles.navigationBarHeight,
                 taskDetailViewTitleLineHeight,
-                taskDetailViewSectionGap,
+                taskDetailViewHeaderMarginBottom,
                 taskDetailViewDenseFieldMinHeight,
                 taskDetailViewDenseFieldGap,
                 taskDetailViewDenseFieldMinHeight,
@@ -170,5 +188,34 @@ export const taskDetailViewMainMinHeightPx = createObjectFromKeys(
                 taskDetailViewSubtasksFieldLabelPaddingBottom,
             ),
             spacingScale,
+        ),
+);
+
+export const taskDetailViewCommentSectionHeaderHeightPx = createObjectFromKeys(
+    allPlatforms,
+    platform =>
+        mapObjectValues(
+            taskDetailViewMainMinHeightPx,
+            (taskDetailViewMainMinHeightPx, spacingScale) => {
+                const peekControlsHeightPx = convertRemLengthToPx(peekControlsHeight, spacingScale);
+                const peekMaxHeightPx = convertRemLengthToPx(peekMaxHeight, spacingScale);
+                const taskRowViewMinHeightPx = convertRemLengthToPx(
+                    taskRowViewMinHeight,
+                    spacingScale,
+                );
+                const taskGridViewPaddingBottomWithoutNextPx = convertRemLengthToPx(
+                    taskGridViewPaddingBottomWithoutNext,
+                    spacingScale,
+                );
+
+                return (
+                    peekMaxHeightPx -
+                    peekControlsHeightPx -
+                    taskDetailViewMainMinHeightPx -
+                    taskRowViewMinHeightPx * 3 -
+                    taskGridViewPaddingBottomWithoutNextPx -
+                    messageInputMinHeightPx[platform][spacingScale]
+                );
+            },
         ),
 );

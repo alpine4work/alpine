@@ -317,6 +317,45 @@ export class TaskClientQuery {
             });
         });
     }
+
+    /**
+     * Return a promise that resolves when the query has finished the last
+     * `loadMoreTasks()` request.
+     */
+    public waitForLoadMoreTasks(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            {
+                try {
+                    const loadedState = this.loadedStateStore.getSnapshot();
+                    const loadMoreTaskCount = this.loadMoreTaskCountStore.getSnapshot();
+
+                    if (loadedState === "FullyLoaded" || loadMoreTaskCount === 0) {
+                        resolve();
+                        return;
+                    }
+                } catch (error) {
+                    reject(error);
+                    return;
+                }
+            }
+
+            const manyStore = Store.many([this.loadedStateStore, this.loadMoreTaskCountStore]);
+
+            const unsubscribe = manyStore.subscribe(() => {
+                try {
+                    const [loadedState, loadMoreTaskCount] = manyStore.getSnapshot();
+
+                    if (loadedState === "FullyLoaded" || loadMoreTaskCount === 0) {
+                        unsubscribe();
+                        resolve();
+                    }
+                } catch (error) {
+                    unsubscribe();
+                    reject(error);
+                }
+            });
+        });
+    }
 }
 
 export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptionBase {

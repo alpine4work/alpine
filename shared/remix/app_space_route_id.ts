@@ -46,7 +46,6 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.settings"
     | "routes/s.$spaceId.tasks.$taskId._index"
     | "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions"
-    | "routes/s.$spaceId.tasks.$taskId.comments._index"
     | "routes/s.$spaceId.tasks.$taskId.duplicate"
     | "routes/s.$spaceId.tasks._index"
     | "routes/s.$spaceId.tasks.collections.$collectionId"

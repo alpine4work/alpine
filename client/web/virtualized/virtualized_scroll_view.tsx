@@ -427,7 +427,8 @@ function VirtualizedScrollView(
         alwaysRenderAdditionalItemIndexes,
         scrollbarInsetTopItemIndex,
         scrollbarInsetTop: actualScrollbarInsetTop,
-        scrollbarInsetBottom,
+        scrollbarInsetBottomItemIndex,
+        scrollbarInsetBottom: actualScrollbarInsetBottom,
         extraChildren,
         extraChildrenOutsideContentElement,
         extraChildrenContentHeight = 0,
@@ -557,6 +558,12 @@ function VirtualizedScrollView(
          * `scrollbarInsetTop` wins.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
+
+        /**
+         * Inset the scrollbar after this item index. Throws an error if the index is
+         * out of range.
+         */
+        scrollbarInsetBottomItemIndex?: number;
 
         /**
          * Inset the scrollbar by this many pixels.
@@ -1163,7 +1170,7 @@ function VirtualizedScrollView(
         // content size changes. When this happens we update `lastScrollTopRef.current`
         // with the new scroll top position. We can skip going to an `isScrolling`
         // state if we've already "seen" this `scrollTop`.
-        if (scrollTop === lastScrollTopRef.current) return;
+        if (scrollTop === lastScrollTopRef.current && !isScrollToIndexEvent) return;
 
         const run = () => {
             // If the user is scrolling fast we enter a jump scroll state. We will not
@@ -1321,6 +1328,14 @@ function VirtualizedScrollView(
     } else if (scrollbarInsetTopItemIndex !== undefined) {
         const {offset, height} = state.getPositionByIndex(scrollbarInsetTopItemIndex);
         scrollbarInsetTop = offset + height;
+    }
+
+    let scrollbarInsetBottom: ScrollbarInset | undefined;
+    if (actualScrollbarInsetBottom !== undefined) {
+        scrollbarInsetBottom = actualScrollbarInsetBottom;
+    } else if (scrollbarInsetBottomItemIndex !== undefined) {
+        const {offset} = state.getPositionByIndex(scrollbarInsetBottomItemIndex);
+        scrollbarInsetBottom = state.getContentHeight() - offset;
     }
 
     const stateRefCurrent = {

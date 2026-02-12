@@ -4,17 +4,14 @@ import {EditorView} from "prosemirror-view";
 import {
     Dispatch,
     Memo,
-    ReactNode,
     RefObject,
     SetStateAction,
     useCallback,
     useEffect,
-    useLayoutEffect,
     useMemo,
     useRef,
     useState,
 } from "react";
-import {createPortal} from "react-dom";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {ContentEditor, ContentEditorRef} from "~/client/web/content/content_editor.js";
 import {ContentEditorCursorTracker} from "~/client/web/content/internal/content_editor_cursor_tracker.js";
@@ -28,7 +25,6 @@ import {
 } from "~/client/web/content/messaging/add_message_input_files.js";
 import {MessageInputFileEntityPreview} from "~/client/web/content/messaging/message_input_file_entity_preview.js";
 import {MessageInputFilePreview} from "~/client/web/content/messaging/message_input_file_preview.js";
-import {useMessagingViewDropTarget} from "~/client/web/content/messaging/use_messaging_view_drop_target.js";
 import {selectFiles} from "~/client/web/content/select_files.js";
 import {
     ContentEditorState,
@@ -43,7 +39,6 @@ import {MenuButton} from "~/client/web/design/menu_button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {OverlayRef} from "~/client/web/design/overlay.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
-import {useOverlayBlockingPortalElement} from "~/client/web/design/overlay_helpers.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
@@ -71,7 +66,6 @@ import {
     backgroundColorVar,
     overlayFadeOutAnimationDurationMs,
     pointerEventsNoneNotInheritedClassName,
-    spaceLayoutStyles,
 } from "~/client/web/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -79,16 +73,16 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/content/message_content_schema.js";
 import {trimContentEnd, trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
-import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
+import {fileClassName, greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     addRemLengths,
-    convertRemLengthToPx,
     screenPaddingX,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
+    canonicalizeFileContentTypeIfExists,
     getFileAudioContentTypes,
     getFileImageContentTypes,
     getFileVideoContentTypes,
@@ -99,8 +93,6 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
 import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -202,50 +194,8 @@ export function ContentEditorCommentInputFloater({
         return promise as SafeFloatingPromise<void>;
     };
 
-    const {dropTargetProps, dragOverlay} = useMessagingViewDropTarget({
-        isDisabled: false,
-        onDrop: event => {
-            let hasHtmlFileInfos = false;
-            const fileInfos: Array<FileInfoWithEntity> = [];
-
-            for (const {info} of iterateFileInfosInElement(
-                parseHtml(event.dataTransfer.getData("text/html")),
-                () => space.id,
-            )) {
-                if (!info) continue;
-
-                hasHtmlFileInfos = true;
-                fileInfos.push(info);
-            }
-
-            // Ignore files from `dataTransfer` if we had `text/html`. Since we assume
-            // `text/html` will contain links to any files included in `dataTransfer`.
-            if (!hasHtmlFileInfos) {
-                for (const item of event.dataTransfer.items) {
-                    if (item.kind !== "file") continue;
-
-                    fileInfos.push({
-                        type: "UploadFile",
-                        input: {type: "File", file: assertExists(item.getAsFile())},
-                    });
-                }
-            }
-
-            return addFiles("<ContentEditorCommentInputFloater> drop files", fileInfos);
-        },
-    });
-
     return (
-        <Box
-            // So putting `dropTargetProps` works here through some React magic. React
-            // bubbles events from portaled elements! This is important because our overlay
-            // will render a blocking cover over the page. So we need the `dragenter` event
-            // from the blocking cover element in order to render the drop target. Thanks
-            // to React bubbling we get that `dragenter` event on this element.
-            {...dropTargetProps}
-            width="0"
-            height="0"
-        >
+        <Box width="0" height="0">
             <OverlayAnimated
                 ref={overlayRef}
                 // We don't animate in because the overlay appears in direct response to a user
@@ -264,11 +214,6 @@ export function ContentEditorCommentInputFloater({
                 fallbackPlacements={emptyArray}
                 overlay={
                     <Box data-testid="ContentEditorCommentInputFloater">
-                        {dragOverlay && (
-                            <ContentEditorCommentInputDragOverlay viewRef={viewRef}>
-                                {dragOverlay}
-                            </ContentEditorCommentInputDragOverlay>
-                        )}
                         <ContentEditorCommentInput
                             state={state}
                             viewRef={viewRef}
@@ -326,7 +271,7 @@ function ContentEditorCommentInput({
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const isMounted = useIsMounted();
 
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
@@ -412,6 +357,43 @@ function ContentEditorCommentInput({
         onCloseWithoutAnimation();
     };
 
+    const [dragEnterState, setDragEnterState] = useState<{
+        count: number;
+        hasNonTextType: boolean;
+    } | null>(null);
+
+    const [isDraggingFileWithin, setIsDraggingFileWithin] = useState(false);
+
+    const drop = (dataTransfer: DataTransfer) => {
+        let hasHtmlFileInfos = false;
+        const fileInfos: Array<FileInfoWithEntity> = [];
+
+        for (const {info} of iterateFileInfosInElement(
+            parseHtml(dataTransfer.getData("text/html")),
+            () => space.id,
+        )) {
+            if (!info) continue;
+
+            hasHtmlFileInfos = true;
+            fileInfos.push(info);
+        }
+
+        // Ignore files from `dataTransfer` if we had `text/html`. Since we assume
+        // `text/html` will contain links to any files included in `dataTransfer`.
+        if (!hasHtmlFileInfos) {
+            for (const item of dataTransfer.items) {
+                if (item.kind !== "file") continue;
+
+                fileInfos.push({
+                    type: "UploadFile",
+                    input: {type: "File", file: assertExists(item.getAsFile())},
+                });
+            }
+        }
+
+        addFiles("<ContentEditorCommentInputFloater> drop files", fileInfos);
+    };
+
     return (
         <>
             <Box
@@ -459,6 +441,72 @@ function ContentEditorCommentInput({
                         !editor.contains(event.target)
                     ) {
                         event.preventDefault();
+                    }
+                }}
+                data-testid={
+                    process.env.NODE_ENV !== "production"
+                        ? "ContentEditorCommentInputDropTarget"
+                        : undefined
+                }
+                onDragStartCapture={event => {
+                    // We don't want dragging a file inside our messaging view to count as the user
+                    // trying to drop the file back in the messaging view.
+                    if (
+                        event.target instanceof HTMLElement &&
+                        event.target.closest(`.${fileClassName}`)
+                    ) {
+                        setIsDraggingFileWithin(true);
+                    }
+                }}
+                onDragEndCapture={() => {
+                    setIsDraggingFileWithin(false);
+                }}
+                onDragEnter={event => {
+                    // If this drag only has `text/plain` and `text/html` it's probably because the
+                    // user is dragging some content from either their browser or another app. If
+                    // the user is dragging text, we want to let the message input's
+                    // `<ContentEditor>` handle dropped text.
+                    const hasNonTextType = event.dataTransfer.types.some(type => {
+                        if (type === "Files") return true;
+                        const canonicalType = canonicalizeFileContentTypeIfExists(type);
+                        return canonicalType !== "text/plain" && canonicalType !== "text/html";
+                    });
+
+                    setDragEnterState(dragState => {
+                        if (dragState) return {...dragState, count: dragState.count + 1};
+                        return {count: 1, hasNonTextType};
+                    });
+                }}
+                onDragLeave={() => {
+                    // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
+                    // reliably had access to `event.relatedTarget` we'd check:
+                    // `event.currentTarget.contains(event.relatedTarget)` to know whether we need
+                    // to reset our drag state.
+                    //
+                    // Instead we look at `dragenter` event counts. Once we reach 0 that means the
+                    // user has fully dragged out of the container. We got the idea for this fix
+                    // from [this Gist][2].
+                    //
+                    // We use this method in Chrome as well (even though we could use
+                    // `event.relatedTarget`) to have consistent behavior across all browsers.
+                    //
+                    // [1]: https://bugs.webkit.org/show_bug.cgi?id=66547
+                    // [2]: https://gist.github.com/alexreardon/10c595cbb840608a2828db56df99fa79
+                    setDragEnterState(dragState => {
+                        if (!dragState) return dragState;
+                        if (dragState.count <= 1) return null;
+                        return {...dragState, count: dragState.count - 1};
+                    });
+                }}
+                onDragOver={event => {
+                    event.preventDefault();
+                }}
+                onDrop={event => {
+                    event.preventDefault();
+                    setDragEnterState(null);
+
+                    if (!isDraggingFileWithin && dragEnterState?.hasNonTextType) {
+                        drop(event.dataTransfer);
                     }
                 }}
             >
@@ -617,7 +665,11 @@ function ContentEditorCommentInput({
                             </IconButton>
                         </MenuButton>
                     </Box>
-                    <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
+                    <FocusRing
+                        offset="border"
+                        isVisible={!isDraggingFileWithin && dragEnterState?.hasNonTextType}
+                        isVisibleWhenFocusWithin={true}
+                    >
                         <Box
                             ref={useScrollbar({
                                 insetTop: messageInputEditorBorderRadiusPx[platform][spacingScale],
@@ -646,6 +698,15 @@ function ContentEditorCommentInput({
                                         ? messageInputEditorBorderRadiusPx[platform][spacingScale]
                                         : undefined,
                             }}
+                            // Turn off pointer events when we've dragged a file over this input. Otherwise
+                            // the file is uploaded twice! Since we upload once for the `onDrop` handler on
+                            // our parent element and again for the `onDrop` handler on the
+                            // `<ContentEditor>`.
+                            pointerEvents={
+                                !isDraggingFileWithin && dragEnterState?.hasNonTextType
+                                    ? "none"
+                                    : undefined
+                            }
                         >
                             <ContentBlockWidthContextProvider
                                 width="96"
@@ -850,75 +911,5 @@ function ContentEditorCommentInput({
                 />
             )}
         </>
-    );
-}
-
-function ContentEditorCommentInputDragOverlay({
-    viewRef,
-    children,
-}: {
-    viewRef: RefObject<EditorView | null>;
-    children: ReactNode;
-}) {
-    const platform = usePlatform();
-    const spacingScale = useSpacingScale();
-    const rootBlockingPortalElement = useOverlayBlockingPortalElement();
-
-    const [rect, setRect] = useState<{
-        top: number;
-        bottom: number;
-        left: number;
-        right: number;
-    } | null>(null);
-
-    // If the position of `view` changes we want to re-render with the new `rect`.
-    // A cheap hacky way to do this is if our component re-renders then recompute
-    // `rect`. Most of the time re-renders won't change the position of our view.
-    //
-    // eslint-disable-next-line react-compiler/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    useLayoutEffect(() => {
-        const {top, bottom, left, right} = assertExists(
-            viewRef.current,
-        ).dom.getBoundingClientRect();
-
-        const {height: windowHeight, width: windowWidth} =
-            document.documentElement.getBoundingClientRect();
-
-        const rect = {
-            top: clamp(0, top, windowHeight),
-            bottom: windowHeight - clamp(0, bottom, windowHeight),
-            left: clamp(
-                // Never cover the space layout sidebar on desktop platforms. In some states
-                // `view` may partially overlap the space layout sidebar because the amount of
-                // space the sidebar actually takes is dynamic based on view width
-                // (see `spaceLayoutStyles.sideBarSpace`).
-                platform !== "mobile"
-                    ? convertRemLengthToPx(spaceLayoutStyles.sideBarWidth, spacingScale)
-                    : 0,
-                left,
-                windowWidth,
-            ),
-            right: windowWidth - clamp(0, right, windowWidth),
-        };
-
-        setRect(previousRect => {
-            if (isDeepEqual(previousRect, rect)) return previousRect;
-            return rect;
-        });
-    });
-
-    if (!rect) return null;
-    if (!rootBlockingPortalElement) return null;
-
-    return createPortal(
-        <Box
-            zIndex="80"
-            position="fixed"
-            style={{top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right}}
-        >
-            {children}
-        </Box>,
-        rootBlockingPortalElement,
     );
 }

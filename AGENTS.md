@@ -116,8 +116,8 @@ checking a single package with Bazel won’t check types for the _dependencies_ 
 might have been affected if you updated exports. Generally running `dev check` is much better than
 individually running lint, type check, and formatting tests.
 
-Never run ESLint directly (e.g. `npx eslint`, `pnpm eslint`). Always use `bazel test *_lint_test` or
-`dev check` instead. The Bazel lint tests are configured with the correct plugins and settings.
+Prefer `bazel test *_lint_test` or `dev check` to running ESLint directly (e.g. `pnpm eslint`). The
+Bazel lint tests are configured with the correct plugins and settings.
 
 Never run Prettier directly. Use `dev format` to format files, or `bazel test *_format_test` if you
 just want to check that files are formatted correctly.
@@ -179,3 +179,5 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 - Prefer asserting on specific error messages (e.g. `expect().toThrow("...")`) instead of error
   classes (e.g. `expect().toThrow(PermissionDeniedError)`) to ensure the correct error path is
   exercised.
+- When running a single integration test with `bazel test`, prefer disabling flaky retries (set
+  `--flaky_test_attempts=1`) to finish faster since one-at-a-time runs are unlikely to be flaky.

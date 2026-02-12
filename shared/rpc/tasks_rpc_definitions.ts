@@ -1,3 +1,4 @@
+import {AccessLevelSchema} from "~/shared/access/access_policy.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {ContentDuplicationVariableValuesSchema} from "~/shared/content/content_duplication_variable_schema.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
@@ -161,9 +162,14 @@ export const authorizeTaskAccess = defineRpc({
     isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
+        // TODO(calebmer, #task-collaboration-access-level-refactor): Make this
+        // required once all clients are connecting with the right `AccessLevel`.
+        expectedAccessLevel: AccessLevelSchema.optional(),
     },
     output: {
         spaceId: Schema.id<SpaceId>(),
+        // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
+        // once clients are connecting with the right `AccessLevel`.
         editResult: Schema.result(
             Schema.object({ok: Schema.value(true)}),
             Schema.object({ok: Schema.value(false), error: ErrorSchema}),
@@ -181,6 +187,7 @@ export const getTaskCommentsFromStart = defineRpc({
         beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
+        checkpoint: ServerSynchronizationCheckpointSchema,
         commentCount: Schema.integer,
         comments: Schema.array(TaskCommentModel.schema()),
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),

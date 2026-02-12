@@ -14,6 +14,12 @@ import {
 } from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {DocumentCollaborationContentManager} from "~/server/documents/collaboration/document_collaboration_content_manager.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
+import {
+    AccessLevel,
+    allAccessLevels,
+    hasAccessLevel,
+    isAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
@@ -23,6 +29,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
@@ -35,13 +43,15 @@ import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
 
 type DocumentCollaborationDurableObjectRoute =
-    | "Main"
-    | "WithoutComments"
-    | "NotFound"
-    | "BroadcastSpellCheckRealtimeEventTransaction"
+    | {type: "Main"; accessLevel: AccessLevel | null}
+    | {type: "NotFound"}
+    | {type: "BroadcastSpellCheckRealtimeEventTransaction"}
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
-    | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId};
+    | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
+    // TODO(calebmer, #document-collaboration-access-level-refactor): Remove these
+    // routes once clients are all connecting to the `WebSocket` route.
+    | {type: "WithoutComments"};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -52,20 +62,15 @@ class DocumentCollaborationDurableObject {
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _destroyCallback: () => void;
 
-    private readonly _webSocketServer: WebSocketServer<
-        WorkerProcessContextModules,
-        WorkerSessionActionContextModules,
-        typeof DocumentCollaborationProtocol,
-        DocumentCollaborationEventStub,
-        DocumentCollaborationConnection
-    >;
-
-    private readonly _webSocketServerWithoutComments: WebSocketServer<
-        WorkerProcessContextModules,
-        WorkerSessionActionContextModules,
-        typeof DocumentCollaborationProtocol,
-        DocumentCollaborationEventStub,
-        DocumentCollaborationConnection
+    private readonly _webSocketServerByAccessLevel: Record<
+        AccessLevel,
+        WebSocketServer<
+            WorkerProcessContextModules,
+            WorkerSessionActionContextModules,
+            typeof DocumentCollaborationProtocol,
+            DocumentCollaborationEventStub,
+            DocumentCollaborationConnection
+        >
     >;
 
     public static async initialize({
@@ -126,9 +131,8 @@ class DocumentCollaborationDurableObject {
             initialContent,
             killProcess: context => this._destroy(context),
             resetAllAuthorizationTimers: context => {
-                for (const connection of concatIterables(
-                    this._webSocketServer.iterateAllConnections(),
-                    this._webSocketServerWithoutComments.iterateAllConnections(),
+                for (const connection of flatMapIterable(allAccessLevels, accessLevel =>
+                    this._webSocketServerByAccessLevel[accessLevel].iterateAllConnections(),
                 )) {
                     connection.resetAuthorizationTimer(context);
                 }
@@ -137,97 +141,91 @@ class DocumentCollaborationDurableObject {
         });
         this._destroyCallback = destroy;
 
-        this._webSocketServer = new WebSocketServer<
-            WorkerProcessContextModules,
-            WorkerSessionActionContextModules,
-            typeof DocumentCollaborationProtocol,
-            DocumentCollaborationEventStub,
-            DocumentCollaborationConnection
-        >(
-            this._processContext,
-            DocumentCollaborationProtocol,
-            ({
-                accountId,
-                connectionId,
-                sendEvent,
-                sendEventToOthers,
-                iterateOtherConnections,
-                resetAuthorizationTimer,
-            }) => {
-                return new DocumentCollaborationConnection({
-                    withoutComments: false,
-                    connectionId,
+        this._webSocketServerByAccessLevel = createObjectFromKeys(allAccessLevels, accessLevel => {
+            return new WebSocketServer<
+                WorkerProcessContextModules,
+                WorkerSessionActionContextModules,
+                typeof DocumentCollaborationProtocol,
+                DocumentCollaborationEventStub,
+                DocumentCollaborationConnection
+            >(
+                this._processContext,
+                DocumentCollaborationProtocol,
+                ({
                     accountId,
-                    contentManager: this._contentManager,
+                    connectionId,
                     sendEvent,
-                    sendEventToOthers: (context, event) => {
-                        sendEventToOthers(context, event);
+                    sendEventToOthers,
+                    iterateOtherConnections,
+                    resetAuthorizationTimer,
+                }) => {
+                    return new DocumentCollaborationConnection({
+                        accessLevel,
+                        connectionId,
+                        accountId,
+                        contentManager: this._contentManager,
+                        sendEvent,
+                        sendEventToOthers: (context, event) => {
+                            sendEventToOthers(context, event);
 
-                        if (this._webSocketServerWithoutComments.hasConnections()) {
-                            const eventWithoutComments =
-                                stripDocumentCollaborationEventComments(event);
+                            for (const otherAccessLevel of allAccessLevels) {
+                                if (otherAccessLevel === accessLevel) continue;
 
-                            if (eventWithoutComments !== null) {
-                                this._webSocketServerWithoutComments.sendEventToAll(
-                                    context,
-                                    eventWithoutComments,
-                                );
+                                const otherWebSocketServer =
+                                    this._webSocketServerByAccessLevel[otherAccessLevel];
+
+                                if (!otherWebSocketServer.hasConnections()) continue;
+
+                                // If this WebSocket server has comment access but the other doesn't then strip
+                                // any comments from the event before sending it to peer WebSockets of
+                                // different access levels.
+                                if (
+                                    hasAccessLevel(accessLevel, "Comment") &&
+                                    !hasAccessLevel(otherAccessLevel, "Comment")
+                                ) {
+                                    const eventWithoutComments =
+                                        stripDocumentCollaborationEventComments(event);
+
+                                    if (eventWithoutComments !== null) {
+                                        otherWebSocketServer.sendEventToAll(
+                                            context,
+                                            eventWithoutComments,
+                                        );
+                                    }
+                                } else {
+                                    otherWebSocketServer.sendEventToAll(context, event);
+                                }
                             }
-                        }
-                    },
-                    iterateOtherConnections: () =>
-                        concatIterables(
-                            iterateOtherConnections(),
-                            this._webSocketServerWithoutComments.iterateAllConnections(),
-                        ),
-                    resetAuthorizationTimer,
-                    killProcess: context => this._destroy(context),
-                });
-            },
-        );
+                        },
+                        iterateOtherConnections: () =>
+                            concatIterables(
+                                iterateOtherConnections(),
+                                flatMapIterable(allAccessLevels, otherAccessLevel => {
+                                    if (otherAccessLevel === accessLevel) return emptyArray;
 
-        this._webSocketServerWithoutComments = new WebSocketServer<
-            WorkerProcessContextModules,
-            WorkerSessionActionContextModules,
-            typeof DocumentCollaborationProtocol,
-            DocumentCollaborationEventStub,
-            DocumentCollaborationConnection
-        >(
-            this._processContext,
-            DocumentCollaborationProtocol,
-            ({
-                accountId,
-                connectionId,
-                sendEvent,
-                sendEventToOthers,
-                iterateOtherConnections,
-                resetAuthorizationTimer,
-            }) => {
-                return new DocumentCollaborationConnection({
-                    withoutComments: true,
-                    connectionId,
-                    accountId,
-                    contentManager: this._contentManager,
-                    sendEvent,
-                    sendEventToOthers: (context, event) => {
-                        this._webSocketServer.sendEventToAll(context, event);
-                        sendEventToOthers(context, event);
-                    },
-                    iterateOtherConnections: () =>
-                        concatIterables(
-                            this._webSocketServer.iterateAllConnections(),
-                            iterateOtherConnections(),
-                        ),
-                    resetAuthorizationTimer,
-                    killProcess: context => this._destroy(context),
-                });
-            },
-        );
+                                    const otherWebSocketServer =
+                                        this._webSocketServerByAccessLevel[otherAccessLevel];
+
+                                    return otherWebSocketServer.iterateAllConnections();
+                                }),
+                            ),
+                        resetAuthorizationTimer,
+                        killProcess: context => this._destroy(context),
+                    });
+                },
+            );
+        });
     }
 
     public static parseRoute(url: URL): [string, DocumentCollaborationDurableObjectRoute] {
-        if (url.pathname === "/") return ["/", "Main"];
-        if (url.pathname === "/view") return ["/view", "WithoutComments"];
+        if (url.pathname === "/") {
+            const accessSearchParam = url.searchParams.get("access");
+            const accessLevel =
+                accessSearchParam && isAccessLevel(accessSearchParam) ? accessSearchParam : null;
+            return ["/", {type: "Main", accessLevel}];
+        }
+
+        if (url.pathname === "/view") return ["/view", {type: "WithoutComments"}];
 
         if (url.pathname.startsWith("/broadcast-new-message/")) {
             const commentThreadId = url.pathname.slice(23);
@@ -262,11 +260,11 @@ class DocumentCollaborationDurableObject {
         if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
             return [
                 "/broadcast-spell-check-realtime-event-transaction",
-                "BroadcastSpellCheckRealtimeEventTransaction",
+                {type: "BroadcastSpellCheckRealtimeEventTransaction"},
             ];
         }
 
-        return ["/*", "NotFound"];
+        return ["/*", {type: "NotFound"}];
     }
 
     public async fetch(
@@ -279,18 +277,109 @@ class DocumentCollaborationDurableObject {
             context: {spaceId: this.spaceId, documentId: this.id},
         });
 
-        switch (route) {
+        switch (route.type) {
             case "NotFound": {
                 throw new NotFoundError("Route not found");
             }
             case "Main": {
-                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
-            }
-            case "WithoutComments": {
-                return this._webSocketServerWithoutComments.upgrade(
+                // TODO(calebmer, #document-collaboration-access-level-refactor): Throw once
+                // clients are connecting with the right `AccessLevel`.
+                return this._webSocketServerByAccessLevel[route.accessLevel ?? "Comment"].upgrade(
                     context.actor.authorizeSession(),
                     request,
                 );
+            }
+            case "WithoutComments": {
+                return this._webSocketServerByAccessLevel.View.upgrade(
+                    context.actor.authorizeSession(),
+                    request,
+                );
+            }
+            case "BroadcastNewMessage": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody = MessagingRealtimeBroadcastNewMessageRequestSchema.deserialize(
+                    await request.json(),
+                );
+
+                DocumentCollaborationConnection.broadcastNewMessage(
+                    context,
+                    route.commentThreadId,
+                    requestBody,
+                    () => {
+                        return flatMapIterable(allAccessLevels, accessLevel => {
+                            if (!hasAccessLevel(accessLevel, "Comment")) return emptyArray;
+
+                            const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
+                            return webSocketServer.iterateAllConnections();
+                        });
+                    },
+                );
+
+                return new Response(null, {status: 200});
+            }
+            case "BroadcastPutMessageStreamPart": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody =
+                    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.deserialize(
+                        await request.json(),
+                    );
+
+                DocumentCollaborationConnection.broadcastPutMessageStreamPart(
+                    context,
+                    route.commentThreadId,
+                    requestBody,
+                    () => {
+                        return flatMapIterable(allAccessLevels, accessLevel => {
+                            if (!hasAccessLevel(accessLevel, "Comment")) return emptyArray;
+
+                            const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
+                            return webSocketServer.iterateAllConnections();
+                        });
+                    },
+                );
+
+                return new Response(null, {status: 200});
+            }
+            case "BroadcastCompleteMessageStream": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody =
+                    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.deserialize(
+                        await request.json(),
+                    );
+
+                DocumentCollaborationConnection.broadcastCompleteMessageStream(
+                    context,
+                    route.commentThreadId,
+                    requestBody,
+                    () => {
+                        return flatMapIterable(allAccessLevels, accessLevel => {
+                            if (!hasAccessLevel(accessLevel, "Comment")) return emptyArray;
+
+                            const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
+                            return webSocketServer.iterateAllConnections();
+                        });
+                    },
+                );
+
+                return new Response(null, {status: 200});
             }
             case "BroadcastSpellCheckRealtimeEventTransaction": {
                 const {eventTransaction} =
@@ -298,101 +387,33 @@ class DocumentCollaborationDurableObject {
                         await request.json(),
                     );
 
-                this._webSocketServer.sendEventToAll(context, {
-                    type: "SpellCheckRealtimeEventTransaction",
-                    eventTransaction,
-                });
+                for (const accessLevel of allAccessLevels) {
+                    const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
+
+                    webSocketServer.sendEventToAll(context, {
+                        type: "SpellCheckRealtimeEventTransaction",
+                        eventTransaction,
+                    });
+                }
+
                 return new Response();
             }
-            default: {
-                switch (route.type) {
-                    case "BroadcastNewMessage": {
-                        if (request.method !== "POST") {
-                            return new Response("405 Method Not Allowed", {
-                                status: 405,
-                                headers: {"content-type": "text/plain"},
-                            });
-                        }
-
-                        const requestBody =
-                            MessagingRealtimeBroadcastNewMessageRequestSchema.deserialize(
-                                await request.json(),
-                            );
-
-                        DocumentCollaborationConnection.broadcastNewMessage(
-                            context,
-                            route.commentThreadId,
-                            requestBody,
-                            () => this._webSocketServer.iterateAllConnections(),
-                        );
-
-                        return new Response(null, {status: 200});
-                    }
-                    case "BroadcastPutMessageStreamPart": {
-                        if (request.method !== "POST") {
-                            return new Response("405 Method Not Allowed", {
-                                status: 405,
-                                headers: {"content-type": "text/plain"},
-                            });
-                        }
-
-                        const requestBody =
-                            MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.deserialize(
-                                await request.json(),
-                            );
-
-                        DocumentCollaborationConnection.broadcastPutMessageStreamPart(
-                            context,
-                            route.commentThreadId,
-                            requestBody,
-                            () => this._webSocketServer.iterateAllConnections(),
-                        );
-
-                        return new Response(null, {status: 200});
-                    }
-                    case "BroadcastCompleteMessageStream": {
-                        if (request.method !== "POST") {
-                            return new Response("405 Method Not Allowed", {
-                                status: 405,
-                                headers: {"content-type": "text/plain"},
-                            });
-                        }
-
-                        const requestBody =
-                            MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.deserialize(
-                                await request.json(),
-                            );
-
-                        DocumentCollaborationConnection.broadcastCompleteMessageStream(
-                            context,
-                            route.commentThreadId,
-                            requestBody,
-                            () => this._webSocketServer.iterateAllConnections(),
-                        );
-
-                        return new Response(null, {status: 200});
-                    }
-                    default:
-                        throw exhaustive(route);
-                }
-            }
+            default:
+                throw exhaustive(route);
         }
     }
 
     public connectForTest(
         context: WorkerSessionActionContext,
-        options?: {withoutComments?: boolean},
+        {accessLevel = "Manage"}: {accessLevel?: AccessLevel} = {},
     ) {
-        if (options?.withoutComments) {
-            return this._webSocketServerWithoutComments.connectForTest(context);
-        } else {
-            return this._webSocketServer.connectForTest(context);
-        }
+        return this._webSocketServerByAccessLevel[accessLevel].connectForTest(context);
     }
 
     private _destroy(context: WorkerProcessContext) {
-        this._webSocketServer.closeAll(context);
-        this._webSocketServerWithoutComments.closeAll(context);
+        for (const accessLevel of allAccessLevels) {
+            this._webSocketServerByAccessLevel[accessLevel].closeAll(context);
+        }
         this._destroyCallback();
     }
 
@@ -400,21 +421,21 @@ class DocumentCollaborationDurableObject {
         context: WorkerProcessContext,
         event: DocumentCollaborationEventStub,
     ) {
-        await runAllPromises([
-            this._webSocketServer.sendEventToAllAndWait(context, event),
-            (async () => {
-                if (this._webSocketServerWithoutComments.hasConnections()) {
+        await runAllPromises(
+            allAccessLevels.map(async accessLevel => {
+                const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
+
+                if (hasAccessLevel(accessLevel, "Comment")) {
+                    await webSocketServer.sendEventToAllAndWait(context, event);
+                } else if (webSocketServer.hasConnections()) {
                     const eventWithoutComments = stripDocumentCollaborationEventComments(event);
 
                     if (eventWithoutComments !== null) {
-                        await this._webSocketServerWithoutComments.sendEventToAllAndWait(
-                            context,
-                            eventWithoutComments,
-                        );
+                        await webSocketServer.sendEventToAllAndWait(context, eventWithoutComments);
                     }
                 }
-            })(),
-        ]);
+            }),
+        );
     }
 }
 

@@ -1,4 +1,4 @@
-import {SpinnerGap} from "phosphor-react";
+import {CaretDown, SpinnerGap} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
     Key,
@@ -12,9 +12,14 @@ import {
     useCallback,
     useMemo,
     useRef,
+    useState,
 } from "react";
+import {usePress} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
+import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {Spacer} from "~/client/web/design/spacer.js";
+import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {maintainTextInputVisibility} from "~/client/web/design/use_text_input_visibility_maintainer.js";
 import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -23,11 +28,14 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {TaskRowShimmer} from "~/client/web/shimmer/task_row_shimmer.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
+    backgroundColorVar,
     colorSchemeVars,
     pulseAnimationClassName,
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
 import {
+    taskGridViewExplicitLoadMoreButtonHeight,
+    taskGridViewMoreUnloadedTasksHeight,
     taskGridViewPaddingBottomWithNext,
     taskGridViewPaddingBottomWithoutNext,
     taskRowViewMinHeight,
@@ -49,7 +57,7 @@ import {
 } from "~/client/web/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskRowView, TaskRowViewRef} from "~/client/web/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
-import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -165,7 +173,7 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
     focusPreviousTaskTitleAll: Memo<(key: string) => void>;
 }) {
     return (
-        <>
+        <Box style={{height: taskGridViewMoreUnloadedTasksHeight}}>
             <TaskGridViewRowShimmer
                 capabilities={capabilities}
                 rowMaxWidth={rowMaxWidth}
@@ -211,9 +219,117 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
             >
                 <SpinnerGap className={spinAnimationClassName} size={spacing["6"]} weight="light" />
             </Box>
-        </>
+        </Box>
     );
 });
+
+export const TaskGridViewExplicitLoadMoreButtonMemo = memo(
+    function TaskGridViewExplicitLoadMoreButtonMemo({
+        rowMaxWidth,
+        withoutBorderTop,
+        loadedTaskCount,
+        totalTaskCount,
+        loadMoreTasksLimit,
+        query,
+    }: {
+        rowMaxWidth: Spacing | null;
+        withoutBorderTop: boolean;
+        loadedTaskCount: number;
+        totalTaskCount: number;
+        loadMoreTasksLimit: number;
+        query: TaskClientQuery | null;
+    }) {
+        const [isPending, setIsPending] = useState(false);
+        const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
+
+        const {isPressed, pressProps} = usePress({
+            onPress: () => {
+                if (!query) return;
+                if (isPending) return;
+
+                setIsPending(true);
+
+                query.loadMoreTasks(loadMoreTasksLimit);
+
+                // We assume errors are handled elsewhere.
+                void query.waitForLoadMoreTasks().finally(() => {
+                    setIsPending(false);
+                });
+            },
+        });
+
+        return (
+            <Box
+                position="relative"
+                zIndex="0"
+                style={{height: taskGridViewExplicitLoadMoreButtonHeight}}
+            >
+                <Box
+                    position="absolute"
+                    inset="0"
+                    zIndex="10"
+                    style={{
+                        bottom: -1,
+                        background: `linear-gradient(to bottom, rgb(from ${backgroundColorVar} r g b / 0%), ${backgroundColorVar} ${spacing["20"]})`,
+                    }}
+                />
+                <Box position="absolute" zIndex="20" top="0" left="0" right="0">
+                    <Box
+                        {...pressProps}
+                        maxWidth={rowMaxWidth ?? undefined}
+                        marginX="auto"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        style={{height: addRemLengths(taskRowViewMinHeight, taskRowViewMinHeight)}}
+                    >
+                        <FocusRing>
+                            <Box
+                                tabIndex={0}
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                                gap="1.5"
+                                cursor="pointer"
+                                opacity={isPressed ? "60" : undefined}
+                            >
+                                <Spacer space="3" />
+                                <CaretDown size={spacing["3"]} weight="bold" />
+                                <Box fontStyle="semi-bold" color="grey-90">
+                                    See more ({totalTaskCount - loadedTaskCount} remaining)
+                                </Box>
+                                {shouldShowPendingSpinner ? (
+                                    <SpinnerGap
+                                        className={spinAnimationClassName}
+                                        size={spacing["3"]}
+                                        color={colorSchemeVars["grey-60"]}
+                                    />
+                                ) : (
+                                    <Spacer space="3" />
+                                )}
+                            </Box>
+                        </FocusRing>
+                    </Box>
+                </Box>
+                <Box maxWidth={rowMaxWidth ?? undefined} marginX="center" opacity="60">
+                    <TaskRowShimmer
+                        width="64"
+                        indentation={0}
+                        withoutBorderTop={withoutBorderTop}
+                        // We're not actively loading these tasks so a shimmer doesn't make sense.
+                        withoutPulseAnimation={true}
+                    />
+                    <TaskRowShimmer
+                        width="64"
+                        indentation={0}
+                        // We're not actively loading these tasks so a shimmer doesn't make sense.
+                        withoutPulseAnimation={true}
+                    />
+                </Box>
+            </Box>
+        );
+    },
+);
 
 export const TaskGridViewDecorativeGhostTaskMemo = memo(
     function TaskGridViewDecorativeGhostTaskMemo({
@@ -403,6 +519,7 @@ function TaskGridViewRowShimmer({
     withoutBorderTop,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
+    withoutPulseAnimation,
 }: {
     capabilities: TaskGridViewCapabilities;
     rowMaxWidth: Spacing | null;
@@ -412,6 +529,7 @@ function TaskGridViewRowShimmer({
     withoutBorderTop: boolean;
     focusPreviousTaskTitleEnd: () => void;
     focusPreviousTaskTitleAll: () => void;
+    withoutPulseAnimation?: boolean;
 }) {
     const shimmerRef = useRef<HTMLDivElement>(null);
     const stableRandom = new StableRandom(`TaskRowShimmer:${randomSeed}`);
@@ -456,6 +574,7 @@ function TaskGridViewRowShimmer({
                 ragRight={ragRight}
                 indentation={indentation}
                 withoutBorderTop={withoutBorderTop}
+                withoutPulseAnimation={withoutPulseAnimation}
             />
         </Box>
     );

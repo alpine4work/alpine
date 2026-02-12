@@ -18,7 +18,6 @@ import {
     useContentBlockAvailableWidth,
 } from "~/client/web/content/content_block_width.js";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
-import {useMessagingViewDropTarget} from "~/client/web/content/messaging/use_messaging_view_drop_target.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
 import {
@@ -830,13 +829,7 @@ function PostListView(
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
-    //
-    // Unless we are replying to a message or editing a message. Then we should
-    // anchor to the message in question. Similar code also exists in
-    // `post_list_view.tsx` and `document_comment_thread_list_view.tsx`. If we
-    // update the code here we also probably need to update there.
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
-        isPinned: true,
         getAnchorPosition: useEvent(oldVisibleRect => {
             // NOTE(calebmer, 2024-07-16): We used to anchor chat view scroll to the
             // message the user was replying to or editing. However, in practice this felt
@@ -846,7 +839,7 @@ function PostListView(
             // To look at the old message anchoring code, git blame this comment to see the
             // commit where I remove it.
 
-            return {top: oldVisibleRect.bottom, height: 0};
+            return {top: oldVisibleRect.bottom, height: 0, isPinned: true};
         }),
     });
 
@@ -967,69 +960,6 @@ function PostListView(
                 current: null,
             })),
     );
-
-    const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
-        isDisabled:
-            postEditing.state.isEditing ||
-            messageEditing.state.isEditing ||
-            // Comments aren't expandable on mobile (unless we're in a post view) so don't
-            // allow file dropping.
-            (routeLayout === "narrow" && !isPostView),
-        onDrop: event => {
-            const view = assertExists(viewRef.current);
-            const renderedRange = view.getRenderedRange();
-            if (!renderedRange) return null;
-
-            const offset =
-                event.clientY -
-                view.getElement().getBoundingClientRect().top +
-                view.getScrollOffset();
-
-            // Find the item that contains `offset`. Written so that if `offset` is above
-            // the virtualized scroll view we'll return the first index and if it's below
-            // the virtualized scroll view we'll return the last index.
-            let aboveIndex: number | null = null;
-            for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
-                const position = view.getPositionByIndex(index);
-                aboveIndex = index;
-                if (offset < position.offset + position.height) break;
-            }
-
-            if (aboveIndex === null) return null;
-
-            let item = posts.getItem(aboveIndex);
-
-            while (
-                item.type === "Header" ||
-                item.type === "MoreUnloadedPosts" ||
-                item.type === "FeedEntry"
-            ) {
-                aboveIndex++;
-                if (aboveIndex < posts.getItemCount()) {
-                    item = posts.getItem(aboveIndex);
-                    continue;
-                }
-                return null;
-            }
-
-            const postId = item.post.id;
-
-            // Allow the input ref for this `postId` to be null. Which will happen if the
-            // post's comments are closed.
-            //
-            // TODO(calebmer): Admittedly it's not great UI design that we show the
-            // fullscreen drop indicator when the user drags an image into a channel we
-            // show the "upload" drop target then do nothing if the post they're dropping
-            // on is closed. We should figure out a better UI design here. We can either
-            // open the post's comments on drop or create a new post with the file on drop.
-            // We should also consider just showing a drop overlay on top of the post
-            // instead of the fullscreen which might confuse the user.
-            const input = inputRefByPostId.get(postId).current;
-            if (!input) return null;
-
-            return input.drop(event.dataTransfer);
-        },
-    });
 
     const focusPostCommentInputIfCommentsOpenRef = useRef<PostId | null>(null);
 
@@ -1659,7 +1589,6 @@ function PostListView(
                         key: `PostCommentInput:${item.post.id}`,
                         minHeight: messageInputMinHeightPx[platform][spacingScale],
                         withManualLayout: true,
-                        stayCompletelyVisibleAfterResize: true,
                         render: ({
                             ref,
                             offset,
@@ -2020,7 +1949,6 @@ function PostListView(
                 </MobileFullScreenModal>
             )}
             <div
-                {...dropTargetProps}
                 data-testid="PostListView"
                 ref={viewContainerRef}
                 className={sprinkles({
@@ -2034,7 +1962,6 @@ function PostListView(
                     flexDirection: "column",
                 })}
             >
-                {dragOverlay}
                 {withSafeAreaInsetTop && !navigationBar?.navigationBar && (
                     // Only render a safe area cover if we don't have a navigation bar. Otherwise
                     // the navigation bar acts as our safe area cover.

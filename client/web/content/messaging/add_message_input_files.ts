@@ -27,6 +27,7 @@ export type MessageInputFile =
           readonly type: "File";
           readonly key: Id;
           readonly attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
+          readonly shouldAttachBeforeCreate: boolean;
           readonly signedUrlSearch: string;
           readonly file: FileModel;
       }
@@ -106,6 +107,7 @@ export async function addMessageInputFiles(
                             type: "File",
                             key: generateId(),
                             attachmentTarget: markMemoIfNotRendering(fromTarget),
+                            shouldAttachBeforeCreate: !toTarget,
                             signedUrlSearch,
                             file,
                         });
@@ -121,6 +123,7 @@ export async function addMessageInputFiles(
                                 type: "File",
                                 key: generateId(),
                                 attachmentTarget: markMemoIfNotRendering(toTarget ?? "Uploader"),
+                                shouldAttachBeforeCreate: !toTarget,
                                 signedUrlSearch,
                                 file,
                             });

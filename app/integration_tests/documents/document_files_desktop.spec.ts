@@ -860,7 +860,18 @@ test("can drop file into floating comment input", async ({
         return dataTransfer;
     }, file1Contents.toString("hex"));
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    const commentInput = page.getByTestId("ContentEditorCommentInputFloater");
+    const commentInputDropTarget = commentInput.getByTestId("ContentEditorCommentInputDropTarget");
+    await expect(commentInputDropTarget).toBeVisible();
+    await commentInputDropTarget.scrollIntoViewIfNeeded();
+    const commentInputDropTargetBox = await commentInputDropTarget.boundingBox();
+    assert(commentInputDropTargetBox);
+    const commentInputDropCoords = {
+        clientX: Math.round(commentInputDropTargetBox.x + commentInputDropTargetBox.width / 2),
+        clientY: Math.round(commentInputDropTargetBox.y + commentInputDropTargetBox.height / 2),
+    };
+
+    await expect(page.getByTestId("FocusRing")).toBeHidden();
     await expect(
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
@@ -868,34 +879,24 @@ test("can drop file into floating comment input", async ({
         page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("ContentEditorCommentInputFloater").dispatchEvent("dragenter", {
-        clientX: 640,
-        clientY: 360,
+    await commentInputDropTarget.dispatchEvent("dragenter", {
+        ...commentInputDropCoords,
         dataTransfer: file1DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
-    await expect(
-        page
-            .getByTestId("ContentEditorCommentInputFloater")
-            .getByTestId("ContentFilePreview:image/jpeg"),
-    ).toBeHidden();
+    await expect(page.getByTestId("FocusRing")).toBeVisible();
+    await expect(commentInput.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
     await expect(
         page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
-    await page.getByTestId("ContentEditorCommentInputFloater").dispatchEvent("drop", {
-        clientX: 640,
-        clientY: 360,
+    await commentInputDropTarget.dispatchEvent("drop", {
+        ...commentInputDropCoords,
         dataTransfer: file1DataTransfer,
     });
 
-    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
-    await expect(
-        page
-            .getByTestId("ContentEditorCommentInputFloater")
-            .getByTestId("ContentFilePreview:image/jpeg"),
-    ).toBeVisible();
+    await expect(page.getByTestId("FocusRing")).toBeHidden();
+    await expect(commentInput.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
     await expect(
         page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();

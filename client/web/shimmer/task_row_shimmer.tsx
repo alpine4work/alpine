@@ -12,11 +12,13 @@ export function TaskRowShimmer({
     ragRight,
     indentation = 0,
     withoutBorderTop,
+    withoutPulseAnimation,
 }: {
     width: Spacing;
     ragRight?: Spacing;
     indentation?: number;
     withoutBorderTop?: boolean;
+    withoutPulseAnimation?: boolean;
 }) {
     const platform = usePlatform();
 
@@ -71,7 +73,7 @@ export function TaskRowShimmer({
             </Box>
             <Box height={taskRowViewMinHeight} flexGrow="1" display="flex" alignItems="center">
                 <Box
-                    className={pulseAnimationClassName}
+                    className={!withoutPulseAnimation ? pulseAnimationClassName : undefined}
                     width="full"
                     maxWidth={width}
                     height="3"

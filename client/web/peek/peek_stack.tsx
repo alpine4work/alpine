@@ -76,6 +76,8 @@ import {GlobalLoadingIndicatorChip} from "~/client/web/spaces/global_loading_ind
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
+    peekControlsHeight,
+    peekMaxHeight,
     peekNarrowLayoutWidth,
     peekStackOverlayBorderRadius,
 } from "~/client/web/styles/peek_shared_styles.js";
@@ -112,14 +114,11 @@ const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
 const peekUnderlayOffset = spacing["2"];
 
-export const peekMaxHeight = "42rem";
 const viewportPeekMarginTop = spacing["4"];
 export const peekHeight = `min(100vh - ${viewportPeekMarginTop}, ${peekMaxHeight})`;
 const peekHeightWithUnderlayOffset =
     `min(100vh + ${subtractRemLengths(peekBottomBuffer, viewportPeekMarginTop)}, ` +
     `${addRemLengths(peekMaxHeight, peekBottomBuffer)})`;
-
-const peekControlsHeight = "6";
 
 type PeekStackEntry = {
     readonly id: PeekId;

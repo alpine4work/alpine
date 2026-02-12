@@ -576,7 +576,9 @@ test("can backfill task note steps but can\u2019t update if you only have view a
 
     expect(connection1.takeEvents()).toEqual([{type: "PersistedContent", newVersion: 2}]);
 
-    const connection2 = await connectForTest(context.action(session2), task.id);
+    const connection2 = await connectForTest(context.action(session2), task.id, {
+        accessLevel: "View",
+    });
 
     expect(
         await connection2.procedures.backfillNotes({

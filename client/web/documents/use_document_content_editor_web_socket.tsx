@@ -162,8 +162,6 @@ export function useDocumentContentEditorWebSocket(
               currentAccount?.id,
           );
 
-    const initialWithoutComments = !hasAccessLevel(initialAccessLevel, "Comment");
-
     const context = useAppContext();
     const searchEntityRegistry = useSearchEntityRegistry();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
@@ -199,7 +197,9 @@ export function useDocumentContentEditorWebSocket(
                         addGlobalLoadingIndicator: (promise, indicator) =>
                             addGlobalLoadingIndicatorRef.current(promise, indicator),
                         documentId: initialDocument.id,
-                        withoutComments: initialWithoutComments,
+                        // We perform permission checks separately in `<DocumentContentEditor>`. If we're
+                        // on the client and we got to this point it means we must have access somehow.
+                        accessLevel: initialAccessLevel ?? "View",
                         initialState: getInitialDocumentContentEditorState({
                             currentAccountId: currentAccount?.id ?? null,
                             initialVersion: initialDocument.version,
@@ -224,7 +224,7 @@ export function useDocumentContentEditorWebSocket(
                 addGlobalLoadingIndicator: (promise, indicator) =>
                     addGlobalLoadingIndicatorRef.current(promise, indicator),
                 documentId: initialDocument.id,
-                withoutComments: initialWithoutComments,
+                accessLevel: initialAccessLevel ?? "View",
                 initialState: getInitialDocumentContentEditorState({
                     currentAccountId: currentAccount?.id ?? null,
                     initialVersion: initialDocument.version,
@@ -271,7 +271,7 @@ export function useDocumentContentEditorWebSocket(
                     documentId,
                     // When we create a document we have the "Manage" access level. Commenting is
                     // allowed.
-                    withoutComments: false,
+                    accessLevel: "Manage",
                     initialState: clientState.state.getSnapshot(),
                 });
 
@@ -398,42 +398,69 @@ export function useDocumentContentEditorWebSocket(
         });
     }
 
-    const withoutComments = useMemo(
-        () => !hasAccessLevel(acknowledgedAccessLevel, "Comment"),
-        [acknowledgedAccessLevel],
-    );
+    let shouldInitializeClientWithNewCommentAccess = false;
 
-    // Re-initialize client if `withoutComments` changes to true. This will happen
-    // when going from `Comment` (or higher) access level to `View`.
-    if (clientState.type === "Exists" && withoutComments && !clientState.client.withoutComments) {
-        setClientState({
-            type: "Exists",
-            // eslint-disable-next-line react-compiler/react-compiler
-            client: new DocumentContentEditorWebSocketClient({
-                getContext: () => contextRef.current,
-                addGlobalLoadingIndicator: (promise, indicator) =>
-                    addGlobalLoadingIndicatorRef.current(promise, indicator),
-                documentId: clientState.client.documentId,
-                withoutComments,
-                initialState: getInitialDocumentContentEditorState({
-                    currentAccountId: currentAccount?.id ?? null,
-                    initialVersion: state.editorState.getVersion(),
-                    initialContent: {
-                        doc: assertDocumentContent(
-                            stripDocumentContentCommentMarks(
-                                state.editorState.getDocWithoutSendableSteps(),
+    if (clientState.type === "Exists") {
+        // Re-initialize client if we're losing access to comments. This will happen
+        // when going from `Comment` (or higher) access level to `View`.
+        if (
+            !hasAccessLevel(acknowledgedAccessLevel, "Comment") &&
+            hasAccessLevel(clientState.client.accessLevel, "Comment")
+        ) {
+            setClientState({
+                type: "Exists",
+                // eslint-disable-next-line react-compiler/react-compiler
+                client: new DocumentContentEditorWebSocketClient({
+                    getContext: () => contextRef.current,
+                    addGlobalLoadingIndicator: (promise, indicator) =>
+                        addGlobalLoadingIndicatorRef.current(promise, indicator),
+                    documentId: clientState.client.documentId,
+                    accessLevel: acknowledgedAccessLevel ?? "View",
+                    initialState: getInitialDocumentContentEditorState({
+                        currentAccountId: currentAccount?.id ?? null,
+                        initialVersion: state.editorState.getVersion(),
+                        initialContent: {
+                            doc: assertDocumentContent(
+                                stripDocumentContentCommentMarks(
+                                    state.editorState.getDocWithoutSendableSteps(),
+                                ),
                             ),
-                        ),
-                        references: {
-                            ...state.editorState.getContent().references,
-                            commentThreadById: emptyMap,
+                            references: {
+                                ...state.editorState.getContent().references,
+                                commentThreadById: emptyMap,
+                            },
                         },
-                    },
-                    // Try to maintain the user's selection while resetting state.
-                    initialSelection: state.editorState.getSelection().getBookmark(),
+                        // Try to maintain the user's selection while resetting state.
+                        initialSelection: state.editorState.getSelection().getBookmark(),
+                    }),
                 }),
-            }),
-        });
+            });
+        }
+        // If we are gaining access to comments then we need to fully reload the
+        // document. We do so in the effect below.
+        else if (
+            hasAccessLevel(acknowledgedAccessLevel, "Comment") &&
+            !hasAccessLevel(clientState.client.accessLevel, "Comment")
+        ) {
+            shouldInitializeClientWithNewCommentAccess = true;
+        }
+        // If the `accessLevel` has changed then we need to reconnect to the WebSocket
+        // with the new `accessLevel`. We don't have to modify the document in the
+        // process (e.g. by stripping comments).
+        else if ((acknowledgedAccessLevel ?? "View") !== clientState.client.accessLevel) {
+            setClientState({
+                type: "Exists",
+                // eslint-disable-next-line react-compiler/react-compiler
+                client: new DocumentContentEditorWebSocketClient({
+                    getContext: () => contextRef.current,
+                    addGlobalLoadingIndicator: (promise, indicator) =>
+                        addGlobalLoadingIndicatorRef.current(promise, indicator),
+                    documentId: clientState.client.documentId,
+                    accessLevel: acknowledgedAccessLevel ?? "View",
+                    initialState: state,
+                }),
+            });
+        }
     }
 
     // Re-initialize client if `withoutComments` changes to false. This will happen
@@ -442,14 +469,12 @@ export function useDocumentContentEditorWebSocket(
     // document are.
     const initializingClientWithCommentsSymbolRef = useRef<symbol | null>(null);
     useEffect(() => {
-        if (
-            clientState.type !== "Exists" ||
-            withoutComments ||
-            !clientState.client.withoutComments
-        ) {
+        if (!shouldInitializeClientWithNewCommentAccess) {
             initializingClientWithCommentsSymbolRef.current = null;
             return;
         }
+
+        assert(clientState.type === "Exists");
 
         if (initializingClientWithCommentsSymbolRef.current) return;
         const symbol = Symbol();
@@ -466,7 +491,7 @@ export function useDocumentContentEditorWebSocket(
                     addGlobalLoadingIndicator: (promise, indicator) =>
                         addGlobalLoadingIndicatorRef.current(promise, indicator),
                     documentId: document.id,
-                    withoutComments: false,
+                    accessLevel: acknowledgedAccessLevel ?? "View",
                     initialState: getInitialDocumentContentEditorState({
                         currentAccountId: currentAccount?.id ?? null,
                         initialVersion: document.version,
@@ -480,7 +505,14 @@ export function useDocumentContentEditorWebSocket(
                 }),
             });
         }, setErrorState);
-    }, [clientState, context, currentAccount?.id, setErrorState, withoutComments]);
+    }, [
+        acknowledgedAccessLevel,
+        clientState,
+        context,
+        currentAccount?.id,
+        setErrorState,
+        shouldInitializeClientWithNewCommentAccess,
+    ]);
 
     // Update `SearchEntityRegistry` with the latest document title. Now as the
     // title changes in realtime, any `SearchEntityModel`s rendered elsewhere in

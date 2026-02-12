@@ -16,6 +16,7 @@ import {
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
     DocumentCollaborationEvent,
@@ -133,7 +134,7 @@ export type DocumentCollaborationEventStub =
       };
 
 export class DocumentCollaborationConnection {
-    public readonly withoutComments: boolean;
+    public readonly accessLevel: AccessLevel;
     public readonly connectionId: WebSocketConnectionId;
     private readonly _accountId: AccountId;
 
@@ -157,7 +158,7 @@ export class DocumentCollaborationConnection {
     });
 
     constructor({
-        withoutComments,
+        accessLevel,
         connectionId,
         accountId,
         contentManager,
@@ -167,7 +168,7 @@ export class DocumentCollaborationConnection {
         resetAuthorizationTimer,
         killProcess,
     }: {
-        withoutComments: boolean;
+        accessLevel: AccessLevel;
         connectionId: WebSocketConnectionId;
         accountId: AccountId;
         contentManager: DocumentCollaborationContentManager;
@@ -183,7 +184,7 @@ export class DocumentCollaborationConnection {
         resetAuthorizationTimer: (context: WorkerProcessContext) => void;
         killProcess: (context: WorkerProcessContext) => void;
     }) {
-        this.withoutComments = withoutComments;
+        this.accessLevel = accessLevel;
         this.connectionId = connectionId;
         this._accountId = accountId;
         this._contentManager = contentManager;
@@ -202,7 +203,7 @@ export class DocumentCollaborationConnection {
     public async authorize(context: WorkerSessionActionContext) {
         await authorizeDocumentAccess(context, {
             documentId: this._contentManager.id,
-            expectedAccessLevel: this.withoutComments ? "View" : "Comment",
+            expectedAccessLevel: this.accessLevel,
             // You must have space access to receive document realtime events. We don't
             // currently allow anonymous users to see document updates in realtime.
             withSpaceAccess: true,
@@ -210,7 +211,7 @@ export class DocumentCollaborationConnection {
     }
 
     private _authorizeCommentAccess() {
-        if (this.withoutComments) {
+        if (!hasAccessLevel(this.accessLevel, "Comment")) {
             throw new PermissionDeniedError("Can\u2019t see document comments", {
                 displayMessage:
                     documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Comment,
@@ -307,7 +308,7 @@ export class DocumentCollaborationConnection {
                                 version,
                             );
 
-                            if (this.withoutComments) {
+                            if (!hasAccessLevel(this.accessLevel, "Comment")) {
                                 steps = steps.map(({step, invertedStep, clientId}) => ({
                                     step: stripDocumentContentStepCommentMarks(step),
                                     invertedStep:
@@ -344,7 +345,7 @@ export class DocumentCollaborationConnection {
                                 )
                             ).map(({invertedStep}) => invertedStep);
 
-                            if (this.withoutComments) {
+                            if (!hasAccessLevel(this.accessLevel, "Comment")) {
                                 rememberInvertedSteps = rememberInvertedSteps.map(
                                     stripDocumentContentStepCommentMarks,
                                 );
@@ -357,7 +358,7 @@ export class DocumentCollaborationConnection {
                 // Safety check: By this point if the user doesn't have comment access we
                 // shouldn't have any comment thread references because we stripped out all
                 // comment marks. Double check before returning just to make sure.
-                if (this.withoutComments) {
+                if (!hasAccessLevel(this.accessLevel, "Comment")) {
                     assert(stepsContentReferences.commentThreadById.size === 0);
                 }
 
@@ -372,7 +373,9 @@ export class DocumentCollaborationConnection {
             }),
 
         updateContent: (context, input) => {
-            if (this.withoutComments) {
+            // TODO(calebmer, #document-collaboration-access-level-refactor): Should switch
+            // this to `Edit` once we have clients connecting with the right access level.
+            if (!hasAccessLevel(this.accessLevel, "Comment")) {
                 throw new PermissionDeniedError("Can\u2019t update document", {
                     displayMessage:
                         documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Edit,
@@ -830,7 +833,7 @@ export class DocumentCollaborationConnection {
                     eventStub.steps,
                 );
 
-                if (!this.withoutComments) {
+                if (hasAccessLevel(this.accessLevel, "Comment")) {
                     await eventStub.cleanupInvalidStepCommentThreads(stepReferences);
                 } else {
                     // Double check there aren't any comments if this connection doesn't support
@@ -953,7 +956,7 @@ export class DocumentCollaborationConnection {
             accountId: this._accountId,
             roomKey: encodeDocumentCommentRoomKey(this._contentManager.id, commentThreadId),
             sendEvent: (context, event) => {
-                if (this.withoutComments) return voidSafeFloatingPromise;
+                if (!hasAccessLevel(this.accessLevel, "Comment")) return voidSafeFloatingPromise;
                 return this._sendEvent(context, {type: "Comments", commentThreadId, event});
             },
             sendEventToOthers: (context, event) => {

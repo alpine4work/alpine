@@ -4631,7 +4631,7 @@ test("can connect and backfill as a viewer", async () => {
     const connection2 = await connectForTest(
         context.action(session2, {serviceName: "DocumentCollaborationService"}),
         document.id,
-        {withoutComments: true},
+        {accessLevel: "View"},
     );
 
     expect(
@@ -4728,14 +4728,14 @@ test("can\u2019t connect as a viewer and ask for comments", async () => {
     const connection1 = await connectForTest(
         context.action(session1, {serviceName: "DocumentCollaborationService"}),
         document.id,
-        {withoutComments: false},
+        {accessLevel: "Comment"},
     );
 
     await expect(
         connectForTest(
             context.action(session2, {serviceName: "DocumentCollaborationService"}),
             document.id,
-            {withoutComments: false},
+            {accessLevel: "Comment"},
         ),
     ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
 
@@ -4826,7 +4826,7 @@ test("can connect and backfill as a viewer when there are remembered steps", asy
     const connection2 = await connectForTest(
         context.action(session2, {serviceName: "DocumentCollaborationService"}),
         document.id,
-        {withoutComments: true},
+        {accessLevel: "View"},
     );
 
     expect(
@@ -4866,7 +4866,7 @@ test("can\u2019t update content as a viewer", async () => {
     const connection2 = await connectForTest(
         context.action(session2, {serviceName: "DocumentCollaborationService"}),
         document.id,
-        {withoutComments: true},
+        {accessLevel: "View"},
     );
 
     expect(
@@ -4944,7 +4944,7 @@ test("can\u2019t call comment procedures as viewer", async () => {
     const connection2 = await connectForTest(
         context.action(session2, {serviceName: "DocumentCollaborationService"}),
         document.id,
-        {withoutComments: true},
+        {accessLevel: "View"},
     );
 
     await expect(
@@ -5128,13 +5128,13 @@ test("viewer receives update events without comment data", async () => {
     const connection2 = await connectForTest(
         context.action(session2, {serviceName: "DocumentCollaborationService"}),
         document.id,
-        {withoutComments: false},
+        {accessLevel: "Comment"},
     );
 
     const connection3 = await connectForTest(
         context.action(session2, {serviceName: "DocumentCollaborationService"}),
         document.id,
-        {withoutComments: true},
+        {accessLevel: "View"},
     );
 
     expect(
@@ -5701,7 +5701,7 @@ test("can update access policy", async () => {
     const connection1 = await connectForTest(context.action(session1), document.id);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn\u2019t have `Comment` access level",
+        "Actor doesn\u2019t have `Manage` access level",
     );
 
     const accessPolicy1: AccessPolicy = {
@@ -5727,7 +5727,9 @@ test("can update access policy", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    const connection2a = await connectForTest(context.action(session2), document.id);
+    const connection2a = await connectForTest(context.action(session2), document.id, {
+        accessLevel: "Comment",
+    });
 
     await connection1.procedures.updateContent({
         version: 2,
@@ -5761,7 +5763,7 @@ test("can update access policy", async () => {
     const {unpause: unpause1} = await pausePromise1;
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn\u2019t have `Comment` access level",
+        "Actor doesn\u2019t have `Manage` access level",
     );
 
     await connection1.procedures.updateContent({
@@ -5777,7 +5779,7 @@ test("can update access policy", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn\u2019t have `Comment` access level",
+        "Actor doesn\u2019t have `Manage` access level",
     );
 
     const pausePromise2 =
@@ -5795,7 +5797,7 @@ test("can update access policy", async () => {
     const {unpause: unpause2} = await pausePromise2;
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn\u2019t have `Comment` access level",
+        "Actor doesn\u2019t have `Manage` access level",
     );
 
     await connection1.procedures.updateContent({
@@ -5810,7 +5812,7 @@ test("can update access policy", async () => {
     unpause2();
     await ProcessContextModule.waitForTestTasks();
 
-    await connectForTest(context.action(session2), document.id);
+    await connectForTest(context.action(session2), document.id, {accessLevel: "Comment"});
 });
 
 test("can\u2019t update access policy unintentionally", async () => {
@@ -5830,7 +5832,7 @@ test("can\u2019t update access policy unintentionally", async () => {
     const connection1 = await connectForTest(context.action(session1), document.id);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn\u2019t have `Comment` access level",
+        "Actor doesn\u2019t have `Manage` access level",
     );
 
     const accessPolicy2: AccessPolicy = {
@@ -5897,7 +5899,7 @@ test("can\u2019t update access policy with the wrong intentional policy", async 
     const connection1 = await connectForTest(context.action(session1), document.id);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn\u2019t have `Comment` access level",
+        "Actor doesn\u2019t have `Manage` access level",
     );
 
     const accessPolicy2a: AccessPolicy = {
@@ -5974,7 +5976,7 @@ test("can get presence updates across viewer/editor connections", async () => {
     const connection2 = await connectForTest(
         context.action(session2, {serviceName: "DocumentCollaborationService"}),
         document.id,
-        {withoutComments: true},
+        {accessLevel: "View"},
     );
 
     expect(

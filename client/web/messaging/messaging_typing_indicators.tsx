@@ -18,7 +18,7 @@ import {
 } from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {easeInOutSin, parseCubicBezier} from "~/shared/design/core/easing.js";
-import {parseRemLength, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, parseRemLength, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
@@ -31,7 +31,7 @@ export function MessagingTypingIndicators({
     shouldAddMarginBottom = false,
 }: {
     typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
-    shouldAddMarginTop?: boolean;
+    shouldAddMarginTop?: boolean | Spacing;
     shouldAddMarginBottom?: boolean | string;
 }) {
     const spacingScale = useSpacingScale();
@@ -58,7 +58,11 @@ export function MessagingTypingIndicators({
         <Box
             style={{
                 minHeight: messagingTypingIndicatorsMinHeightPx[spacingScale],
-                paddingTop: shouldAddMarginTop ? spacing[messageViewMarginY] : undefined,
+                paddingTop: shouldAddMarginTop
+                    ? typeof shouldAddMarginTop === "string"
+                        ? spacing[shouldAddMarginTop]
+                        : spacing[messageViewMarginY]
+                    : undefined,
                 paddingBottom: shouldAddMarginBottom
                     ? typeof shouldAddMarginBottom === "string"
                         ? shouldAddMarginBottom

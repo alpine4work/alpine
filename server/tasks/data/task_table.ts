@@ -142,11 +142,13 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
@@ -6850,7 +6852,7 @@ export async function getTaskCommentPayloadsFromStart(
  * will be null. We'll still return the task's notes though. Hence when the
  * function name says "optional" initial comments.
  */
-export async function getTaskNotesContentAndOptionalInitialComments(
+export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
     context: ServerActionContext,
     {taskId, commentsLimit}: {taskId: TaskId; commentsLimit: number},
 ): Promise<{
@@ -6864,78 +6866,100 @@ export async function getTaskNotesContentAndOptionalInitialComments(
         comments: ReadonlyArray<TaskCommentModel>;
         otherReferencedComments: ReadonlyArray<TaskCommentModel>;
     } | null;
-}> {
+} | null> {
     const authorizationPromiseResolver = createPromiseResolver<{
-        item: {spaceId: SpaceId};
+        item: TaskEssentialAttributesItemBase;
         commentsSummaryItem: TaskCommentsSummaryItem | null;
     }>();
+
+    // Don't report unhandled rejections to this promise resolver as unhandled
+    // errors. Otherwise if we can't find the task and return null we'll get an
+    // "Uncaught exception" log with this error.
+    authorizationPromiseResolver.promise.catch(() => {});
+
+    const commentAuthorizationResultPromise = authorizationPromiseResolver.promise.then(
+        async ({item}) => {
+            const result = await authorizeTaskItemAccessIfPossible(context, item, "Comment", {
+                getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+                getCollectionItem: collectionId =>
+                    getTaskCollectionItemForAuthorization(context, collectionId, null),
+            });
+
+            return mapResult(result, () => item.spaceId);
+        },
+    );
 
     // Generate checkpoint before we start loading data. So when we backfill we
     // include any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
-    const [{item, notes, commentsSummaryItem}, {comments, otherReferencedComments}] =
-        await runAllPromises([
-            authorizeTaskAccessAndGetCommentsSummaryAndNotesItems(
-                context,
-                taskId,
-                "View",
-                async result => {
-                    const {item, notesItem, commentsSummaryItem} = result;
+    const [task, commentAuthorizationResultResult, commentsResult] = await runAllPromises([
+        authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists(
+            context,
+            taskId,
+            "View",
+            async result => {
+                authorizationPromiseResolver.resolve(result);
 
-                    authorizationPromiseResolver.resolve(result);
+                const {item, notesItem, commentsSummaryItem} = result;
 
-                    return {
-                        item,
-                        notes: {
-                            version: notesItem?.version ?? 0,
-                            content: {
-                                doc: notesItem?.content ?? emptyTaskNotesContent,
-                                references:
-                                    await getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
-                                        context,
-                                        item.spaceId,
-                                        FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                                        notesItem?.content ?? emptyTaskNotesContent,
-                                        // Preload small files so we don't have to show a placeholder for them. This
-                                        // improves UX at the cost slowing the initial load. Right now we preload
-                                        // <100kb files up to 400kb. We'll have to tune this to find the right balance
-                                        // between UX and the performance hit.
-                                        {withPreloadedFiles: true},
-                                    ),
-                            },
+                return {
+                    notes: {
+                        version: notesItem?.version ?? 0,
+                        content: {
+                            doc: notesItem?.content ?? emptyTaskNotesContent,
+                            references:
+                                await getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
+                                    context,
+                                    item.spaceId,
+                                    FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                                    notesItem?.content ?? emptyTaskNotesContent,
+                                    // Preload small files so we don't have to show a placeholder for them. This
+                                    // improves UX at the cost slowing the initial load. Right now we preload
+                                    // <100kb files up to 400kb. We'll have to tune this to find the right balance
+                                    // between UX and the performance hit.
+                                    {withPreloadedFiles: true},
+                                ),
                         },
-                        commentsSummaryItem,
-                    };
-                },
-            ).finally(() => {
-                // Make sure the promise resolver doesn't hang forever waiting for a `SpaceId`
-                // in failure scenarios.
-                if (!authorizationPromiseResolver.isSettled()) {
-                    authorizationPromiseResolver.reject(new NotFoundError("Space not found"));
-                }
-            }),
-            getTaskCommentsFromEndAssumingAuthorizedTask(context, {
+                    },
+                    commentsSummaryItem,
+                };
+            },
+        ).finally(() => {
+            // Make sure the promise resolver doesn't hang forever waiting for a `SpaceId`
+            // in failure scenarios.
+            if (!authorizationPromiseResolver.isSettled()) {
+                authorizationPromiseResolver.reject(createTaskNotFoundError(taskId));
+            }
+        }),
+
+        // This promise may throw if the task isn't found because it depends on
+        // `authorizationPromiseResolver`. If the task isn't found we want to return
+        // null, not throw here. So `captureResultPromise()` to catch not found errors
+        // so we don't throw them until after we check that the task exists.
+        //
+        // This gives us a result of a result. The inner result is whether or not we
+        // have comment access and controls whether we return `comments` from this
+        // function or not.
+        captureResultPromise(commentAuthorizationResultPromise),
+
+        captureResultPromise(
+            getTaskCommentsFromStartAssumingAuthorizedTask(context, {
                 taskId,
-                authorizationPromise: authorizationPromiseResolver.promise,
+                // If we don't have comment authorization then throw in `getSpaceId` so we
+                // don't continue loading more referenced comments or `TaskCommentModel`s.
+                getSpaceId: () => commentAuthorizationResultPromise.then(unwrapResult),
                 limit: commentsLimit,
                 afterCommentIndex: null,
                 beforeCommentIndex: null,
             }),
-        ]);
+        ),
+    ]);
 
-    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+    if (!task) return null;
 
-    const commentAuthorizationResult = await authorizeTaskItemAccessIfPossible(
-        context,
-        item,
-        "Comment",
-        {
-            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
-            getCollectionItem: collectionId =>
-                getTaskCollectionItemForAuthorization(context, collectionId, null),
-        },
-    );
+    const {notes, commentsSummaryItem} = task;
+    const commentAuthorizationResult = unwrapResult(commentAuthorizationResultResult);
 
     return {
         notes,
@@ -6947,17 +6971,24 @@ export async function getTaskNotesContentAndOptionalInitialComments(
         // common than the code path where we need comments so we're ok being a little
         // wasteful.
         initialComments: commentAuthorizationResult.ok
-            ? {
-                  checkpoint,
-                  commentCount: Math.max(
-                      getTaskCommentCount(commentsSummaryItem),
-                      // Make sure `commentCount` is consistent with `comments` in case of eventual
-                      // consistency race conditions.
-                      lastCommentIndex + 1,
-                  ),
-                  comments,
-                  otherReferencedComments,
-              }
+            ? (() => {
+                  const {comments, otherReferencedComments} = unwrapResult(commentsResult);
+
+                  const lastCommentIndex =
+                      comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+                  return {
+                      checkpoint,
+                      commentCount: Math.max(
+                          getTaskCommentCount(commentsSummaryItem),
+                          // Make sure `commentCount` is consistent with `comments` in case of eventual
+                          // consistency race conditions.
+                          lastCommentIndex + 1,
+                      ),
+                      comments,
+                      otherReferencedComments,
+                  };
+              })()
             : null,
     };
 }

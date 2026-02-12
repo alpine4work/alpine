@@ -126,9 +126,7 @@ import {
     tasksStyles,
 } from "~/client/web/styles/styles.js";
 import {
-    taskCommentsHeaderNavigationBarSpacing,
     taskDetailNotesFieldLabelPaddingBottom,
-    taskDetailViewCommentSidebarWidth,
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
     taskDetailViewHeaderMarginBottom,
@@ -264,10 +262,6 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.tasks._index": {component: TaskPersonalRouteShimmer},
     // TODO: `inboxBannerMaxWidth` for this route.
     "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},
-    "routes/s.$spaceId.tasks.$taskId.comments._index": {
-        inboxBannerMaxWidth: contentStyles.contentMaxWidth,
-        component: TaskCommentsRouteShimmer,
-    },
     "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": {component: ReactionsRouteShimmer},
     "routes/s.$spaceId.tasks.$taskId.duplicate": {component: ContentDuplicationRouteShimmer},
     "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskCollectionRouteShimmer},
@@ -2021,7 +2015,11 @@ function SearchRouteShimmer() {
     );
 }
 
-function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams}) {
+// NOTE(calebmer): We intentionally don't include comments in the task detail
+// route shimmer since if a user only has view access they won't be able to see
+// the comments on the task. (This is a weak reason to not include comments in
+// the shimmer.)
+function TaskDetailRouteShimmer() {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
@@ -2030,147 +2028,90 @@ function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams})
     return (
         <Box width="full" height="full" overflow="hidden">
             <Box
+                paddingX={screenPaddingX}
+                overflow="hidden"
                 width="full"
-                height="full"
+                maxWidth={contentStyles.contentMaxWidth}
                 marginX="center"
                 display="flex"
-                justifyContent="center"
-                flexDirection="row"
+                flexDirection="column"
+                position="relative"
             >
-                <Box
-                    paddingX={screenPaddingX}
-                    overflow="hidden"
-                    width="full"
-                    maxWidth={contentStyles.contentMaxWidth}
-                    marginX="center"
-                    display="flex"
-                    flexDirection="column"
-                    position="relative"
-                >
-                    <Box height="safe-area-inset-top" />
-                    <Box height={navigationBarHeight} display="flex" alignItems="center">
-                        {platform === "mobile" && <MobileBackButton />}
-                        {platform !== "mobile" && (
-                            <Box
-                                className={pulseAnimationClassName}
-                                backgroundColor="grey-10"
-                                width={taskDetailViewStatusButtonSize[platformRouteLayout]}
-                                height={taskDetailViewStatusButtonSize[platformRouteLayout]}
-                                borderRadius="full"
-                            />
-                        )}
-                    </Box>
-                    {platform === "mobile" && (
+                <Box height="safe-area-inset-top" />
+                <Box height={navigationBarHeight} display="flex" alignItems="center">
+                    {platform === "mobile" && <MobileBackButton />}
+                    {platform !== "mobile" && (
                         <Box
-                            paddingTop={taskDetailViewStatusButtonMobilePaddingTop}
-                            paddingBottom={taskDetailViewStatusButtonMobilePaddingBottom}
-                        >
-                            <Box
-                                className={pulseAnimationClassName}
-                                backgroundColor="grey-10"
-                                width={taskDetailViewStatusButtonSize[platformRouteLayout]}
-                                height={taskDetailViewStatusButtonSize[platformRouteLayout]}
-                                borderRadius="full"
-                            />
-                        </Box>
+                            className={pulseAnimationClassName}
+                            backgroundColor="grey-10"
+                            width={taskDetailViewStatusButtonSize[platformRouteLayout]}
+                            height={taskDetailViewStatusButtonSize[platformRouteLayout]}
+                            borderRadius="full"
+                        />
                     )}
-                    <TextShimmer
-                        fontSize={{
-                            fontSize: fontSizes[taskDetailViewTitleFontSize].fontSize,
-                            lineHeight: spacing[taskDetailViewTitleLineHeight],
-                        }}
-                        width="64"
-                    />
-                    <Box style={{height: taskDetailViewHeaderMarginBottom}} />
-                    <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
-                        <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
-                        <TextShimmer fontSize="75" width="24" />
-                    </Box>
-                    <Box height={taskDetailViewDenseFieldGap} />
-                    <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
-                        <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
-                        <TextShimmer fontSize="75" width="48" />
-                    </Box>
-                    <Box height={taskDetailViewSectionGap} />
-                    <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="12" />
-                    <Box height={taskDetailNotesFieldLabelPaddingBottom} />
-                    <Box
-                        style={{
-                            height: tasksStyles.detailNotesContentEditorMinHeightPx[spacingScale],
-                        }}
-                    />
-                    <Box height={taskDetailViewSectionGap} />
-                    <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
-                    <Box
-                        className={pulseAnimationClassName}
-                        height={taskDetailViewSubtasksFieldLabelPaddingBottom}
-                    />
-                    <Box
-                        className={pulseAnimationClassName}
-                        height={taskRowViewMinHeight}
-                        borderTop="grey-5"
-                    />
-                    <Box
-                        className={pulseAnimationClassName}
-                        height={taskRowViewMinHeight}
-                        borderTop="grey-5"
-                    />
-                    <Box
-                        className={pulseAnimationClassName}
-                        height={taskRowViewMinHeight}
-                        borderTop="grey-5"
-                    />
-                    <Box className={pulseAnimationClassName} height="border" borderTop="grey-5" />
                 </Box>
-                {routeLayout !== "narrow" && searchParams.get("comments") === "show" && (
+                {platform === "mobile" && (
                     <Box
-                        flexShrink="0"
-                        width={taskDetailViewCommentSidebarWidth}
-                        borderLeft="grey-5"
-                        overflow="hidden"
+                        paddingTop={taskDetailViewStatusButtonMobilePaddingTop}
+                        paddingBottom={taskDetailViewStatusButtonMobilePaddingBottom}
                     >
-                        <TaskCommentsViewShimmer />
+                        <Box
+                            className={pulseAnimationClassName}
+                            backgroundColor="grey-10"
+                            width={taskDetailViewStatusButtonSize[platformRouteLayout]}
+                            height={taskDetailViewStatusButtonSize[platformRouteLayout]}
+                            borderRadius="full"
+                        />
                     </Box>
                 )}
-            </Box>
-        </Box>
-    );
-}
-
-function TaskCommentsRouteShimmer() {
-    return <TaskCommentsViewShimmer withNavigationBar={true} />;
-}
-
-export function TaskCommentsViewShimmer({withNavigationBar}: {withNavigationBar?: boolean}) {
-    const platform = usePlatform();
-
-    return (
-        <Box width="full" height="full" display="flex" flexDirection="column">
-            {withNavigationBar && (
-                <Box flexShrink="0" paddingTop="safe-area-inset">
-                    <Box
-                        position="relative"
-                        height={navigationBarHeight}
-                        maxWidth={contentStyles.contentMaxWidth}
-                    >
-                        <Box
-                            display="flex"
-                            flexDirection="column"
-                            justifyContent="center"
-                            alignItems={platform !== "mobile" ? "flex-start" : "center"}
-                            width="full"
-                            maxWidth={contentStyles.contentMaxWidth}
-                            height="full"
-                            paddingX={screenPaddingX}
-                        >
-                            <TextShimmer fontSize="200" width="32" />
-                            <TextShimmer fontSize="75" width="12" />
-                        </Box>
-                    </Box>
+                <TextShimmer
+                    fontSize={{
+                        fontSize: fontSizes[taskDetailViewTitleFontSize].fontSize,
+                        lineHeight: spacing[taskDetailViewTitleLineHeight],
+                    }}
+                    width="64"
+                />
+                <Box style={{height: taskDetailViewHeaderMarginBottom}} />
+                <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
+                    <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
+                    <TextShimmer fontSize="75" width="24" />
                 </Box>
-            )}
-            <Spacer space={taskCommentsHeaderNavigationBarSpacing} />
-            <MessagingViewShimmer withTopAlignedMessages={true} messages="few" />
+                <Box height={taskDetailViewDenseFieldGap} />
+                <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
+                    <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
+                    <TextShimmer fontSize="75" width="48" />
+                </Box>
+                <Box height={taskDetailViewSectionGap} />
+                <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="12" />
+                <Box height={taskDetailNotesFieldLabelPaddingBottom} />
+                <Box
+                    style={{
+                        height: tasksStyles.detailNotesContentEditorMinHeightPx[spacingScale],
+                    }}
+                />
+                <Box height={taskDetailViewSectionGap} />
+                <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
+                <Box
+                    className={pulseAnimationClassName}
+                    height={taskDetailViewSubtasksFieldLabelPaddingBottom}
+                />
+                <Box
+                    className={pulseAnimationClassName}
+                    height={taskRowViewMinHeight}
+                    borderTop="grey-5"
+                />
+                <Box
+                    className={pulseAnimationClassName}
+                    height={taskRowViewMinHeight}
+                    borderTop="grey-5"
+                />
+                <Box
+                    className={pulseAnimationClassName}
+                    height={taskRowViewMinHeight}
+                    borderTop="grey-5"
+                />
+                <Box className={pulseAnimationClassName} height="border" borderTop="grey-5" />
+            </Box>
         </Box>
     );
 }

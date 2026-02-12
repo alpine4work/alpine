@@ -149,7 +149,7 @@ export default implementRpcs(definitions, {
             const context = _context.actor.authorizeSession();
 
             const [{spaceId}, editResult] = await runAllPromises([
-                authorizeTaskAccess(context, input.taskId, "View"),
+                authorizeTaskAccess(context, input.taskId, input.expectedAccessLevel ?? "View"),
                 captureResultPromise(() => authorizeTaskAccess(context, input.taskId, "Edit")),
             ]);
 
@@ -159,8 +159,10 @@ export default implementRpcs(definitions, {
 
     getTaskCommentsFromStart: {
         visibility: ["AppClient"],
-        execute: (context, input) => {
-            return getTaskCommentsFromStart(context.actor.authorizeSession(), input);
+        execute: async (context, input) => {
+            const checkpoint = generateServerSynchronizationCheckpoint();
+            const output = await getTaskCommentsFromStart(context.actor.authorizeSession(), input);
+            return {...output, checkpoint};
         },
     },
 

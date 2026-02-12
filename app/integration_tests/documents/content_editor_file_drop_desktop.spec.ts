@@ -10,12 +10,23 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {PostDraftId} from "~/shared/id/types/id_types.js";
 
 const {context, services} = createTestServices();
+
+async function getMessageInputDropPosition(dropTarget: Locator) {
+    await expect(dropTarget).toBeVisible();
+    const messageInputBox = assertExists(await dropTarget.boundingBox());
+
+    return {
+        x: Math.round(messageInputBox.x + messageInputBox.width / 2),
+        y: Math.round(messageInputBox.y + messageInputBox.height / 2),
+    };
+}
 
 // TypeScript requires that we have at least one test cases for every file
 // attachment target type.
@@ -27,13 +38,12 @@ const testCases: Record<
         setup: (props: {page: Page; browserContext: BrowserContext}) => Promise<
             | {
                   type: "MessageInput";
-                  dropCoords: {x: number; y: number};
                   dropTarget: Locator;
                   messageInput: Locator;
               }
             | {
                   type: "ContentEditor";
-                  dropCoords: {x: number; y: number};
+                  dropPosition: {x: number; y: number};
                   dropTarget: Locator;
               }
         >;
@@ -51,11 +61,13 @@ const testCases: Record<
                 await services.signIn(browserContext, session1);
                 await page.goto(`/s/${space.id}/chat/${chat.id}`);
 
+                const messageInput = page.getByTestId("MessageInput");
+                const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
+
                 return {
                     type: "MessageInput",
-                    dropCoords: {x: 640, y: 360},
-                    dropTarget: page.getByTestId("MessagingView"),
-                    messageInput: page.getByTestId("MessageInput"),
+                    dropTarget,
+                    messageInput,
                 };
             },
         },
@@ -74,7 +86,7 @@ const testCases: Record<
 
                 return {
                     type: "ContentEditor",
-                    dropCoords: {x: 640, y: 360},
+                    dropPosition: {x: 640, y: 360},
                     dropTarget: page.getByRole("textbox", {name: "Document"}),
                 };
             },
@@ -102,11 +114,13 @@ const testCases: Record<
                     `/s/${space.id}/documents/${document.id}?comments=${commentThread.id}`,
                 );
 
+                const messageInput = page.getByTestId(`DocumentCommentInput:${commentThread.id}`);
+                const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
+
                 return {
                     type: "MessageInput",
-                    dropCoords: {x: 1076, y: 465},
-                    dropTarget: page.getByTestId("DocumentCommentThreadListView"),
-                    messageInput: page.getByTestId(`DocumentCommentInput:${commentThread.id}`),
+                    dropTarget,
+                    messageInput,
                 };
             },
         },
@@ -132,11 +146,13 @@ const testCases: Record<
                     `/s/${space.id}/documents/${document.id}/comments/${commentThread.id}`,
                 );
 
+                const messageInput = page.getByTestId(`DocumentCommentInput:${commentThread.id}`);
+                const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
+
                 return {
                     type: "MessageInput",
-                    dropCoords: {x: 640, y: 360},
-                    dropTarget: page.getByTestId("DocumentCommentThreadListView"),
-                    messageInput: page.getByTestId(`DocumentCommentInput:${commentThread.id}`),
+                    dropTarget,
+                    messageInput,
                 };
             },
         },
@@ -176,11 +192,13 @@ const testCases: Record<
                     .getByTestId(`DocumentCommentInput:${commentThread2.id}`)
                     .scrollIntoViewIfNeeded();
 
+                const messageInput = page.getByTestId(`DocumentCommentInput:${commentThread2.id}`);
+                const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
+
                 return {
                     type: "MessageInput",
-                    dropCoords: {x: 668, y: 491},
-                    dropTarget: page.getByTestId("DocumentCommentThreadListView"),
-                    messageInput: page.getByTestId(`DocumentCommentInput:${commentThread2.id}`),
+                    dropTarget,
+                    messageInput,
                 };
             },
         },
@@ -203,7 +221,7 @@ const testCases: Record<
 
                 return {
                     type: "ContentEditor",
-                    dropCoords: {x: 465, y: 86},
+                    dropPosition: {x: 465, y: 86},
                     dropTarget: page.getByRole("textbox", {name: "Post"}),
                 };
             },
@@ -223,7 +241,7 @@ const testCases: Record<
 
                 return {
                     type: "ContentEditor",
-                    dropCoords: {x: 640, y: 360},
+                    dropPosition: {x: 640, y: 360},
                     dropTarget: page.getByRole("textbox", {name: "Post"}),
                 };
             },
@@ -242,11 +260,13 @@ const testCases: Record<
                 await services.signIn(browserContext, session);
                 await page.goto(`/s/${space.id}/posts/${post.id}`);
 
+                const messageInput = page.getByTestId(`PostCommentInput:${post.id}`);
+                const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
+
                 return {
                     type: "MessageInput",
-                    dropCoords: {x: 640, y: 360},
-                    dropTarget: page.getByTestId("PostListView"),
-                    messageInput: page.getByTestId(`PostCommentInput:${post.id}`),
+                    dropTarget,
+                    messageInput,
                 };
             },
         },
@@ -269,11 +289,13 @@ const testCases: Record<
                 await page.getByLabel("0 comments").nth(0).click();
                 await expect(page.getByLabel("New comment")).toHaveCount(2);
 
+                const messageInput = page.getByTestId(`PostCommentInput:${post.id}`);
+                const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
+
                 return {
                     type: "MessageInput",
-                    dropCoords: {x: 443, y: 458},
-                    dropTarget: page.getByTestId("PostListView"),
-                    messageInput: page.getByTestId(`PostCommentInput:${post.id}`),
+                    dropTarget,
+                    messageInput,
                 };
             },
         },
@@ -292,7 +314,7 @@ const testCases: Record<
 
                 return {
                     type: "ContentEditor",
-                    dropCoords: {x: 320, y: 296},
+                    dropPosition: {x: 320, y: 296},
                     dropTarget: page.getByRole("textbox", {name: "Notes"}),
                 };
             },
@@ -310,11 +332,13 @@ const testCases: Record<
                 await services.signIn(browserContext, session);
                 await page.goto(`/s/${space.id}/tasks/${task.id}?comments=show`);
 
+                const dropTarget = page.getByTestId("MessageInputDropTarget");
+                const messageInput = dropTarget;
+
                 return {
                     type: "MessageInput",
-                    dropCoords: {x: 1042, y: 466},
-                    dropTarget: page.getByTestId("MessagingView"),
-                    messageInput: page.getByTestId("MessageInput"),
+                    dropTarget,
+                    messageInput,
                 };
             },
         },
@@ -360,9 +384,13 @@ for (const testCasesArray of Object.values(testCases)) {
 
             switch (result.type) {
                 case "MessageInput": {
-                    const {dropTarget, dropCoords, messageInput} = result;
+                    const {dropTarget, messageInput} = result;
+                    const focusRing =
+                        (await messageInput.getByTestId("FocusRing").count()) > 0
+                            ? messageInput.getByTestId("FocusRing")
+                            : page.getByTestId("FocusRing").first();
 
-                    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+                    await expect(focusRing).toBeHidden();
                     await expect(
                         messageInput.getByTestId("ContentFilePreview:image/jpeg"),
                     ).toBeHidden();
@@ -372,13 +400,15 @@ for (const testCasesArray of Object.values(testCases)) {
                             .getByTestId("ContentFilePreview:image/jpeg"),
                     ).toBeHidden();
 
+                    const dropPosition = await getMessageInputDropPosition(dropTarget);
+
                     await dropTarget.dispatchEvent("dragenter", {
-                        clientX: dropCoords.x,
-                        clientY: dropCoords.y,
+                        clientX: dropPosition.x,
+                        clientY: dropPosition.y,
                         dataTransfer: file1DataTransfer,
                     });
 
-                    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+                    await expect(focusRing).toBeVisible();
                     await expect(
                         messageInput.getByTestId("ContentFilePreview:image/jpeg"),
                     ).toBeHidden();
@@ -389,12 +419,12 @@ for (const testCasesArray of Object.values(testCases)) {
                     ).toBeHidden();
 
                     await dropTarget.dispatchEvent("drop", {
-                        clientX: dropCoords.x,
-                        clientY: dropCoords.y,
+                        clientX: dropPosition.x,
+                        clientY: dropPosition.y,
                         dataTransfer: file1DataTransfer,
                     });
 
-                    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+                    await expect(focusRing).toBeHidden();
                     await expect(
                         messageInput.getByTestId("ContentFilePreview:image/jpeg"),
                     ).toBeVisible();
@@ -411,14 +441,14 @@ for (const testCasesArray of Object.values(testCases)) {
                             .getByTestId(/^MessageView:/)
                             .getByTestId("ContentFilePreview:image/jpeg"),
                     ).toBeVisible();
-                    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+                    await expect(focusRing).toBeHidden();
                     await expect(
                         messageInput.getByTestId("ContentFilePreview:image/jpeg"),
                     ).toBeHidden();
                     break;
                 }
                 case "ContentEditor": {
-                    const {dropTarget, dropCoords} = result;
+                    const {dropTarget, dropPosition} = result;
 
                     await expect(
                         page.getByTestId(/^ContentEditorFileDropTargetIndicator:/),
@@ -428,8 +458,8 @@ for (const testCasesArray of Object.values(testCases)) {
                     ).toBeHidden();
 
                     await dropTarget.dispatchEvent("dragenter", {
-                        clientX: dropCoords.x,
-                        clientY: dropCoords.y,
+                        clientX: dropPosition.x,
+                        clientY: dropPosition.y,
                         dataTransfer: file1DataTransfer,
                     });
 
@@ -441,8 +471,8 @@ for (const testCasesArray of Object.values(testCases)) {
                     ).toBeHidden();
 
                     await dropTarget.dispatchEvent("drop", {
-                        clientX: dropCoords.x,
-                        clientY: dropCoords.y,
+                        clientX: dropPosition.x,
+                        clientY: dropPosition.y,
                         dataTransfer: file1DataTransfer,
                     });
 

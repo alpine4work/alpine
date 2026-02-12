@@ -127,6 +127,7 @@ import {
 } from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
+    canonicalizeFileContentTypeIfExists,
     getFileAudioContentTypes,
     getFileImageContentTypes,
     getFileVideoContentTypes,
@@ -152,7 +153,6 @@ export type MessageInputRef = {
     isEmpty(): boolean;
     clear(): void;
     getBoundingClientRect(): DOMRect;
-    drop(dataTransfer: DataTransfer): {finally(listener: () => void): void};
 };
 
 export type MessageInputBaseProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
@@ -171,6 +171,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onSend: () => void;
     fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
     isBottomBar?: boolean;
+    alwaysRegisterBottomBarFrame?: boolean;
     isReplacingOtherBottomBar?: boolean;
     isSendBottomArrowRight?: boolean;
     isSendButtonDisabled?: boolean;
@@ -261,6 +262,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onRemoveFile,
         onSend: onSendProp,
         isBottomBar = false,
+        alwaysRegisterBottomBarFrame = false,
         isReplacingOtherBottomBar = false,
         isSendBottomArrowRight,
         isSendButtonDisabled: isSendButtonDisabledProp,
@@ -360,35 +362,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             // It's ok if this promise floats because we render a global loading indicator.
             return promise as SafeFloatingPromise<void>;
         },
-        drop: (dataTransfer: DataTransfer): {finally(listener: () => void): void} => {
-            let hasHtmlFileInfos = false;
-            const fileInfos: Array<FileInfoWithEntity> = [];
-
-            for (const {info} of iterateFileInfosInElement(
-                parseHtml(dataTransfer.getData("text/html")),
-                () => space.id,
-            )) {
-                if (!info) continue;
-
-                hasHtmlFileInfos = true;
-                fileInfos.push(info);
-            }
-
-            // Ignore files from `dataTransfer` if we had `text/html`. Since we assume
-            // `text/html` will contain links to any files included in `dataTransfer`.
-            if (!hasHtmlFileInfos) {
-                for (const item of dataTransfer.items) {
-                    if (item.kind !== "file") continue;
-
-                    fileInfos.push({
-                        type: "UploadFile",
-                        input: {type: "File", file: assertExists(item.getAsFile())},
-                    });
-                }
-            }
-
-            return events.addFiles("<MessageInput> drop files", fileInfos);
-        },
     });
 
     useImperativeHandle(
@@ -400,7 +373,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             isEmpty: () => isContentEmpty(assertExists(editorRef.current).getState().getDoc()),
             clear: events.clear,
             getBoundingClientRect: () => assertExists(inputRef.current).getBoundingClientRect(),
-            drop: events.drop,
         }),
         [events],
     );
@@ -659,9 +631,17 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         // That's because we want typing in the input to scroll the messages above the
         // input when the input is sticking to the bottom of the view.
         //
+        // `<TaskDetailView>` sets `alwaysRegisterBottomBarFrame` to true. It's not a
+        // "native mobile" bottom bar but it IS the only bottom bar in the virtualized
+        // scroll view. It's just sticky via `position: sticky` instead of
+        // `display: flex; flex-direction: column` (like `<ChatView>`) because we want
+        // the message input to be hidden while you're looking at subtasks. (We're
+        // deprecating our native mobile app so `isBottomBar` doesn't exactly make
+        // sense any more. We should maybe remove it.)
+        //
         // TODO(calebmer): Ideally we'd only register the bottom bar frame when the
         // input is "stuck" to the bottom of the viewport and not before that.
-        isDisabled: !isBottomBar && !isFocused,
+        isDisabled: !isBottomBar && !alwaysRegisterBottomBarFrame && !isFocused,
         withMobileKeyboardToolbar: true,
         isReplacingOtherBottomBar,
     });
@@ -690,6 +670,43 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             }
         }
     }, [linkModalState]);
+
+    const [dragEnterState, setDragEnterState] = useState<{
+        count: number;
+        hasNonTextType: boolean;
+    } | null>(null);
+
+    const [isDraggingFileWithin, setIsDraggingFileWithin] = useState(false);
+
+    const drop = (dataTransfer: DataTransfer): {finally(listener: () => void): void} => {
+        let hasHtmlFileInfos = false;
+        const fileInfos: Array<FileInfoWithEntity> = [];
+
+        for (const {info} of iterateFileInfosInElement(
+            parseHtml(dataTransfer.getData("text/html")),
+            () => space.id,
+        )) {
+            if (!info) continue;
+
+            hasHtmlFileInfos = true;
+            fileInfos.push(info);
+        }
+
+        // Ignore files from `dataTransfer` if we had `text/html`. Since we assume
+        // `text/html` will contain links to any files included in `dataTransfer`.
+        if (!hasHtmlFileInfos) {
+            for (const item of dataTransfer.items) {
+                if (item.kind !== "file") continue;
+
+                fileInfos.push({
+                    type: "UploadFile",
+                    input: {type: "File", file: assertExists(item.getAsFile())},
+                });
+            }
+        }
+
+        return events.addFiles("<MessageInput> drop files", fileInfos);
+    };
 
     const idBase = useId();
     const containerId = `${idBase}-container`;
@@ -843,6 +860,74 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         width="full"
                         maxWidth={contentStyles.contentMaxWidth}
                         marginX="center"
+                        data-testid={
+                            process.env.NODE_ENV !== "production"
+                                ? "MessageInputDropTarget"
+                                : undefined
+                        }
+                        onDragStartCapture={event => {
+                            // We don't want dragging a file inside our messaging view to count as the user
+                            // trying to drop the file back in the messaging view.
+                            if (
+                                event.target instanceof HTMLElement &&
+                                event.target.closest(`.${fileClassName}`)
+                            ) {
+                                setIsDraggingFileWithin(true);
+                            }
+                        }}
+                        onDragEndCapture={() => {
+                            setIsDraggingFileWithin(false);
+                        }}
+                        onDragEnter={event => {
+                            // If this drag only has `text/plain` and `text/html` it's probably because the
+                            // user is dragging some content from either their browser or another app. If
+                            // the user is dragging text, we want to let the message input's
+                            // `<ContentEditor>` handle dropped text.
+                            const hasNonTextType = event.dataTransfer.types.some(type => {
+                                if (type === "Files") return true;
+                                const canonicalType = canonicalizeFileContentTypeIfExists(type);
+                                return (
+                                    canonicalType !== "text/plain" && canonicalType !== "text/html"
+                                );
+                            });
+
+                            setDragEnterState(dragState => {
+                                if (dragState) return {...dragState, count: dragState.count + 1};
+                                return {count: 1, hasNonTextType};
+                            });
+                        }}
+                        onDragLeave={() => {
+                            // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
+                            // reliably had access to `event.relatedTarget` we'd check:
+                            // `event.currentTarget.contains(event.relatedTarget)` to know whether we need
+                            // to reset our drag state.
+                            //
+                            // Instead we look at `dragenter` event counts. Once we reach 0 that means the
+                            // user has fully dragged out of the container. We got the idea for this fix
+                            // from [this Gist][2].
+                            //
+                            // We use this method in Chrome as well (even though we could use
+                            // `event.relatedTarget`) to have consistent behavior across all browsers.
+                            //
+                            // [1]: https://bugs.webkit.org/show_bug.cgi?id=66547
+                            // [2]: https://gist.github.com/alexreardon/10c595cbb840608a2828db56df99fa79
+                            setDragEnterState(dragState => {
+                                if (!dragState) return dragState;
+                                if (dragState.count <= 1) return null;
+                                return {...dragState, count: dragState.count - 1};
+                            });
+                        }}
+                        onDragOver={event => {
+                            event.preventDefault();
+                        }}
+                        onDrop={event => {
+                            event.preventDefault();
+                            setDragEnterState(null);
+
+                            if (!isDraggingFileWithin && dragEnterState?.hasNonTextType) {
+                                drop(event.dataTransfer);
+                            }
+                        }}
                     >
                         {isEditingMessage && (
                             <Box
@@ -1218,7 +1303,13 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         </MenuButton>
                                     )}
                                 </Box>
-                                <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
+                                <FocusRing
+                                    offset="border"
+                                    isVisible={
+                                        !isDraggingFileWithin && dragEnterState?.hasNonTextType
+                                    }
+                                    isVisibleWhenFocusWithin={true}
+                                >
                                     <Box
                                         ref={useScrollbar({
                                             insetTop:
@@ -1253,6 +1344,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     spacingScale
                                                 ],
                                         }}
+                                        // Turn off pointer events when we've dragged a file over this input. Otherwise
+                                        // the file is uploaded twice! Since we upload once for the `onDrop` handler on
+                                        // our parent element and again for the `onDrop` handler on the
+                                        // `<ContentEditor>`.
+                                        pointerEvents={
+                                            !isDraggingFileWithin && dragEnterState?.hasNonTextType
+                                                ? "none"
+                                                : undefined
+                                        }
                                     >
                                         <ContentBlockWidthContextProvider
                                             maxWidth={contentStyles.contentMaxWidth}

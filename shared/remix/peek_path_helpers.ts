@@ -3,8 +3,6 @@ import {RouteLayout} from "~/shared/design/core/route_layout.js";
 
 const spacePathRegExp = /^(\/s\/[^/]+\/)(?!peek)(.*)$/;
 const peekPathRegExp = /^(\/s\/[^/]+)\/peek(\/.*)$/;
-const peekPathnameWithGroupsRegExp =
-    /^(\/s\/[^/]+)\/peek((?<taskDetail>\/tasks\/[^/]+)|(?<taskComments>\/tasks\/[^/]+\/comments)|\/.*)$/;
 
 /**
  * Is the provided path a peek path?
@@ -75,40 +73,14 @@ export function convertPeekPathToSpacePath(
 export function convertPeekPathToSpacePathParts(
     pathname: string,
     search: string | URLSearchParams,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     {routeLayout}: {routeLayout: RouteLayout},
 ): {pathnameParts: [string, string]; search: string} | null {
-    const match = pathname.match(peekPathnameWithGroupsRegExp);
+    const match = pathname.match(peekPathRegExp);
     if (!match) return null;
 
     const pathnamePart1 = match[1]!;
-    let pathnamePart2 = match[2]!;
-
-    // We keep track in `localStorage` of whether comments were opened in wide
-    // `routeLayout` task detail views so that when the user navigates back to the
-    // task detail view we can preserve the comment open/close state.
-    if (routeLayout !== "narrow" && match.groups?.taskDetail) {
-        search = new URLSearchParams(search);
-
-        if (
-            search.get("comments") !== "show" &&
-            localStorage.getItem(`cyberworlds/taskShowComments/${pathnamePart2.slice(7)}`) ===
-                "true"
-        ) {
-            search.set("comments", "show");
-        }
-    }
-
-    // On desktop we do not want expanding a peek from task comments to navigate
-    // to task comments route and then redirect to the main Task route. This check
-    // allows us to directly navigate to the Task route on desktop.
-    if (routeLayout !== "narrow" && match.groups?.taskComments) {
-        pathnamePart2 = pathnamePart2.slice(0, -9);
-
-        // Make sure we show the comments when to `<TaskDetailView>` in a wide layout.
-        search = new URLSearchParams(search);
-        search.delete("from");
-        search.set("comments", "show");
-    }
+    const pathnamePart2 = match[2]!;
 
     return {
         pathnameParts: [pathnamePart1, pathnamePart2],

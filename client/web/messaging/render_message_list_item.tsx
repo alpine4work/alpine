@@ -21,6 +21,7 @@ import {
     messagingViewMarginBottom,
 } from "~/client/web/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewItem} from "~/client/web/virtualized/virtualized_scroll_view.js";
+import {Spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -80,7 +81,7 @@ export function renderMessageListItem<
     onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
     onUpdateMessagesOptimistically: Memo<OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>>;
     roomDisplayedCreatedTime?: Date | undefined;
-    shouldAddMarginTop?: boolean;
+    shouldAddMarginTop?: boolean | Spacing;
     shouldAddMarginBottom?: boolean | string;
     render?: (node: ReactNode) => ReactElement;
 }): VirtualizedScrollViewItem {
@@ -212,7 +213,15 @@ export function renderMessageListItem<
                                           }),
                                 }}
                             >
-                                {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
+                                {shouldAddMarginTop && (
+                                    <Spacer
+                                        space={
+                                            typeof shouldAddMarginTop === "string"
+                                                ? shouldAddMarginTop
+                                                : messageViewMarginY
+                                        }
+                                    />
+                                )}
                                 {render(isScrolling)}
                                 {shouldAddMarginBottom && (
                                     <div
@@ -229,7 +238,15 @@ export function renderMessageListItem<
                     } else {
                         const node = customRender(
                             <>
-                                {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
+                                {shouldAddMarginTop && (
+                                    <Spacer
+                                        space={
+                                            typeof shouldAddMarginTop === "string"
+                                                ? shouldAddMarginTop
+                                                : messageViewMarginY
+                                        }
+                                    />
+                                )}
                                 {render(isScrolling)}
                                 {shouldAddMarginBottom && (
                                     <div

@@ -1,6 +1,18 @@
 {
     "tab_size": 4,
     "prettier": {
-        "allowed": true,
+        "allowed": true
     },
+    "lsp": {
+        // https://github.com/zed-industries/zed/issues/6115#issuecomment-2709471139
+        "vtsls": {
+            "settings": {
+                "typescript": {
+                    "preferences": {
+                        "importModuleSpecifier": "non-relative"
+                    }
+                }
+            }
+        }
+    }
 }

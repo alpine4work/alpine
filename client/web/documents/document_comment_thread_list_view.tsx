@@ -12,7 +12,6 @@ import {
     useState,
 } from "react";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
-import {useMessagingViewDropTarget} from "~/client/web/content/messaging/use_messaging_view_drop_target.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/web/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/web/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {DocumentCommentInput} from "~/client/web/documents/internal/document_comment_input.js";
@@ -682,13 +681,7 @@ function DocumentCommentThreadListView(
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
-    //
-    // Unless we are replying to a message or editing a message. Then we should
-    // anchor to the message in question. Similar code also exists in
-    // `post_list_view.tsx` and `messaging_view.tsx`. If we update the code here
-    // we also probably need to update there.
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
-        isPinned: true,
         getAnchorPosition: useEvent(oldVisibleRect => {
             // NOTE(calebmer, 2024-07-16): We used to anchor chat view scroll to the
             // message the user was replying to or editing. However, in practice this felt
@@ -698,7 +691,7 @@ function DocumentCommentThreadListView(
             // To look at the old message anchoring code, git blame this comment to see the
             // commit where I remove it.
 
-            return {top: oldVisibleRect.bottom, height: 0};
+            return {top: oldVisibleRect.bottom, height: 0, isPinned: true};
         }),
         // Don't consider the background slop as valid scrollable area...
         scrollableInsetBottom: isSingleCommentThreadWithPinnedCommentInput
@@ -727,50 +720,6 @@ function DocumentCommentThreadListView(
             : null,
         isSingleCommentThreadWithPinnedCommentInput ? (pinnedCommentInputRef ?? null) : null,
     );
-
-    const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
-        isDisabled: messageEditing.state.isEditing,
-        onDrop: event => {
-            const view = assertExists(viewRef.current);
-            const renderedRange = view.getRenderedRange();
-            if (!renderedRange) return null;
-
-            const offset =
-                event.clientY -
-                view.getElement().getBoundingClientRect().top +
-                view.getScrollOffset();
-
-            // Find the item that contains `offset`. Written so that if `offset` is above
-            // the virtualized scroll view we'll return the first index and if it's below
-            // the virtualized scroll view we'll return the last index.
-            let aboveIndex: number | null = null;
-            for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
-                const position = view.getPositionByIndex(index);
-                aboveIndex = index;
-                if (offset < position.offset + position.height) break;
-            }
-
-            if (aboveIndex === null) return null;
-
-            if (header) {
-                if (aboveIndex === 0) {
-                    // If we're above the header then we want to call `tree.getItem(0)`. However,
-                    // first check if the tree is empty. If it's empty then return null.
-                    if (tree.getItemCount() === 0) return null;
-                } else {
-                    // Adjust index so it's relative to `tree` data structure for the rest of
-                    // this function.
-                    aboveIndex -= 1;
-                }
-            }
-
-            const item = tree.getItem(aboveIndex);
-
-            return assertExists(inputRefByCommentThreadId.get(item.commentThread.id).current).drop(
-                event.dataTransfer,
-            );
-        },
-    });
 
     const handleSetMessageReaction: Memo<OnSetMessageReactionFunction<DocumentCommentRoomKey>> =
         useCallback(
@@ -1152,7 +1101,6 @@ function DocumentCommentThreadListView(
                         key: `DocumentCommentInput:${item.commentThread.id}`,
                         minHeight: messageInputMinHeightPx[platform][spacingScale],
                         withManualLayout: true,
-                        stayCompletelyVisibleAfterResize: true,
                         render: ({
                             ref,
                             offset,
@@ -1265,7 +1213,6 @@ function DocumentCommentThreadListView(
         <>
             {modals}
             <div
-                {...dropTargetProps}
                 data-testid="DocumentCommentThreadListView"
                 className={sprinkles({
                     flexGrow: "1",
@@ -1278,7 +1225,6 @@ function DocumentCommentThreadListView(
                     flexDirection: "column",
                 })}
             >
-                {dragOverlay}
                 {withSafeAreaInsetTop && !navigationBar?.navigationBar && (
                     // Only render a safe area cover if we don't have a navigation bar. Otherwise
                     // the navigation bar acts as our safe area cover.

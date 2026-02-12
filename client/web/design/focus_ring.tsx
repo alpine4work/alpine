@@ -204,6 +204,7 @@ function FocusRing(
             sameHeight={true}
             overlay={
                 <div
+                    data-testid={process.env.NODE_ENV !== "production" ? "FocusRing" : undefined}
                     // Optimization: `<FocusRing>` is rendered hot code paths. Don't call
                     // `sprinkles()` if we can avoid it.
                     className={

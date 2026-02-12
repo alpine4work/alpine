@@ -1,5 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
-import {CaretRight, ChatCircleDots, Link as LinkIcon, Lock} from "phosphor-react";
+import {CaretRight, Link as LinkIcon, Lock} from "phosphor-react";
 import {
     Memo,
     ReactElement,
@@ -20,6 +20,7 @@ import {
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {ContentDuplicationInstructionalModal} from "~/client/web/content/content_duplication_instructional_modal.js";
 import {ContentEditorRef} from "~/client/web/content/content_editor.js";
+import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -34,24 +35,48 @@ import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_aft
 import {Spacer} from "~/client/web/design/spacer.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
 import {useTouchSlop} from "~/client/web/design/use_touch_slop.js";
+import {isElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
-import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
+import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
+import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
+import {useMessageEditing} from "~/client/web/messaging/message_editing.js";
+import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
+import {MessagingViewPointerToolbar} from "~/client/web/messaging/messaging_view_pointer_toolbar.js";
+import {
+    getMessageListItemKey,
+    renderMessageListItem,
+} from "~/client/web/messaging/render_message_list_item.js";
+import {
+    OnDeleteMessageReactionFunction,
+    OnSetMessageReactionFunction,
+    OnUpdateMessagesOptimisticallyFunction,
+} from "~/client/web/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
+import {tryLoadingMessages} from "~/client/web/messaging/try_loading_messages.js";
+import {useJumpToMessageRange} from "~/client/web/messaging/use_jump_to_message_range.js";
+import {useMessagingRealtime} from "~/client/web/messaging/use_messaging_realtime.js";
+import {useScrollToNewMessages} from "~/client/web/messaging/use_scroll_to_new_messages.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {usePeekStackContextIfExists} from "~/client/web/peek/peek_stack_context.js";
-import {useClientInfo} from "~/client/web/remix/client_info_context.js";
+
+import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {postContentViewCommentMargin} from "~/client/web/styles/forum_shared_styles.js";
+import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
+    taskDetailViewCommentSectionHeaderHeightPx,
     taskDetailViewDenseFieldGap,
     taskDetailViewDenseFieldMinHeight,
     taskDetailViewFieldLabelColor,
@@ -75,6 +100,8 @@ import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/c
 import {
     TaskAccess,
     computeTaskEntryAccess,
+    createTaskEntryAccessStore,
+    getPermissionGrantedTaskAccess,
 } from "~/client/web/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActionsWithoutFullTask} from "~/client/web/tasks/internal/get_task_status_menu_actions.js";
@@ -88,6 +115,7 @@ import {
     TaskCollectionsInput,
     TaskCollectionsInputRef,
 } from "~/client/web/tasks/internal/task_collections_input.js";
+import {TaskCommentInput} from "~/client/web/tasks/internal/task_comment_input.js";
 import {TaskDateInput} from "~/client/web/tasks/internal/task_date_input.js";
 import {
     TaskDetailNotesField,
@@ -101,12 +129,15 @@ import {useTaskGridViewVirtualizedList} from "~/client/web/tasks/internal/task_g
 import {TaskGridViewVirtualizedListViewRef} from "~/client/web/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskPriorityInput} from "~/client/web/tasks/internal/task_priority_input.js";
 import {TaskStatusButton} from "~/client/web/tasks/internal/task_status_button.js";
+import {useTaskDetailNotesContentEditorWebSocketClient} from "~/client/web/tasks/internal/use_task_detail_notes_content_editor_web_socket_client.js";
 import {TaskUndoStackEntry} from "~/client/web/tasks/internal/use_task_undo_stack_state.js";
 import {TaskChildTasksProgressWheel} from "~/client/web/tasks/task_child_tasks_progress_wheel.js";
 import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
+import {taskDetailViewLoadMoreChildTasksLimit} from "~/client/web/tasks/task_detail_view_load_more_child_tasks_limit.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
+    VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {
@@ -121,24 +152,37 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {InternalError, OutOfRangeError, PermissionDeniedError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
+import {
+    getTaskCommentsFromEnd,
+    getTaskCommentsFromStart,
+} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
+import {
+    taskDeletedErrorDisplayMessage,
+    taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+} from "~/shared/tasks/task_error_messages.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
@@ -149,42 +193,42 @@ import {
     emptyTaskTitleModel,
     taskFallbackTitle,
 } from "~/shared/tasks/title/task_title.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export function TaskDetailView({
-    taskId,
+    taskId: possiblyGhostTaskId,
     store,
-    taskAccess: access,
     taskSubscription,
     childrenQuery,
     initialChildrenGridViewExpansionState,
     initialFields,
     initialIsFavorite,
-    notesEditorStateStore,
-    onNotesEditorStateChange,
-    reconnectNotesClient,
+    initialNotesVersion,
+    initialNotesContent,
     affinityManager,
     shouldInitiallyFocus,
-    showComments,
-    onShowCommentsChange,
+    initialComments,
+    initialScrollToCommentIndex,
     commitActionTransactionAndCreateIfNeeded,
 }: {
     taskId: TaskId;
     store: TaskClientStore;
-    taskAccess: TaskAccess;
     taskSubscription: TaskClientTaskSubscription | null;
     childrenQuery: TaskClientQuery | null;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
     initialIsFavorite: boolean;
-    notesEditorStateStore: Store<TaskNotesContentEditorState>;
-    onNotesEditorStateChange: Memo<
-        (state: ContentEditorState<TaskNotesContentWithReferences>) => void
-    >;
-    reconnectNotesClient: Memo<() => void>;
+    initialNotesVersion: number;
+    initialNotesContent: TaskNotesContentWithReferences;
     affinityManager: TaskClientStoreSearchAffinityManager;
     shouldInitiallyFocus: boolean;
-    showComments: boolean;
-    onShowCommentsChange: Memo<(showComments: boolean) => void>;
+    initialComments: {
+        checkpoint: ServerSynchronizationCheckpoint;
+        commentCount: number;
+        comments: ReadonlyArray<TaskCommentModel>;
+        otherReferencedComments: ReadonlyArray<TaskCommentModel>;
+    };
+    initialScrollToCommentIndex: number | null;
     commitActionTransactionAndCreateIfNeeded: Memo<
         (
             getActions: () => Iterable<TaskActionModel>,
@@ -210,6 +254,195 @@ export function TaskDetailView({
     } = useSpaceContext();
     const peekStackContext = usePeekStackContextIfExists();
 
+    /* ========================================================================= *\
+     *                             Task access check                             *
+    \* ========================================================================= */
+
+    const access = useStore(
+        useMemo((): Store<TaskAccess> => {
+            // If there's no task subscription that's because we're creating the task. The
+            // task creator always has edit access.
+            if (!taskSubscription) return new ConstStore(getPermissionGrantedTaskAccess("Edit"));
+
+            return createTaskEntryAccessStore(
+                currentAccount?.id,
+                taskSubscription,
+                taskSubscription.taskEntryStore,
+            );
+        }, [currentAccount?.id, taskSubscription]),
+    );
+
+    if (access.level === null) {
+        if (access.type === "Deleted") {
+            throw new PermissionDeniedError("Current account lost access to task (deleted)", {
+                displayMessage: taskDeletedErrorDisplayMessage,
+            });
+        } else {
+            throw new PermissionDeniedError(
+                "Current account lost access to task (policy updated)",
+                {
+                    displayMessage:
+                        taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+                },
+            );
+        }
+    }
+
+    /* ========================================================================= *\
+     *                        Task detail notes WebSocket                        *
+    \* ========================================================================= */
+
+    const {
+        isConnected,
+        editorStateStore: notesEditorStateStore,
+        onEditorStateChange: onNotesEditorStateChange,
+        reconnect: reconnectNotesClient,
+        procedures,
+        subscribeToCommentsEvents,
+        subscribeToPongs,
+    } = useTaskDetailNotesContentEditorWebSocketClient({
+        taskId: possiblyGhostTaskId,
+        taskSubscription,
+        accessLevel: access.level,
+        initialNotesVersion,
+        initialNotesContent,
+        affinityManager,
+        commitActionTransactionAndCreateIfNeeded,
+    });
+
+    /* ========================================================================= *\
+     *                                  Fields                                   *
+    \* ========================================================================= */
+
+    // IMPORTANT: Do not `useStore(taskSubscription?.taskEntryStore)` in this
+    // component! We don't want to re-render the entire virtualized scroll view
+    // (containing child tasks and comments) every time the task title updates.
+    // Instead use `Store.map()` to subscribe to individual pieces of data that are
+    // automatically memoized.
+
+    const displayStatus = useStore(
+        useMemo(
+            (): Store<TaskDisplayStatus> =>
+                taskSubscription?.taskEntryStore.map(
+                    ({task}) => task?.getDisplayStatus() ?? "OpenInactive",
+                ) ??
+                new ConstStore(
+                    initialFields.status === "Closed"
+                        ? "Closed"
+                        : initialFields.assigneeStatus === "Active"
+                          ? "OpenActive"
+                          : "OpenInactive",
+                ),
+            [initialFields.assigneeStatus, initialFields.status, taskSubscription?.taskEntryStore],
+        ),
+    );
+    const isPriorityDefined = useStore(
+        useMemo(
+            () =>
+                taskSubscription?.taskEntryStore.map(({task}) => !!task?.getPriority()) ??
+                new ConstStore(initialFields.priority !== null),
+            [initialFields.priority, taskSubscription?.taskEntryStore],
+        ),
+    );
+    const isDueDateDefined = useStore(
+        useMemo(
+            () =>
+                taskSubscription?.taskEntryStore.map(({task}) => !!task?.getDueDate()) ??
+                new ConstStore(initialFields.dueDate !== null),
+            [initialFields.dueDate, taskSubscription?.taskEntryStore],
+        ),
+    );
+    const childTaskCount = useStore(
+        useMemo(
+            () =>
+                taskSubscription?.taskEntryStore.map(({task}) => task?.getChildTaskCount() ?? 0) ??
+                new ConstStore(0),
+            [taskSubscription?.taskEntryStore],
+        ),
+    );
+
+    const statusButtonRef = useRef<HTMLElement>(null);
+    const titleInputRef = useRef<TaskDetailTitleInputRef>(null);
+    const titleInputElementRef = useRef<HTMLDivElement>(null);
+    const priorityInputRef = useRef<HTMLDivElement>(null);
+    const dueDateInputRef = useRef<HTMLDivElement>(null);
+
+    const [priorityInputState, setPriorityInputState] = useState<TaskDetailViewInputState>(
+        isPriorityDefined
+            ? initialVisibleTaskDetailViewInputState
+            : initialNotVisibleTaskDetailViewInputState,
+    );
+
+    if (
+        priorityInputState.isVisible &&
+        !priorityInputState.isFocused &&
+        !priorityInputState.shouldFocus &&
+        !isPriorityDefined
+    ) {
+        // In task row dense fields we hide the priority field when the value is set to
+        // null. But since the user may actively be editing the field in detail view,
+        // keep it around.
+    }
+
+    if (!priorityInputState.isVisible && isPriorityDefined) {
+        setPriorityInputState(initialVisibleTaskDetailViewInputState);
+    }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (priorityInputState.isVisible && priorityInputState.shouldFocus) {
+            assertExists(
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(priorityInputRef.current),
+                }),
+            ).focus({preventScroll: priorityInputState.shouldFocusPreventScroll});
+
+            setPriorityInputState(priorityInputState => {
+                if (!priorityInputState.isVisible) return priorityInputState;
+                return {...priorityInputState, shouldFocus: false, shouldFocusPreventScroll: false};
+            });
+        }
+    }, [priorityInputState]);
+
+    const [dueDateInputState, setDueDateInputState] = useState<TaskDetailViewInputState>(
+        isDueDateDefined
+            ? initialVisibleTaskDetailViewInputState
+            : initialNotVisibleTaskDetailViewInputState,
+    );
+
+    if (
+        dueDateInputState.isVisible &&
+        !dueDateInputState.isFocused &&
+        !dueDateInputState.shouldFocus &&
+        !isDueDateDefined
+    ) {
+        // In task row dense fields we hide the due date field when the value is set to
+        // null. But since the user may actively be editing the field in detail view,
+        // keep it around.
+    }
+
+    if (!dueDateInputState.isVisible && isDueDateDefined) {
+        setDueDateInputState(initialVisibleTaskDetailViewInputState);
+    }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
+            assertExists(
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(dueDateInputRef.current),
+                }),
+            ).focus({preventScroll: dueDateInputState.shouldFocusPreventScroll});
+
+            setDueDateInputState(dueDateInputState => {
+                if (!dueDateInputState.isVisible) return dueDateInputState;
+                return {...dueDateInputState, shouldFocus: false, shouldFocusPreventScroll: false};
+            });
+        }
+    }, [dueDateInputState]);
+
+    /* ========================================================================= *\
+     *                           Child tasks grid view                           *
+    \* ========================================================================= */
+
     const mainRef = useRef<TaskDetailViewMainRef>(null);
 
     const hasEditAccessLevel = useMemo(() => hasAccessLevel(access.level, "Edit"), [access.level]);
@@ -219,19 +452,22 @@ export function TaskDetailView({
 
     const shiftRenderedRangeForChildrenGridView = useCallback(
         (range: {startIndex: number; endIndex: number} | null) => {
-            if (!range) {
+            const previousItemCount = 1;
+            const itemCount = childrenGridViewItemCountRef.current;
+
+            if (!range) return null;
+            if (itemCount === 0) return null;
+
+            const startIndex = range.startIndex - previousItemCount;
+            const endIndex = range.endIndex - previousItemCount;
+
+            if (endIndex < 0 || startIndex >= itemCount) {
                 return null;
             } else {
-                const startIndex = range.startIndex - 1;
-                const endIndex = range.endIndex - 1;
-                if (endIndex < 0) {
-                    return null;
-                } else {
-                    return {
-                        startIndex: Math.max(0, startIndex),
-                        endIndex,
-                    };
-                }
+                return {
+                    startIndex: Math.max(startIndex, 0),
+                    endIndex: Math.min(endIndex, itemCount - 1),
+                };
             }
         },
         [],
@@ -320,7 +556,7 @@ export function TaskDetailView({
         // `childrenQuery` switches between null and a proper value. That way our
         // subtasks, undo state, and grid view expansion state don't change when we
         // switch from `query: null` to the actual children query subscription.
-        stateKey: taskId,
+        stateKey: possiblyGhostTaskId,
         query: childrenQuery
             ? {
                   query: childrenQuery,
@@ -329,6 +565,19 @@ export function TaskDetailView({
             : null,
         withBottomGhostTaskIfNullQuery: !childrenQuery,
         commitActionTransaction: !childrenQuery ? commitActionTransactionAndCreateIfNeeded : null,
+
+        // Instead of implicitly loading more tasks when scrolling, the user must
+        // explicitly load more tasks by pressing a "load more" button. That way we
+        // don't get into weird states where the user has scrolled down to look at
+        // comments and the comments jump around because we're loading the end of the
+        // task's child tasks
+        explicitLoadMoreButton: useMemo(
+            () => ({
+                totalTaskCount: childTaskCount,
+                loadMoreTasksLimit: taskDetailViewLoadMoreChildTasksLimit,
+            }),
+            [childTaskCount],
+        ),
 
         affinityManager,
         rowMaxWidth: contentStyles.contentMaxWidth,
@@ -351,7 +600,7 @@ export function TaskDetailView({
                     taskId: childTaskId,
                     taskAction: {
                         type: "UpdateParentTaskId",
-                        parentTaskId: taskId,
+                        parentTaskId: possiblyGhostTaskId,
                     },
                 },
                 {
@@ -379,7 +628,7 @@ export function TaskDetailView({
             },
         ],
         onApplyUndoStackEntry: ({type, target, entry, undoManager}) => {
-            if (target.taskId !== taskId) return {preventDefault: false};
+            if (target.taskId !== possiblyGhostTaskId) return {preventDefault: false};
 
             switch (entry.type) {
                 case "Actions": {
@@ -451,140 +700,400 @@ export function TaskDetailView({
 
             return {preventDefault: true};
         },
-        getAnchorPosition: useCallback(() => {
+        getAnchorPosition: useCallback((oldVisibleRect: {top: number; bottom: number}) => {
+            const {activeElement} = document;
+            const viewContentElement = assertExists(viewRef.current).getContentElement();
+
             const main = assertExists(mainRef.current);
             const editor = main.getNotesEditorIfExists();
 
             // We'll get our anchor position from the editor if it exists and is focused.
-            if (!editor || !editor.isFocused()) return null;
+            if (editor?.isFocused()) {
+                const editorState = editor.getState();
 
-            const editorState = editor.getState();
+                const coords = editor.coordsAtPos(editorState.getSelection().from);
 
-            const coords = editor.coordsAtPos(editorState.getSelection().from);
+                const spacingScale = getSpacingScaleWithoutListening();
+                const paragraphLineHeight = contentStyles.paragraphLineHeightPx[spacingScale];
 
-            const spacingScale = getSpacingScaleWithoutListening();
-            const paragraphLineHeight = contentStyles.paragraphLineHeightPx[spacingScale];
+                // Add a paragraph line height in either direction as slop. We consider the
+                // selection offscreen if there's less than a line of space between it and the
+                // keyboard.
+                return {
+                    top: coords.top - paragraphLineHeight,
+                    height: coords.bottom - coords.top + paragraphLineHeight * 2,
+                    isPinned: false,
+                };
+            }
 
-            // Add a paragraph line height in either direction as slop. We consider the
-            // selection offscreen if there's less than a line of space between it and the
-            // keyboard.
-            return {
-                top: coords.top - paragraphLineHeight,
-                height: coords.bottom - coords.top + paragraphLineHeight * 2,
-            };
+            // Pin to the bottom when comment input is focused. Or if nothing in the view
+            // is focused.
+            if (
+                commentInputRef.current?.isFocused() ||
+                !(activeElement instanceof Element) ||
+                !isElementOwnedBy(viewContentElement, activeElement)
+            ) {
+                return {top: oldVisibleRect.bottom, height: 0, isPinned: true};
+            }
+
+            return null;
         }, []),
     });
 
-    const displayStatus = useStore(
-        useMemo(
-            (): Store<TaskDisplayStatus> =>
-                taskSubscription?.taskEntryStore.map(
-                    ({task}) => task?.getDisplayStatus() ?? "OpenInactive",
-                ) ??
-                new ConstStore(
-                    initialFields.status === "Closed"
-                        ? "Closed"
-                        : initialFields.assigneeStatus === "Active"
-                          ? "OpenActive"
-                          : "OpenInactive",
-                ),
-            [initialFields.assigneeStatus, initialFields.status, taskSubscription?.taskEntryStore],
-        ),
-    );
-    const isPriorityDefined = useStore(
-        useMemo(
-            () =>
-                taskSubscription?.taskEntryStore.map(({task}) => !!task?.getPriority()) ??
-                new ConstStore(initialFields.priority !== null),
-            [initialFields.priority, taskSubscription?.taskEntryStore],
-        ),
-    );
-    const isDueDateDefined = useStore(
-        useMemo(
-            () =>
-                taskSubscription?.taskEntryStore.map(({task}) => !!task?.getDueDate()) ??
-                new ConstStore(initialFields.dueDate !== null),
-            [initialFields.dueDate, taskSubscription?.taskEntryStore],
-        ),
-    );
-
-    const statusButtonRef = useRef<HTMLElement>(null);
-    const titleInputRef = useRef<TaskDetailTitleInputRef>(null);
-    const titleInputElementRef = useRef<HTMLDivElement>(null);
-    const priorityInputRef = useRef<HTMLDivElement>(null);
-    const dueDateInputRef = useRef<HTMLDivElement>(null);
-
-    const [priorityInputState, setPriorityInputState] = useState<TaskDetailViewInputState>(
-        isPriorityDefined
-            ? initialVisibleTaskDetailViewInputState
-            : initialNotVisibleTaskDetailViewInputState,
-    );
-
-    if (
-        priorityInputState.isVisible &&
-        !priorityInputState.isFocused &&
-        !priorityInputState.shouldFocus &&
-        !isPriorityDefined
-    ) {
-        // In task row dense fields we hide the priority field when the value is set to
-        // null. But since the user may actively be editing the field in detail view,
-        // keep it around.
-    }
-
-    if (!priorityInputState.isVisible && isPriorityDefined) {
-        setPriorityInputState(initialVisibleTaskDetailViewInputState);
-    }
+    const childrenGridViewItemCountRef = useRef(childrenGridViewItemCount);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (priorityInputState.isVisible && priorityInputState.shouldFocus) {
-            assertExists(
-                getNextFocusableElementIfExists(null, {
-                    withinElement: assertExists(priorityInputRef.current),
-                }),
-            ).focus({preventScroll: priorityInputState.shouldFocusPreventScroll});
+        childrenGridViewItemCountRef.current = childrenGridViewItemCount;
+    });
 
-            setPriorityInputState(priorityInputState => {
-                if (!priorityInputState.isVisible) return priorityInputState;
-                return {...priorityInputState, shouldFocus: false, shouldFocusPreventScroll: false};
-            });
+    /* ========================================================================= *\
+     *                                 Comments                                  *
+    \* ========================================================================= */
+
+    const hasCommentAccess = useMemo(() => hasAccessLevel(access.level, "Comment"), [access.level]);
+
+    const [comments, setComments, setCommentsOptimistically] = useStateWithOptimisticUpdates(() => {
+        return MessageList.new<TaskCommentModel>({
+            checkpoint: initialComments.checkpoint,
+            messageCount: initialComments.commentCount,
+        }).loadMessages({
+            messageCount: initialComments.commentCount,
+            messages: initialComments.comments,
+            otherReferencedMessages: initialComments.otherReferencedComments,
+        });
+    });
+
+    const commentInputRef = useRef<MessageInputRef | null>(null);
+    const setErrorState = useErrorState();
+
+    const [isCommentSectionVisible, setIsCommentSectionVisible] =
+        useState<boolean>(hasCommentAccess);
+
+    // If we lose comment access, immediately hide the comment section.
+    if (isCommentSectionVisible && !hasCommentAccess) setIsCommentSectionVisible(false);
+
+    const isLoadingInitialCommentsAfterAccessChangeRef = useRef(false);
+
+    // If we gain access to comments on this task in realtime then load new
+    // comments from the server and set them in our state before we make the
+    // comment section visible.
+    useEffect(() => {
+        if (!(!isCommentSectionVisible && hasCommentAccess)) {
+            isLoadingInitialCommentsAfterAccessChangeRef.current = false;
+            return;
         }
-    }, [priorityInputState]);
 
-    const [dueDateInputState, setDueDateInputState] = useState<TaskDetailViewInputState>(
-        isDueDateDefined
-            ? initialVisibleTaskDetailViewInputState
-            : initialNotVisibleTaskDetailViewInputState,
-    );
+        if (isLoadingInitialCommentsAfterAccessChangeRef.current) return;
+        isLoadingInitialCommentsAfterAccessChangeRef.current = true;
 
-    if (
-        dueDateInputState.isVisible &&
-        !dueDateInputState.isFocused &&
-        !dueDateInputState.shouldFocus &&
-        !isDueDateDefined
-    ) {
-        // In task row dense fields we hide the due date field when the value is set to
-        // null. But since the user may actively be editing the field in detail view,
-        // keep it around.
-    }
+        getTaskCommentsFromStart(context, {
+            taskId: possiblyGhostTaskId,
+            limit: getInitialLoadMessageCount(getClientInfo()),
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        })
+            .then(output => {
+                const comments = MessageList.new<TaskCommentModel>({
+                    checkpoint: output.checkpoint,
+                    messageCount: output.commentCount,
+                }).loadMessages({
+                    messageCount: output.commentCount,
+                    messages: output.comments,
+                    otherReferencedMessages: output.otherReferencedComments,
+                });
 
-    if (!dueDateInputState.isVisible && isDueDateDefined) {
-        setDueDateInputState(initialVisibleTaskDetailViewInputState);
-    }
+                setComments(() => comments);
+                setIsCommentSectionVisible(true);
+            })
+            .catch(error => {
+                setErrorState(error);
+            });
+    }, [
+        context,
+        hasCommentAccess,
+        isCommentSectionVisible,
+        possiblyGhostTaskId,
+        setComments,
+        setErrorState,
+    ]);
+
+    const commentItemCount = comments.getItemCount();
+    const commentItemCountRef = useRef(commentItemCount);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
-            assertExists(
-                getNextFocusableElementIfExists(null, {
-                    withinElement: assertExists(dueDateInputRef.current),
-                }),
-            ).focus({preventScroll: dueDateInputState.shouldFocusPreventScroll});
+        commentItemCountRef.current = commentItemCount;
+    });
 
-            setDueDateInputState(dueDateInputState => {
-                if (!dueDateInputState.isVisible) return dueDateInputState;
-                return {...dueDateInputState, shouldFocus: false, shouldFocusPreventScroll: false};
+    const shiftRenderedRangeForComments = useCallback(
+        (range: {startIndex: number; endIndex: number} | null) => {
+            if (!isCommentSectionVisible) return null;
+
+            const previousItemCount = 1 + childrenGridViewItemCountRef.current + 1;
+            const itemCount = commentItemCountRef.current;
+
+            if (!range) return null;
+            if (itemCount === 0) return null;
+
+            const startIndex = range.startIndex - previousItemCount;
+            const endIndex = range.endIndex - previousItemCount;
+
+            if (endIndex < 0 || startIndex >= itemCount) {
+                return null;
+            } else {
+                return {
+                    startIndex: Math.max(startIndex, 0),
+                    endIndex: Math.min(endIndex, itemCount - 1),
+                };
+            }
+        },
+        [isCommentSectionVisible],
+    );
+
+    const isLoadingCommentsRef = useRef(false);
+
+    const tryLoadingMoreCommentsData = useEvent(
+        (
+            renderedRange: {startIndex: number; endIndex: number} | null,
+        ): {isLoading: false} | {isLoading: true; promise: Promise<void>} => {
+            // If we're already loading, don't try to load more comments.
+            if (isLoadingCommentsRef.current) return {isLoading: false};
+
+            const result = actuallyTryLoadingMoreData(renderedRange);
+            if (!result.isLoading) return result;
+
+            isLoadingCommentsRef.current = true;
+            result.promise.then(
+                () => {
+                    isLoadingCommentsRef.current = false;
+                },
+                error => {
+                    isLoadingCommentsRef.current = false;
+                    setErrorState(error);
+                },
+            );
+            return result;
+
+            // Try to load more data without worrying about managing coordination with
+            // `isLoadingRef` or error handling.
+            function actuallyTryLoadingMoreData(
+                renderedRange: {startIndex: number; endIndex: number} | null,
+            ): {isLoading: false} | {isLoading: true; promise: Promise<void>} {
+                renderedRange = shiftRenderedRangeForComments(renderedRange);
+                if (!renderedRange) return {isLoading: false};
+
+                const view = assertExists(viewRef.current);
+
+                const result = tryLoadingMessages({
+                    viewHeight: view.getHeight(),
+                    messages: comments,
+                    range: renderedRange,
+                    loadFromStart: async input => {
+                        // We don't use `checkpoint` here since this is a partial load of data.
+                        // `checkpoint` should represent a point in time at which we're fully
+                        // synchronized with the server. We wouldn't want to jump `checkpoint` ahead
+                        // for a load of new messages when in fact our previous messages are behind.
+                        // Instead, while we're connected to the WebSocket we'll update `checkpoint` on
+                        // every ping which is a much better indicator of "liveness" than last partial
+                        // load time (which would be this `checkpoint`).
+                        //
+                        // We only use the `checkpoint` from `getTaskCommentsFromStart()` when
+                        // initializing our `MessageList` from scratch (at which point it's not a
+                        // partial load).
+                        const {commentCount, comments, otherReferencedComments} =
+                            await getTaskCommentsFromStart(context, {
+                                taskId: possiblyGhostTaskId,
+                                limit: input.limit,
+                                afterCommentIndex: input.afterMessageIndex,
+                                beforeCommentIndex: input.beforeMessageIndex,
+                            });
+                        return {
+                            messageCount: commentCount,
+                            messages: comments,
+                            otherReferencedMessages: otherReferencedComments,
+                        };
+                    },
+                    loadFromEnd: async input => {
+                        const {commentCount, comments, otherReferencedComments} =
+                            await getTaskCommentsFromEnd(context, {
+                                taskId: possiblyGhostTaskId,
+                                limit: input.limit,
+                                afterCommentIndex: input.afterMessageIndex,
+                                beforeCommentIndex: input.beforeMessageIndex,
+                            });
+                        return {
+                            messageCount: commentCount,
+                            messages: comments,
+                            otherReferencedMessages: otherReferencedComments,
+                        };
+                    },
+                });
+
+                if (!result.isLoading) return {isLoading: false};
+
+                return {
+                    isLoading: true,
+                    promise: result.promise.then(result => {
+                        setComments(comments => comments.loadMessages(result));
+                    }),
+                };
+            }
+        },
+    );
+
+    // Whenever our list data changes, try loading more comments. In case our
+    // rendered range stayed the same but we see some some unloaded comments.
+    //
+    // This effect should also fire when `tryLoadingMoreCommentsData()` completes
+    // in case it didn't fully load the list.
+    useEffect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        comments;
+
+        const view = assertExists(viewRef.current);
+        tryLoadingMoreCommentsData(view.getRenderedRange());
+    }, [comments, tryLoadingMoreCommentsData]);
+
+    // Manages which comment `<MessageInput>` is currently replying to.
+    const [commentInputParent, setCommentInputParent] =
+        useState<MessageContentPayloadParent | null>(null);
+
+    const {jumpState: commentsJumpState, jumpToMessageRange: jumpToCommentRange} =
+        useJumpToMessageRange({
+            viewRef,
+            tryLoadingMoreData: tryLoadingMoreCommentsData,
+            scrollToIndexForMessageIndex: (roomKey, index) => {
+                if (!isCommentSectionVisible) return null;
+                return 1 + childrenGridViewItemCountRef.current + 1 + index;
+            },
+        });
+
+    useMessagingRealtime<TaskId, TaskCommentModel>({
+        isConnected: isConnected && isCommentSectionVisible,
+        messages: comments,
+        onUpdateMessages: setComments,
+        backfillMessages: useCallback(
+            async ({
+                checkpoint,
+                clientMessageCount: clientCommentCount,
+                newMessageLimit: newCommentLimit,
+            }) => {
+                const {
+                    commentCount: messageCount,
+                    newComments: newMessages,
+                    newOtherReferencedComments: newOtherReferencedMessages,
+                    commentUpdatesResult: messageUpdatesResult,
+                    typingStateByConnectionId,
+                } = await procedures.backfillComments({
+                    checkpoint,
+                    clientCommentCount,
+                    newCommentLimit,
+                });
+
+                return {
+                    messageCount,
+                    newMessages,
+                    newOtherReferencedMessages,
+                    messageUpdatesResult,
+                    typingStateByConnectionId,
+                };
+            },
+            [procedures],
+        ),
+        subscribeToEvents: useCallback(
+            listener => {
+                if (!isCommentSectionVisible) return noop;
+                return subscribeToCommentsEvents(listener);
+            },
+            [isCommentSectionVisible, subscribeToCommentsEvents],
+        ),
+        subscribeToPongs: useCallback(
+            listener => {
+                if (!isCommentSectionVisible) return noop;
+                return subscribeToPongs(listener);
+            },
+            [isCommentSectionVisible, subscribeToPongs],
+        ),
+    });
+
+    // Manages the editable message.
+    //
+    // This is at the post list level because we want only one message to be
+    // editable at a time.
+    const {messageEditing: commentEditing, modals: commentEditingModals} =
+        useMessageEditing<TaskId>({
+            messageNoun: "comment",
+            onUpdateMessageContent: async input => {
+                await procedures.updateCommentContent({
+                    commentIndex: input.messageIndex,
+                    contentVersion: input.contentVersion,
+                    steps: input.steps,
+                });
+            },
+            onDeleteMessage: async input => {
+                await procedures.deleteComment({
+                    commentIndex: input.messageIndex,
+                });
+            },
+        });
+
+    if (!isCommentSectionVisible && commentEditing.state.isEditing) {
+        commentEditing.dispatch({type: "CancelEditing"});
+    }
+
+    useScrollToNewMessages({
+        viewRef,
+        inputRef: commentInputRef,
+        isInputStickyPositioned: true,
+        messages: isCommentSectionVisible ? comments : null,
+        getItemKey: useCallback(
+            (item: MessageListItem<TaskCommentModel>) => getMessageListItemKey(item, null),
+            [],
+        ),
+    });
+
+    const handleSetCommentReaction: Memo<OnSetMessageReactionFunction<TaskId>> = useCallback(
+        async (roomKey, input) => {
+            await procedures.setCommentReaction({
+                commentIndex: input.messageIndex,
+                contentVersion: input.contentVersion,
+                pos: input.pos,
+                reaction: input.reaction,
             });
-        }
-    }, [dueDateInputState]);
+        },
+        [procedures],
+    );
+
+    const handleDeleteCommentReaction: Memo<OnDeleteMessageReactionFunction<TaskId>> = useCallback(
+        async (roomKey, input) => {
+            await procedures.deleteCommentReaction({
+                commentIndex: input.messageIndex,
+                contentVersion: input.contentVersion,
+                pos: input.pos,
+            });
+        },
+        [procedures],
+    );
+
+    const handleUpdateCommentsOptimistically: Memo<
+        OnUpdateMessagesOptimisticallyFunction<TaskId, TaskCommentModel>
+    > = useCallback(
+        (roomKey, promise, update) => {
+            setCommentsOptimistically(promise, update);
+        },
+        [setCommentsOptimistically],
+    );
+
+    const commentsPointerToolbar = (
+        <MessagingViewPointerToolbar<TaskId, TaskCommentModel>
+            viewRef={viewRef}
+            messageNoun="comment"
+            getMessagesByRoomKey={useCallback(() => comments, [comments])}
+            onReplyToMessagesRange={(roomKey, parent) => setCommentInputParent(parent)}
+            onSetMessageReaction={handleSetCommentReaction}
+            onDeleteMessageReaction={handleDeleteCommentReaction}
+            onUpdateMessagesOptimistically={handleUpdateCommentsOptimistically}
+        />
+    );
 
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
@@ -593,12 +1102,32 @@ export function TaskDetailView({
 
         const titleInput = assertExists(titleInputRef.current);
 
-        if (!shouldInitiallyFocus) return;
+        if (initialScrollToCommentIndex !== null) {
+            jumpToCommentRange({
+                roomKey: possiblyGhostTaskId,
+                startIndex: initialScrollToCommentIndex,
+                endIndex: initialScrollToCommentIndex,
+                start: null,
+                end: null,
+            });
+        }
 
-        return scheduleAfterNavigationAnimation(() => {
-            titleInput.focusAll();
-        });
-    }, [shouldInitiallyFocus, titleInputRef]);
+        if (shouldInitiallyFocus) {
+            return scheduleAfterNavigationAnimation(() => {
+                titleInput.focusAll();
+            });
+        }
+    }, [
+        initialScrollToCommentIndex,
+        jumpToCommentRange,
+        possiblyGhostTaskId,
+        shouldInitiallyFocus,
+        titleInputRef,
+    ]);
+
+    /* ========================================================================= *\
+     *                                  Events                                   *
+    \* ========================================================================= */
 
     const {
         undo,
@@ -649,6 +1178,10 @@ export function TaskDetailView({
         },
     });
 
+    /* ========================================================================= *\
+     *                                   Misc                                    *
+    \* ========================================================================= */
+
     // Checks if a user has confirmed a task can be completed
     const [taskCloseConfirmationState, setTaskCloseConfirmationState] = useState<{
         taskId: TaskId;
@@ -671,7 +1204,7 @@ export function TaskDetailView({
             pushUndoStackEntry: ({undoActions, removedFromQueries, leaseId, release}) => {
                 pushUndoStackEntry({
                     type: "Actions",
-                    rootParentTaskId: taskId,
+                    rootParentTaskId: possiblyGhostTaskId,
                     extra: null,
                     undoActions,
                     removedFromQueries,
@@ -680,18 +1213,21 @@ export function TaskDetailView({
                 });
             },
         }),
-        [pushUndoStackEntry, taskId],
+        [pushUndoStackEntry, possiblyGhostTaskId],
     );
 
     const commitActionTransaction = useCallback(
         (getActions: (taskId: TaskId) => Iterable<TaskActionModel>) => {
             if (!childrenQuery) {
-                return commitActionTransactionAndCreateIfNeeded(() => getActions(taskId), {
-                    undoManager,
-                    affinityManager,
-                });
+                return commitActionTransactionAndCreateIfNeeded(
+                    () => getActions(possiblyGhostTaskId),
+                    {
+                        undoManager,
+                        affinityManager,
+                    },
+                );
             } else {
-                return store.commitTaskActionTransaction(context, getActions(taskId), {
+                return store.commitTaskActionTransaction(context, getActions(possiblyGhostTaskId), {
                     undoManager,
                     affinityManager,
                 });
@@ -703,13 +1239,25 @@ export function TaskDetailView({
             commitActionTransactionAndCreateIfNeeded,
             context,
             store,
-            taskId,
+            possiblyGhostTaskId,
             undoManager,
         ],
     );
 
+    const ensureCreateTask = useCallback(async () => {
+        // If the user tries to enter content into this task, create it if needed.
+        if (!taskSubscription) {
+            await new Promise<void>(resolve =>
+                commitActionTransactionAndCreateIfNeeded(() => [], {
+                    undoManager,
+                    affinityManager,
+                }).finally(resolve),
+            );
+        }
+    }, [taskSubscription, undoManager, affinityManager, commitActionTransactionAndCreateIfNeeded]);
+
     const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
-        `Task:${taskId}`,
+        `Task:${possiblyGhostTaskId}`,
         initialIsFavorite,
     );
 
@@ -734,10 +1282,14 @@ export function TaskDetailView({
                         );
                     }
 
-                    const url = new URL(`/s/${spaceId}/tasks/${taskId}`, window.location.href);
+                    const url = new URL(
+                        `/s/${spaceId}/tasks/${possiblyGhostTaskId}`,
+                        window.location.href,
+                    );
                     await writeTextToClipboard(url.toString());
                 },
             },
+            ...(favoriteMenuAction ? [favoriteMenuAction] : []),
         ]);
 
         if (hasEditAccessLevel) {
@@ -761,7 +1313,7 @@ export function TaskDetailView({
                             .task?.getOpenChildTaskCount() ?? 0,
 
                     onCloseConfirmationDialogueOpen: ({onConfirm}) => {
-                        setTaskCloseConfirmationState({taskId, onConfirm});
+                        setTaskCloseConfirmationState({taskId: possiblyGhostTaskId, onConfirm});
                     },
                     commitActionTransaction,
                 }),
@@ -818,7 +1370,7 @@ export function TaskDetailView({
                             searchParams.set("schema", encodedSchema);
 
                             await navigate(
-                                `/s/${spaceId}/tasks/${taskId}/duplicate?${searchParams.toString()}`,
+                                `/s/${spaceId}/tasks/${possiblyGhostTaskId}/duplicate?${searchParams.toString()}`,
                             );
                             return;
                         }
@@ -831,7 +1383,7 @@ export function TaskDetailView({
 
                         const {taskId: newTaskId} = await store.duplicateTaskAndAllChildren(
                             context,
-                            taskId,
+                            possiblyGhostTaskId,
                             timeZone,
                             {undoManager},
                         );
@@ -860,7 +1412,7 @@ export function TaskDetailView({
                             reporter,
                             store,
                             undoManager,
-                            taskId,
+                            taskId: possiblyGhostTaskId,
                             // Close the detail view (if this is in a peek we navigate back) before
                             // deleting the task so we don't flash the `<TaskDetailView>` deleted state.
                             onBeforeDelete: () => navigate(-1),
@@ -872,103 +1424,40 @@ export function TaskDetailView({
 
         const menuActions = [...contextMenuActions];
 
-        if (hasAccessLevel(access.level, "Comment")) {
-            menuActions.unshift([
-                {
-                    icon: <ChatCircleDots />,
-                    iconPlacement: "end",
-                    // NOTE(calebmer, 2025-03-20): Design-wise, I'm currently trying to start
-                    // everything in the more menu with a verb. Which is why the label for this is
-                    // "Open comments" instead of "Comments". The "Favorite" item is partially an
-                    // exception. "Favorite" itself can be interpreted as a verb but after you press
-                    // the favorite option, pressing again will unfavorite. So the verb name doesn't
-                    // match the action.
-                    label: showComments ? "Close comments" : "Open comments",
-                    pressErrorTitle: showComments
-                        ? "Couldn\u2019t close comments"
-                        : "Couldn\u2019t open comments",
-                    onPress: async () => {
-                        // If the user tries to open a task's comments, then make sure the task
-                        // is created before we open comments.
-                        if (!taskSubscription) {
-                            await new Promise<void>(resolve =>
-                                commitActionTransactionAndCreateIfNeeded(() => [], {
-                                    undoManager,
-                                    affinityManager,
-                                }).finally(resolve),
-                            );
-                        }
-
-                        if (routeLayout === "narrow") {
-                            await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
-                        } else {
-                            onShowCommentsChange(!showComments);
-                        }
-                    },
-                },
-            ]);
-
-            if (favoriteMenuAction) {
-                menuActions[1] = [...assertExists(menuActions[1]), favoriteMenuAction];
-            }
-        }
-
         return {menuActions, contextMenuActions} as any as {
             menuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
             contextMenuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
         };
     }, [
-        access.level,
-        affinityManager,
-        commitActionTransaction,
-        commitActionTransactionAndCreateIfNeeded,
-        context,
-        currentAccount,
-        displayStatus,
-        dueDateInputState.isVisible,
-        favoriteMenuAction,
-        focusDueDateInput,
-        focusPriorityInput,
         hasEditAccessLevel,
-        initialFields.assignee?.id,
-        isAppleDevice,
-        doNotShowDuplicationInstructionalModalAgain,
-        navigate,
-        notesEditorStateStore,
-        onShowCommentsChange,
-        peekStackContext,
-        platform,
-        priorityInputState.isVisible,
-        redo,
-        reporter,
-        routeLayout,
-        showComments,
-        spaceId,
-        store,
-        taskId,
+        favoriteMenuAction,
         taskSubscription,
-        timeZone,
-        undo,
+        spaceId,
+        possiblyGhostTaskId,
+        commitActionTransactionAndCreateIfNeeded,
         undoManager,
+        affinityManager,
+        timeZone,
+        currentAccount,
+        store,
+        displayStatus,
+        commitActionTransaction,
+        priorityInputState.isVisible,
+        dueDateInputState.isVisible,
+        isAppleDevice,
+        undo,
+        redo,
+        initialFields.assignee?.id,
+        focusPriorityInput,
+        focusDueDateInput,
+        notesEditorStateStore,
+        doNotShowDuplicationInstructionalModalAgain,
+        context,
+        platform,
+        navigate,
+        peekStackContext,
+        reporter,
     ]);
-
-    const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task;
-
-    // Compute the default back button route if we have no previous Alpine location in browser history.
-    const defaultPreviousRoute = useMemo(() => {
-        if (task) {
-            const collections = task.getCollections().getArray();
-
-            // If the task is in at least one collection, use the first collection as the back path
-            if (collections[0]?.collectionId) {
-                const firstCollectionId = collections[0].collectionId;
-                return `/s/${spaceId}/tasks/collections/${firstCollectionId}`;
-            }
-        }
-
-        // Otherwise, use the "my tasks" view as the default back path
-        return `/s/${spaceId}/tasks`;
-    }, [spaceId, task]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
@@ -989,33 +1478,377 @@ export function TaskDetailView({
                 commitActionTransaction={commitActionTransaction}
             />
         ),
-        defaultPreviousRoute,
+        defaultPreviousRoute: () => {
+            const task = taskSubscription?.taskEntryStore.getSnapshot().task;
+
+            if (task) {
+                const collections = task.getCollections().getArray();
+
+                // If the task is in at least one collection, use the first collection as the back path
+                if (collections[0]?.collectionId) {
+                    const firstCollectionId = collections[0].collectionId;
+                    return `/s/${spaceId}/tasks/collections/${firstCollectionId}`;
+                }
+            }
+
+            // Otherwise, use the "my tasks" view as the default back path
+            return `/s/${spaceId}/tasks`;
+        },
     });
+
+    const commentsFileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({type: "TaskComments", taskId: possiblyGhostTaskId}),
+        [possiblyGhostTaskId],
+    );
+
+    const itemCount =
+        1 +
+        childrenGridViewItemCount +
+        (isCommentSectionVisible ? 1 + comments.getItemCount() + 1 : 0);
+
+    const renderItem: VirtualizedScrollViewRenderItem = useCallback(
+        index => {
+            if (index === 0) {
+                return {
+                    key: "TaskDetailViewMain",
+                    // Initial height of:
+                    //
+                    // - Header (status button and more dropdown)
+                    // - One line of title text
+                    // - Assignee field
+                    // - Collections field
+                    // - Notes field
+                    // - Subtasks header
+                    //
+                    // Often the height is larger but never smaller.
+                    minHeight: taskDetailViewMainMinHeightPx[spacingScale],
+                    node: (
+                        <TaskDetailViewMainMemo
+                            ref={mainRef}
+                            viewRef={viewRef}
+                            possiblyGhostTaskId={possiblyGhostTaskId}
+                            store={store}
+                            taskSubscription={taskSubscription}
+                            initialFields={initialFields}
+                            undoManager={undoManager}
+                            affinityManager={affinityManager}
+                            hasEditAccessLevel={hasEditAccessLevel}
+                            focusChildrenGridViewStart={focusChildrenGridViewStart}
+                            pushUndoStackEntry={pushUndoStackEntry}
+                            pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
+                            pushRedoStackEntry={pushRedoStackEntry}
+                            contextMenuActions={contextMenuActions}
+                            statusButtonRef={statusButtonRef}
+                            titleInputRef={titleInputRef}
+                            titleInputElementRef={titleInputElementRef}
+                            priorityInputRef={priorityInputRef}
+                            isPriorityInputVisible={priorityInputState.isVisible}
+                            setPriorityInputState={setPriorityInputState}
+                            focusPriorityInput={focusPriorityInput}
+                            dueDateInputRef={dueDateInputRef}
+                            isDueDateInputVisible={dueDateInputState.isVisible}
+                            setDueDateInputState={setDueDateInputState}
+                            focusDueDateInput={focusDueDateInput}
+                            notesEditorStateStore={notesEditorStateStore}
+                            onNotesEditorStateChange={onNotesEditorStateChange}
+                            reconnectNotesClient={reconnectNotesClient}
+                            commitActionTransaction={commitActionTransaction}
+                            ensureCreateTask={ensureCreateTask}
+                        />
+                    ),
+                };
+            }
+
+            index -= 1;
+
+            if (index < childrenGridViewItemCount) {
+                return renderChildrenGridViewItem(index);
+            }
+
+            if (!isCommentSectionVisible) {
+                throw new InternalError(
+                    "Comment section isn\u2019t visible, can\u2019t render items after child task grid view",
+                );
+            }
+
+            index -= childrenGridViewItemCount;
+
+            if (index === 0) {
+                // This height is calculated so that in a task that doesn't have any additional
+                // fields or subtasks we perfectly render the comment input at the bottom of
+                // the peek.
+                const height = taskDetailViewCommentSectionHeaderHeightPx[platform][spacingScale];
+
+                const commentCount = comments.getMessageCountIncludingOptimisticMessages();
+
+                return {
+                    key: "TaskCommentSectionHeader",
+                    minHeight: height,
+                    // We want a higher z-index than `<TaskCommentInput>` (`z-index: 20`) so when
+                    // `<TaskCommentInput>` is replying to some text and so has a border that
+                    // renders on top of the input when scrolled to the top the border renders
+                    // under our task comment section header.
+                    zIndex: "30",
+                    node: (
+                        <Box
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="flex-end"
+                            backgroundColor="grey-0"
+                            style={{height}}
+                        >
+                            <Box
+                                width="full"
+                                maxWidth={contentStyles.contentMaxWidth}
+                                paddingX={screenPaddingX}
+                            >
+                                <Box
+                                    fontSize={taskDetailViewFieldLabelFontSize}
+                                    color={taskDetailViewFieldLabelColor}
+                                >
+                                    Comments
+                                    {commentCount > 100
+                                        ? ` ∙ 100+`
+                                        : commentCount > 0
+                                          ? ` ∙ ${commentCount}`
+                                          : ""}
+                                </Box>
+                                <Spacer space={taskDetailViewSubtasksFieldLabelPaddingBottom} />
+                                <Box width="full" borderBottom="grey-5" />
+                            </Box>
+                        </Box>
+                    ),
+                    // Always render the task comment input once the comment section is visible.
+                    renderAdditionalItemIndexes: [itemCount - 1],
+                };
+            }
+
+            index -= 1;
+
+            const commentsItemCount = comments.getItemCount();
+
+            if (index < commentsItemCount) {
+                const item = comments.getItem(index);
+
+                const renderedItem = renderMessageListItem<TaskId, TaskCommentModel>({
+                    spacingScale,
+                    messageNoun: "comment",
+                    messages: comments,
+                    groupKey: null,
+                    index,
+                    item,
+                    fileAttachmentTarget: commentsFileAttachmentTarget,
+                    randomSeedForShimmer: possiblyGhostTaskId,
+                    messageEditing: commentEditing,
+                    jumpState:
+                        item.message &&
+                        !item.message.isOptimistic &&
+                        commentsJumpState &&
+                        commentsJumpState.options.startIndex <= item.message.index &&
+                        item.message.index <= commentsJumpState.options.endIndex
+                            ? commentsJumpState.messages[
+                                  item.message.index - commentsJumpState.options.startIndex
+                              ]!
+                            : null,
+                    onJumpToMessageRange: jumpToCommentRange,
+                    onReplyToMessage: message => {
+                        setCommentInputParent({
+                            type: "Message",
+                            index: message.index,
+                        });
+                    },
+                    onDeleteMessage: async message => {
+                        await procedures.deleteComment({
+                            commentIndex: message.index,
+                        });
+                    },
+                    getMessageUrl: commentIndex => {
+                        return new URL(
+                            `/s/${spaceId}/tasks/${possiblyGhostTaskId}?comment=${commentIndex}`,
+                            window.location.href,
+                        );
+                    },
+                    onSetMessageReaction: handleSetCommentReaction,
+                    onDeleteMessageReaction: handleDeleteCommentReaction,
+                    onUpdateMessagesOptimistically: handleUpdateCommentsOptimistically,
+                    shouldAddMarginTop: index === 0 ? postContentViewCommentMargin : false,
+                    shouldAddMarginBottom: index === commentsItemCount - 1,
+                    render: node => (
+                        <div
+                            className={sprinkles({
+                                display: "flex",
+                                justifyContent: "center",
+                            })}
+                        >
+                            <div
+                                className={sprinkles({
+                                    width: "full",
+                                    maxWidth: contentStyles.contentMaxWidth,
+                                })}
+                            >
+                                {node}
+                            </div>
+                        </div>
+                    ),
+                });
+
+                return {
+                    ...renderedItem,
+                    // Always render the task comment input once the comment section is visible.
+                    renderAdditionalItemIndexes:
+                        renderedItem.renderAdditionalItemIndexes &&
+                        renderedItem.renderAdditionalItemIndexes.length > 0
+                            ? [...renderedItem.renderAdditionalItemIndexes, itemCount - 1]
+                            : [itemCount - 1],
+                };
+            }
+
+            index -= commentsItemCount;
+
+            if (index === 0) {
+                // This is defined out here so that it doesn't re-rerender every time the
+                // `render()` function is called since it's referentially stable.
+                const inputNode = (
+                    <TaskCommentInput
+                        isGhostTask={!taskSubscription}
+                        inputRef={commentInputRef}
+                        procedures={procedures}
+                        fileAttachmentTarget={commentsFileAttachmentTarget}
+                        comments={comments}
+                        onUpdateComments={setComments}
+                        commentEditing={commentEditing}
+                        parent={commentInputParent}
+                        onParentClear={() => setCommentInputParent(null)}
+                        onJumpToCommentRange={jumpToCommentRange}
+                        ensureCreateTask={ensureCreateTask}
+                    />
+                );
+
+                return {
+                    key: "TaskCommentInput",
+                    minHeight: messageInputMinHeightPx[platform][spacingScale],
+                    withManualLayout: true,
+                    render: ({
+                        ref,
+                        offset,
+                        height,
+                        shouldRenderWithRelativePositioning,
+                        getPositionByIndex,
+                    }) => {
+                        const headerPosition = getPositionByIndex(
+                            itemCount - 1 - commentsItemCount - 1,
+                        );
+
+                        const headerOffsetEnd = headerPosition.offset + headerPosition.height;
+
+                        return (
+                            <div
+                                style={{
+                                    pointerEvents: "none",
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "flex-end",
+                                    zIndex: "20",
+                                    ...(!shouldRenderWithRelativePositioning
+                                        ? {
+                                              position: "absolute",
+                                              top: headerOffsetEnd,
+                                              left: "0",
+                                              right: "0",
+                                              height: offset - headerOffsetEnd + height,
+                                          }
+                                        : {
+                                              position: "relative",
+                                          }),
+                                }}
+                            >
+                                <div
+                                    ref={ref}
+                                    style={
+                                        !shouldRenderWithRelativePositioning
+                                            ? {position: "sticky", bottom: "0"}
+                                            : undefined
+                                    }
+                                    className={sprinkles({
+                                        width: "full",
+                                        display: "flex",
+                                        justifyContent: "center",
+                                    })}
+                                >
+                                    <div
+                                        className={sprinkles({
+                                            width: "full",
+                                            maxWidth: contentStyles.contentMaxWidth,
+                                            position: "relative",
+                                            pointerEvents: "auto",
+                                        })}
+                                    >
+                                        {inputNode}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    },
+                };
+            }
+
+            throw new OutOfRangeError("Task detail view render item index out of bounds");
+        },
+        [
+            childrenGridViewItemCount,
+            isCommentSectionVisible,
+            comments,
+            spacingScale,
+            possiblyGhostTaskId,
+            store,
+            taskSubscription,
+            initialFields,
+            undoManager,
+            affinityManager,
+            hasEditAccessLevel,
+            focusChildrenGridViewStart,
+            pushUndoStackEntry,
+            pushUndoStackEntryFromRedo,
+            pushRedoStackEntry,
+            contextMenuActions,
+            priorityInputState.isVisible,
+            focusPriorityInput,
+            dueDateInputState.isVisible,
+            focusDueDateInput,
+            notesEditorStateStore,
+            onNotesEditorStateChange,
+            reconnectNotesClient,
+            commitActionTransaction,
+            ensureCreateTask,
+            renderChildrenGridViewItem,
+            platform,
+            itemCount,
+            commentsFileAttachmentTarget,
+            commentEditing,
+            commentsJumpState,
+            jumpToCommentRange,
+            handleSetCommentReaction,
+            handleDeleteCommentReaction,
+            handleUpdateCommentsOptimistically,
+            procedures,
+            spaceId,
+            setComments,
+            commentInputParent,
+        ],
+    );
 
     return (
         <>
             {childrenGridViewModals}
-            <GlobalKeyDownEvent
-                onGlobalKeyDown={event => {
-                    if (event.key === "Escape") {
-                        if (showComments) {
-                            event.preventDefault();
-                            event.stopPropagation();
-
-                            onShowCommentsChange(false);
-                        }
-                    } else {
-                        onChildrenGridViewGlobalKeyDown(event);
-                    }
-                }}
-            >
+            {commentEditingModals}
+            <GlobalKeyDownEvent onGlobalKeyDown={onChildrenGridViewGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={scrollViewRef}
                     scrollbarInsetTop={scrollbarInsetTop}
                     stateKey={childrenGridViewStateKey}
                     bufferedItemHeight={childrenGridViewBufferedItemHeight}
-                    itemCount={childrenGridViewItemCount + 1}
+                    itemCount={itemCount}
                     alwaysRenderAdditionalItemIndexes={useMemo(
                         () => [
                             // Always render `<TaskDetailViewMain>` regardless of where we've scrolled.
@@ -1030,100 +1863,28 @@ export function TaskDetailView({
                             ? scrollbarInsetTopChildrenGridViewItemIndex + 1
                             : undefined
                     }
-                    renderItem={useCallback(
-                        index => {
-                            if (index === 0) {
-                                return {
-                                    key: "TaskDetailViewMain",
-                                    // Initial height of:
-                                    //
-                                    // - Header (status button and more dropdown)
-                                    // - One line of title text
-                                    // - Assignee field
-                                    // - Collections field
-                                    // - Notes field
-                                    // - Subtasks header
-                                    //
-                                    // Often the height is larger but never smaller.
-                                    minHeight: taskDetailViewMainMinHeightPx[spacingScale],
-                                    node: (
-                                        <TaskDetailViewMainMemo
-                                            ref={mainRef}
-                                            viewRef={viewRef}
-                                            possiblyGhostTaskId={taskId}
-                                            store={store}
-                                            taskSubscription={taskSubscription}
-                                            initialFields={initialFields}
-                                            undoManager={undoManager}
-                                            affinityManager={affinityManager}
-                                            hasEditAccessLevel={hasEditAccessLevel}
-                                            focusChildrenGridViewStart={focusChildrenGridViewStart}
-                                            pushUndoStackEntry={pushUndoStackEntry}
-                                            pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
-                                            pushRedoStackEntry={pushRedoStackEntry}
-                                            contextMenuActions={contextMenuActions}
-                                            statusButtonRef={statusButtonRef}
-                                            titleInputRef={titleInputRef}
-                                            titleInputElementRef={titleInputElementRef}
-                                            priorityInputRef={priorityInputRef}
-                                            isPriorityInputVisible={priorityInputState.isVisible}
-                                            setPriorityInputState={setPriorityInputState}
-                                            focusPriorityInput={focusPriorityInput}
-                                            dueDateInputRef={dueDateInputRef}
-                                            isDueDateInputVisible={dueDateInputState.isVisible}
-                                            setDueDateInputState={setDueDateInputState}
-                                            focusDueDateInput={focusDueDateInput}
-                                            notesEditorStateStore={notesEditorStateStore}
-                                            onNotesEditorStateChange={onNotesEditorStateChange}
-                                            reconnectNotesClient={reconnectNotesClient}
-                                            commitActionTransaction={commitActionTransaction}
-                                            commitActionTransactionAndCreateIfNeeded={
-                                                commitActionTransactionAndCreateIfNeeded
-                                            }
-                                        />
-                                    ),
-                                };
-                            }
-
-                            return renderChildrenGridViewItem(index - 1);
-                        },
-                        [
-                            renderChildrenGridViewItem,
-                            spacingScale,
-                            taskId,
-                            store,
-                            taskSubscription,
-                            initialFields,
-                            undoManager,
-                            affinityManager,
-                            hasEditAccessLevel,
-                            focusChildrenGridViewStart,
-                            pushUndoStackEntry,
-                            pushUndoStackEntryFromRedo,
-                            pushRedoStackEntry,
-                            contextMenuActions,
-                            priorityInputState.isVisible,
-                            focusPriorityInput,
-                            dueDateInputState.isVisible,
-                            focusDueDateInput,
-                            notesEditorStateStore,
-                            onNotesEditorStateChange,
-                            reconnectNotesClient,
-                            commitActionTransaction,
-                            commitActionTransactionAndCreateIfNeeded,
-                        ],
-                    )}
+                    scrollbarInsetBottomItemIndex={
+                        isCommentSectionVisible ? itemCount - 1 : undefined
+                    }
+                    renderItem={renderItem}
                     onRenderedRangeChange={range => {
                         onChildrenGridViewRenderedRangeChange(
                             shiftRenderedRangeForChildrenGridView(range),
                         );
+
+                        tryLoadingMoreCommentsData(range);
                     }}
                     onRenderedRangeLayoutChange={range => {
                         onChildrenGridViewRenderedRangeLayoutChange(
                             shiftRenderedRangeForChildrenGridView(range),
                         );
                     }}
-                    extraChildren={navigationBar}
+                    extraChildren={
+                        <>
+                            {navigationBar}
+                            {isCommentSectionVisible && commentsPointerToolbar}
+                        </>
+                    }
                 />
             </GlobalKeyDownEvent>
             {taskCloseConfirmationState && (
@@ -1140,7 +1901,7 @@ export function TaskDetailView({
                     onDuplicate={async () => {
                         const {taskId: newTaskId} = await store.duplicateTaskAndAllChildren(
                             context,
-                            taskId,
+                            possiblyGhostTaskId,
                             timeZone,
                             {undoManager},
                         );
@@ -1230,7 +1991,7 @@ function TaskDetailViewMain(
         onNotesEditorStateChange,
         reconnectNotesClient,
         commitActionTransaction,
-        commitActionTransactionAndCreateIfNeeded,
+        ensureCreateTask,
     }: {
         viewRef: RefObject<VirtualizedScrollViewRef | null>;
         possiblyGhostTaskId: TaskId;
@@ -1266,17 +2027,7 @@ function TaskDetailViewMain(
                 finally(listener: () => void): void;
             }
         >;
-        commitActionTransactionAndCreateIfNeeded: Memo<
-            (
-                getActions: () => Iterable<TaskActionModel>,
-                options: {
-                    undoManager: TaskClientStoreUndoManager | null;
-                    affinityManager: TaskClientStoreSearchAffinityManager;
-                },
-            ) => {
-                finally: (callback: () => void) => void;
-            }
-        >;
+        ensureCreateTask: Memo<() => Promise<void>>;
     },
     ref: Ref<TaskDetailViewMainRef>,
 ) {
@@ -1440,18 +2191,6 @@ function TaskDetailViewMain(
         }),
         [focusDueDateInput, focusPriorityInput, statusButtonRef, titleInputRef],
     );
-
-    const ensureCreateTask = useCallback(async () => {
-        // If the user tries to enter content into this task, create it if needed.
-        if (!taskSubscription) {
-            await new Promise<void>(resolve =>
-                commitActionTransactionAndCreateIfNeeded(() => [], {
-                    undoManager,
-                    affinityManager,
-                }).finally(resolve),
-            );
-        }
-    }, [taskSubscription, undoManager, affinityManager, commitActionTransactionAndCreateIfNeeded]);
 
     return (
         <>

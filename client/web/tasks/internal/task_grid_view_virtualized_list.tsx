@@ -40,6 +40,8 @@ import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_nativ
 import {tasksStyles} from "~/client/web/styles/styles.js";
 import {
     taskGridViewColumnHeaderHeight,
+    taskGridViewExplicitLoadMoreButtonHeight,
+    taskGridViewMoreUnloadedTasksHeight,
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/web/styles/tasks_shared_styles.js";
@@ -68,6 +70,7 @@ import {TaskGridViewTaskKey} from "~/client/web/tasks/internal/task_grid_view_ta
 import {
     TaskGridViewColumnHeaderMemo,
     TaskGridViewDecorativeGhostTaskMemo,
+    TaskGridViewExplicitLoadMoreButtonMemo,
     TaskGridViewMoreUnloadedTasksMemo,
     TaskGridViewUnloadedChildTaskMemo,
     TaskRowViewMemo,
@@ -118,6 +121,7 @@ import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Id, generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {zeroStore} from "~/shared/store/const_store.js";
 import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -127,15 +131,6 @@ import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
-
-const taskGridViewMoreUnloadedTasksSpinnerHeight = addRemLengths(
-    taskRowViewMinHeight,
-    taskRowViewMinHeight,
-    taskRowViewMinHeight,
-    "4",
-    "6",
-    "4",
-);
 
 /**
  * Do these sorts represent a manually sorted query?
@@ -368,7 +363,10 @@ export type TaskGridViewVirtualizedListProps = {
      * mobile. This is passed into `useScrollToAvoidBottomBarsAndMobileKeyboard()`.
      */
     getAnchorPosition?: Memo<
-        (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
+        (oldVisibleRect: {
+            top: number;
+            bottom: number;
+        }) => {top: number; height: number; isPinned: boolean} | null
     >;
 
     /**
@@ -405,6 +403,18 @@ export type TaskGridViewVirtualizedListProps = {
      * animations (including from hidden grid views) and pass it into this array.
      */
     previousGridViewAnimations?: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
+
+    /**
+     * By default, we implicitly load more tasks when approaching the end of the
+     * grid view. However, for some UIs it's a better experience to explicitly load
+     * more tasks explicitly by pressing a button. Namely, `<TaskDetailView>` where
+     * we render comments beneath the task. So scrolling through thousands of
+     * subtasks to see the comment section is pretty inconvenient.
+     */
+    explicitLoadMoreButton?: Memo<{
+        totalTaskCount: number;
+        loadMoreTasksLimit: number;
+    }> | null;
 };
 
 export type TaskGridViewVirtualizedListResult = {
@@ -768,13 +778,20 @@ export function useTaskGridViewVirtualizedList(
 export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard(
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>,
     getAnchorPositionFromProps?: Memo<
-        (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
+        (oldVisibleRect: {top: number; bottom: number}) => {
+            top: number;
+            height: number;
+            isPinned: boolean;
+        } | null
     >,
 ) {
     const platform = usePlatform();
 
     const getAnchorPosition = useCallback(
-        (oldVisibleRect: {top: number; bottom: number}): {top: number; height: number} | null => {
+        (oldVisibleRect: {
+            top: number;
+            bottom: number;
+        }): {top: number; height: number; isPinned: boolean} | null => {
             const anchorPositionFromProps = getAnchorPositionFromProps?.(oldVisibleRect);
             if (anchorPositionFromProps) return anchorPositionFromProps;
 
@@ -850,6 +867,7 @@ export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKe
                     return {
                         top,
                         height: bottom - top,
+                        isPinned: false,
                     };
                 }
             }
@@ -862,11 +880,11 @@ export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKe
 
                 // If the selection has a zero rect, return the active element's rect.
                 if (selectionRect && (selectionRect.width !== 0 || selectionRect.height !== 0)) {
-                    return selectionRect;
+                    return {top: selectionRect.top, height: selectionRect.height, isPinned: false};
                 }
             }
 
-            return activeRect;
+            return {top: activeRect.top, height: activeRect.height, isPinned: false};
         },
         [getAnchorPositionFromProps, platform, viewRef],
     );
@@ -941,6 +959,7 @@ export function useTaskGridViewVirtualizedListBase({
     previousGridView,
     nextGridView,
     previousGridViewAnimations = emptyArray,
+    explicitLoadMoreButton = null,
 }: Omit<TaskGridViewVirtualizedListProps, "getAnchorPosition"> & {
     isDragging: boolean;
     draggingData: (TaskGridViewDraggableData & {readonly type: "Row"}) | null;
@@ -1062,6 +1081,13 @@ export function useTaskGridViewVirtualizedListBase({
     );
 
     const state = useStore(stateStore);
+
+    const rootQueryLoadedTaskCount = useStore(
+        useMemo(
+            () => rootQuery?.taskOrderStore.map(taskOrder => taskOrder.length) ?? zeroStore,
+            [rootQuery?.taskOrderStore],
+        ),
+    );
 
     useDevConsoleTool("taskGridView", () => ({
         viewRef,
@@ -1365,7 +1391,10 @@ export function useTaskGridViewVirtualizedListBase({
             batchStoreUpdates(() => {
                 // If we are rendering the `MoreUnloadedTasks` item then load more tasks into
                 // our query.
-                if (loadedState !== "FullyLoaded") {
+                //
+                // Unless we have `explicitLoadMoreButton`. Then loading more tasks is explicit
+                // based on a button press. Not implicit based on scrolling.
+                if (loadedState !== "FullyLoaded" && !explicitLoadMoreButton) {
                     const moreUnloadedTasksIndex = state.getItemCount() + itemCountBeforeState;
 
                     if (
@@ -2661,23 +2690,40 @@ export function useTaskGridViewVirtualizedListBase({
             if (itemIndex >= itemCountBeforeState + stateItemCount) {
                 let relativeItemIndex = itemIndex - stateItemCount - itemCountBeforeState;
 
+                const withoutBorderTop =
+                    withoutBorderTopIfFirstRow && itemIndex - itemCountBeforeState === 0;
+
                 if (loadedState !== "FullyLoaded") {
-                    return {
-                        key: `${structuralItemKeyPrefix}MoreUnloadedTasks`,
-                        minHeight: taskGridViewMoreUnloadedTasksSpinnerHeight,
-                        node: (
-                            <TaskGridViewMoreUnloadedTasksMemo
-                                capabilities={capabilities}
-                                rowMaxWidth={rowMaxWidth}
-                                withoutBorderTop={
-                                    withoutBorderTopIfFirstRow &&
-                                    itemIndex - itemCountBeforeState === 0
-                                }
-                                focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
-                                focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
-                            />
-                        ),
-                    };
+                    if (explicitLoadMoreButton) {
+                        return {
+                            key: `${structuralItemKeyPrefix}ExplicitLoadMoreButton`,
+                            minHeight: taskGridViewExplicitLoadMoreButtonHeight,
+                            node: (
+                                <TaskGridViewExplicitLoadMoreButtonMemo
+                                    rowMaxWidth={rowMaxWidth}
+                                    withoutBorderTop={withoutBorderTop}
+                                    loadedTaskCount={rootQueryLoadedTaskCount}
+                                    totalTaskCount={explicitLoadMoreButton.totalTaskCount}
+                                    loadMoreTasksLimit={explicitLoadMoreButton.loadMoreTasksLimit}
+                                    query={rootQuery}
+                                />
+                            ),
+                        };
+                    } else {
+                        return {
+                            key: `${structuralItemKeyPrefix}MoreUnloadedTasks`,
+                            minHeight: taskGridViewMoreUnloadedTasksHeight,
+                            node: (
+                                <TaskGridViewMoreUnloadedTasksMemo
+                                    capabilities={capabilities}
+                                    rowMaxWidth={rowMaxWidth}
+                                    withoutBorderTop={withoutBorderTop}
+                                    focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
+                                    focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
+                                />
+                            ),
+                        };
+                    }
                 }
 
                 // No ghost task if `rootQuery` is null, the grid view is read-only, or we're
@@ -2879,6 +2925,7 @@ export function useTaskGridViewVirtualizedListBase({
         columnHeaderControlsWithMinHeightPx,
         duplicateTaskAndAllChildren,
         events,
+        explicitLoadMoreButton,
         getAreChildTasksExpandedStore,
         hasBottomGhostTask,
         hasColumnHeader,
@@ -2891,6 +2938,7 @@ export function useTaskGridViewVirtualizedListBase({
         loadedState,
         maxGridExpandableTaskDepth,
         rootQuery,
+        rootQueryLoadedTaskCount,
         rowMaxWidth,
         spacingScale,
         state,

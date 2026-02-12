@@ -49,6 +49,7 @@ ts_playwright_tests(
         "inbox/inbox_channel_posts_desktop.spec.ts": ["webkit_mobile"],
         "inbox/inbox_chat_desktop.spec.ts": ["webkit_mobile"],
         "tasks/task_collection_share_desktop.spec.ts": ["webkit_mobile"],
+        "tasks/task_detail_view_comments_desktop.spec.ts": ["webkit_mobile"],
         "tasks/task_personal_view_desktop.spec.ts": ["webkit_mobile"],
         # Peeks only work on desktop.
         "chat/chat_peek.spec.ts": ["webkit_mobile"],
@@ -58,7 +59,6 @@ ts_playwright_tests(
         "tasks/task_grid_view_paste.spec.ts": ["webkit_mobile"],
         "tasks/task_grid_view_updates.spec.ts": ["webkit_mobile"],
         "tasks/task_undo_grid_view_moves.spec.ts": ["webkit_mobile"],
-        "tasks/task_comments.spec.ts": ["webkit_mobile"],
     },
     deps = [
         "//:node_modules/@types/fs-extra",

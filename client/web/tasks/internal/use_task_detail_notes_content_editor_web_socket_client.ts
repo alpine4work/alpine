@@ -1,4 +1,4 @@
-import {Memo, useCallback, useEffect, useMemo, useState} from "react";
+import {Memo, RefObject, useCallback, useEffect, useMemo, useState} from "react";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
@@ -20,6 +20,7 @@ import {
     reduceTaskNotesContentEditorState,
 } from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
@@ -36,6 +37,11 @@ export type TaskDetailNotesContentEditorWebSocketClientState =
     | {
           readonly type: "Exists";
           readonly client: TaskDetailNotesContentEditorWebSocketClient;
+          readonly pendingProceduresRef: RefObject<ReadonlyArray<{
+              readonly name: (typeof TaskDetailNotesContentEditorWebSocketClient.procedureNames)[number];
+              readonly input: any;
+              readonly outputPromiseResolver: PromiseResolver<any>;
+          }> | null>;
       }
     | {
           readonly type: "NotExists";
@@ -50,6 +56,7 @@ export type TaskDetailNotesContentEditorWebSocketClientState =
 export function useTaskDetailNotesContentEditorWebSocketClient({
     taskId,
     taskSubscription,
+    accessLevel,
     initialNotesVersion,
     initialNotesContent,
     affinityManager,
@@ -57,6 +64,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
 }: {
     taskId: TaskId;
     taskSubscription: TaskClientTaskSubscription | null;
+    accessLevel: AccessLevel;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
     affinityManager: TaskClientStoreSearchAffinityManager;
@@ -138,6 +146,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                         getContext: events.getContext,
                         addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
                         taskId,
+                        accessLevel,
                         displayError: (title, error) =>
                             events.getReporter().displayError(title, error),
                         initialState: getInitialTaskNotesContentEditorState({
@@ -146,6 +155,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                             initialNotesContent,
                         }),
                     }),
+                    pendingProceduresRef: {current: null},
                 };
             }
         });
@@ -160,6 +170,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                 getContext: events.getContext,
                 addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
                 taskId,
+                accessLevel,
                 displayError: (title, error) => events.getReporter().displayError(title, error),
                 initialState:
                     initialState.extra.taskId === taskId
@@ -170,17 +181,23 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                               initialNotesContent,
                           }),
             }),
+            pendingProceduresRef: {current: clientState.pendingProcedures},
         });
     }
 
-    // Re-initialize state if the `TaskId` changes.
-    if (wasTaskCreated && clientState.type === "Exists" && taskId !== clientState.client.taskId) {
+    // Re-initialize state if the `TaskId` changes or the `AccessLevel` changes.
+    if (
+        wasTaskCreated &&
+        clientState.type === "Exists" &&
+        (taskId !== clientState.client.taskId || accessLevel !== clientState.client.accessLevel)
+    ) {
         setClientState({
             type: "Exists",
             client: new TaskDetailNotesContentEditorWebSocketClient({
                 getContext: events.getContext,
                 addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
                 taskId,
+                accessLevel,
                 displayError: (title, error) => events.getReporter().displayError(title, error),
                 initialState: getInitialTaskNotesContentEditorState({
                     taskId,
@@ -188,6 +205,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                     initialNotesContent,
                 }),
             }),
+            pendingProceduresRef: {current: null},
         });
     }
 
@@ -229,6 +247,26 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
 
         return clientState.state.subscribe(update);
     }, [affinityManager, clientState, commitActionTransactionAndCreateIfNeeded]);
+
+    // Run any pending procedures when we shift from a `NotExists` client state to
+    // an `Exists` client state.
+    useEffect(() => {
+        if (clientState.type === "NotExists") return;
+
+        if (!clientState.pendingProceduresRef.current) return;
+
+        const pendingProcedures = clientState.pendingProceduresRef.current;
+        // eslint-disable-next-line react-compiler/react-compiler
+        clientState.pendingProceduresRef.current = null;
+
+        // Run all of our queued procedure calls against our new WebSocket client...
+        for (const procedure of pendingProcedures) {
+            clientState.client.procedures[procedure.name](procedure.input).then(
+                procedure.outputPromiseResolver.resolve,
+                procedure.outputPromiseResolver.reject,
+            );
+        }
+    }, [clientState, clientState.type]);
 
     const webSocketState = useStore(
         clientState.type === "Exists" ? clientState.client.webSocketState : nullStore,

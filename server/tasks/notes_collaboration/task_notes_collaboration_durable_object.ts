@@ -14,8 +14,19 @@ import {
 } from "~/server/tasks/notes_collaboration/task_notes_collaboration_connection.js";
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
+import {
+    AccessLevel,
+    allAccessLevels,
+    hasAccessLevel,
+    isAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
@@ -28,11 +39,11 @@ import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collabor
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 type TaskNotesCollaborationDurableObjectRoute =
-    | "Main"
-    | "BroadcastNewMessage"
-    | "BroadcastPutMessageStreamPart"
-    | "BroadcastCompleteMessageStream"
-    | "NotFound";
+    | {type: "Main"; accessLevel: AccessLevel | null}
+    | {type: "BroadcastNewMessage"}
+    | {type: "BroadcastPutMessageStreamPart"}
+    | {type: "BroadcastCompleteMessageStream"}
+    | {type: "NotFound"};
 
 class TaskNotesCollaborationDurableObject {
     public static readonly serviceName = "TaskNotesCollaborationService";
@@ -43,12 +54,15 @@ class TaskNotesCollaborationDurableObject {
     private readonly _contentManager: TaskNotesCollaborationContentManager;
     private readonly _destroyCallback: () => void;
 
-    private readonly _webSocketServer: WebSocketServer<
-        WorkerProcessContextModules,
-        WorkerSessionActionContextModules,
-        typeof TaskNotesCollaborationProtocol,
-        TaskNotesCollaborationEventStub,
-        TaskNotesCollaborationConnection
+    private readonly _webSocketServerByAccessLevel: Record<
+        AccessLevel,
+        WebSocketServer<
+            WorkerProcessContextModules,
+            WorkerSessionActionContextModules,
+            typeof TaskNotesCollaborationProtocol,
+            TaskNotesCollaborationEventStub,
+            TaskNotesCollaborationConnection
+        >
     >;
 
     public static async initialize({
@@ -112,57 +126,126 @@ class TaskNotesCollaborationDurableObject {
             taskId,
             initialVersion,
             initialContent,
-            sendEventToAllAndWait: (context, event) =>
-                this._webSocketServer.sendEventToAllAndWait(context, event),
+            sendEventToAllAndWait: async (context, event) => {
+                await runAllPromises(
+                    allAccessLevels.map(async accessLevel => {
+                        const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
+
+                        if (hasAccessLevel(accessLevel, "Comment")) {
+                            await webSocketServer.sendEventToAllAndWait(context, event);
+                        } else if (webSocketServer.hasConnections()) {
+                            const eventWithoutComments =
+                                stripTaskNotesCollaborationEventComments(event);
+
+                            if (eventWithoutComments !== null) {
+                                await webSocketServer.sendEventToAllAndWait(
+                                    context,
+                                    eventWithoutComments,
+                                );
+                            }
+                        }
+                    }),
+                );
+            },
             killProcess: (context, error) => this._destroy(context, error),
         });
 
-        this._webSocketServer = new WebSocketServer<
-            WorkerProcessContextModules,
-            WorkerSessionActionContextModules,
-            typeof TaskNotesCollaborationProtocol,
-            TaskNotesCollaborationEventStub,
-            TaskNotesCollaborationConnection
-        >(
-            this._processContext,
-            TaskNotesCollaborationProtocol,
-            ({
-                accountId,
-                connectionId,
-                closeWithError,
-                sendEvent,
-                sendEventToOthers,
-                iterateOtherConnections,
-            }) => {
-                return new TaskNotesCollaborationConnection({
-                    connectionId,
+        this._webSocketServerByAccessLevel = createObjectFromKeys(allAccessLevels, accessLevel => {
+            return new WebSocketServer<
+                WorkerProcessContextModules,
+                WorkerSessionActionContextModules,
+                typeof TaskNotesCollaborationProtocol,
+                TaskNotesCollaborationEventStub,
+                TaskNotesCollaborationConnection
+            >(
+                this._processContext,
+                TaskNotesCollaborationProtocol,
+                ({
                     accountId,
-                    contentManager: this._contentManager,
+                    connectionId,
                     closeWithError,
                     sendEvent,
                     sendEventToOthers,
                     iterateOtherConnections,
-                });
-            },
-        );
+                }) => {
+                    return new TaskNotesCollaborationConnection({
+                        accessLevel,
+                        connectionId,
+                        accountId,
+                        contentManager: this._contentManager,
+                        closeWithError,
+                        sendEvent,
+                        sendEventToOthers: (context, event) => {
+                            sendEventToOthers(context, event);
+
+                            for (const otherAccessLevel of allAccessLevels) {
+                                if (otherAccessLevel === accessLevel) continue;
+
+                                const otherWebSocketServer =
+                                    this._webSocketServerByAccessLevel[otherAccessLevel];
+
+                                if (!otherWebSocketServer.hasConnections()) continue;
+
+                                // If this WebSocket server has comment access but the other doesn't then strip
+                                // any comments from the event before sending it to peer WebSockets of
+                                // different access levels.
+                                if (
+                                    hasAccessLevel(accessLevel, "Comment") &&
+                                    !hasAccessLevel(otherAccessLevel, "Comment")
+                                ) {
+                                    const eventWithoutComments =
+                                        stripTaskNotesCollaborationEventComments(event);
+
+                                    if (eventWithoutComments !== null) {
+                                        otherWebSocketServer.sendEventToAll(
+                                            context,
+                                            eventWithoutComments,
+                                        );
+                                    }
+                                } else {
+                                    otherWebSocketServer.sendEventToAll(context, event);
+                                }
+                            }
+                        },
+                        iterateOtherConnections: () =>
+                            concatIterables(
+                                iterateOtherConnections(),
+                                flatMapIterable(allAccessLevels, otherAccessLevel => {
+                                    if (otherAccessLevel === accessLevel) return emptyArray;
+
+                                    const otherWebSocketServer =
+                                        this._webSocketServerByAccessLevel[otherAccessLevel];
+
+                                    return otherWebSocketServer.iterateAllConnections();
+                                }),
+                            ),
+                    });
+                },
+            );
+        });
     }
 
     public static parseRoute(url: URL): [string, TaskNotesCollaborationDurableObjectRoute] {
-        if (url.pathname === "/") return ["/", "Main"];
+        if (url.pathname === "/") {
+            const accessSearchParam = url.searchParams.get("access");
+            const accessLevel =
+                accessSearchParam && isAccessLevel(accessSearchParam) ? accessSearchParam : null;
+            return ["/", {type: "Main", accessLevel}];
+        }
 
         if (url.pathname === "/broadcast-new-message") {
-            return [url.pathname, "BroadcastNewMessage"];
+            return [url.pathname, {type: "BroadcastNewMessage"}];
         }
 
         if (url.pathname === "/broadcast-put-message-stream-part") {
-            return [url.pathname, "BroadcastPutMessageStreamPart"];
+            return [url.pathname, {type: "BroadcastPutMessageStreamPart"}];
         }
 
         if (url.pathname === "/broadcast-complete-message-stream") {
-            return [url.pathname, "BroadcastCompleteMessageStream"];
+            return [url.pathname, {type: "BroadcastCompleteMessageStream"}];
         }
 
-        return ["/*", "NotFound"];
+        return ["/*", {type: "NotFound"}];
     }
 
     public async fetch(
@@ -175,12 +258,17 @@ class TaskNotesCollaborationDurableObject {
             context: {spaceId: this.spaceId, taskId: this.taskId},
         });
 
-        switch (route) {
+        switch (route.type) {
             case "NotFound": {
                 throw new NotFoundError("Route not found");
             }
             case "Main": {
-                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+                // TODO(calebmer, #task-collaboration-access-level-refactor): Throw once
+                // clients are connecting with the right `AccessLevel`.
+                return this._webSocketServerByAccessLevel[route.accessLevel ?? "View"].upgrade(
+                    context.actor.authorizeSession(),
+                    request,
+                );
             }
             case "BroadcastNewMessage": {
                 if (request.method !== "POST") {
@@ -194,9 +282,21 @@ class TaskNotesCollaborationDurableObject {
                     await request.json(),
                 );
 
-                TaskNotesCollaborationConnection.broadcastNewMessage(context, requestBody, () =>
-                    this._webSocketServer.iterateAllConnections(),
-                );
+                TaskNotesCollaborationConnection.broadcastNewMessage(context, requestBody, () => {
+                    return flatMapIterable(allAccessLevels, accessLevel => {
+                        // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
+                        // `trueBoolean` check once clients are connecting with the right
+                        // `AccessLevel`.
+                        //
+                        // `trueBoolean` is to trick TypeScript into thinking the code below is
+                        // reachable.
+                        if (!trueBoolean && !hasAccessLevel(accessLevel, "Comment"))
+                            return emptyArray;
+
+                        const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
+                        return webSocketServer.iterateAllConnections();
+                    });
+                });
 
                 return new Response(null, {status: 200});
             }
@@ -216,7 +316,21 @@ class TaskNotesCollaborationDurableObject {
                 TaskNotesCollaborationConnection.broadcastPutMessageStreamPart(
                     context,
                     requestBody,
-                    () => this._webSocketServer.iterateAllConnections(),
+                    () => {
+                        return flatMapIterable(allAccessLevels, accessLevel => {
+                            // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
+                            // `trueBoolean` check once clients are connecting with the right
+                            // `AccessLevel`.
+                            //
+                            // `trueBoolean` is to trick TypeScript into thinking the code below is
+                            // reachable.
+                            if (!trueBoolean && !hasAccessLevel(accessLevel, "Comment"))
+                                return emptyArray;
+
+                            const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
+                            return webSocketServer.iterateAllConnections();
+                        });
+                    },
                 );
 
                 return new Response(null, {status: 200});
@@ -237,7 +351,21 @@ class TaskNotesCollaborationDurableObject {
                 TaskNotesCollaborationConnection.broadcastCompleteMessageStream(
                     context,
                     requestBody,
-                    () => this._webSocketServer.iterateAllConnections(),
+                    () => {
+                        return flatMapIterable(allAccessLevels, accessLevel => {
+                            // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
+                            // `trueBoolean` check once clients are connecting with the right
+                            // `AccessLevel`.
+                            //
+                            // `trueBoolean` is to trick TypeScript into thinking the code below is
+                            // reachable.
+                            if (!trueBoolean && !hasAccessLevel(accessLevel, "Comment"))
+                                return emptyArray;
+
+                            const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
+                            return webSocketServer.iterateAllConnections();
+                        });
+                    },
                 );
 
                 return new Response(null, {status: 200});
@@ -247,13 +375,60 @@ class TaskNotesCollaborationDurableObject {
         }
     }
 
-    public connectForTest(context: WorkerSessionActionContext) {
-        return this._webSocketServer.connectForTest(context);
+    public connectForTest(
+        context: WorkerSessionActionContext,
+        {accessLevel = "Edit"}: {accessLevel?: AccessLevel} = {},
+    ) {
+        return this._webSocketServerByAccessLevel[accessLevel].connectForTest(context);
     }
 
     private _destroy(context: WorkerProcessContext, error: unknown) {
-        this._webSocketServer.closeAllWithError(context, error);
+        for (const accessLevel of allAccessLevels) {
+            this._webSocketServerByAccessLevel[accessLevel].closeAllWithError(context, error);
+        }
         this._destroyCallback();
+    }
+}
+
+const trueBoolean: boolean = true;
+
+function stripTaskNotesCollaborationEventComments(
+    event: TaskNotesCollaborationEventStub,
+): TaskNotesCollaborationEventStub | null {
+    // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
+    // early return once clients are connecting with the right `AccessLevel`.
+    //
+    // `trueBoolean` is to trick TypeScript into thinking the code below is
+    // reachable.
+    if (trueBoolean) {
+        return event;
+    }
+
+    // Code style: Manually recreate the event objects so that we can be absolutely
+    // sure comment data isn't slipping into `eventWithoutComments`. Especially
+    // when we add new fields in the future, we want TypeScript to error and the
+    // developer to consider whether comment information needs to be stripped.
+    switch (event.type) {
+        case "UpdateNotesContentWithoutPersistence": {
+            return {
+                type: "UpdateNotesContentWithoutPersistence",
+                newVersion: event.newVersion,
+                steps: event.steps,
+                stepsContentReferenceIds: event.stepsContentReferenceIds,
+                clientId: event.clientId,
+            };
+        }
+        case "PersistedContent": {
+            return {
+                type: "PersistedContent",
+                newVersion: event.newVersion,
+            };
+        }
+        case "Comments": {
+            return null;
+        }
+        default:
+            throw exhaustive(event);
     }
 }
 

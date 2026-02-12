@@ -27,6 +27,10 @@ export const allAccessLevels = ["View", "Comment", "Edit", "Manage"] as const;
 
 export const AccessLevelSchema = Schema.enum(allAccessLevels);
 
+export function isAccessLevel(value: string): value is AccessLevel {
+    return allAccessLevels.includes(value as AccessLevel);
+}
+
 /**
  * Does someone's access level high enough to take an action at the expected
  * access level?

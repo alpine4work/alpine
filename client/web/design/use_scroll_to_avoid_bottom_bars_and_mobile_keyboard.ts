@@ -151,7 +151,6 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
     {
         getAnchorPosition,
         isDisabled = false,
-        isPinned = false,
         scrollableInsetBottom = 0,
     }: {
         /**
@@ -162,26 +161,27 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
          * The position should be in viewport coordinates.
          */
         getAnchorPosition: Memo<
-            (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
+            (oldVisibleRect: {top: number; bottom: number}) => {
+                top: number;
+                height: number;
+
+                /**
+                 * By default, the objective of this hook is to make sure the anchor content
+                 * stays visible. This means if after a keyboard frame change the anchor stays
+                 * completely visible then we don't scroll.
+                 *
+                 * However, instead you may want the anchor to maintain its relative position
+                 * in the visible area. So it scrolls up when the keyboard opens and back down
+                 * when the keyboard closes. To get this behavior set `isPinned` to true.
+                 */
+                isPinned: boolean;
+            } | null
         >;
 
         /**
          * Disable scrolling when the keyboard frame changes. Defaults to false.
          */
         isDisabled?: boolean;
-
-        /**
-         * By default, the objective of this hook is to make sure the anchor content
-         * stays visible. This means if after a keyboard frame change the anchor stays
-         * completely visible then we don't scroll.
-         *
-         * However, instead you may want the anchor to maintain its relative position
-         * in the visible area. So it scrolls up when the keyboard opens and back down
-         * when the keyboard closes. To get this behavior set `isPinned` to true.
-         *
-         * Defaults to false.
-         */
-        isPinned?: boolean;
 
         /**
          * Allow the caller to apply some inset to the bottom of the scrollable area.
@@ -233,11 +233,28 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
         let previousScrollTop1 = scrollableElement.scrollTop;
         let previousScrollTop2 = scrollableElement.scrollTop;
+        let scrollTopBeforeAnimationFrame: number | null = null;
 
         let previousScrollTime1: number | null = null;
         let previousScrollTime2: number | null = null;
 
         const handleScroll = () => {
+            // Keep track of the scroll top from right before the next paint.
+            if (scrollTopBeforeAnimationFrame === null) {
+                scrollTopBeforeAnimationFrame = previousScrollTop1;
+
+                // We need double `requestAnimationFrame()` because we want to hold the
+                // previous scroll top until AFTER the current frame. One
+                // `requestAnimationFrame()` will schedule us within the current frame right
+                // before it paints. Double `requestAnimationFrame()` schedules after the
+                // curent frame.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        scrollTopBeforeAnimationFrame = null;
+                    });
+                });
+            }
+
             previousScrollTime2 = previousScrollTime1;
             previousScrollTime1 = Date.now();
 
@@ -510,7 +527,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // (so not covered) we don't scroll by default. But setting `isPinned` to true,
             // again, attempts to maintain the relative position of the anchor in the
             // visible space.
-            if (!isPinned) {
+            if (!anchorPosition.isPinned) {
                 const isCompletelyVisible = isRangeContained(
                     newVisibleRect.top,
                     newVisibleRect.bottom,
@@ -725,6 +742,46 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 // return so the message input grows then hit delete so it shrinks back.
                 //
                 // We use this same trick in `useScrollToNewMessages()`.
+                if (isMobileWebKit && -1 < scrollDelta && scrollDelta < 1) {
+                    scrollDelta = -0.1;
+                }
+            }
+            // This is the same in principle as the above branch (which is why we only run
+            // one or the other). If the bottom bar resizes and causes the scrollable
+            // content area to also resize then we need to be careful that our
+            // `scrollDelta` isn't effectively double scrolling (in addition to the browser
+            // updating `scrollTop` in response to the scrollable content area shrinking).
+            //
+            // What the above branch (that I added 2 years ago) doesn't catch is when we
+            // have a `<MessageInput>` inside the scrollable area (not fixed to the bottom
+            // of the screen via `display: flex; flex-direction: column` in `<ChatView>`
+            // but `position: sticky` stuck to the bottom like in `<TaskDetailView>`) and
+            // that message input shrinks it also shrinks the scrollable content area
+            // forcing the browser to scroll to make sure `scrollTop` stays within the
+            // correct bounds.
+            //
+            // This hook will want to perform the same scroll since it also sees the
+            // `<MessageInput>` height change (as a bottom bar height change). We need to
+            // cancel the scroll from this hook given the browser has already performed
+            // the same scroll.
+            //
+            // We use the `scrollTop` from the previous frame to determine if the browser
+            // has performed a scroll at the same time as our resize.
+            //
+            // Demo of the bug this branch is fixing:
+            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/fvempy4byqhy4t6qwgc2x4znf8
+            else if (
+                oldBottomBarHeight !== newBottomBarHeight &&
+                scrollTopBeforeAnimationFrame !== null &&
+                scrollTopBeforeAnimationFrame > scrollableElement.scrollTop &&
+                scrollableElement.scrollTop + scrollableElement.clientHeight ===
+                    scrollableElement.scrollHeight
+            ) {
+                scrollDelta += scrollTopBeforeAnimationFrame - scrollableElement.scrollTop;
+
+                // NOTE(calebmer, #mobile-webkit-weirdness): I'm only adding this because the
+                // above branch has this and I don't know for sure whether this branch needs it
+                // or not.
                 if (isMobileWebKit && -1 < scrollDelta && scrollDelta < 1) {
                     scrollDelta = -0.1;
                 }
@@ -973,7 +1030,6 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
         getCurrentBottomBarHeight,
         isDisabled,
         isInert,
-        isPinned,
         routeLayout,
         scrollableInsetBottom,
         scrollableRef,

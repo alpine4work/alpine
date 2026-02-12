@@ -40,7 +40,12 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     const lastFinalMessageHasEndingReactionsRef = useRef(false);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (messages === null) return;
+        if (messages === null) {
+            lastItemCountRef.current = null;
+            lastHasTypingIndicatorsItemRef.current = false;
+            lastFinalMessageHasEndingReactionsRef.current = false;
+            return;
+        }
 
         // If this ref was previously null, set it to the current item count.
         lastItemCountRef.current ??= messages.getItemCount();
