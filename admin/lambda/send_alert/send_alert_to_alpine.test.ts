@@ -11,14 +11,46 @@ import {
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
     EDGE_SERVICE_URL: "https://test.cyberworlds.com",
+    HONEYCOMB_API_KEY: "test-honeycomb-api-key",
 };
 
 // Store original environment
 const originalEnv = process.env;
 
+// Mock Honeycomb API response data
+type MockHoneycombResponse = {
+    complete: boolean;
+    data: {
+        results: Array<Record<string, unknown>>;
+        series: Array<unknown>;
+    };
+};
+
+let mockHoneycombResponse: MockHoneycombResponse | null = null;
+
 // Mock fetch function
 let mockFetchCalls: Array<{url: string; body: unknown}> = [];
 const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options?: any) => {
+    // Handle Honeycomb API calls
+    if (url.startsWith("https://api.honeycomb.io/")) {
+        if (mockHoneycombResponse) {
+            return Promise.resolve({
+                ok: true,
+                status: 200,
+                statusText: "OK",
+                json: () => Promise.resolve(mockHoneycombResponse),
+                text: () => Promise.resolve(JSON.stringify(mockHoneycombResponse)),
+            });
+        }
+        return Promise.resolve({
+            ok: false,
+            status: 404,
+            statusText: "Not Found",
+            text: () => Promise.resolve("Not found"),
+        });
+    }
+
+    // Handle Alpine API calls
     if (options?.body) {
         mockFetchCalls.push({
             url,
@@ -40,6 +72,7 @@ describe("sendAlertToAlpine", () => {
 
         // Reset mock data
         mockFetchCalls = [];
+        mockHoneycombResponse = null;
 
         // Mock global fetch
         global.fetch = mockFetch;
@@ -64,7 +97,7 @@ describe("sendAlertToAlpine", () => {
             environment: "production",
             links: {
                 trigger: "https://ui.honeycomb.io/cyberworlds/triggers/db-error-trigger",
-                result: "https://ui.honeycomb.io/cyberworlds/results/db-error-result",
+                result: "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
             },
             threshold: {
                 op: ">",
@@ -174,6 +207,192 @@ describe("sendAlertToAlpine", () => {
 
             expect(mockFetchCalls).toHaveLength(1);
             expect(mockFetchCalls[0]).toMatchSnapshot();
+        });
+
+        describe("displayFields and userTags", () => {
+            test("fetches query results and displays specified fields", async () => {
+                mockHoneycombResponse = {
+                    complete: true,
+                    data: {
+                        results: [
+                            {
+                                "display.message": "Failed to load user profile",
+                                "http.path": "/api/users/123",
+                            },
+                            {
+                                "display.message": "Connection timeout",
+                                "http.path": "/api/data/fetch",
+                            },
+                        ],
+                        series: [],
+                    },
+                };
+
+                const payload = createHoneycombFixture({
+                    displayFields: "display.message, http.path",
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(mockFetchCalls[0]).toMatchSnapshot();
+            });
+
+            test("shows user tags from context.known_account.name", async () => {
+                mockHoneycombResponse = {
+                    complete: true,
+                    data: {
+                        results: [
+                            {
+                                "display.message": "Failed to load user profile",
+                                "http.path": "/api/users/123",
+                                "context.known_account.name": "Josh Johnson",
+                            },
+                            {
+                                "display.message": "Connection timeout",
+                                "http.path": "/api/data/fetch",
+                                "context.known_account.name": "Rachel Date",
+                            },
+                            {
+                                "display.message": "Another error",
+                                "http.path": "/api/other",
+                                "context.known_account.name": "Josh Johnson",
+                            },
+                        ],
+                        series: [],
+                    },
+                };
+
+                const payload = createHoneycombFixture({
+                    displayFields: "display.message, http.path",
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(mockFetchCalls[0]).toMatchSnapshot();
+            });
+
+            test("shows user tags even without displayFields", async () => {
+                mockHoneycombResponse = {
+                    complete: true,
+                    data: {
+                        results: [
+                            {
+                                "some.field": "value1",
+                                "context.known_account.name": "Josh Johnson",
+                            },
+                            {
+                                "some.field": "value2",
+                                "context.known_account.name": "Rachel Date",
+                            },
+                        ],
+                        series: [],
+                    },
+                };
+
+                const payload = createHoneycombFixture();
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(mockFetchCalls[0]).toMatchSnapshot();
+            });
+
+            test("truncates results to 3 and shows remaining count", async () => {
+                mockHoneycombResponse = {
+                    complete: true,
+                    data: {
+                        results: [
+                            {"display.message": "Error 1", "http.path": "/api/1"},
+                            {"display.message": "Error 2", "http.path": "/api/2"},
+                            {"display.message": "Error 3", "http.path": "/api/3"},
+                            {"display.message": "Error 4", "http.path": "/api/4"},
+                            {"display.message": "Error 5", "http.path": "/api/5"},
+                        ],
+                        series: [],
+                    },
+                };
+
+                const payload = createHoneycombFixture({
+                    displayFields: "display.message",
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(mockFetchCalls[0]).toMatchSnapshot();
+            });
+
+            test("auto-adds context names when displayFields are present", async () => {
+                mockHoneycombResponse = {
+                    complete: true,
+                    data: {
+                        results: [
+                            {
+                                "display.message": "Error occurred",
+                                "context.known_account.name": "Josh Johnson",
+                                "context.known_space.name": "Engineering",
+                            },
+                        ],
+                        series: [],
+                    },
+                };
+
+                const payload = createHoneycombFixture({
+                    displayFields: "display.message",
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(mockFetchCalls[0]).toMatchSnapshot();
+            });
+
+            test("handles no matching display fields gracefully", async () => {
+                mockHoneycombResponse = {
+                    complete: true,
+                    data: {
+                        results: [{"other.field": "some value"}],
+                        series: [],
+                    },
+                };
+
+                const payload = createHoneycombFixture({
+                    displayFields: "display.message",
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(mockFetchCalls[0]).toMatchSnapshot();
+            });
+
+            test("does not fetch query results for resolved alerts", async () => {
+                mockHoneycombResponse = {
+                    complete: true,
+                    data: {
+                        results: [{"display.message": "Should not appear"}],
+                        series: [],
+                    },
+                };
+
+                const payload = createHoneycombFixture({
+                    displayFields: "display.message",
+                    alert: {
+                        instanceId: "alert-instance-456",
+                        description: "Issue resolved",
+                        status: "ok",
+                        summary: "Resolved",
+                        isTest: false,
+                    },
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(mockFetchCalls[0]).toMatchSnapshot();
+            });
         });
     });
 

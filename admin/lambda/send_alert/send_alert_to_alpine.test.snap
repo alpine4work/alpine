@@ -397,6 +397,679 @@ exports[`sendAlertToAlpine GitHub build failure with multiple PR references 1`] 
 }
 `;
 
+exports[`sendAlertToAlpine Honeycomb displayFields and userTags auto-adds context names when displayFields are present 1`] = `
+{
+  "body": {
+    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
+    "content": {
+      "elements": [
+        {
+          "elements": [
+            {
+              "text": "🚨 Trigger: Database Connection Error",
+              "type": "Text",
+            },
+          ],
+          "level": 2,
+          "type": "Heading",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Link",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
+                },
+              ],
+              "text": "View Result",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Italic",
+                },
+              ],
+              "text": "High error rate detected in database connections",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "type": "Divider",
+        },
+        {
+          "language": "text",
+          "lines": [
+            {
+              "elements": [
+                {
+                  "text": "display.message: Error occurred",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "context.known_account.name: Josh Johnson",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "context.known_space.name: Engineering",
+                  "type": "Text",
+                },
+              ],
+            },
+          ],
+          "type": "Code",
+        },
+        {
+          "elements": [
+            {
+              "isAccountShortName": true,
+              "target": {
+                "id": "7dw297xezx6rs6qy4gjh6h5xx4",
+                "type": "Account",
+              },
+              "type": "Mention",
+            },
+          ],
+          "type": "Paragraph",
+        },
+      ],
+    },
+  },
+  "url": "https://api.test.cyberworlds.com/posts",
+}
+`;
+
+exports[`sendAlertToAlpine Honeycomb displayFields and userTags does not fetch query results for resolved alerts 1`] = `
+{
+  "body": {
+    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
+    "content": {
+      "elements": [
+        {
+          "elements": [
+            {
+              "text": "✅ Trigger: Database Connection Error",
+              "type": "Text",
+            },
+          ],
+          "level": 2,
+          "type": "Heading",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Link",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
+                },
+              ],
+              "text": "View Result",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Italic",
+                },
+              ],
+              "text": "High error rate detected in database connections",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Bold",
+                },
+              ],
+              "text": "Measurement has returned to normal status.",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+      ],
+    },
+  },
+  "url": "https://api.test.cyberworlds.com/posts",
+}
+`;
+
+exports[`sendAlertToAlpine Honeycomb displayFields and userTags fetches query results and displays specified fields 1`] = `
+{
+  "body": {
+    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
+    "content": {
+      "elements": [
+        {
+          "elements": [
+            {
+              "text": "🚨 Trigger: Database Connection Error",
+              "type": "Text",
+            },
+          ],
+          "level": 2,
+          "type": "Heading",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Link",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
+                },
+              ],
+              "text": "View Result",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Italic",
+                },
+              ],
+              "text": "High error rate detected in database connections",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "type": "Divider",
+        },
+        {
+          "language": "text",
+          "lines": [
+            {
+              "elements": [
+                {
+                  "text": "display.message: Failed to load user profile",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "http.path: /api/users/123",
+                  "type": "Text",
+                },
+              ],
+            },
+          ],
+          "type": "Code",
+        },
+        {
+          "language": "text",
+          "lines": [
+            {
+              "elements": [
+                {
+                  "text": "display.message: Connection timeout",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "http.path: /api/data/fetch",
+                  "type": "Text",
+                },
+              ],
+            },
+          ],
+          "type": "Code",
+        },
+      ],
+    },
+  },
+  "url": "https://api.test.cyberworlds.com/posts",
+}
+`;
+
+exports[`sendAlertToAlpine Honeycomb displayFields and userTags handles no matching display fields gracefully 1`] = `
+{
+  "body": {
+    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
+    "content": {
+      "elements": [
+        {
+          "elements": [
+            {
+              "text": "🚨 Trigger: Database Connection Error",
+              "type": "Text",
+            },
+          ],
+          "level": 2,
+          "type": "Heading",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Link",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
+                },
+              ],
+              "text": "View Result",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Italic",
+                },
+              ],
+              "text": "High error rate detected in database connections",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+      ],
+    },
+  },
+  "url": "https://api.test.cyberworlds.com/posts",
+}
+`;
+
+exports[`sendAlertToAlpine Honeycomb displayFields and userTags shows user tags even without displayFields 1`] = `
+{
+  "body": {
+    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
+    "content": {
+      "elements": [
+        {
+          "elements": [
+            {
+              "text": "🚨 Trigger: Database Connection Error",
+              "type": "Text",
+            },
+          ],
+          "level": 2,
+          "type": "Heading",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Link",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
+                },
+              ],
+              "text": "View Result",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Italic",
+                },
+              ],
+              "text": "High error rate detected in database connections",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "elements": [
+            {
+              "isAccountShortName": true,
+              "target": {
+                "id": "7dw297xezx6rs6qy4gjh6h5xx4",
+                "type": "Account",
+              },
+              "type": "Mention",
+            },
+            {
+              "text": " ",
+              "type": "Text",
+            },
+            {
+              "isAccountShortName": true,
+              "target": {
+                "id": "jttc8n911at1wxt0b8rm75n270",
+                "type": "Account",
+              },
+              "type": "Mention",
+            },
+          ],
+          "type": "Paragraph",
+        },
+      ],
+    },
+  },
+  "url": "https://api.test.cyberworlds.com/posts",
+}
+`;
+
+exports[`sendAlertToAlpine Honeycomb displayFields and userTags shows user tags from context.known_account.name 1`] = `
+{
+  "body": {
+    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
+    "content": {
+      "elements": [
+        {
+          "elements": [
+            {
+              "text": "🚨 Trigger: Database Connection Error",
+              "type": "Text",
+            },
+          ],
+          "level": 2,
+          "type": "Heading",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Link",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
+                },
+              ],
+              "text": "View Result",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Italic",
+                },
+              ],
+              "text": "High error rate detected in database connections",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "type": "Divider",
+        },
+        {
+          "language": "text",
+          "lines": [
+            {
+              "elements": [
+                {
+                  "text": "display.message: Failed to load user profile",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "http.path: /api/users/123",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "context.known_account.name: Josh Johnson",
+                  "type": "Text",
+                },
+              ],
+            },
+          ],
+          "type": "Code",
+        },
+        {
+          "language": "text",
+          "lines": [
+            {
+              "elements": [
+                {
+                  "text": "display.message: Connection timeout",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "http.path: /api/data/fetch",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "context.known_account.name: Rachel Date",
+                  "type": "Text",
+                },
+              ],
+            },
+          ],
+          "type": "Code",
+        },
+        {
+          "language": "text",
+          "lines": [
+            {
+              "elements": [
+                {
+                  "text": "display.message: Another error",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "http.path: /api/other",
+                  "type": "Text",
+                },
+              ],
+            },
+            {
+              "elements": [
+                {
+                  "text": "context.known_account.name: Josh Johnson",
+                  "type": "Text",
+                },
+              ],
+            },
+          ],
+          "type": "Code",
+        },
+        {
+          "elements": [
+            {
+              "isAccountShortName": true,
+              "target": {
+                "id": "7dw297xezx6rs6qy4gjh6h5xx4",
+                "type": "Account",
+              },
+              "type": "Mention",
+            },
+            {
+              "text": " ",
+              "type": "Text",
+            },
+            {
+              "isAccountShortName": true,
+              "target": {
+                "id": "jttc8n911at1wxt0b8rm75n270",
+                "type": "Account",
+              },
+              "type": "Mention",
+            },
+          ],
+          "type": "Paragraph",
+        },
+      ],
+    },
+  },
+  "url": "https://api.test.cyberworlds.com/posts",
+}
+`;
+
+exports[`sendAlertToAlpine Honeycomb displayFields and userTags truncates results to 3 and shows remaining count 1`] = `
+{
+  "body": {
+    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
+    "content": {
+      "elements": [
+        {
+          "elements": [
+            {
+              "text": "🚨 Trigger: Database Connection Error",
+              "type": "Text",
+            },
+          ],
+          "level": 2,
+          "type": "Heading",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Link",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
+                },
+              ],
+              "text": "View Result",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Italic",
+                },
+              ],
+              "text": "High error rate detected in database connections",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+        {
+          "type": "Divider",
+        },
+        {
+          "language": "text",
+          "lines": [
+            {
+              "elements": [
+                {
+                  "text": "display.message: Error 1",
+                  "type": "Text",
+                },
+              ],
+            },
+          ],
+          "type": "Code",
+        },
+        {
+          "language": "text",
+          "lines": [
+            {
+              "elements": [
+                {
+                  "text": "display.message: Error 2",
+                  "type": "Text",
+                },
+              ],
+            },
+          ],
+          "type": "Code",
+        },
+        {
+          "language": "text",
+          "lines": [
+            {
+              "elements": [
+                {
+                  "text": "display.message: Error 3",
+                  "type": "Text",
+                },
+              ],
+            },
+          ],
+          "type": "Code",
+        },
+        {
+          "elements": [
+            {
+              "marks": [
+                {
+                  "type": "Italic",
+                },
+              ],
+              "text": "(2 more results...)",
+              "type": "Text",
+            },
+          ],
+          "type": "Paragraph",
+        },
+      ],
+    },
+  },
+  "url": "https://api.test.cyberworlds.com/posts",
+}
+`;
+
 exports[`sendAlertToAlpine Honeycomb event alert 1`] = `
 {
   "body": {
@@ -419,7 +1092,7 @@ exports[`sendAlertToAlpine Honeycomb event alert 1`] = `
               "marks": [
                 {
                   "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/results/db-error-result",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
                 },
               ],
               "text": "View Result",
@@ -437,19 +1110,6 @@ exports[`sendAlertToAlpine Honeycomb event alert 1`] = `
                 },
               ],
               "text": "New user registration detected",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Threshold: ",
-              "type": "Text",
-            },
-            {
-              "text": "> 5",
               "type": "Text",
             },
           ],
@@ -484,7 +1144,7 @@ exports[`sendAlertToAlpine Honeycomb event alert with custom emoji 1`] = `
               "marks": [
                 {
                   "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/results/db-error-result",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
                 },
               ],
               "text": "View Result",
@@ -502,19 +1162,6 @@ exports[`sendAlertToAlpine Honeycomb event alert with custom emoji 1`] = `
                 },
               ],
               "text": "New user registration detected",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Threshold: ",
-              "type": "Text",
-            },
-            {
-              "text": "> 5",
               "type": "Text",
             },
           ],
@@ -549,7 +1196,7 @@ exports[`sendAlertToAlpine Honeycomb resolved alert 1`] = `
               "marks": [
                 {
                   "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/results/db-error-result",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
                 },
               ],
               "text": "View Result",
@@ -615,7 +1262,7 @@ exports[`sendAlertToAlpine Honeycomb staging environment alert 1`] = `
               "marks": [
                 {
                   "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/results/db-error-result",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
                 },
               ],
               "text": "View Result",
@@ -651,19 +1298,6 @@ exports[`sendAlertToAlpine Honeycomb staging environment alert 1`] = `
           ],
           "type": "Paragraph",
         },
-        {
-          "elements": [
-            {
-              "text": "Threshold: ",
-              "type": "Text",
-            },
-            {
-              "text": "> 5",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
       ],
     },
   },
@@ -693,7 +1327,7 @@ exports[`sendAlertToAlpine Honeycomb triggered alert 1`] = `
               "marks": [
                 {
                   "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/results/db-error-result",
+                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
                 },
               ],
               "text": "View Result",
@@ -711,19 +1345,6 @@ exports[`sendAlertToAlpine Honeycomb triggered alert 1`] = `
                 },
               ],
               "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Threshold: ",
-              "type": "Text",
-            },
-            {
-              "text": "> 5",
               "type": "Text",
             },
           ],

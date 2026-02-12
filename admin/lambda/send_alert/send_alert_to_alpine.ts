@@ -23,6 +23,138 @@ import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 type ApiContentElement = ApiContent["elements"][number];
 type SendAlertResult = {ok: true} | {ok: false; error: string; statusCode?: number};
 
+// Honeycomb API types
+type HoneycombQueryResultData = {
+    complete: boolean;
+    data: {
+        results: Array<Record<string, unknown>>;
+        series: Array<unknown>;
+    };
+};
+
+// Parse Honeycomb result URL to extract query result ID and environment
+// URL format: https://ui.honeycomb.io/{team}/environments/{environment}/result/{queryId}/a/{queryResultId}
+function parseHoneycombResultUrl(url: string): {
+    environment: string;
+    queryResultId: string;
+} | null {
+    const regex = /ui\.honeycomb\.io\/[^/]+\/environments\/([^/]+)\/result\/[^/]+\/a\/([^/?]+)/;
+    const match = url.match(regex);
+    if (!match || !match[1] || !match[2]) {
+        console.error(`Failed to parse Honeycomb result URL: ${url}`);
+        return null;
+    }
+    return {
+        environment: match[1],
+        queryResultId: match[2],
+    };
+}
+
+// Fetch query results from Honeycomb API
+// See: https://api-docs.honeycomb.io/api/query-data
+async function fetchHoneycombQueryResults(
+    environment: string,
+    queryResultId: string,
+): Promise<HoneycombQueryResultData | null> {
+    const apiKey = process.env.HONEYCOMB_API_KEY;
+    if (!apiKey) {
+        console.error("HONEYCOMB_API_KEY is not set in environment variables");
+        return null;
+    }
+
+    // The dataset slug is the environment name for environment-scoped queries
+    const apiUrl = `https://api.honeycomb.io/1/query_results/${environment}/${queryResultId}`;
+
+    console.log(`Fetching Honeycomb query results from: ${apiUrl}`);
+
+    try {
+        // eslint-disable-next-line cyberworlds/no-global-fetch
+        const response = await fetch(apiUrl, {
+            headers: {
+                "X-Honeycomb-Team": apiKey,
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(
+                `Failed to fetch Honeycomb results: ${response.status} ${response.statusText}`,
+            );
+            console.error(`Response: ${errorText}`);
+            return null;
+        }
+
+        const data = (await response.json()) as HoneycombQueryResultData;
+
+        console.debug(JSON.stringify(data, null, 2));
+
+        if (!data.complete) {
+            console.error("Honeycomb query results are not complete yet");
+            return null;
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error fetching Honeycomb query results:", error);
+        return null;
+    }
+}
+
+// Extract display fields from Honeycomb query results
+// Returns an array of results, where each result contains an array of field/value pairs
+function extractHoneycombDisplayFields(
+    queryResult: HoneycombQueryResultData,
+    displayFieldNames: Array<string>,
+): Array<Array<{field: string; value: string}>> {
+    const allResults: Array<Array<{field: string; value: string}>> = [];
+    const results = queryResult.data.results ?? [];
+
+    // Each result row contains the breakdown columns and calculation results
+    for (const row of results) {
+        const rowFields: Array<{field: string; value: string}> = [];
+        for (const fieldName of displayFieldNames) {
+            const trimmedField = fieldName.trim();
+            if (trimmedField in row) {
+                const value = row[trimmedField];
+                rowFields.push({
+                    field: trimmedField,
+                    value: String(value),
+                });
+            }
+        }
+
+        // Only add rows that have at least one field
+        if (rowFields.length > 0) {
+            allResults.push(rowFields);
+        }
+    }
+
+    return allResults;
+}
+
+// Extract unique user names from context.known_account.name field in query results
+function extractHoneycombUserTags(queryResult: HoneycombQueryResultData): Array<string> {
+    const userNames = new Set<string>();
+    const results = queryResult.data.results ?? [];
+    const userFieldName = "context.known_account.name";
+
+    for (const row of results) {
+        if (userFieldName in row) {
+            const value = row[userFieldName];
+            if (
+                value !== null &&
+                value !== undefined &&
+                typeof value === "string" &&
+                value.length > 0
+            ) {
+                userNames.add(value);
+            }
+        }
+    }
+
+    return Array.from(userNames);
+}
+
 // Create a user mention or link element based on available mappings
 function createUserElement(
     displayName: string,
@@ -535,20 +667,85 @@ export async function sendHoneycombAlertToAlpine(
         });
     }
 
+    // Fetch query results from Honeycomb API for display fields and user tags
     if (status !== "ok") {
-        elements.push({
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Threshold: ",
-                },
-                {
-                    type: "Text",
-                    text: `${data.threshold.op} ${data.threshold.value}`,
-                },
-            ],
-        });
+        const parsedUrl = parseHoneycombResultUrl(data.links.result);
+
+        if (parsedUrl) {
+            const queryResult = await fetchHoneycombQueryResults(
+                parsedUrl.environment,
+                parsedUrl.queryResultId,
+            );
+
+            if (queryResult) {
+                let displayFieldNames = data.displayFields
+                    ? data.displayFields.split(",").map(f => f.trim())
+                    : [];
+
+                // Auto-add context names if other display fields are present
+                if (displayFieldNames.length > 0) {
+                    displayFieldNames = [
+                        ...displayFieldNames,
+                        "context.known_account.name",
+                        "context.known_space.name",
+                    ];
+                }
+
+                const resultRows = extractHoneycombDisplayFields(queryResult, displayFieldNames);
+                const userTags = extractHoneycombUserTags(queryResult);
+
+                if (resultRows.length > 0) {
+                    elements.push({type: "Divider"});
+
+                    const maxResults = 3;
+                    const displayRows = resultRows.slice(0, maxResults);
+                    const remainingCount = resultRows.length - maxResults;
+
+                    // Each result row becomes a code block with one line per field
+                    for (const rowFields of displayRows) {
+                        elements.push({
+                            type: "Code",
+                            language: "text",
+                            lines: rowFields.map(({field, value}) => ({
+                                elements: [{type: "Text", text: `${field}: ${value}`}],
+                            })),
+                        });
+                    }
+
+                    if (remainingCount > 0) {
+                        elements.push({
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: `(${remainingCount} more result${remainingCount === 1 ? "" : "s"}...)`,
+                                    marks: [{type: "Italic"}],
+                                },
+                            ],
+                        });
+                    }
+                }
+
+                // Add user mentions for any users found in the results
+                if (userTags.length > 0) {
+                    const userElements: Array<
+                        ApiSpecification.components["schemas"]["ContentInlineElement"]
+                    > = [];
+
+                    userTags.forEach((userName, index) => {
+                        if (index > 0) {
+                            userElements.push({type: "Text", text: " "});
+                        }
+                        userElements.push(createUserElement(userName, "", userName));
+                    });
+
+                    elements.push({
+                        type: "Paragraph",
+                        elements: userElements,
+                    });
+                }
+            }
+        }
     }
 
     return await sendAlertToAlpine(channel, channelId, {elements});

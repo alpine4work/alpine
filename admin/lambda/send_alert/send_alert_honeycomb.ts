@@ -1,8 +1,11 @@
 export type HoneycombEventPayload = {
+    // Custom field from the honeycomb "Create recipient" UI
+    channel: string; // channel name to send to
+    emoji?: string; // an optional emoji to add to the trigger
+    displayFields?: string; // a comma separated list of fields to display
+    // Standard honeycomb fields
     name: string;
-    channel: string;
     isEvent?: string;
-    emoji?: string;
     id: string;
     description: string;
     environment: string;

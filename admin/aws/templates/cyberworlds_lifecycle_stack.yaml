@@ -4675,6 +4675,12 @@ Resources:
                             - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
                               - Ref: AWS::AccountId
                               - :secret:AlertSecrets:SecretString:honeycombWebhookSecret::}}
+                    HONEYCOMB_API_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:AlertSecrets:SecretString:honeycombApiKey::}}
                     GITHUB_ACTIONS_WEBHOOK_SECRET:
                         Fn::Join:
                             - ""
