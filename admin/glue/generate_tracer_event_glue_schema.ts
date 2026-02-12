@@ -1,4 +1,4 @@
-import {TracerEventDataSchemaForGlue} from "~/server/tracer/tracer_event_data_schema.js";
+import {TracerEventFlatDataSchema} from "~/server/tracer/tracer_event_data_schema.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.js";
 import {SchemaWithOnlyDeserialization} from "~/shared/schema/schema.js";
@@ -85,7 +85,7 @@ type GlueColumn = {
 export function generateTracerEventGlueSchema(): Array<GlueColumn> {
     const columns: Array<GlueColumn> = [];
 
-    for (const [key, value] of Object.entries(TracerEventDataSchemaForGlue)) {
+    for (const [key, value] of TracerEventFlatDataSchema) {
         if (value === undefined || value === null) continue;
 
         const snakeKey = convertCamelCaseToSnakeCase(key);

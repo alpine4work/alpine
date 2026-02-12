@@ -229,7 +229,7 @@ const TracerEventDataSchema = {
         table: Object.fromEntries(
             Array.from(
                 tracerEventDataDynamoPartitionTypesByTableName,
-                (partitionTypes, tableName) => [
+                ([tableName, partitionTypes]) => [
                     tableName,
                     {
                         partitionType: Schema.string,
@@ -648,12 +648,6 @@ const TracerEventDataSchema = {
         },
     },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
-
-/**
- * Export the schema for the Glue schema generator.
- * Uses Record<string, unknown> to avoid TypeScript declaration emit issues.
- */
-export const TracerEventDataSchemaForGlue: Record<string, unknown> = TracerEventDataSchema;
 
 /**
  * Schema for the flat event data. The map keys are the snake cased key paths.

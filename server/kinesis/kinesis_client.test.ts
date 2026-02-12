@@ -1,6 +1,5 @@
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {KinesisClient, KinesisPutRecordsRequestEntry} from "~/server/kinesis/kinesis_client.js";
-import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 // Store original fetch and NODE_ENV
 const originalFetch = globalThis.fetch;
@@ -16,7 +15,7 @@ function createMockSigner(): AwsRequestSigner {
 // Helper to create test records
 function createTestRecords(count: number): Array<KinesisPutRecordsRequestEntry> {
     return Array.from({length: count}, (_, i) => ({
-        data: new TextEncoder().encode(`record-${i}`),
+        data: {record: `record-${i}`},
         partitionKey: `partition-${i}`,
     }));
 }
@@ -70,7 +69,7 @@ test("PutRecords succeeds when all records succeed", async () => {
         createMockSigner(),
     );
 
-    const result = await client.PutRecords(testTracer, createTestRecords(2));
+    const result = await client.PutRecords(createTestRecords(2));
 
     expect(fetchCalls.length).toEqual(1);
     expect(result.failedRecordCount).toEqual(0);
@@ -100,7 +99,7 @@ test("PutRecords retries on 5xx error", async () => {
         createMockSigner(),
     );
 
-    const result = await client.PutRecords(testTracer, createTestRecords(1));
+    const result = await client.PutRecords(createTestRecords(1));
 
     expect(attemptCount).toEqual(2);
     expect(result.failedRecordCount).toEqual(0);
@@ -139,7 +138,7 @@ test("PutRecords retries only failed records on partial throttling failure", asy
         createMockSigner(),
     );
 
-    const result = await client.PutRecords(testTracer, createTestRecords(3));
+    const result = await client.PutRecords(createTestRecords(3));
 
     expect(attemptCount).toEqual(2);
 
@@ -181,7 +180,7 @@ test("PutRecords retries only failed records on InternalFailureException", async
         createMockSigner(),
     );
 
-    const result = await client.PutRecords(testTracer, createTestRecords(2));
+    const result = await client.PutRecords(createTestRecords(2));
 
     expect(attemptCount).toEqual(2);
     expect(requestBodies[1]!.Records.length).toEqual(1);
@@ -207,7 +206,7 @@ test("PutRecords does not retry non-retryable record errors", async () => {
         createMockSigner(),
     );
 
-    const result = await client.PutRecords(testTracer, createTestRecords(2));
+    const result = await client.PutRecords(createTestRecords(2));
 
     // Should not retry since ValidationError is not retryable
     expect(attemptCount).toEqual(1);
@@ -266,7 +265,7 @@ test("PutRecords handles multiple retry rounds", async () => {
         createMockSigner(),
     );
 
-    const result = await client.PutRecords(testTracer, createTestRecords(4));
+    const result = await client.PutRecords(createTestRecords(4));
 
     expect(attemptCount).toEqual(3);
     expect(requestBodies[0]!.Records.length).toEqual(4);
@@ -307,7 +306,7 @@ test("PutRecords handles mix of retryable and non-retryable errors", async () =>
         createMockSigner(),
     );
 
-    const result = await client.PutRecords(testTracer, createTestRecords(3));
+    const result = await client.PutRecords(createTestRecords(3));
 
     expect(attemptCount).toEqual(2);
     expect(requestBodies[1]!.Records.length).toEqual(1);
@@ -354,7 +353,7 @@ test("PutRecords returns partial results with original error codes when retries 
     );
 
     // Use maxRetryAttemptCount=2 so we exhaust retries quickly
-    const result = await client.PutRecords(testTracer, createTestRecords(2), 2);
+    const result = await client.PutRecords(createTestRecords(2), 2);
 
     // Should have attempted twice then given up
     expect(attemptCount).toEqual(2);
@@ -388,7 +387,7 @@ test("PutRecords no-ops in local environment", async () => {
         createMockSigner(),
     );
 
-    const result = await client.PutRecords(testTracer, createTestRecords(2));
+    const result = await client.PutRecords(createTestRecords(2));
 
     expect(fetchCalled).toEqual(false);
     expect(result.failedRecordCount).toEqual(0);

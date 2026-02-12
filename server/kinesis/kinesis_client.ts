@@ -1,8 +1,8 @@
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {DataLossError, UnavailableError} from "~/shared/error/error.js";
+import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
  * Input for a single record in a PutRecords request [1].
@@ -11,9 +11,13 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  */
 export type KinesisPutRecordsRequestEntry = {
     /**
-     * The data blob to put into the record. Base64-encoded when serialized.
+     * The data blob to put into the record. Kinesis expects a base64-encoded string [1].
+     * To make this client developer-friendly, we serialize the data to a JSON string and then
+     * base64-encode it.
+     *
+     * [1]: https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html#Streams-Type-PutRecordsRequestEntry-Data
      */
-    readonly data: Uint8Array;
+    readonly data: Record<string, unknown>;
 
     /**
      * Determines which shard in the stream the data record is assigned to. Partition keys are
@@ -124,7 +128,6 @@ export class KinesisClient {
      * [1]: https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecords.html
      */
     public async PutRecords(
-        tracer: TracerBase,
         records: ReadonlyArray<KinesisPutRecordsRequestEntry>,
         maxRetryAttemptCount?: number,
     ): Promise<KinesisPutRecordsOutput> {
@@ -162,13 +165,30 @@ export class KinesisClient {
         records: ReadonlyArray<KinesisPutRecordsRequestEntry>,
         maxRetryAttemptCount?: number,
     ): Promise<KinesisPutRecordsOutput> {
-        // Records still pending. On each retry, we only send records that failed
-        // with retryable errors. We track the previous error so we can report it
-        // if we exhaust retries.
-        let pendingRecords: Array<{
-            record: KinesisPutRecordsRequestEntry;
-            previousError?: {errorCode: string; errorMessage?: string};
-        }> = records.map(record => ({record}));
+        // NOTE(ifitzsimmons, 2026-02-12): It's possible for Kinesis to return a 200
+        // for a partial success. For example, if a shard is throttled, the first N
+        // records of a batch may succeed while the remaining records fail with a retryable
+        // error. We track the pending records and the previous batch error so we can report
+        // it if we exhaust retries.
+        //
+        // So for example, if we have 3 records and the first two succeed while the third fails
+        // with a retryable error, we will track the third record and the error for that record
+        // specifically. If that third record continues to fail, we will report the error for that
+        // record specifically once we exhaust retries.
+        //
+        // However, if the entire batch fails because, for example, Kinesis is unavailable, we
+        // have to make sure we can track that failure as well. When we eventually report failures,
+        // we look first for the record-specific error and then fall back to the batch error.
+        let pendingState: {
+            pendingRecords: Array<{
+                record: KinesisPutRecordsRequestEntry;
+                previousError?: {errorCode: string; errorMessage?: string};
+            }>;
+            previousBatchError: {errorCode: string; errorMessage?: string} | undefined;
+        } = {
+            pendingRecords: records.map(record => ({record})),
+            previousBatchError: undefined,
+        };
 
         // Accumulate results across retry attempts.
         const allResults: Array<KinesisPutRecordsResultEntry> = [];
@@ -177,10 +197,31 @@ export class KinesisClient {
         try {
             return await retryWithExponentialBackoff(
                 async retry => {
-                    const apiRecords = pendingRecords.map(({record}) => ({
-                        Data: encodeBase64(record.data),
-                        PartitionKey: record.partitionKey,
-                    }));
+                    const apiRecords = pendingState.pendingRecords.map(({record}) => {
+                        let dataString = JSON.stringify(record.data);
+                        // Detect `?sig=` URL search params and redact them before sending events to
+                        // Kinesis. `?sig=` parameters would allow a developer to look at any users
+                        // files without their permission just by looking at logs. The value of `?sig=`
+                        // is a detached JWS (see `dangerouslySignUrl()`). So look for any
+                        // base64 characters or `.`.
+                        //
+                        // Also if we see an [AWS S3 signed URL][1] we want to redact the amazon
+                        // signature.
+                        //
+                        // [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
+                        dataString = dataString.replaceAll(
+                            /([?&](?:sig|X-Amz-Signature)=)[A-Za-z0-9+/\-_=.]+/gi,
+                            `$1${debugRedactedString}`,
+                        );
+
+                        return {
+                            // Kinesis expects a base64-encoded string [1].
+                            //
+                            // [1]: https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html#Streams-Type-PutRecordsRequestEntry-Data
+                            Data: encodeBase64(new TextEncoder().encode(dataString)),
+                            PartitionKey: record.partitionKey,
+                        };
+                    });
 
                     let request = new Request(this._url, {
                         method: "POST",
@@ -207,6 +248,12 @@ export class KinesisClient {
                             );
                         });
                     } catch (error) {
+                        // If the request failed as a whole, log the error in the pending
+                        // state and retry again.
+                        pendingState.previousBatchError = {
+                            errorCode: error instanceof Error ? error.message : String(error),
+                            errorMessage: error instanceof Error ? error.message : undefined,
+                        };
                         throw retry(error);
                     }
 
@@ -252,10 +299,16 @@ export class KinesisClient {
 
                     // Process results and identify records that need to be retried.
                     const outputRecords = output.Records ?? [];
-                    const retryableRecords: typeof pendingRecords = [];
+                    const previouslyPendingRecords = pendingState.pendingRecords;
+                    // Clear out pending records for the next batch. The request was
+                    // a partial success so there is no previous batch error to report.
+                    pendingState = {
+                        pendingRecords: [],
+                        previousBatchError: undefined,
+                    };
 
-                    for (let i = 0; i < pendingRecords.length; i++) {
-                        const pendingRecord = pendingRecords[i]!;
+                    for (let i = 0; i < previouslyPendingRecords.length; i++) {
+                        const pendingRecord = previouslyPendingRecords[i]!;
                         const outputRecord = outputRecords[i];
                         const errorCode = outputRecord?.ErrorCode;
 
@@ -266,7 +319,7 @@ export class KinesisClient {
                             errorCode === "ProvisionedThroughputExceededException" ||
                             errorCode === "InternalFailureException"
                         ) {
-                            retryableRecords.push({
+                            pendingState.pendingRecords.push({
                                 record: pendingRecord.record,
                                 previousError: {
                                     errorCode,
@@ -285,11 +338,10 @@ export class KinesisClient {
                     }
 
                     // If there are retryable failures, update pendingRecords and retry.
-                    if (retryableRecords.length > 0) {
-                        pendingRecords = retryableRecords;
+                    if (pendingState.pendingRecords.length > 0) {
                         throw retry(
                             new DataLossError(
-                                `Kinesis PutRecords partial failure: ${retryableRecords.length} records failed with retryable errors`,
+                                `Kinesis PutRecords partial failure: ${pendingState.pendingRecords.length} records failed with retryable errors`,
                             ),
                         );
                     }
@@ -303,12 +355,18 @@ export class KinesisClient {
                 {maxAttemptCount: maxRetryAttemptCount},
             );
         } catch {
+            const {pendingRecords, previousBatchError} = pendingState;
+
             // Retries exhausted. Add remaining pending records as failures using
             // their last error response from Kinesis.
             for (const {previousError} of pendingRecords) {
                 allResults.push({
-                    errorCode: previousError?.errorCode ?? "UnknownError",
-                    errorMessage: previousError?.errorMessage ?? "UnknownError",
+                    errorCode:
+                        previousError?.errorCode ?? previousBatchError?.errorCode ?? "UnknownError",
+                    errorMessage:
+                        previousError?.errorMessage ??
+                        previousBatchError?.errorMessage ??
+                        "UnknownError",
                 });
             }
 

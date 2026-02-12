@@ -198,84 +198,1466 @@ Resources:
                           Type: string
                         - Name: duration_ms
                           Type: double
-                        - Name: service
-                          Type: struct<name:string>
-                        - Name: meta
-                          Type: struct<annotation_type:string,untrusted:boolean,client_time_offset_ms:double>
-                        - Name: trace
-                          Type: struct<trace_id:string,span_id:string,parent_id:string,link:struct<span_id:string,trace_id:string>>
-                        - Name: js
-                          Type: struct<realm_id:string,host:string,node_env:string>
-                        - Name: net
-                          Type: struct<sock:struct<family:string,peer:struct<name:string,addr:string,port:string>,host:struct<name:string,addr:string,port:string>>>
-                        - Name: http
-                          Type: struct<method:string,status_code:int,flavor:string,user_agent:string,request:struct<header:struct<accept:string,accept_charset:string,accept_encoding:string,accept_language:string,access_control_request_method:string,access_control_request_headers:string,cache_control:string,connection:string,content_encoding:string,content_type:string,content_length:int,date:string,forwarded:string,host:string,origin:string,pragma:string,prefer:string,trailer:string,transfer_encoding:string,upgrade:string,via:string,warning:string,x_requested_with:string,x_forwarded_for:string,x_forwarded_host:string,x_forwarded_proto:string,x_http_method_override:string,x_request_id:string,accept_ch:string,accept_ranges:string,age:string,allow:string,alt_svc:string,content_disposition:string,content_language:string,expires:string,last_modified:string,preference_applied:string,referer:string,retry_after:string,server:string,strict_transport_security:string,vary:string,content_security_policy:string,x_content_security_policy:string,x_webkit_csp:string,permissions_policy:string,timing_allow_origin:string,x_powered_by:string,x_ua_compatible:string,x_xss_protection:string,content_md5:string,x_amz_date:string,x_amz_content_sha256:string,x_amz_id_2:string,x_amz_request_id:string,cf_connecting_ip:string,cf_connecting_ipv6:string,cf_ew_via:string,cf_pseudo_ipv4:string,cf_ray:string,cf_ipcountry:string,cdn_loop:string,cf_worker:string,cf_cache_status:string,apns_push_type:string,apns_id:string,apns_expiration:string,apns_priority:string,apns_topic:string,apns_collapse_id:string,apns_unique_id:string,x_remix_catch:string,x_remix_error:string,x_remix_redirect:string,x_remix_reload_document:string,x_remix_revalidate:string,x_remix_status:string,cyberworlds_durable_object_id_name:string,cyberworlds_durable_object_if_initialized:string,cyberworlds_space_id_hint:string,cyberworlds_route:string,cyberworlds_transient_error:string>,obfuscated_cookie_header:string>,response:struct<header:struct<accept:string,accept_charset:string,accept_encoding:string,accept_language:string,access_control_request_method:string,access_control_request_headers:string,cache_control:string,connection:string,content_encoding:string,content_type:string,content_length:int,date:string,forwarded:string,host:string,origin:string,pragma:string,prefer:string,trailer:string,transfer_encoding:string,upgrade:string,via:string,warning:string,x_requested_with:string,x_forwarded_for:string,x_forwarded_host:string,x_forwarded_proto:string,x_http_method_override:string,x_request_id:string,accept_ch:string,accept_ranges:string,age:string,allow:string,alt_svc:string,content_disposition:string,content_language:string,expires:string,last_modified:string,preference_applied:string,referer:string,retry_after:string,server:string,strict_transport_security:string,vary:string,content_security_policy:string,x_content_security_policy:string,x_webkit_csp:string,permissions_policy:string,timing_allow_origin:string,x_powered_by:string,x_ua_compatible:string,x_xss_protection:string,content_md5:string,x_amz_date:string,x_amz_content_sha256:string,x_amz_id_2:string,x_amz_request_id:string,cf_connecting_ip:string,cf_connecting_ipv6:string,cf_ew_via:string,cf_pseudo_ipv4:string,cf_ray:string,cf_ipcountry:string,cdn_loop:string,cf_worker:string,cf_cache_status:string,apns_push_type:string,apns_id:string,apns_expiration:string,apns_priority:string,apns_topic:string,apns_collapse_id:string,apns_unique_id:string,x_remix_catch:string,x_remix_error:string,x_remix_redirect:string,x_remix_reload_document:string,x_remix_revalidate:string,x_remix_status:string,cyberworlds_durable_object_id_name:string,cyberworlds_durable_object_if_initialized:string,cyberworlds_space_id_hint:string,cyberworlds_route:string,cyberworlds_transient_error:string>,obfuscated_set_cookie_header:string>,url:string,resend_count:int,scheme:string,target:string,route:string,search:struct<create:string,focus:string,show:string,scroll:string,consistency:string,message:string,comment:string,comments:string,inbox:string,file:string,variant:string,width:string,limit:string,cursor:string,from:string>,client_ip:string,service:struct<name:string>,fetch_duration_ms:double>
-                        - Name: exception
-                          Type: struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>,is_original:string,original:struct<time:string,trace_id:string,span_id:string>,aggregated1:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>,aggregated2:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>,aggregated3:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>,aggregated4:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>,aggregated5:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string,cause:struct<type:string,is_system:string,message:string,stacktrace:string,display_message:string>>>>
-                        - Name: common
-                          Type: struct<type:string,branch:string,count:int,is_blocking:boolean,did_nothing:boolean,process_duration_ms:double,delay_duration_ms:double,was_cached:boolean,width:double,height:double,content_length:int>
-                        - Name: context
-                          Type: struct<handler:string,actor:string,account_id:string,space_id:string,bot_id:string,bot_account_id:string,without_space_access:boolean,web_socket_connection_id:string,task_id:string,task_collection_id:string,document_id:string,channel_id:string,post_id:string,chat_id:string,file_id:string,peek:struct<above_document_id:string,above_channel_id:string,above_post_id:string,above_chat_id:string,above_task_id:string,above_task_collection_id:string>,migration:string,route:string,platform:string,spacing_scale:string,route_layout:string,rendering_engine:string>
-                        - Name: dynamodb
-                          Type: struct<action:string,table_name:string,consistent_read:boolean,consumed_capacity:struct<accounts:struct<read_capacity_units:double,write_capacity_units:double>,alpha_access:struct<read_capacity_units:double,write_capacity_units:double>,bot_webhook_events:struct<read_capacity_units:double,write_capacity_units:double>,bots:struct<read_capacity_units:double,write_capacity_units:double>,chat:struct<read_capacity_units:double,write_capacity_units:double>,deploy:struct<read_capacity_units:double,write_capacity_units:double>,documents:struct<read_capacity_units:double,write_capacity_units:double>,feed:struct<read_capacity_units:double,write_capacity_units:double>,files:struct<read_capacity_units:double,write_capacity_units:double>,forum:struct<read_capacity_units:double,write_capacity_units:double>,forum_realtime:struct<read_capacity_units:double,write_capacity_units:double>,inbox:struct<read_capacity_units:double,write_capacity_units:double>,notifications:struct<read_capacity_units:double,write_capacity_units:double>,notion_importer:struct<read_capacity_units:double,write_capacity_units:double>,search_entities:struct<read_capacity_units:double,write_capacity_units:double>,spaces:struct<read_capacity_units:double,write_capacity_units:double>,spell_check:struct<read_capacity_units:double,write_capacity_units:double>,task_actions:struct<read_capacity_units:double,write_capacity_units:double>,tasks:struct<read_capacity_units:double,write_capacity_units:double>,accounts_index1:struct<read_capacity_units:double,write_capacity_units:double>,bots_index1:struct<read_capacity_units:double,write_capacity_units:double>,chat_index1:struct<read_capacity_units:double,write_capacity_units:double>,files_index1:struct<read_capacity_units:double,write_capacity_units:double>,forum_realtime_index1:struct<read_capacity_units:double,write_capacity_units:double>,inbox_index1:struct<read_capacity_units:double,write_capacity_units:double>,inbox_index2:struct<read_capacity_units:double,write_capacity_units:double>,notifications_index1:struct<read_capacity_units:double,write_capacity_units:double>,notion_importer_index1:struct<read_capacity_units:double,write_capacity_units:double>,search_entities_index1:struct<read_capacity_units:double,write_capacity_units:double>,search_entities_index2:struct<read_capacity_units:double,write_capacity_units:double>,search_entities_index3:struct<read_capacity_units:double,write_capacity_units:double>,search_entities_index4:struct<read_capacity_units:double,write_capacity_units:double>,task_actions_index1:struct<read_capacity_units:double,write_capacity_units:double>,total_read_capacity_units:double,total_write_capacity_units:double>,table:struct<0:struct<partition_type:string,partition:struct<accounts:struct<sort_range_type:string>,account,account_email_address,session,stripe_customer,try_on_desktop_email_opt_out,sent_try_on_desktop_email:struct<sort_range_type:string>>>,1:struct<partition_type:string,partition:struct<alpha_access:struct<sort_range_type:string>,alpha_configuration,alpha_access_requests:struct<sort_range_type:string>>>,2:struct<partition_type:string,partition:struct<bot_webhook_events:struct<sort_range_type:string>,bot_space:struct<sort_range_type:string>>>,3:struct<partition_type:string,partition:struct<bots:struct<sort_range_type:string>,bot,api_key,space:struct<sort_range_type:string>>>,4:struct<partition_type:string,partition:struct<chat:struct<sort_range_type:string>>>,5:struct<partition_type:string,partition:struct<deploy:struct<sort_range_type:string>>>,6:struct<partition_type:string,partition:struct<documents:struct<sort_range_type:string>,document,document_comment_thread:struct<sort_range_type:string>>>,7:struct<partition_type:string,partition:struct<feed:struct<sort_range_type:string>,feed_candidates,feed_account_candidates,feed:struct<sort_range_type:string>>>,8:struct<partition_type:string,partition:struct<files:struct<sort_range_type:string>,space,file:struct<sort_range_type:string>>>,9:struct<partition_type:string,partition:struct<forum:struct<sort_range_type:string>,channel,post,account:struct<sort_range_type:string>>>,10:struct<partition_type:string,partition:struct<forum_realtime:struct<sort_range_type:string>,channel,post,realtime,graveyard:struct<sort_range_type:string>>>,11:struct<partition_type:string,partition:struct<inbox:struct<sort_range_type:string>,account,inbox,realtime,graveyard:struct<sort_range_type:string>>>,12:struct<partition_type:string,partition:struct<notifications:struct<sort_range_type:string>,inbox,push_targets:struct<sort_range_type:string>>>,13:struct<partition_type:string,partition:struct<notion_importer:struct<sort_range_type:string>,import:struct<sort_range_type:string>>>,14:struct<partition_type:string,partition:struct<search_entities:struct<sort_range_type:string>,account,space_channels,space_task_collections,index_search_entity_embedding_chunks_job:struct<sort_range_type:string>>>,15:struct<partition_type:string,partition:struct<spaces:struct<sort_range_type:string>,space,auto_add_accounts_from_email_domain,account,bot:struct<sort_range_type:string>>>,16:struct<partition_type:string,partition:struct<spell_check:struct<sort_range_type:string>,ignored_lint,realtime,graveyard:struct<sort_range_type:string>>>,17:struct<partition_type:string,partition:struct<task_actions:struct<sort_range_type:string>>>,18:struct<partition_type:string,partition:struct<tasks:struct<sort_range_type:string>,account,task_collection,task,task_grid_view_expansion_state:struct<sort_range_type:string>>>>,condition_expression:string,update_expression:string,batch_size:int,query:struct<key_condition_expression:string,index_name:string,scan_index_forward:boolean,limit:int,has_exclusive_start_key:boolean,scanned_count:int>,scan:struct<index_name:string,limit:int,has_exclusive_start_key:boolean,scanned_count:int>,transact_write:struct<items:string,item_count:int,client_request_token:string>,transact_get:struct<size:int>,exception:struct<type:string,cancellation_reasons:string>>
-                        - Name: aws
-                          Type: struct<credentials:struct<expiration_time:string>,ses:struct<message_id:string>,sqs:struct<queue_name:string,message_id:string,visibility_timeout:double,wait_time_seconds:double,max_number_of_messages:int,message_count:int,approximate_receive_count:int>,ecs:struct<task_id:string,cluster:string,task_definition_family:string,task_count:int,container_instance_count:int>,cloudformation:struct<logical_resource_id:string,physical_resource_id:string,resource_type:string,start_status:string,start_status_reason:string,error_status:string,error_status_reason:string,finish_status:string,finish_status_reason:string>,eventbridge:struct<scheduler:struct<name:string,group_name:string,target:string,arn:string,expression:string,expression_time_zone:string,max_flexible_time_window_minutes:int,start_date:string,end_date:string>>,ec2:struct<instance_id:string,security_group_id:string,instance_count:int>>
-                        - Name: email
-                          Type: struct<template:string,source:string>
-                        - Name: web_socket
-                          Type: struct<connection_id:string,message_type:string>
-                        - Name: content
-                          Type: struct<collaborative:struct<version:int,start_version:int,end_version:int,step_count:int,client_version:int,client_step_count:int>>
-                        - Name: notifications
-                          Type: struct<event_type:string,event_id:string,email_digest:struct<ineligible_reason:string,send_time:string>>
-                        - Name: tasks
-                          Type: struct<actions:string,action_count:int,action_transaction_id:string,action_transaction_count:int,action_history_segment_count:int>
-                        - Name: opensearch
-                          Type: struct<routing:string,query:string,sort:string,get:struct<found:boolean,id:string,seq_no:int,primary_term:int>,mget:struct<count:int,found_count:int,routings:string,ids:string,seq_nos:string,primary_terms:string>,index:struct<id:string,if_seq_no:int,if_primary_term:int,seq_no:int,primary_term:int>,bulk:struct<count:int,routings:string,ids:string,actions:string,if_seq_nos:string,if_primary_terms:string,seq_nos:string,primary_terms:string>,search:struct<hit_count:int>>
-                        - Name: jobs
-                          Type: struct<type:string,queue_name:string,delay_seconds:double,queue_duration_ms:double,will_retry:boolean,consumer:struct<start_fiber_count:int,end_fiber_count:int,max_fiber_count:int>>
-                        - Name: cohere
-                          Type: struct<text_count:int,model:string,input_type:string,token_count:int>
-                        - Name: migration
-                          Type: struct<segment_index:int,total_segment_count:int>
-                        - Name: apns
-                          Type: struct<connection_id:string,error_reason:string>
-                        - Name: web_push
-                          Type: struct<subscription_endpoint_origin:string,browser_id:string,response_status_code:int>
-                        - Name: cloudflare
-                          Type: struct<r2:struct<action:string,bucket:string,object:struct<key:string,content_type:string,content_length:int>,multipart_upload:struct<id:string,part_number:int,part_content_length:int,total_part_count:int>>,wrangler:struct<attempt:int>,d1:struct<action:string,database_name:string>>
-                        - Name: github
-                          Type: struct<compare_url:string,workflow:struct<run:struct<id:int,number:int,attempt:int,url:string,commit:string>>>
-                        - Name: deploy
-                          Type: struct<active_commit:string,ongoing_deployment_commit:string,dispatched_deployment_commit:string,new_commit:string,zoned_time:string,is_time_deployable:boolean>
-                        - Name: file
-                          Type: struct<content_type:string,content_length:int,job_type:string,job_reason:string,processor_type:string,created_time:string,alternative:struct<content_type:string,content_length:int,content_length_ratio:double>,preview:struct<content_type:string,content_length:int,content_length_ratio:double,image_width:int,image_height:int,image_scale:double,image_has_alpha:boolean,image_video_duration_ms:double,audio_duration_ms:double,code_content_length:int>,processing:struct<alternative_duration_ms:double,image_preview_size_duration_ms:double,image_preview_placeholder_duration_ms:double,image_preview_content_duration_ms:double,image_preview_video_duration_duration_ms:double,audio_preview_duration_duration_ms:double,audio_preview_metadata_duration_ms:double,code_preview_content_duration_ms:double,image_preview_video_duration_to_alternative_processing_duration_ratio:double>,avatar:struct<resize:struct<quality:int,resized_content_length:int,resized_to_original_content_length_ratio:double,request:struct<height:int,width:int,max_content_length:int>>>>
-                        - Name: space
-                          Type: struct<members:struct<invite:struct<send:struct<existing_account_id:string,new_account_id:string>,invalid_email_address_count:int,rejected_as_spam_email_address_count:int,already_member_email_address_count:int,invited_email_address_count:int,unexpected_failure_email_address_count:int>>>
-                        - Name: libreoffice
-                          Type: struct<output_filter:string>
-                        - Name: ffmpeg
-                          Type: struct<codecs:string>
-                        - Name: sharp
-                          Type: struct<avif:struct<quality:int,effort:int>,input_content_length:int,output_content_length:int>
-                        - Name: edge
-                          Type: struct<app_service_duration_ms:double>
-                        - Name: openai
-                          Type: struct<model:string,responses:struct<id:string,prompt_cache_key:string,safety_identifier:string,status:string,incomplete_details:struct<reason:string>,usage:struct<input_tokens:int,cached_input_tokens:int,output_tokens:int,reasoning_output_tokens:int,total_tokens:int>>>
-                        - Name: agents
-                          Type: struct<schedule:struct<event:struct<time:string,execution_time:string,queue_duration_ms:double,type:string>>,request:struct<account_id:string,provider:string,model:string,used_millicents:int,usage_window:struct<limit_millicents:int,used_millicents:int,is_past_total_usage_limit:boolean,is_past_downgrade_usage_limit:boolean,window_type:string,age_ms:int,reset:boolean,started_time:string,previous_started_time:string,previous_used_millicents:int>>>
-                        - Name: billing
-                          Type: struct<created_stripe_customer:boolean,stripe_customer_id:string,stripe_event:struct<type:string,id:string,processed:boolean,dollar_amount:double>>
-                        - Name: auth
-                          Type: struct<sign_in:struct<failed_attempt_count:int,minutes_until_expiration:int,hours_until_unlocked:int>,sign_up:struct<auto_add_accounts_from_email_domain:string>>
-                        - Name: reaction
-                          Type: struct<character:struct<type:string,variant:string>>
-                        - Name: logo_dev
-                          Type: struct<query:string,name:string,domain:string,description:string,colors:string>
-                        - Name: feed
-                          Type: struct<was_created:boolean,entry_count:int,has_more_entries:boolean,search_entity_count:int>
-                        - Name: cursor
-                          Type: struct<cloud_agents:struct<webhook:struct<id:string,event:string>>>
+                        - Name: service.name
+                          Type: string
+                        - Name: meta.annotation_type
+                          Type: string
+                        - Name: meta.untrusted
+                          Type: boolean
+                        - Name: meta.client_time_offset_ms
+                          Type: double
+                        - Name: trace.trace_id
+                          Type: string
+                        - Name: trace.span_id
+                          Type: string
+                        - Name: trace.parent_id
+                          Type: string
+                        - Name: trace.link.span_id
+                          Type: string
+                        - Name: trace.link.trace_id
+                          Type: string
+                        - Name: js.realm_id
+                          Type: string
+                        - Name: js.host
+                          Type: string
+                        - Name: js.node_env
+                          Type: string
+                        - Name: net.sock.family
+                          Type: string
+                        - Name: net.sock.peer.name
+                          Type: string
+                        - Name: net.sock.peer.addr
+                          Type: string
+                        - Name: net.sock.peer.port
+                          Type: string
+                        - Name: net.sock.host.name
+                          Type: string
+                        - Name: net.sock.host.addr
+                          Type: string
+                        - Name: net.sock.host.port
+                          Type: string
+                        - Name: http.method
+                          Type: string
+                        - Name: http.status_code
+                          Type: int
+                        - Name: http.flavor
+                          Type: string
+                        - Name: http.user_agent
+                          Type: string
+                        - Name: http.request.header.accept
+                          Type: string
+                        - Name: http.request.header.accept_charset
+                          Type: string
+                        - Name: http.request.header.accept_encoding
+                          Type: string
+                        - Name: http.request.header.accept_language
+                          Type: string
+                        - Name: http.request.header.access_control_request_method
+                          Type: string
+                        - Name: http.request.header.access_control_request_headers
+                          Type: string
+                        - Name: http.request.header.cache_control
+                          Type: string
+                        - Name: http.request.header.connection
+                          Type: string
+                        - Name: http.request.header.content_encoding
+                          Type: string
+                        - Name: http.request.header.content_type
+                          Type: string
+                        - Name: http.request.header.content_length
+                          Type: int
+                        - Name: http.request.header.date
+                          Type: string
+                        - Name: http.request.header.forwarded
+                          Type: string
+                        - Name: http.request.header.host
+                          Type: string
+                        - Name: http.request.header.origin
+                          Type: string
+                        - Name: http.request.header.pragma
+                          Type: string
+                        - Name: http.request.header.prefer
+                          Type: string
+                        - Name: http.request.header.trailer
+                          Type: string
+                        - Name: http.request.header.transfer_encoding
+                          Type: string
+                        - Name: http.request.header.upgrade
+                          Type: string
+                        - Name: http.request.header.via
+                          Type: string
+                        - Name: http.request.header.warning
+                          Type: string
+                        - Name: http.request.header.x_requested_with
+                          Type: string
+                        - Name: http.request.header.x_forwarded_for
+                          Type: string
+                        - Name: http.request.header.x_forwarded_host
+                          Type: string
+                        - Name: http.request.header.x_forwarded_proto
+                          Type: string
+                        - Name: http.request.header.x_http_method_override
+                          Type: string
+                        - Name: http.request.header.x_request_id
+                          Type: string
+                        - Name: http.request.header.accept_ch
+                          Type: string
+                        - Name: http.request.header.accept_ranges
+                          Type: string
+                        - Name: http.request.header.age
+                          Type: string
+                        - Name: http.request.header.allow
+                          Type: string
+                        - Name: http.request.header.alt_svc
+                          Type: string
+                        - Name: http.request.header.content_disposition
+                          Type: string
+                        - Name: http.request.header.content_language
+                          Type: string
+                        - Name: http.request.header.expires
+                          Type: string
+                        - Name: http.request.header.last_modified
+                          Type: string
+                        - Name: http.request.header.preference_applied
+                          Type: string
+                        - Name: http.request.header.referer
+                          Type: string
+                        - Name: http.request.header.retry_after
+                          Type: string
+                        - Name: http.request.header.server
+                          Type: string
+                        - Name: http.request.header.strict_transport_security
+                          Type: string
+                        - Name: http.request.header.vary
+                          Type: string
+                        - Name: http.request.header.content_security_policy
+                          Type: string
+                        - Name: http.request.header.x_content_security_policy
+                          Type: string
+                        - Name: http.request.header.x_webkit_csp
+                          Type: string
+                        - Name: http.request.header.permissions_policy
+                          Type: string
+                        - Name: http.request.header.timing_allow_origin
+                          Type: string
+                        - Name: http.request.header.x_powered_by
+                          Type: string
+                        - Name: http.request.header.x_ua_compatible
+                          Type: string
+                        - Name: http.request.header.x_xss_protection
+                          Type: string
+                        - Name: http.request.header.content_md5
+                          Type: string
+                        - Name: http.request.header.x_amz_date
+                          Type: string
+                        - Name: http.request.header.x_amz_content_sha256
+                          Type: string
+                        - Name: http.request.header.x_amz_id_2
+                          Type: string
+                        - Name: http.request.header.x_amz_request_id
+                          Type: string
+                        - Name: http.request.header.cf_connecting_ip
+                          Type: string
+                        - Name: http.request.header.cf_connecting_ipv6
+                          Type: string
+                        - Name: http.request.header.cf_ew_via
+                          Type: string
+                        - Name: http.request.header.cf_pseudo_ipv4
+                          Type: string
+                        - Name: http.request.header.cf_ray
+                          Type: string
+                        - Name: http.request.header.cf_ipcountry
+                          Type: string
+                        - Name: http.request.header.cdn_loop
+                          Type: string
+                        - Name: http.request.header.cf_worker
+                          Type: string
+                        - Name: http.request.header.cf_cache_status
+                          Type: string
+                        - Name: http.request.header.apns_push_type
+                          Type: string
+                        - Name: http.request.header.apns_id
+                          Type: string
+                        - Name: http.request.header.apns_expiration
+                          Type: string
+                        - Name: http.request.header.apns_priority
+                          Type: string
+                        - Name: http.request.header.apns_topic
+                          Type: string
+                        - Name: http.request.header.apns_collapse_id
+                          Type: string
+                        - Name: http.request.header.apns_unique_id
+                          Type: string
+                        - Name: http.request.header.x_remix_catch
+                          Type: string
+                        - Name: http.request.header.x_remix_error
+                          Type: string
+                        - Name: http.request.header.x_remix_redirect
+                          Type: string
+                        - Name: http.request.header.x_remix_reload_document
+                          Type: string
+                        - Name: http.request.header.x_remix_revalidate
+                          Type: string
+                        - Name: http.request.header.x_remix_status
+                          Type: string
+                        - Name: http.request.header.cyberworlds_durable_object_id_name
+                          Type: string
+                        - Name: http.request.header.cyberworlds_durable_object_if_initialized
+                          Type: string
+                        - Name: http.request.header.cyberworlds_space_id_hint
+                          Type: string
+                        - Name: http.request.header.cyberworlds_route
+                          Type: string
+                        - Name: http.request.header.cyberworlds_transient_error
+                          Type: string
+                        - Name: http.request.obfuscated_cookie_header
+                          Type: string
+                        - Name: http.response.header.accept
+                          Type: string
+                        - Name: http.response.header.accept_charset
+                          Type: string
+                        - Name: http.response.header.accept_encoding
+                          Type: string
+                        - Name: http.response.header.accept_language
+                          Type: string
+                        - Name: http.response.header.access_control_request_method
+                          Type: string
+                        - Name: http.response.header.access_control_request_headers
+                          Type: string
+                        - Name: http.response.header.cache_control
+                          Type: string
+                        - Name: http.response.header.connection
+                          Type: string
+                        - Name: http.response.header.content_encoding
+                          Type: string
+                        - Name: http.response.header.content_type
+                          Type: string
+                        - Name: http.response.header.content_length
+                          Type: int
+                        - Name: http.response.header.date
+                          Type: string
+                        - Name: http.response.header.forwarded
+                          Type: string
+                        - Name: http.response.header.host
+                          Type: string
+                        - Name: http.response.header.origin
+                          Type: string
+                        - Name: http.response.header.pragma
+                          Type: string
+                        - Name: http.response.header.prefer
+                          Type: string
+                        - Name: http.response.header.trailer
+                          Type: string
+                        - Name: http.response.header.transfer_encoding
+                          Type: string
+                        - Name: http.response.header.upgrade
+                          Type: string
+                        - Name: http.response.header.via
+                          Type: string
+                        - Name: http.response.header.warning
+                          Type: string
+                        - Name: http.response.header.x_requested_with
+                          Type: string
+                        - Name: http.response.header.x_forwarded_for
+                          Type: string
+                        - Name: http.response.header.x_forwarded_host
+                          Type: string
+                        - Name: http.response.header.x_forwarded_proto
+                          Type: string
+                        - Name: http.response.header.x_http_method_override
+                          Type: string
+                        - Name: http.response.header.x_request_id
+                          Type: string
+                        - Name: http.response.header.accept_ch
+                          Type: string
+                        - Name: http.response.header.accept_ranges
+                          Type: string
+                        - Name: http.response.header.age
+                          Type: string
+                        - Name: http.response.header.allow
+                          Type: string
+                        - Name: http.response.header.alt_svc
+                          Type: string
+                        - Name: http.response.header.content_disposition
+                          Type: string
+                        - Name: http.response.header.content_language
+                          Type: string
+                        - Name: http.response.header.expires
+                          Type: string
+                        - Name: http.response.header.last_modified
+                          Type: string
+                        - Name: http.response.header.preference_applied
+                          Type: string
+                        - Name: http.response.header.referer
+                          Type: string
+                        - Name: http.response.header.retry_after
+                          Type: string
+                        - Name: http.response.header.server
+                          Type: string
+                        - Name: http.response.header.strict_transport_security
+                          Type: string
+                        - Name: http.response.header.vary
+                          Type: string
+                        - Name: http.response.header.content_security_policy
+                          Type: string
+                        - Name: http.response.header.x_content_security_policy
+                          Type: string
+                        - Name: http.response.header.x_webkit_csp
+                          Type: string
+                        - Name: http.response.header.permissions_policy
+                          Type: string
+                        - Name: http.response.header.timing_allow_origin
+                          Type: string
+                        - Name: http.response.header.x_powered_by
+                          Type: string
+                        - Name: http.response.header.x_ua_compatible
+                          Type: string
+                        - Name: http.response.header.x_xss_protection
+                          Type: string
+                        - Name: http.response.header.content_md5
+                          Type: string
+                        - Name: http.response.header.x_amz_date
+                          Type: string
+                        - Name: http.response.header.x_amz_content_sha256
+                          Type: string
+                        - Name: http.response.header.x_amz_id_2
+                          Type: string
+                        - Name: http.response.header.x_amz_request_id
+                          Type: string
+                        - Name: http.response.header.cf_connecting_ip
+                          Type: string
+                        - Name: http.response.header.cf_connecting_ipv6
+                          Type: string
+                        - Name: http.response.header.cf_ew_via
+                          Type: string
+                        - Name: http.response.header.cf_pseudo_ipv4
+                          Type: string
+                        - Name: http.response.header.cf_ray
+                          Type: string
+                        - Name: http.response.header.cf_ipcountry
+                          Type: string
+                        - Name: http.response.header.cdn_loop
+                          Type: string
+                        - Name: http.response.header.cf_worker
+                          Type: string
+                        - Name: http.response.header.cf_cache_status
+                          Type: string
+                        - Name: http.response.header.apns_push_type
+                          Type: string
+                        - Name: http.response.header.apns_id
+                          Type: string
+                        - Name: http.response.header.apns_expiration
+                          Type: string
+                        - Name: http.response.header.apns_priority
+                          Type: string
+                        - Name: http.response.header.apns_topic
+                          Type: string
+                        - Name: http.response.header.apns_collapse_id
+                          Type: string
+                        - Name: http.response.header.apns_unique_id
+                          Type: string
+                        - Name: http.response.header.x_remix_catch
+                          Type: string
+                        - Name: http.response.header.x_remix_error
+                          Type: string
+                        - Name: http.response.header.x_remix_redirect
+                          Type: string
+                        - Name: http.response.header.x_remix_reload_document
+                          Type: string
+                        - Name: http.response.header.x_remix_revalidate
+                          Type: string
+                        - Name: http.response.header.x_remix_status
+                          Type: string
+                        - Name: http.response.header.cyberworlds_durable_object_id_name
+                          Type: string
+                        - Name: http.response.header.cyberworlds_durable_object_if_initialized
+                          Type: string
+                        - Name: http.response.header.cyberworlds_space_id_hint
+                          Type: string
+                        - Name: http.response.header.cyberworlds_route
+                          Type: string
+                        - Name: http.response.header.cyberworlds_transient_error
+                          Type: string
+                        - Name: http.response.obfuscated_set_cookie_header
+                          Type: string
+                        - Name: http.url
+                          Type: string
+                        - Name: http.resend_count
+                          Type: int
+                        - Name: http.scheme
+                          Type: string
+                        - Name: http.target
+                          Type: string
+                        - Name: http.route
+                          Type: string
+                        - Name: http.search.create
+                          Type: string
+                        - Name: http.search.focus
+                          Type: string
+                        - Name: http.search.show
+                          Type: string
+                        - Name: http.search.scroll
+                          Type: string
+                        - Name: http.search.consistency
+                          Type: string
+                        - Name: http.search.message
+                          Type: string
+                        - Name: http.search.comment
+                          Type: string
+                        - Name: http.search.comments
+                          Type: string
+                        - Name: http.search.inbox
+                          Type: string
+                        - Name: http.search.file
+                          Type: string
+                        - Name: http.search.variant
+                          Type: string
+                        - Name: http.search.width
+                          Type: string
+                        - Name: http.search.limit
+                          Type: string
+                        - Name: http.search.cursor
+                          Type: string
+                        - Name: http.search.from
+                          Type: string
+                        - Name: http.client_ip
+                          Type: string
+                        - Name: http.service.name
+                          Type: string
+                        - Name: http.fetch_duration_ms
+                          Type: double
+                        - Name: exception.type
+                          Type: string
+                        - Name: exception.is_system
+                          Type: string
+                        - Name: exception.message
+                          Type: string
+                        - Name: exception.stacktrace
+                          Type: string
+                        - Name: exception.display_message
+                          Type: string
+                        - Name: exception.cause.type
+                          Type: string
+                        - Name: exception.cause.is_system
+                          Type: string
+                        - Name: exception.cause.message
+                          Type: string
+                        - Name: exception.cause.stacktrace
+                          Type: string
+                        - Name: exception.cause.display_message
+                          Type: string
+                        - Name: exception.cause.cause.type
+                          Type: string
+                        - Name: exception.cause.cause.is_system
+                          Type: string
+                        - Name: exception.cause.cause.message
+                          Type: string
+                        - Name: exception.cause.cause.stacktrace
+                          Type: string
+                        - Name: exception.cause.cause.display_message
+                          Type: string
+                        - Name: exception.is_original
+                          Type: string
+                        - Name: exception.original.time
+                          Type: string
+                        - Name: exception.original.trace_id
+                          Type: string
+                        - Name: exception.original.span_id
+                          Type: string
+                        - Name: exception.aggregated1.type
+                          Type: string
+                        - Name: exception.aggregated1.is_system
+                          Type: string
+                        - Name: exception.aggregated1.message
+                          Type: string
+                        - Name: exception.aggregated1.stacktrace
+                          Type: string
+                        - Name: exception.aggregated1.display_message
+                          Type: string
+                        - Name: exception.aggregated1.cause.type
+                          Type: string
+                        - Name: exception.aggregated1.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated1.cause.message
+                          Type: string
+                        - Name: exception.aggregated1.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated1.cause.display_message
+                          Type: string
+                        - Name: exception.aggregated1.cause.cause.type
+                          Type: string
+                        - Name: exception.aggregated1.cause.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated1.cause.cause.message
+                          Type: string
+                        - Name: exception.aggregated1.cause.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated1.cause.cause.display_message
+                          Type: string
+                        - Name: exception.aggregated2.type
+                          Type: string
+                        - Name: exception.aggregated2.is_system
+                          Type: string
+                        - Name: exception.aggregated2.message
+                          Type: string
+                        - Name: exception.aggregated2.stacktrace
+                          Type: string
+                        - Name: exception.aggregated2.display_message
+                          Type: string
+                        - Name: exception.aggregated2.cause.type
+                          Type: string
+                        - Name: exception.aggregated2.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated2.cause.message
+                          Type: string
+                        - Name: exception.aggregated2.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated2.cause.display_message
+                          Type: string
+                        - Name: exception.aggregated2.cause.cause.type
+                          Type: string
+                        - Name: exception.aggregated2.cause.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated2.cause.cause.message
+                          Type: string
+                        - Name: exception.aggregated2.cause.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated2.cause.cause.display_message
+                          Type: string
+                        - Name: exception.aggregated3.type
+                          Type: string
+                        - Name: exception.aggregated3.is_system
+                          Type: string
+                        - Name: exception.aggregated3.message
+                          Type: string
+                        - Name: exception.aggregated3.stacktrace
+                          Type: string
+                        - Name: exception.aggregated3.display_message
+                          Type: string
+                        - Name: exception.aggregated3.cause.type
+                          Type: string
+                        - Name: exception.aggregated3.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated3.cause.message
+                          Type: string
+                        - Name: exception.aggregated3.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated3.cause.display_message
+                          Type: string
+                        - Name: exception.aggregated3.cause.cause.type
+                          Type: string
+                        - Name: exception.aggregated3.cause.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated3.cause.cause.message
+                          Type: string
+                        - Name: exception.aggregated3.cause.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated3.cause.cause.display_message
+                          Type: string
+                        - Name: exception.aggregated4.type
+                          Type: string
+                        - Name: exception.aggregated4.is_system
+                          Type: string
+                        - Name: exception.aggregated4.message
+                          Type: string
+                        - Name: exception.aggregated4.stacktrace
+                          Type: string
+                        - Name: exception.aggregated4.display_message
+                          Type: string
+                        - Name: exception.aggregated4.cause.type
+                          Type: string
+                        - Name: exception.aggregated4.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated4.cause.message
+                          Type: string
+                        - Name: exception.aggregated4.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated4.cause.display_message
+                          Type: string
+                        - Name: exception.aggregated4.cause.cause.type
+                          Type: string
+                        - Name: exception.aggregated4.cause.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated4.cause.cause.message
+                          Type: string
+                        - Name: exception.aggregated4.cause.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated4.cause.cause.display_message
+                          Type: string
+                        - Name: exception.aggregated5.type
+                          Type: string
+                        - Name: exception.aggregated5.is_system
+                          Type: string
+                        - Name: exception.aggregated5.message
+                          Type: string
+                        - Name: exception.aggregated5.stacktrace
+                          Type: string
+                        - Name: exception.aggregated5.display_message
+                          Type: string
+                        - Name: exception.aggregated5.cause.type
+                          Type: string
+                        - Name: exception.aggregated5.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated5.cause.message
+                          Type: string
+                        - Name: exception.aggregated5.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated5.cause.display_message
+                          Type: string
+                        - Name: exception.aggregated5.cause.cause.type
+                          Type: string
+                        - Name: exception.aggregated5.cause.cause.is_system
+                          Type: string
+                        - Name: exception.aggregated5.cause.cause.message
+                          Type: string
+                        - Name: exception.aggregated5.cause.cause.stacktrace
+                          Type: string
+                        - Name: exception.aggregated5.cause.cause.display_message
+                          Type: string
+                        - Name: common.type
+                          Type: string
+                        - Name: common.branch
+                          Type: string
+                        - Name: common.count
+                          Type: int
+                        - Name: common.is_blocking
+                          Type: boolean
+                        - Name: common.did_nothing
+                          Type: boolean
+                        - Name: common.process_duration_ms
+                          Type: double
+                        - Name: common.delay_duration_ms
+                          Type: double
+                        - Name: common.was_cached
+                          Type: boolean
+                        - Name: common.width
+                          Type: double
+                        - Name: common.height
+                          Type: double
+                        - Name: common.content_length
+                          Type: int
+                        - Name: context.handler
+                          Type: string
+                        - Name: context.actor
+                          Type: string
+                        - Name: context.account_id
+                          Type: string
+                        - Name: context.space_id
+                          Type: string
+                        - Name: context.bot_id
+                          Type: string
+                        - Name: context.bot_account_id
+                          Type: string
+                        - Name: context.without_space_access
+                          Type: boolean
+                        - Name: context.web_socket_connection_id
+                          Type: string
+                        - Name: context.task_id
+                          Type: string
+                        - Name: context.task_collection_id
+                          Type: string
+                        - Name: context.document_id
+                          Type: string
+                        - Name: context.channel_id
+                          Type: string
+                        - Name: context.post_id
+                          Type: string
+                        - Name: context.chat_id
+                          Type: string
+                        - Name: context.file_id
+                          Type: string
+                        - Name: context.peek.above_document_id
+                          Type: string
+                        - Name: context.peek.above_channel_id
+                          Type: string
+                        - Name: context.peek.above_post_id
+                          Type: string
+                        - Name: context.peek.above_chat_id
+                          Type: string
+                        - Name: context.peek.above_task_id
+                          Type: string
+                        - Name: context.peek.above_task_collection_id
+                          Type: string
+                        - Name: context.migration
+                          Type: string
+                        - Name: context.route
+                          Type: string
+                        - Name: context.platform
+                          Type: string
+                        - Name: context.spacing_scale
+                          Type: string
+                        - Name: context.route_layout
+                          Type: string
+                        - Name: context.rendering_engine
+                          Type: string
+                        - Name: dynamodb.action
+                          Type: string
+                        - Name: dynamodb.table_name
+                          Type: string
+                        - Name: dynamodb.consistent_read
+                          Type: boolean
+                        - Name: dynamodb.consumed_capacity.accounts.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.accounts.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.alpha_access.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.alpha_access.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.bot_webhook_events.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.bot_webhook_events.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.bots.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.bots.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.chat.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.chat.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.deploy.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.deploy.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.documents.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.documents.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.feed.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.feed.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.files.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.files.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.forum.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.forum.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.forum_realtime.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.forum_realtime.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.inbox.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.inbox.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.notifications.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.notifications.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.notion_importer.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.notion_importer.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.spaces.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.spaces.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.spell_check.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.spell_check.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.task_actions.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.task_actions.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.tasks.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.tasks.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.accounts_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.accounts_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.bots_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.bots_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.chat_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.chat_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.files_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.files_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.forum_realtime_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.forum_realtime_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.inbox_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.inbox_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.inbox_index2.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.inbox_index2.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.notifications_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.notifications_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.notion_importer_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.notion_importer_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities_index2.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities_index2.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities_index3.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities_index3.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities_index4.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.search_entities_index4.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.task_actions_index1.read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.task_actions_index1.write_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.total_read_capacity_units
+                          Type: double
+                        - Name: dynamodb.consumed_capacity.total_write_capacity_units
+                          Type: double
+                        - Name: dynamodb.table.accounts.partition_type
+                          Type: string
+                        - Name: dynamodb.table.accounts.partition.account.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.accounts.partition.account_email_address.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.accounts.partition.session.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.accounts.partition.stripe_customer.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.accounts.partition.try_on_desktop_email_opt_out.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.accounts.partition.sent_try_on_desktop_email.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.alpha_access.partition_type
+                          Type: string
+                        - Name: dynamodb.table.alpha_access.partition.alpha_configuration.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.alpha_access.partition.alpha_access_requests.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.bot_webhook_events.partition_type
+                          Type: string
+                        - Name: dynamodb.table.bot_webhook_events.partition.bot_space.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.bots.partition_type
+                          Type: string
+                        - Name: dynamodb.table.bots.partition.bot.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.bots.partition.api_key.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.bots.partition.space.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.chat.partition_type
+                          Type: string
+                        - Name: dynamodb.table.chat.partition.chat.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.deploy.partition_type
+                          Type: string
+                        - Name: dynamodb.table.deploy.partition.deploy.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.documents.partition_type
+                          Type: string
+                        - Name: dynamodb.table.documents.partition.document.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.documents.partition.document_comment_thread.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.feed.partition_type
+                          Type: string
+                        - Name: dynamodb.table.feed.partition.feed_candidates.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.feed.partition.feed_account_candidates.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.feed.partition.feed.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.files.partition_type
+                          Type: string
+                        - Name: dynamodb.table.files.partition.space.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.files.partition.file.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.forum.partition_type
+                          Type: string
+                        - Name: dynamodb.table.forum.partition.channel.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.forum.partition.post.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.forum.partition.account.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.forum_realtime.partition_type
+                          Type: string
+                        - Name: dynamodb.table.forum_realtime.partition.channel.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.forum_realtime.partition.post.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.forum_realtime.partition.realtime.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.forum_realtime.partition.graveyard.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.inbox.partition_type
+                          Type: string
+                        - Name: dynamodb.table.inbox.partition.account.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.inbox.partition.inbox.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.inbox.partition.realtime.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.inbox.partition.graveyard.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.notifications.partition_type
+                          Type: string
+                        - Name: dynamodb.table.notifications.partition.inbox.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.notifications.partition.push_targets.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.notion_importer.partition_type
+                          Type: string
+                        - Name: dynamodb.table.notion_importer.partition.import.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.search_entities.partition_type
+                          Type: string
+                        - Name: dynamodb.table.search_entities.partition.account.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.search_entities.partition.space_channels.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.search_entities.partition.space_task_collections.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.search_entities.partition.index_search_entity_embedding_chunks_job.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.spaces.partition_type
+                          Type: string
+                        - Name: dynamodb.table.spaces.partition.space.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.spaces.partition.auto_add_accounts_from_email_domain.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.spaces.partition.account.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.spaces.partition.bot.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.spell_check.partition_type
+                          Type: string
+                        - Name: dynamodb.table.spell_check.partition.ignored_lint.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.spell_check.partition.realtime.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.spell_check.partition.graveyard.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.task_actions.partition_type
+                          Type: string
+                        - Name: dynamodb.table.task_actions.partition.task_actions.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.tasks.partition_type
+                          Type: string
+                        - Name: dynamodb.table.tasks.partition.account.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.tasks.partition.task_collection.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.tasks.partition.task.sort_range_type
+                          Type: string
+                        - Name: dynamodb.table.tasks.partition.task_grid_view_expansion_state.sort_range_type
+                          Type: string
+                        - Name: dynamodb.condition_expression
+                          Type: string
+                        - Name: dynamodb.update_expression
+                          Type: string
+                        - Name: dynamodb.batch_size
+                          Type: int
+                        - Name: dynamodb.query.key_condition_expression
+                          Type: string
+                        - Name: dynamodb.query.index_name
+                          Type: string
+                        - Name: dynamodb.query.scan_index_forward
+                          Type: boolean
+                        - Name: dynamodb.query.limit
+                          Type: int
+                        - Name: dynamodb.query.has_exclusive_start_key
+                          Type: boolean
+                        - Name: dynamodb.query.scanned_count
+                          Type: int
+                        - Name: dynamodb.scan.index_name
+                          Type: string
+                        - Name: dynamodb.scan.limit
+                          Type: int
+                        - Name: dynamodb.scan.has_exclusive_start_key
+                          Type: boolean
+                        - Name: dynamodb.scan.scanned_count
+                          Type: int
+                        - Name: dynamodb.transact_write.items
+                          Type: string
+                        - Name: dynamodb.transact_write.item_count
+                          Type: int
+                        - Name: dynamodb.transact_write.client_request_token
+                          Type: string
+                        - Name: dynamodb.transact_get.size
+                          Type: int
+                        - Name: dynamodb.exception.type
+                          Type: string
+                        - Name: dynamodb.exception.cancellation_reasons
+                          Type: string
+                        - Name: aws.credentials.expiration_time
+                          Type: string
+                        - Name: aws.ses.message_id
+                          Type: string
+                        - Name: aws.sqs.queue_name
+                          Type: string
+                        - Name: aws.sqs.message_id
+                          Type: string
+                        - Name: aws.sqs.visibility_timeout
+                          Type: double
+                        - Name: aws.sqs.wait_time_seconds
+                          Type: double
+                        - Name: aws.sqs.max_number_of_messages
+                          Type: int
+                        - Name: aws.sqs.message_count
+                          Type: int
+                        - Name: aws.sqs.approximate_receive_count
+                          Type: int
+                        - Name: aws.ecs.task_id
+                          Type: string
+                        - Name: aws.ecs.cluster
+                          Type: string
+                        - Name: aws.ecs.task_definition_family
+                          Type: string
+                        - Name: aws.ecs.task_count
+                          Type: int
+                        - Name: aws.ecs.container_instance_count
+                          Type: int
+                        - Name: aws.cloudformation.logical_resource_id
+                          Type: string
+                        - Name: aws.cloudformation.physical_resource_id
+                          Type: string
+                        - Name: aws.cloudformation.resource_type
+                          Type: string
+                        - Name: aws.cloudformation.start_status
+                          Type: string
+                        - Name: aws.cloudformation.start_status_reason
+                          Type: string
+                        - Name: aws.cloudformation.error_status
+                          Type: string
+                        - Name: aws.cloudformation.error_status_reason
+                          Type: string
+                        - Name: aws.cloudformation.finish_status
+                          Type: string
+                        - Name: aws.cloudformation.finish_status_reason
+                          Type: string
+                        - Name: aws.eventbridge.scheduler.name
+                          Type: string
+                        - Name: aws.eventbridge.scheduler.group_name
+                          Type: string
+                        - Name: aws.eventbridge.scheduler.target
+                          Type: string
+                        - Name: aws.eventbridge.scheduler.arn
+                          Type: string
+                        - Name: aws.eventbridge.scheduler.expression
+                          Type: string
+                        - Name: aws.eventbridge.scheduler.expression_time_zone
+                          Type: string
+                        - Name: aws.eventbridge.scheduler.max_flexible_time_window_minutes
+                          Type: int
+                        - Name: aws.eventbridge.scheduler.start_date
+                          Type: string
+                        - Name: aws.eventbridge.scheduler.end_date
+                          Type: string
+                        - Name: aws.ec2.instance_id
+                          Type: string
+                        - Name: aws.ec2.security_group_id
+                          Type: string
+                        - Name: aws.ec2.instance_count
+                          Type: int
+                        - Name: email.template
+                          Type: string
+                        - Name: email.source
+                          Type: string
+                        - Name: web_socket.connection_id
+                          Type: string
+                        - Name: web_socket.message_type
+                          Type: string
+                        - Name: content.collaborative.version
+                          Type: int
+                        - Name: content.collaborative.start_version
+                          Type: int
+                        - Name: content.collaborative.end_version
+                          Type: int
+                        - Name: content.collaborative.step_count
+                          Type: int
+                        - Name: content.collaborative.client_version
+                          Type: int
+                        - Name: content.collaborative.client_step_count
+                          Type: int
+                        - Name: notifications.event_type
+                          Type: string
+                        - Name: notifications.event_id
+                          Type: string
+                        - Name: notifications.email_digest.ineligible_reason
+                          Type: string
+                        - Name: notifications.email_digest.send_time
+                          Type: string
+                        - Name: tasks.actions
+                          Type: string
+                        - Name: tasks.action_count
+                          Type: int
+                        - Name: tasks.action_transaction_id
+                          Type: string
+                        - Name: tasks.action_transaction_count
+                          Type: int
+                        - Name: tasks.action_history_segment_count
+                          Type: int
+                        - Name: opensearch.routing
+                          Type: string
+                        - Name: opensearch.query
+                          Type: string
+                        - Name: opensearch.sort
+                          Type: string
+                        - Name: opensearch.get.found
+                          Type: boolean
+                        - Name: opensearch.get.id
+                          Type: string
+                        - Name: opensearch.get.seq_no
+                          Type: int
+                        - Name: opensearch.get.primary_term
+                          Type: int
+                        - Name: opensearch.mget.count
+                          Type: int
+                        - Name: opensearch.mget.found_count
+                          Type: int
+                        - Name: opensearch.mget.routings
+                          Type: string
+                        - Name: opensearch.mget.ids
+                          Type: string
+                        - Name: opensearch.mget.seq_nos
+                          Type: string
+                        - Name: opensearch.mget.primary_terms
+                          Type: string
+                        - Name: opensearch.index.id
+                          Type: string
+                        - Name: opensearch.index.if_seq_no
+                          Type: int
+                        - Name: opensearch.index.if_primary_term
+                          Type: int
+                        - Name: opensearch.index.seq_no
+                          Type: int
+                        - Name: opensearch.index.primary_term
+                          Type: int
+                        - Name: opensearch.bulk.count
+                          Type: int
+                        - Name: opensearch.bulk.routings
+                          Type: string
+                        - Name: opensearch.bulk.ids
+                          Type: string
+                        - Name: opensearch.bulk.actions
+                          Type: string
+                        - Name: opensearch.bulk.if_seq_nos
+                          Type: string
+                        - Name: opensearch.bulk.if_primary_terms
+                          Type: string
+                        - Name: opensearch.bulk.seq_nos
+                          Type: string
+                        - Name: opensearch.bulk.primary_terms
+                          Type: string
+                        - Name: opensearch.search.hit_count
+                          Type: int
+                        - Name: jobs.type
+                          Type: string
+                        - Name: jobs.queue_name
+                          Type: string
+                        - Name: jobs.delay_seconds
+                          Type: double
+                        - Name: jobs.queue_duration_ms
+                          Type: double
+                        - Name: jobs.will_retry
+                          Type: boolean
+                        - Name: jobs.consumer.start_fiber_count
+                          Type: int
+                        - Name: jobs.consumer.end_fiber_count
+                          Type: int
+                        - Name: jobs.consumer.max_fiber_count
+                          Type: int
+                        - Name: cohere.text_count
+                          Type: int
+                        - Name: cohere.model
+                          Type: string
+                        - Name: cohere.input_type
+                          Type: string
+                        - Name: cohere.token_count
+                          Type: int
+                        - Name: migration.segment_index
+                          Type: int
+                        - Name: migration.total_segment_count
+                          Type: int
+                        - Name: apns.connection_id
+                          Type: string
+                        - Name: apns.error_reason
+                          Type: string
+                        - Name: web_push.subscription_endpoint_origin
+                          Type: string
+                        - Name: web_push.browser_id
+                          Type: string
+                        - Name: web_push.response_status_code
+                          Type: int
+                        - Name: cloudflare.r2.action
+                          Type: string
+                        - Name: cloudflare.r2.bucket
+                          Type: string
+                        - Name: cloudflare.r2.object.key
+                          Type: string
+                        - Name: cloudflare.r2.object.content_type
+                          Type: string
+                        - Name: cloudflare.r2.object.content_length
+                          Type: int
+                        - Name: cloudflare.r2.multipart_upload.id
+                          Type: string
+                        - Name: cloudflare.r2.multipart_upload.part_number
+                          Type: int
+                        - Name: cloudflare.r2.multipart_upload.part_content_length
+                          Type: int
+                        - Name: cloudflare.r2.multipart_upload.total_part_count
+                          Type: int
+                        - Name: cloudflare.wrangler.attempt
+                          Type: int
+                        - Name: cloudflare.d1.action
+                          Type: string
+                        - Name: cloudflare.d1.database_name
+                          Type: string
+                        - Name: github.compare_url
+                          Type: string
+                        - Name: github.workflow.run.id
+                          Type: int
+                        - Name: github.workflow.run.number
+                          Type: int
+                        - Name: github.workflow.run.attempt
+                          Type: int
+                        - Name: github.workflow.run.url
+                          Type: string
+                        - Name: github.workflow.run.commit
+                          Type: string
+                        - Name: deploy.active_commit
+                          Type: string
+                        - Name: deploy.ongoing_deployment_commit
+                          Type: string
+                        - Name: deploy.dispatched_deployment_commit
+                          Type: string
+                        - Name: deploy.new_commit
+                          Type: string
+                        - Name: deploy.zoned_time
+                          Type: string
+                        - Name: deploy.is_time_deployable
+                          Type: boolean
+                        - Name: file.content_type
+                          Type: string
+                        - Name: file.content_length
+                          Type: int
+                        - Name: file.job_type
+                          Type: string
+                        - Name: file.job_reason
+                          Type: string
+                        - Name: file.processor_type
+                          Type: string
+                        - Name: file.created_time
+                          Type: string
+                        - Name: file.alternative.content_type
+                          Type: string
+                        - Name: file.alternative.content_length
+                          Type: int
+                        - Name: file.alternative.content_length_ratio
+                          Type: double
+                        - Name: file.preview.content_type
+                          Type: string
+                        - Name: file.preview.content_length
+                          Type: int
+                        - Name: file.preview.content_length_ratio
+                          Type: double
+                        - Name: file.preview.image_width
+                          Type: int
+                        - Name: file.preview.image_height
+                          Type: int
+                        - Name: file.preview.image_scale
+                          Type: double
+                        - Name: file.preview.image_has_alpha
+                          Type: boolean
+                        - Name: file.preview.image_video_duration_ms
+                          Type: double
+                        - Name: file.preview.audio_duration_ms
+                          Type: double
+                        - Name: file.preview.code_content_length
+                          Type: int
+                        - Name: file.processing.alternative_duration_ms
+                          Type: double
+                        - Name: file.processing.image_preview_size_duration_ms
+                          Type: double
+                        - Name: file.processing.image_preview_placeholder_duration_ms
+                          Type: double
+                        - Name: file.processing.image_preview_content_duration_ms
+                          Type: double
+                        - Name: file.processing.image_preview_video_duration_duration_ms
+                          Type: double
+                        - Name: file.processing.audio_preview_duration_duration_ms
+                          Type: double
+                        - Name: file.processing.audio_preview_metadata_duration_ms
+                          Type: double
+                        - Name: file.processing.code_preview_content_duration_ms
+                          Type: double
+                        - Name: file.processing.image_preview_video_duration_to_alternative_processing_duration_ratio
+                          Type: double
+                        - Name: file.avatar.resize.quality
+                          Type: int
+                        - Name: file.avatar.resize.resized_content_length
+                          Type: int
+                        - Name: file.avatar.resize.resized_to_original_content_length_ratio
+                          Type: double
+                        - Name: file.avatar.resize.request.height
+                          Type: int
+                        - Name: file.avatar.resize.request.width
+                          Type: int
+                        - Name: file.avatar.resize.request.max_content_length
+                          Type: int
+                        - Name: space.members.invite.send.existing_account_id
+                          Type: string
+                        - Name: space.members.invite.send.new_account_id
+                          Type: string
+                        - Name: space.members.invite.invalid_email_address_count
+                          Type: int
+                        - Name: space.members.invite.rejected_as_spam_email_address_count
+                          Type: int
+                        - Name: space.members.invite.already_member_email_address_count
+                          Type: int
+                        - Name: space.members.invite.invited_email_address_count
+                          Type: int
+                        - Name: space.members.invite.unexpected_failure_email_address_count
+                          Type: int
+                        - Name: libreoffice.output_filter
+                          Type: string
+                        - Name: ffmpeg.codecs
+                          Type: string
+                        - Name: sharp.avif.quality
+                          Type: int
+                        - Name: sharp.avif.effort
+                          Type: int
+                        - Name: sharp.input_content_length
+                          Type: int
+                        - Name: sharp.output_content_length
+                          Type: int
+                        - Name: edge.app_service_duration_ms
+                          Type: double
+                        - Name: openai.model
+                          Type: string
+                        - Name: openai.responses.id
+                          Type: string
+                        - Name: openai.responses.prompt_cache_key
+                          Type: string
+                        - Name: openai.responses.safety_identifier
+                          Type: string
+                        - Name: openai.responses.status
+                          Type: string
+                        - Name: openai.responses.incomplete_details.reason
+                          Type: string
+                        - Name: openai.responses.usage.input_tokens
+                          Type: int
+                        - Name: openai.responses.usage.cached_input_tokens
+                          Type: int
+                        - Name: openai.responses.usage.output_tokens
+                          Type: int
+                        - Name: openai.responses.usage.reasoning_output_tokens
+                          Type: int
+                        - Name: openai.responses.usage.total_tokens
+                          Type: int
+                        - Name: agents.schedule.event.time
+                          Type: string
+                        - Name: agents.schedule.event.execution_time
+                          Type: string
+                        - Name: agents.schedule.event.queue_duration_ms
+                          Type: double
+                        - Name: agents.schedule.event.type
+                          Type: string
+                        - Name: agents.request.account_id
+                          Type: string
+                        - Name: agents.request.provider
+                          Type: string
+                        - Name: agents.request.model
+                          Type: string
+                        - Name: agents.request.used_millicents
+                          Type: int
+                        - Name: agents.request.usage_window.limit_millicents
+                          Type: int
+                        - Name: agents.request.usage_window.used_millicents
+                          Type: int
+                        - Name: agents.request.usage_window.is_past_total_usage_limit
+                          Type: boolean
+                        - Name: agents.request.usage_window.is_past_downgrade_usage_limit
+                          Type: boolean
+                        - Name: agents.request.usage_window.window_type
+                          Type: string
+                        - Name: agents.request.usage_window.age_ms
+                          Type: int
+                        - Name: agents.request.usage_window.reset
+                          Type: boolean
+                        - Name: agents.request.usage_window.started_time
+                          Type: string
+                        - Name: agents.request.usage_window.previous_started_time
+                          Type: string
+                        - Name: agents.request.usage_window.previous_used_millicents
+                          Type: int
+                        - Name: billing.created_stripe_customer
+                          Type: boolean
+                        - Name: billing.stripe_customer_id
+                          Type: string
+                        - Name: billing.stripe_event.type
+                          Type: string
+                        - Name: billing.stripe_event.id
+                          Type: string
+                        - Name: billing.stripe_event.processed
+                          Type: boolean
+                        - Name: billing.stripe_event.dollar_amount
+                          Type: double
+                        - Name: auth.sign_in.failed_attempt_count
+                          Type: int
+                        - Name: auth.sign_in.minutes_until_expiration
+                          Type: int
+                        - Name: auth.sign_in.hours_until_unlocked
+                          Type: int
+                        - Name: auth.sign_up.auto_add_accounts_from_email_domain
+                          Type: string
+                        - Name: reaction.character.type
+                          Type: string
+                        - Name: reaction.character.variant
+                          Type: string
+                        - Name: logo_dev.query
+                          Type: string
+                        - Name: logo_dev.name
+                          Type: string
+                        - Name: logo_dev.domain
+                          Type: string
+                        - Name: logo_dev.description
+                          Type: string
+                        - Name: logo_dev.colors
+                          Type: string
+                        - Name: feed.was_created
+                          Type: boolean
+                        - Name: feed.entry_count
+                          Type: int
+                        - Name: feed.has_more_entries
+                          Type: boolean
+                        - Name: feed.search_entity_count
+                          Type: int
+                        - Name: cursor.cloud_agents.webhook.id
+                          Type: string
+                        - Name: cursor.cloud_agents.webhook.event
+                          Type: string
                     InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
                     Location:
                         Fn::Join:

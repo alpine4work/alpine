@@ -288,20 +288,15 @@ async function sendEventsToKinesis(
         await retryWithExponentialBackoff(async retry => {
             try {
                 const kinesisRecords = events.map((event): KinesisPutRecordsRequestEntry => {
-                    let eventString = JSON.stringify(event);
-                    eventString = eventString.replaceAll(
-                        /([?&](?:sig|X-Amz-Signature)=)[A-Za-z0-9+/\-_=.]+/gi,
-                        `$1${debugRedactedString}`,
-                    );
                     return {
-                        data: new TextEncoder().encode(eventString),
+                        data: event.getFlatData(),
                         partitionKey:
                             tracer.getRoot().sharedEventData.trace?.traceId ||
                             generateId<TraceId>(),
                     };
                 });
 
-                const result = await kinesis.PutRecords(tracer, kinesisRecords);
+                const result = await kinesis.PutRecords(kinesisRecords);
 
                 if (result.failedRecordCount > 0) {
                     for (const record of result.records) {
