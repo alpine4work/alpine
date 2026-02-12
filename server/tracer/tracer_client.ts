@@ -322,9 +322,7 @@ async function sendEventsToKinesis(
             }
         });
     } catch (error) {
-        tracer.logException(
-            "Failed to send events to Kinesis",
-            new DataLossError("Failed to send events to Kinesis", {cause: error}),
-        );
+        // eslint-disable-next-line no-console
+        console.error(error);
     }
 }
