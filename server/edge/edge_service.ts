@@ -106,7 +106,12 @@ async function handleFetch(
         if (!(cookieHeader && hasOwnProperty(parseCookieHeader(cookieHeader), "session"))) {
             return new Response(null, {
                 status: 302,
-                headers: {location: "https://www.alpine.inc"},
+                headers: {
+                    location:
+                        process.env.NODE_ENV === "production"
+                            ? "https://www.alpine.inc"
+                            : "/auth/sign-in",
+                },
             });
         }
     }
