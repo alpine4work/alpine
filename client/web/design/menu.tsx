@@ -1551,16 +1551,23 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
             // For `Enter` and `Space` keyboard events: When focus is on a `menuitem` that
             // has a submenu, opens the submenu and places focus on its first item.
             //
+            // For touch/pointer events: Open the submenu so mobile devices can access
+            // submenus.
+            //
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-            if (event.pointerType === "keyboard") {
-                if (!isOpened) {
-                    // If we should open but haven't opened yet, that's because we're waiting on
-                    // asynchronous actions to load.
-                    if (!shouldOpen) {
+            if (!isOpened) {
+                // If we should open but haven't opened yet, that's because we're waiting on
+                // asynchronous actions to load.
+                if (!shouldOpen) {
+                    // Only focus on keyboard interaction, not touch
+                    if (event.pointerType === "keyboard") {
                         setShouldInitiallyFocus(true);
-                        onOpen();
                     }
-                } else {
+                    onOpen();
+                }
+            } else {
+                // Only focus for keyboard interaction
+                if (event.pointerType === "keyboard") {
                     const overlayMenuElement = assertExists(overlayMenuRef.current);
 
                     getNextFocusableElementIfExists(null, {
