@@ -33,15 +33,15 @@ export class AwsRequestSigner {
             typeof credentials === "function" ? credentials : async () => credentials;
     }
 
-    private _fetchState(span: TracerSpan): Promise<{
+    private _fetchState(span?: TracerSpan): Promise<{
         credentials: AwsCredentialIdentity;
         client: AwsClient;
     }> {
-        return span.withSpan("Fetching AWS credentials", async span => {
+        const fetchState = async (span?: TracerSpan) => {
             try {
                 const credentials = await this._credentialsProvider();
 
-                if (credentials.expiration) {
+                if (credentials.expiration && span) {
                     span.addData({
                         aws: {
                             credentials: {
@@ -62,10 +62,12 @@ export class AwsRequestSigner {
             } catch (error) {
                 throw InternalError.from(error, "Couldn\u2019t fetch AWS credentials");
             }
-        });
+        };
+
+        return span ? span.withSpan("Fetching AWS credentials", fetchState) : fetchState();
     }
 
-    private async _getState(span: TracerSpan): Promise<{
+    private async _getState(span?: TracerSpan): Promise<{
         credentials: AwsCredentialIdentity;
         client: AwsClient;
     }> {
@@ -119,7 +121,7 @@ export class AwsRequestSigner {
 
     // Property instead of a method so you can pass it around like
     // `fetch(url, {sign: signer.sign})`.
-    public readonly sign = async (request: Request, span: TracerSpan): Promise<Request> => {
+    public readonly sign = async (request: Request, span?: TracerSpan): Promise<Request> => {
         const state = await this._getState(span);
         return state.client.sign(request);
     };
