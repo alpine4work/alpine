@@ -4,6 +4,9 @@ load("//admin/bazel:production_transition.bzl", "production_transition")
 
 ts_project(
     name = "send_alert",
+    test_deps = [
+        "//server/api/markdown",
+    ],
     visibility = [
         "//admin/aws:__subpackages__",
     ],

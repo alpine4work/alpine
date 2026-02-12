@@ -7,7 +7,10 @@ ts_project(
         "//:node_modules/gpt-tokenizer",
         "//shared/tracer/dev",
     ],
-    visibility = ["//server:__subpackages__"],
+    visibility = [
+        "//admin:__subpackages__",
+        "//server:__subpackages__",
+    ],
     # IMPORTANT: We try to keep the first-party dependency list for this markdown
     # parser/printer pretty small. We'd like to open source this code someday! So
     # instead of requesting markdown from our API a developer could run the

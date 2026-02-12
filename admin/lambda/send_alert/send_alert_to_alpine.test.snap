@@ -1,1936 +1,335 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`sendAlertToAlpine GitHub build failure 1`] = `
-{
-  "body": {
-    "channelId": "c62kgg77zybqev6kkm77wza5gr",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Build failed: CI",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/cyberworlds/cyberworlds/actions/runs/123456789",
-                },
-              ],
-              "text": "View Run",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Repository: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/cyberworlds/cyberworlds",
-                },
-              ],
-              "text": "app",
-              "type": "Text",
-            },
-            {
-              "text": " • Commit: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-                {
-                  "type": "Link",
-                  "url": "https://github.com/cyberworlds/cyberworlds/commit/abc123def456",
-                },
-              ],
-              "text": "abc123d",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "elements": [
-                {
-                  "text": "Fix bug in user authentication",
-                  "type": "Text",
-                },
-              ],
-              "type": "Paragraph",
-            },
-          ],
-          "type": "Quote",
-        },
-        {
-          "elements": [
-            {
-              "text": "Author: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/developer123",
-                },
-              ],
-              "text": "developer123",
-              "type": "Text",
-            },
-            {
-              "text": " • Triggered by: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/developer123",
-                },
-              ],
-              "text": "developer123",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: c62kgg77zybqev6kkm77wza5gr
+
+## 🚨 Build failed: CI
+
+[View Run](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Commit: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/commit/abc123def456)
+
+> Fix bug in user authentication
+
+Author: [developer123](https://github.com/developer123) • Triggered by: [developer123](https://github.com/developer123)
+"
 `;
 
 exports[`sendAlertToAlpine GitHub build failure with PR reference 1`] = `
-{
-  "body": {
-    "channelId": "c62kgg77zybqev6kkm77wza5gr",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Build failed: CI",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/cyberworlds/cyberworlds/actions/runs/123456789",
-                },
-              ],
-              "text": "View Run",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Repository: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/cyberworlds/cyberworlds",
-                },
-              ],
-              "text": "app",
-              "type": "Text",
-            },
-            {
-              "text": " • Commit: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-                {
-                  "type": "Link",
-                  "url": "https://github.com/cyberworlds/cyberworlds/commit/abc123def456",
-                },
-              ],
-              "text": "abc123d",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "elements": [
-                {
-                  "text": "Small alert formatting ",
-                  "type": "Text",
-                },
-                {
-                  "marks": [
-                    {
-                      "type": "Link",
-                      "url": "https://app.graphite.com/github/pr/cyberworlds/cyberworlds/746",
-                    },
-                  ],
-                  "text": "(#746)",
-                  "type": "Text",
-                },
-              ],
-              "type": "Paragraph",
-            },
-          ],
-          "type": "Quote",
-        },
-        {
-          "elements": [
-            {
-              "text": "Author: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/developer123",
-                },
-              ],
-              "text": "developer123",
-              "type": "Text",
-            },
-            {
-              "text": " • Triggered by: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/developer123",
-                },
-              ],
-              "text": "developer123",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: c62kgg77zybqev6kkm77wza5gr
+
+## 🚨 Build failed: CI
+
+[View Run](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Commit: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/commit/abc123def456)
+
+> Small alert formatting [(#746)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/746)
+
+Author: [developer123](https://github.com/developer123) • Triggered by: [developer123](https://github.com/developer123)
+"
 `;
 
 exports[`sendAlertToAlpine GitHub build failure with multiple PR references 1`] = `
-{
-  "body": {
-    "channelId": "c62kgg77zybqev6kkm77wza5gr",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Build failed: CI",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/cyberworlds/cyberworlds/actions/runs/123456789",
-                },
-              ],
-              "text": "View Run",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Repository: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/cyberworlds/cyberworlds",
-                },
-              ],
-              "text": "app",
-              "type": "Text",
-            },
-            {
-              "text": " • Commit: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-                {
-                  "type": "Link",
-                  "url": "https://github.com/cyberworlds/cyberworlds/commit/abc123def456",
-                },
-              ],
-              "text": "abc123d",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "elements": [
-                {
-                  "text": "Merge multiple PRs: feature A ",
-                  "type": "Text",
-                },
-                {
-                  "marks": [
-                    {
-                      "type": "Link",
-                      "url": "https://app.graphite.com/github/pr/cyberworlds/cyberworlds/123",
-                    },
-                  ],
-                  "text": "(#123)",
-                  "type": "Text",
-                },
-                {
-                  "text": " and bug fix ",
-                  "type": "Text",
-                },
-                {
-                  "marks": [
-                    {
-                      "type": "Link",
-                      "url": "https://app.graphite.com/github/pr/cyberworlds/cyberworlds/456",
-                    },
-                  ],
-                  "text": "(#456)",
-                  "type": "Text",
-                },
-              ],
-              "type": "Paragraph",
-            },
-          ],
-          "type": "Quote",
-        },
-        {
-          "elements": [
-            {
-              "text": "Author: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/developer123",
-                },
-              ],
-              "text": "developer123",
-              "type": "Text",
-            },
-            {
-              "text": " • Triggered by: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://github.com/developer123",
-                },
-              ],
-              "text": "developer123",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: c62kgg77zybqev6kkm77wza5gr
+
+## 🚨 Build failed: CI
+
+[View Run](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Commit: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/commit/abc123def456)
+
+> Merge multiple PRs: feature A [(#123)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/123) and bug fix [(#456)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/456)
+
+Author: [developer123](https://github.com/developer123) • Triggered by: [developer123](https://github.com/developer123)
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb displayFields and userTags auto-adds context names when displayFields are present 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "type": "Divider",
-        },
-        {
-          "language": "text",
-          "lines": [
-            {
-              "elements": [
-                {
-                  "text": "display.message: Error occurred",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "context.known_account.name: Josh Johnson",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "context.known_space.name: Engineering",
-                  "type": "Text",
-                },
-              ],
-            },
-          ],
-          "type": "Code",
-        },
-        {
-          "elements": [
-            {
-              "isAccountShortName": true,
-              "target": {
-                "id": "7dw297xezx6rs6qy4gjh6h5xx4",
-                "type": "Account",
-              },
-              "type": "Mention",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+---
+
+\`\`\`text
+display.message: Error occurred
+context.known_account.name: Josh Johnson
+context.known_space.name: Engineering
+\`\`\`
+
+[Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short)
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb displayFields and userTags does not fetch query results for resolved alerts 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "✅ Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Bold",
-                },
-              ],
-              "text": "Measurement has returned to normal status.",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## ✅ Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+**Measurement has returned to normal status.**
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb displayFields and userTags fetches query results and displays specified fields 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "type": "Divider",
-        },
-        {
-          "language": "text",
-          "lines": [
-            {
-              "elements": [
-                {
-                  "text": "display.message: Failed to load user profile",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "http.path: /api/users/123",
-                  "type": "Text",
-                },
-              ],
-            },
-          ],
-          "type": "Code",
-        },
-        {
-          "language": "text",
-          "lines": [
-            {
-              "elements": [
-                {
-                  "text": "display.message: Connection timeout",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "http.path: /api/data/fetch",
-                  "type": "Text",
-                },
-              ],
-            },
-          ],
-          "type": "Code",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+---
+
+\`\`\`text
+display.message: Failed to load user profile
+http.path: /api/users/123
+\`\`\`
+
+\`\`\`text
+display.message: Connection timeout
+http.path: /api/data/fetch
+\`\`\`
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb displayFields and userTags handles no matching display fields gracefully 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb displayFields and userTags shows user tags even without displayFields 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "isAccountShortName": true,
-              "target": {
-                "id": "7dw297xezx6rs6qy4gjh6h5xx4",
-                "type": "Account",
-              },
-              "type": "Mention",
-            },
-            {
-              "text": " ",
-              "type": "Text",
-            },
-            {
-              "isAccountShortName": true,
-              "target": {
-                "id": "jttc8n911at1wxt0b8rm75n270",
-                "type": "Account",
-              },
-              "type": "Mention",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+[Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short) [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/jttc8n911at1wxt0b8rm75n270?mention=short)
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb displayFields and userTags shows user tags from context.known_account.name 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "type": "Divider",
-        },
-        {
-          "language": "text",
-          "lines": [
-            {
-              "elements": [
-                {
-                  "text": "display.message: Failed to load user profile",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "http.path: /api/users/123",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "context.known_account.name: Josh Johnson",
-                  "type": "Text",
-                },
-              ],
-            },
-          ],
-          "type": "Code",
-        },
-        {
-          "language": "text",
-          "lines": [
-            {
-              "elements": [
-                {
-                  "text": "display.message: Connection timeout",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "http.path: /api/data/fetch",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "context.known_account.name: Rachel Date",
-                  "type": "Text",
-                },
-              ],
-            },
-          ],
-          "type": "Code",
-        },
-        {
-          "language": "text",
-          "lines": [
-            {
-              "elements": [
-                {
-                  "text": "display.message: Another error",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "http.path: /api/other",
-                  "type": "Text",
-                },
-              ],
-            },
-            {
-              "elements": [
-                {
-                  "text": "context.known_account.name: Josh Johnson",
-                  "type": "Text",
-                },
-              ],
-            },
-          ],
-          "type": "Code",
-        },
-        {
-          "elements": [
-            {
-              "isAccountShortName": true,
-              "target": {
-                "id": "7dw297xezx6rs6qy4gjh6h5xx4",
-                "type": "Account",
-              },
-              "type": "Mention",
-            },
-            {
-              "text": " ",
-              "type": "Text",
-            },
-            {
-              "isAccountShortName": true,
-              "target": {
-                "id": "jttc8n911at1wxt0b8rm75n270",
-                "type": "Account",
-              },
-              "type": "Mention",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+---
+
+\`\`\`text
+display.message: Failed to load user profile
+http.path: /api/users/123
+context.known_account.name: Josh Johnson
+\`\`\`
+
+\`\`\`text
+display.message: Connection timeout
+http.path: /api/data/fetch
+context.known_account.name: Rachel Date
+\`\`\`
+
+\`\`\`text
+display.message: Another error
+http.path: /api/other
+context.known_account.name: Josh Johnson
+\`\`\`
+
+[Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short) [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/jttc8n911at1wxt0b8rm75n270?mention=short)
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb displayFields and userTags truncates results to 3 and shows remaining count 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "type": "Divider",
-        },
-        {
-          "language": "text",
-          "lines": [
-            {
-              "elements": [
-                {
-                  "text": "display.message: Error 1",
-                  "type": "Text",
-                },
-              ],
-            },
-          ],
-          "type": "Code",
-        },
-        {
-          "language": "text",
-          "lines": [
-            {
-              "elements": [
-                {
-                  "text": "display.message: Error 2",
-                  "type": "Text",
-                },
-              ],
-            },
-          ],
-          "type": "Code",
-        },
-        {
-          "language": "text",
-          "lines": [
-            {
-              "elements": [
-                {
-                  "text": "display.message: Error 3",
-                  "type": "Text",
-                },
-              ],
-            },
-          ],
-          "type": "Code",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "(2 more results...)",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+---
+
+\`\`\`text
+display.message: Error 1
+\`\`\`
+
+\`\`\`text
+display.message: Error 2
+\`\`\`
+
+\`\`\`text
+display.message: Error 3
+\`\`\`
+
+*(2 more results...)*
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb event alert 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "ℹ️ Event: User Signups",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "New user registration detected",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## ℹ️ Event: User Signups
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*New user registration detected*
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb event alert with custom emoji 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🎉 Event: User Signups",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "New user registration detected",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🎉 Event: User Signups
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*New user registration detected*
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb resolved alert 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "✅ Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Bold",
-                },
-              ],
-              "text": "Measurement has returned to normal status.",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## ✅ Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+**Measurement has returned to normal status.**
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb staging environment alert 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Environment: ",
-              "type": "Text",
-            },
-            {
-              "text": "staging",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+Environment: staging
+"
 `;
 
 exports[`sendAlertToAlpine Honeycomb triggered alert 1`] = `
-{
-  "body": {
-    "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Trigger: Database Connection Error",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C",
-                },
-              ],
-              "text": "View Result",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Italic",
-                },
-              ],
-              "text": "High error rate detected in database connections",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+"
 `;
 
 exports[`sendAlertToAlpine PagerDuty acknowledged incident 1`] = `
-{
-  "body": {
-    "channelId": "qt3xsqhh2fed7t8fyqnbfw0m3g",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Incident: Database Connection Pool Exhausted",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/incidents/incident-123",
-                },
-              ],
-              "text": "View Incident",
-              "type": "Text",
-            },
-            {
-              "text": " • ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation",
-                },
-              ],
-              "text": "Escalation Policy",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Incident #42",
-              "type": "Text",
-            },
-            {
-              "text": " • Status: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-                {
-                  "color": "Red",
-                  "type": "Highlight",
-                },
-              ],
-              "text": "triggered",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Service: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/services/database-service",
-                },
-              ],
-              "text": "Database Service",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Priority: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "P1 - Critical",
-              "type": "Text",
-            },
-            {
-              "text": " • Urgency: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "high",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Incident Type: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "Database Error",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Created: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "2023-11-10T10:00:00Z",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Assignees: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/users/oncall-eng",
-                },
-              ],
-              "text": "On-Call Engineer",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: qt3xsqhh2fed7t8fyqnbfw0m3g
+
+## 🚨 Incident: Database Connection Pool Exhausted
+
+[View Incident](https://cyberworlds.pagerduty.com/incidents/incident-123) • [Escalation Policy](https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation)
+
+Incident #42 • Status: <mark class="highlight-red">\`triggered\`</mark>
+
+Service: [Database Service](https://cyberworlds.pagerduty.com/services/database-service)
+
+Priority: \`P1 - Critical\` • Urgency: \`high\`
+
+Incident Type: \`Database Error\`
+
+Created: \`2023-11-10T10:00:00Z\`
+
+Assignees: [On-Call Engineer](https://cyberworlds.pagerduty.com/users/oncall-eng)
+"
 `;
 
 exports[`sendAlertToAlpine PagerDuty resolved incident 1`] = `
-{
-  "body": {
-    "channelId": "qt3xsqhh2fed7t8fyqnbfw0m3g",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "✅ Incident: Database Connection Pool Exhausted",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/incidents/incident-123",
-                },
-              ],
-              "text": "View Incident",
-              "type": "Text",
-            },
-            {
-              "text": " • ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation",
-                },
-              ],
-              "text": "Escalation Policy",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Incident #42",
-              "type": "Text",
-            },
-            {
-              "text": " • Status: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-                {
-                  "color": "Red",
-                  "type": "Highlight",
-                },
-              ],
-              "text": "resolved",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "type": "Divider",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Bold",
-                },
-              ],
-              "text": "The incident has been resolved.",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Database connection pool was restarted and issue resolved",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "type": "Divider",
-        },
-        {
-          "elements": [
-            {
-              "text": "Service: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/services/database-service",
-                },
-              ],
-              "text": "Database Service",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Priority: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "P1 - Critical",
-              "type": "Text",
-            },
-            {
-              "text": " • Urgency: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "high",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Incident Type: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "Database Error",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Created: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "2023-11-10T10:00:00Z",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Assignees: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/users/oncall-eng",
-                },
-              ],
-              "text": "On-Call Engineer",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: qt3xsqhh2fed7t8fyqnbfw0m3g
+
+## ✅ Incident: Database Connection Pool Exhausted
+
+[View Incident](https://cyberworlds.pagerduty.com/incidents/incident-123) • [Escalation Policy](https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation)
+
+Incident #42 • Status: <mark class="highlight-red">\`resolved\`</mark>
+
+---
+
+**The incident has been resolved.**
+
+Database connection pool was restarted and issue resolved
+
+---
+
+Service: [Database Service](https://cyberworlds.pagerduty.com/services/database-service)
+
+Priority: \`P1 - Critical\` • Urgency: \`high\`
+
+Incident Type: \`Database Error\`
+
+Created: \`2023-11-10T10:00:00Z\`
+
+Assignees: [On-Call Engineer](https://cyberworlds.pagerduty.com/users/oncall-eng)
+"
 `;
 
 exports[`sendAlertToAlpine PagerDuty triggered incident 1`] = `
-{
-  "body": {
-    "channelId": "qt3xsqhh2fed7t8fyqnbfw0m3g",
-    "content": {
-      "elements": [
-        {
-          "elements": [
-            {
-              "text": "🚨 Incident: Database Connection Pool Exhausted",
-              "type": "Text",
-            },
-          ],
-          "level": 2,
-          "type": "Heading",
-        },
-        {
-          "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/incidents/incident-123",
-                },
-              ],
-              "text": "View Incident",
-              "type": "Text",
-            },
-            {
-              "text": " • ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation",
-                },
-              ],
-              "text": "Escalation Policy",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Incident #42",
-              "type": "Text",
-            },
-            {
-              "text": " • Status: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-                {
-                  "color": "Red",
-                  "type": "Highlight",
-                },
-              ],
-              "text": "triggered",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Service: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/services/database-service",
-                },
-              ],
-              "text": "Database Service",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Priority: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "P1 - Critical",
-              "type": "Text",
-            },
-            {
-              "text": " • Urgency: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "high",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Incident Type: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "Database Error",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Created: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Code",
-                },
-              ],
-              "text": "2023-11-10T10:00:00Z",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-        {
-          "elements": [
-            {
-              "text": "Assignees: ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://cyberworlds.pagerduty.com/users/oncall-eng",
-                },
-              ],
-              "text": "On-Call Engineer",
-              "type": "Text",
-            },
-          ],
-          "type": "Paragraph",
-        },
-      ],
-    },
-  },
-  "url": "https://api.test.cyberworlds.com/posts",
-}
+"URL: https://api.test.cyberworlds.com/posts
+Channel: qt3xsqhh2fed7t8fyqnbfw0m3g
+
+## 🚨 Incident: Database Connection Pool Exhausted
+
+[View Incident](https://cyberworlds.pagerduty.com/incidents/incident-123) • [Escalation Policy](https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation)
+
+Incident #42 • Status: <mark class="highlight-red">\`triggered\`</mark>
+
+Service: [Database Service](https://cyberworlds.pagerduty.com/services/database-service)
+
+Priority: \`P1 - Critical\` • Urgency: \`high\`
+
+Incident Type: \`Database Error\`
+
+Created: \`2023-11-10T10:00:00Z\`
+
+Assignees: [On-Call Engineer](https://cyberworlds.pagerduty.com/users/oncall-eng)
+"
 `;

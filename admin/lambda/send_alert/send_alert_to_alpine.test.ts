@@ -6,6 +6,9 @@ import {
     sendHoneycombAlertToAlpine,
     sendPagerDutyAlertToAlpine,
 } from "~/admin/lambda/send_alert/send_alert_to_alpine.js";
+import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 
 // Mock environment variables
 const mockEnv = {
@@ -64,6 +67,17 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
         text: () => Promise.resolve(""),
     });
 });
+
+const testSpaceId = "test_space_id_for_snapshots" as SpaceId;
+
+function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
+    const body = fetchCall.body as {channelId: string; content: ApiContent};
+    const markdown = printApiContentToMarkdown(body.content, {spaceId: testSpaceId});
+    return `URL: ${fetchCall.url}
+Channel: ${body.channelId}
+
+${markdown}`;
+}
 
 describe("sendAlertToAlpine", () => {
     beforeEach(() => {
@@ -130,7 +144,7 @@ describe("sendAlertToAlpine", () => {
             await sendHoneycombAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
         test("resolved alert", async () => {
@@ -147,7 +161,7 @@ describe("sendAlertToAlpine", () => {
             await sendHoneycombAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
         test("event alert", async () => {
@@ -167,7 +181,7 @@ describe("sendAlertToAlpine", () => {
             await sendHoneycombAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
         test("event alert with custom emoji", async () => {
@@ -188,7 +202,7 @@ describe("sendAlertToAlpine", () => {
             await sendHoneycombAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
         test("staging environment alert", async () => {
@@ -206,7 +220,7 @@ describe("sendAlertToAlpine", () => {
             await sendHoneycombAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
         describe("displayFields and userTags", () => {
@@ -235,7 +249,7 @@ describe("sendAlertToAlpine", () => {
                 await sendHoneycombAlertToAlpine(payload);
 
                 expect(mockFetchCalls).toHaveLength(1);
-                expect(mockFetchCalls[0]).toMatchSnapshot();
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
 
             test("shows user tags from context.known_account.name", async () => {
@@ -270,7 +284,7 @@ describe("sendAlertToAlpine", () => {
                 await sendHoneycombAlertToAlpine(payload);
 
                 expect(mockFetchCalls).toHaveLength(1);
-                expect(mockFetchCalls[0]).toMatchSnapshot();
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
 
             test("shows user tags even without displayFields", async () => {
@@ -296,7 +310,7 @@ describe("sendAlertToAlpine", () => {
                 await sendHoneycombAlertToAlpine(payload);
 
                 expect(mockFetchCalls).toHaveLength(1);
-                expect(mockFetchCalls[0]).toMatchSnapshot();
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
 
             test("truncates results to 3 and shows remaining count", async () => {
@@ -321,7 +335,7 @@ describe("sendAlertToAlpine", () => {
                 await sendHoneycombAlertToAlpine(payload);
 
                 expect(mockFetchCalls).toHaveLength(1);
-                expect(mockFetchCalls[0]).toMatchSnapshot();
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
 
             test("auto-adds context names when displayFields are present", async () => {
@@ -346,7 +360,7 @@ describe("sendAlertToAlpine", () => {
                 await sendHoneycombAlertToAlpine(payload);
 
                 expect(mockFetchCalls).toHaveLength(1);
-                expect(mockFetchCalls[0]).toMatchSnapshot();
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
 
             test("handles no matching display fields gracefully", async () => {
@@ -365,7 +379,7 @@ describe("sendAlertToAlpine", () => {
                 await sendHoneycombAlertToAlpine(payload);
 
                 expect(mockFetchCalls).toHaveLength(1);
-                expect(mockFetchCalls[0]).toMatchSnapshot();
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
 
             test("does not fetch query results for resolved alerts", async () => {
@@ -391,7 +405,7 @@ describe("sendAlertToAlpine", () => {
                 await sendHoneycombAlertToAlpine(payload);
 
                 expect(mockFetchCalls).toHaveLength(1);
-                expect(mockFetchCalls[0]).toMatchSnapshot();
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
         });
     });
@@ -990,7 +1004,7 @@ describe("sendAlertToAlpine", () => {
             await sendGitHubActionsAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
         test("build failure with PR reference", async () => {
@@ -1018,7 +1032,7 @@ describe("sendAlertToAlpine", () => {
             await sendGitHubActionsAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
         test("build failure with multiple PR references", async () => {
@@ -1046,7 +1060,7 @@ describe("sendAlertToAlpine", () => {
             await sendGitHubActionsAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
     });
 
@@ -1132,7 +1146,7 @@ describe("sendAlertToAlpine", () => {
             await sendPagerDutyAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
         test("acknowledged incident", async () => {
@@ -1149,7 +1163,7 @@ describe("sendAlertToAlpine", () => {
             await sendPagerDutyAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
         test("resolved incident", async () => {
@@ -1170,7 +1184,7 @@ describe("sendAlertToAlpine", () => {
             await sendPagerDutyAlertToAlpine(payload);
 
             expect(mockFetchCalls).toHaveLength(1);
-            expect(mockFetchCalls[0]).toMatchSnapshot();
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
     });
 });
