@@ -1,4 +1,4 @@
-import {setInteractionModality} from "@react-aria/interactions";
+import {PressEvent, setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import {CaretRight, Check, IconContext, SpinnerGap} from "phosphor-react";
 import React, {
@@ -6,8 +6,10 @@ import React, {
     ReactElement,
     ReactNode,
     Ref,
+    RefObject,
     createRef,
     forwardRef,
+    useCallback,
     useEffect,
     useId,
     useMemo,
@@ -33,6 +35,7 @@ import {isElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_b
 import {isModifiedKeyboardEvent} from "~/client/web/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {assignRef} from "~/client/web/helpers/refs/assign_ref.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
@@ -56,6 +59,14 @@ import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
  * and optionally a header.
  */
 export type MenuActions = ReadonlyArray<MenuAction | MenuActionsSection>;
+
+/**
+ * A ref to a menu item element that exposes a `press()` method for
+ * programmatically triggering the press action.
+ */
+export type MenuItemRef = HTMLDivElement & {
+    press(): void;
+};
 
 /**
  * An section of actions in a menu which might or might not have a header.
@@ -132,6 +143,15 @@ export type MenuStandardAction = {
     readonly keyboardShortcutHint?: ReactNode;
 
     /**
+     * A single character keyboard shortcut that triggers this action when the
+     * menu is open. When the user presses this key, the action's `onPress`
+     * handler will be called immediately.
+     *
+     * Must be unique within the menu - duplicate shortcuts will throw an error.
+     */
+    readonly keyboardShortcut?: string;
+
+    /**
      * When the user chooses this action through either the keyboard or mouse we
      * will call this handler.
      *
@@ -185,6 +205,15 @@ export type MenuCustomAction = {
     readonly withCustomLayout: true;
     readonly hasChildren?: undefined;
     readonly heading?: undefined;
+
+    /**
+     * A single character keyboard shortcut that triggers this action when the
+     * menu is open. When the user presses this key, the action's `onPress`
+     * handler will be called immediately.
+     *
+     * Must be unique within the menu - duplicate shortcuts will throw an error.
+     */
+    readonly keyboardShortcut?: string;
 
     /**
      * Called when this action is activated either by mouse or by keyboard.
@@ -518,13 +547,35 @@ const Menu = forwardRef(function Menu(
     assert(flattenedActions.length > 0);
 
     const menuRef = useRef<HTMLDivElement>(null);
-    const menuItemRefs = useMemo(
-        () =>
-            flattenedActions.map(action =>
-                action.type === "Action" ? createRef<HTMLDivElement>() : null,
-            ),
-        [flattenedActions],
-    );
+    const {menuItemRefs, keyboardShortcutMap} = useMemo(() => {
+        // Map from lowercase shortcut key to the MenuItemRef in flattenedActions
+        const keyboardShortcutMap = new Map<string, RefObject<MenuItemRef | null>>();
+
+        function registerKeyboardShortcut(action: MenuAction, ref: RefObject<MenuItemRef | null>) {
+            if (action.hasChildren) return;
+            const shortcut = action.keyboardShortcut;
+            if (shortcut === undefined) return;
+
+            const normalizedShortcut = shortcut.toLowerCase();
+            assert(
+                !keyboardShortcutMap.has(normalizedShortcut),
+                `Duplicate keyboard shortcut \u201C${shortcut}\u201D in menu`,
+            );
+            keyboardShortcutMap.set(normalizedShortcut, ref);
+        }
+
+        const refs = flattenedActions.map(action => {
+            const ref = action.type === "Action" ? createRef<MenuItemRef>() : null;
+            if (ref && action.type === "Action") registerKeyboardShortcut(action.action, ref);
+
+            return ref;
+        });
+        return {menuItemRefs: refs, keyboardShortcutMap};
+    }, [flattenedActions]);
+
+    // Track which menu item is being pressed via keyboard shortcut for visual feedback.
+    const [keyboardPressedMenuItemRef, setKeyboardPressedMenuItemRef] =
+        useState<RefObject<MenuItemRef | null> | null>(null);
 
     const [searchText, setSearchText] = useState("");
 
@@ -773,6 +824,38 @@ const Menu = forwardRef(function Menu(
                         return;
                     }
                     default: {
+                        // Check if the key matches a keyboard shortcut. Shortcuts take
+                        // precedence over label-based search.
+                        if (/^[0-9a-zA-Z]$/.test(event.key) && !isModifiedKeyboardEvent(event)) {
+                            const menuItemRef = keyboardShortcutMap.get(event.key.toLowerCase());
+                            if (menuItemRef !== undefined) {
+                                event.preventDefault();
+                                event.stopPropagation();
+
+                                // If the user presses a shortcut key while a menu item is
+                                // focused and the menu item in focus is not the one that matches
+                                // the shortcut key, then blur the focused menu item.
+                                // If we don't do this, we get into a weird UI state where one
+                                // menu item is focused while another menu item is visually pressed.
+                                const activeMenuItemIndex = getFocusedActionIndexIfExists();
+                                if (activeMenuItemIndex !== null) {
+                                    const activeMenuItemRef =
+                                        menuItemRefs[activeMenuItemIndex]?.current;
+
+                                    if (
+                                        activeMenuItemRef &&
+                                        activeMenuItemRef !== menuItemRef.current
+                                    ) {
+                                        activeMenuItemRef.blur();
+                                    }
+
+                                    setKeyboardPressedMenuItemRef(menuItemRef);
+                                    menuItemRef.current?.press();
+                                    return;
+                                }
+                            }
+                        }
+
                         // Move focus to the next menu item in the current menu whose label
                         // begins with that printable character.
                         //
@@ -801,6 +884,15 @@ const Menu = forwardRef(function Menu(
                             setSearchText(nextSearchText);
                             return;
                         }
+                    }
+                }
+            }}
+            onKeyUp={event => {
+                // Clear the keyboard pressed state when the key is released
+                if (/^[0-9a-zA-Z]$/.test(event.key) && !isModifiedKeyboardEvent(event)) {
+                    const menuItemRef = keyboardShortcutMap.get(event.key.toLowerCase());
+                    if (menuItemRef !== undefined && keyboardPressedMenuItemRef === menuItemRef) {
+                        setKeyboardPressedMenuItemRef(null);
                     }
                 }
             }}
@@ -843,6 +935,9 @@ const Menu = forwardRef(function Menu(
                                 isNotFocusable={isNotFocusable}
                                 shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
                                 openedActionKey={openedActionKey}
+                                isKeyboardPressed={
+                                    keyboardPressedMenuItemRef === menuItemRefs[index]
+                                }
                                 onActionOpen={action => setOpenedActionKey(action.key)}
                                 onActionClose={action =>
                                     setOpenedActionKey(openedActionKey =>
@@ -881,6 +976,7 @@ export const MenuItem = forwardRef(function MenuItem(
         isFocusRingVisible = false,
         shouldNotCloseAfterPress = false,
         openedActionKey,
+        isKeyboardPressed = false,
         onActionOpen,
         onActionClose,
     }: {
@@ -894,10 +990,11 @@ export const MenuItem = forwardRef(function MenuItem(
         isFocusRingVisible?: boolean;
         shouldNotCloseAfterPress?: boolean;
         openedActionKey: Key | null;
+        isKeyboardPressed?: boolean;
         onActionOpen: (action: MenuChildrenAction) => void;
         onActionClose: (action: MenuChildrenAction) => void;
     },
-    ref: Ref<HTMLDivElement>,
+    ref: Ref<MenuItemRef>,
 ) {
     const id = useId();
 
@@ -912,6 +1009,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
                 shouldNotCloseAfterPress={shouldNotCloseAfterPress}
+                isKeyboardPressed={isKeyboardPressed}
             />
         );
     }
@@ -964,6 +1062,7 @@ export const MenuItem = forwardRef(function MenuItem(
                         isNotFocusable={isNotFocusable}
                         isFocusRingVisible={isFocusRingVisible}
                         shouldNotCloseAfterPress={shouldNotCloseAfterPress}
+                        isKeyboardPressed={isKeyboardPressed}
                     />
                 )}
             </Tooltip>
@@ -981,6 +1080,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
                 shouldNotCloseAfterPress={shouldNotCloseAfterPress}
+                isKeyboardPressed={isKeyboardPressed}
             />
         );
     }
@@ -998,6 +1098,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         isNotFocusable,
         isFocusRingVisible,
         shouldNotCloseAfterPress,
+        isKeyboardPressed,
     }: {
         size: MenuSize;
         menuItemId: string;
@@ -1009,8 +1110,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         isNotFocusable: boolean;
         isFocusRingVisible: boolean;
         shouldNotCloseAfterPress: boolean;
+        isKeyboardPressed: boolean;
     },
-    ref: Ref<HTMLDivElement>,
+    foreignRef: Ref<MenuItemRef>,
 ) {
     const platform = usePlatform();
     const reporter = useReporter();
@@ -1025,82 +1127,89 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
 
     const {isHovered, hoverProps} = useHover({isDisabled});
 
-    const {isPressed, pressProps} = usePress({
+    function onPress(event?: PressEvent) {
+        if (action.disabledReason !== undefined) {
+            skipTooltipHoverDelay?.();
+            return;
+        }
+
+        if (isDisabled || pendingState.isPending) return;
+
+        const {pressErrorTitle} = action;
+
+        let result;
+        try {
+            result = action.onPress();
+        } catch (error) {
+            reporter.displayError(
+                pressErrorTitle ??
+                    (event?.pointerType === "touch"
+                        ? defaultTouchMenuItemPressErrorTitle
+                        : defaultMouseMenuItemPressErrorTitle),
+                error,
+            );
+            return;
+        }
+
+        // If the press returns a promise:
+        //
+        // - Only close the menu if the action succeeds
+        // - Show a loading spinner after a short delay
+        // - Show a toast if there was an error
+        if (!(result instanceof Promise)) {
+            if (!result?.withoutClose && !shouldNotCloseAfterPress) {
+                onCloseWithoutAnimation();
+            }
+        } else {
+            const promiseStartTime = new Date();
+
+            setPendingState({isPending: true, shouldShowPendingSpinner: false});
+
+            assert(
+                pressErrorTitle,
+                "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+            );
+
+            result.then(
+                result => {
+                    if (result?.withoutClose || shouldNotCloseAfterPress) {
+                        setPendingState({isPending: false, shouldShowPendingSpinner: false});
+                    } else {
+                        // Our animation principle is to respond to user input immediately
+                        // without animation.
+                        //
+                        // If the item had to go into a loading state we consider the click long
+                        // enough ago that it is no longer a direct action.
+                        if (
+                            new Date().getTime() - promiseStartTime.getTime() >
+                            delayLoadingIndicatorLimitMs
+                        ) {
+                            onCloseWithAnimation();
+                        } else {
+                            onCloseWithoutAnimation();
+                        }
+                    }
+                },
+                error => {
+                    setPendingState({isPending: false, shouldShowPendingSpinner: false});
+                    reporter.displayError(pressErrorTitle, error);
+                },
+            );
+        }
+    }
+
+    const {refCallback} = useMenuItemPressRef(onPress, foreignRef);
+
+    const {isPressed: isPressedFromHook, pressProps} = usePress({
         preventFocusOnPress: isNotFocusable,
         // We want buttons with a disabled reason to be pressable so they can show
         // their tooltip with the reason for why they are disabled.
         isDisabled: isDisabled && action.disabledReason === undefined,
-        onPress: event => {
-            if (action.disabledReason !== undefined) {
-                skipTooltipHoverDelay?.();
-                return;
-            }
-
-            if (isDisabled || pendingState.isPending) return;
-
-            const {pressErrorTitle} = action;
-
-            let result;
-            try {
-                result = action.onPress();
-            } catch (error) {
-                reporter.displayError(
-                    pressErrorTitle ??
-                        (event.pointerType === "touch"
-                            ? defaultTouchMenuItemPressErrorTitle
-                            : defaultMouseMenuItemPressErrorTitle),
-                    error,
-                );
-                return;
-            }
-
-            // If the press returns a promise:
-            //
-            // - Only close the menu if the action succeeds
-            // - Show a loading spinner after a short delay
-            // - Show a toast if there was an error
-            if (!(result instanceof Promise)) {
-                if (!result?.withoutClose && !shouldNotCloseAfterPress) {
-                    onCloseWithoutAnimation();
-                }
-            } else {
-                const promiseStartTime = new Date();
-
-                setPendingState({isPending: true, shouldShowPendingSpinner: false});
-
-                assert(
-                    pressErrorTitle,
-                    "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
-                );
-
-                result.then(
-                    result => {
-                        if (result?.withoutClose || shouldNotCloseAfterPress) {
-                            setPendingState({isPending: false, shouldShowPendingSpinner: false});
-                        } else {
-                            // Our animation principle is to respond to user input immediately
-                            // without animation.
-                            //
-                            // If the item had to go into a loading state we consider the click long
-                            // enough ago that it is no longer a direct action.
-                            if (
-                                new Date().getTime() - promiseStartTime.getTime() >
-                                delayLoadingIndicatorLimitMs
-                            ) {
-                                onCloseWithAnimation();
-                            } else {
-                                onCloseWithoutAnimation();
-                            }
-                        }
-                    },
-                    error => {
-                        setPendingState({isPending: false, shouldShowPendingSpinner: false});
-                        reporter.displayError(pressErrorTitle, error);
-                    },
-                );
-            }
-        },
+        onPress,
     });
+
+    // Combine press state from usePress hook and keyboard shortcut
+    const isPressed = isPressedFromHook || isKeyboardPressed;
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
@@ -1140,7 +1249,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         <FocusRing isVisible={isFocusRingVisible} offset="inset">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
-                ref={ref}
+                ref={refCallback}
                 id={menuItemId}
                 {...(!isNotFocusable
                     ? {
@@ -1249,8 +1358,9 @@ function MenuCustomItem({
     isNotFocusable,
     isFocusRingVisible,
     shouldNotCloseAfterPress,
+    isKeyboardPressed,
 }: {
-    menuItemRef: Ref<HTMLDivElement>;
+    menuItemRef: Ref<MenuItemRef>;
     menuItemId: string;
     action: MenuCustomAction;
     onCloseWithAnimation: () => void;
@@ -1258,6 +1368,7 @@ function MenuCustomItem({
     isNotFocusable: boolean;
     isFocusRingVisible: boolean;
     shouldNotCloseAfterPress: boolean;
+    isKeyboardPressed: boolean;
 }) {
     const reporter = useReporter();
     const [pendingState, setPendingState] = useState<
@@ -1265,73 +1376,78 @@ function MenuCustomItem({
         | {isPending: true; shouldShowPendingSpinner: boolean}
     >({isPending: false, shouldShowPendingSpinner: false});
 
-    const localRef = useRef<HTMLDivElement>(null);
-    const mergedRef = useMergedRefs(menuItemRef, localRef);
+    function onPress(event?: PressEvent) {
+        const {pressErrorTitle} = action;
 
-    const {isPressed, pressProps} = usePress({
-        preventFocusOnPress: isNotFocusable,
-        onPress: event => {
-            const {pressErrorTitle} = action;
+        let result;
+        try {
+            result = action.onPress();
+        } catch (error) {
+            reporter.displayError(
+                pressErrorTitle ??
+                    (event?.pointerType === "touch"
+                        ? defaultTouchMenuItemPressErrorTitle
+                        : defaultMouseMenuItemPressErrorTitle),
+                error,
+            );
+            return;
+        }
 
-            let result;
-            try {
-                result = action.onPress();
-            } catch (error) {
-                reporter.displayError(
-                    pressErrorTitle ??
-                        (event.pointerType === "touch"
-                            ? defaultTouchMenuItemPressErrorTitle
-                            : defaultMouseMenuItemPressErrorTitle),
-                    error,
-                );
-                return;
+        // If the press returns a promise:
+        //
+        // - Only close the menu if the action succeeds
+        // - Show a loading spinner after a short delay
+        // - Show a toast if there was an error
+        if (!(result instanceof Promise)) {
+            if (!result?.withoutClose && !shouldNotCloseAfterPress) {
+                onCloseWithoutAnimation();
             }
+        } else {
+            const promiseStartTime = new Date();
 
-            // If the press returns a promise:
-            //
-            // - Only close the menu if the action succeeds
-            // - Show a loading spinner after a short delay
-            // - Show a toast if there was an error
-            if (!(result instanceof Promise)) {
-                if (!result?.withoutClose && !shouldNotCloseAfterPress) {
-                    onCloseWithoutAnimation();
-                }
-            } else {
-                const promiseStartTime = new Date();
+            setPendingState({isPending: true, shouldShowPendingSpinner: false});
 
-                setPendingState({isPending: true, shouldShowPendingSpinner: false});
+            assert(
+                pressErrorTitle,
+                "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+            );
 
-                assert(
-                    pressErrorTitle,
-                    "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
-                );
-
-                result.then(
-                    result => {
-                        if (!result?.withoutClose && !shouldNotCloseAfterPress) {
-                            // Our animation principle is to respond to user input immediately
-                            // without animation.
-                            //
-                            // If the item had to go into a loading state we consider the click long
-                            // enough ago that it is no longer a direct action.
-                            if (
-                                new Date().getTime() - promiseStartTime.getTime() >
-                                delayLoadingIndicatorLimitMs
-                            ) {
-                                onCloseWithAnimation();
-                            } else {
-                                onCloseWithoutAnimation();
-                            }
+            result.then(
+                result => {
+                    if (!result?.withoutClose && !shouldNotCloseAfterPress) {
+                        // Our animation principle is to respond to user input immediately
+                        // without animation.
+                        //
+                        // If the item had to go into a loading state we consider the click long
+                        // enough ago that it is no longer a direct action.
+                        if (
+                            new Date().getTime() - promiseStartTime.getTime() >
+                            delayLoadingIndicatorLimitMs
+                        ) {
+                            onCloseWithAnimation();
+                        } else {
+                            onCloseWithoutAnimation();
                         }
-                    },
-                    error => {
-                        setPendingState({isPending: false, shouldShowPendingSpinner: false});
-                        reporter.displayError(pressErrorTitle, error);
-                    },
-                );
-            }
-        },
+                    }
+                },
+                error => {
+                    setPendingState({isPending: false, shouldShowPendingSpinner: false});
+                    reporter.displayError(pressErrorTitle, error);
+                },
+            );
+        }
+    }
+
+    // We need localRef for subscribing to triggered overlay events below.
+    const {localRef, refCallback} = useMenuItemPressRef(onPress, menuItemRef);
+
+    const {isPressed: isPressedFromHook, pressProps} = usePress({
+        preventFocusOnPress: isNotFocusable,
+        onPress,
     });
+
+    // Combine press state from usePress hook and keyboard shortcut
+    const isPressed = isPressedFromHook || isKeyboardPressed;
 
     const {isHovered, hoverProps} = useHover({});
 
@@ -1371,7 +1487,7 @@ function MenuCustomItem({
             unsubscribe1();
             unsubscribe2();
         };
-    }, [isNotFocusable]);
+    }, [isNotFocusable, localRef]);
 
     const isHoveredBackground = isHovered || isTriggeredOverlayOpen;
 
@@ -1385,7 +1501,8 @@ function MenuCustomItem({
         <FocusRing isVisible={isFocusRingVisible} offset="inset">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
-                ref={mergedRef}
+                // See `useMenuItemPressRef` for why we use refCallback.
+                ref={refCallback}
                 id={menuItemId}
                 {...(!isNotFocusable
                     ? {
@@ -1976,3 +2093,69 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
         </OverlayAnimated>
     );
 });
+
+/**
+ * Hook that returns a ref callback which augments a DOM element with a `press()`
+ * method. This allows the `<Menu>` component to programmatically trigger a menu
+ * item's action (e.g., when a keyboard shortcut is pressed).
+ *
+ * @param onPress - The press handler to call when `press()` is invoked
+ * @param foreignRef - The ref to forward the augmented element to (from the parent)
+ * @returns An object with:
+ *   - `localRef`: A ref to the DOM element for internal use
+ *   - `refCallback`: A ref callback to pass to the element's `ref` prop
+ */
+function useMenuItemPressRef(onPress: () => void, foreignRef: Ref<MenuItemRef>) {
+    const localRef = useRef<HTMLDivElement>(null);
+
+    // We need to expose `onPress` via the ref's `press()` method so that the
+    // `<Menu>` component can trigger it when a keyboard shortcut is pressed.
+    // However, `onPress` is recreated on every render since it's defined inside
+    // the component and closes over the current props/state. We use a ref to
+    // always have access to the latest version of `onPress` without needing to
+    // recreate the `press()` method on the DOM element.
+    //
+    // We use `useLayoutEffectWithoutServerSideWarning` instead of direct
+    // assignment (`onPressRef.current = onPress`) because React Compiler forbids
+    // writing to ref.current during render.
+    const onPressRef = useRef(onPress);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        onPressRef.current = onPress;
+    });
+
+    // This is a ref callback that React calls with the DOM element when mounted
+    // and `null` when unmounted. We use it to augment the DOM element with a
+    // `press()` method that the `<Menu>` component can call to programmatically
+    // trigger this menu item's action.
+    //
+    // The pattern is:
+    // 1. Use `Object.assign` to add a `press()` method directly onto the DOM element
+    // 2. The `press()` method calls `onPressRef.current()` to get the latest `onPress`
+    // 3. Store the augmented element in both `localRef` (for internal use) and
+    //    forward it to `foreignRef` (the parent's ref via `assignRef`)
+    //
+    // `assignRef` is a helper that handles both `RefObject` and callback ref styles.
+    //
+    // We use this refCallback instead of foreignRef directly so we can augment
+    // the DOM element with the `press()` method before forwarding it to the parent.
+    const refCallback = useCallback(
+        (element: HTMLDivElement | null) => {
+            if (element === null) {
+                localRef.current = null;
+                assignRef(foreignRef, null);
+            } else {
+                const actualElement = Object.assign(element, {
+                    press: () => {
+                        onPressRef.current();
+                    },
+                });
+
+                localRef.current = actualElement;
+                assignRef(foreignRef, actualElement);
+            }
+        },
+        [foreignRef],
+    );
+
+    return {localRef, refCallback};
+}

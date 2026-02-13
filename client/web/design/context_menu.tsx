@@ -25,6 +25,7 @@ import {
     MenuAction,
     MenuActionsSection,
     MenuItem,
+    MenuItemRef,
     MenuStandardAction,
 } from "~/client/web/design/menu.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
@@ -799,7 +800,7 @@ const ContextMenu = forwardRef(function ContextMenu(
     const menuItemRefs = useMemo(
         () =>
             flattenedActions.map(action =>
-                action.type === "Action" ? createRef<HTMLDivElement>() : null,
+                action.type === "Action" ? createRef<MenuItemRef>() : null,
             ),
         [flattenedActions],
     );

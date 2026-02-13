@@ -72,6 +72,7 @@ export function SpaceLayoutSideBarCreateButton() {
                     [
                         {
                             withCustomLayout: true,
+                            keyboardShortcut: "d",
                             pressErrorTitle: "Couldn\u2019t create document",
                             onPress: async () => {
                                 const documentId = generateId();
@@ -91,6 +92,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         },
                         {
                             withCustomLayout: true,
+                            keyboardShortcut: "t",
                             pressErrorTitle: "Couldn\u2019t open tasks",
                             onPress: async () => {
                                 const taskId = generateId();
@@ -110,6 +112,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         },
                         {
                             withCustomLayout: true,
+                            keyboardShortcut: "p",
                             pressErrorTitle: "Couldn\u2019t create post",
                             onPress: async () => {
                                 const draftId = generateChronologicalId();
@@ -130,6 +133,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         },
                         {
                             withCustomLayout: true,
+                            keyboardShortcut: "m",
                             pressErrorTitle: "Couldn\u2019t open new chat",
                             onPress: async () => {
                                 await peekStackContext.push(`/s/${space.id}/chat/new?focus=picker`);
