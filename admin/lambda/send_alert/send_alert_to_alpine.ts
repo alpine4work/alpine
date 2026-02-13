@@ -648,7 +648,7 @@ export async function sendHoneycombAlertToAlpine(
 
                 elements.push({
                     type: "Table",
-                    width: columnCount,
+                    width: 1,
                     hasHeaderRow: true,
                     columns: Array(columnCount).fill({width: 1}),
                     rows: [headerRow, ...dataRows],
