@@ -289,6 +289,10 @@ export class KinesisClient {
                             errorType === "ProvisionedThroughputExceededException" ||
                             errorType === "KMSThrottlingException"
                         ) {
+                            pendingState.previousBatchError = {
+                                errorCode: errorType ?? "UnknownError",
+                                errorMessage: output.message,
+                            };
                             throw retry(error);
                         }
 
