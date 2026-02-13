@@ -254,9 +254,6 @@ function addAwsLifecycleResources(
             HONEYCOMB_WEBHOOK_SECRET: sendAlertSecrets
                 .secretValueFromJson("honeycombWebhookSecret")
                 .unsafeUnwrap(),
-            HONEYCOMB_API_KEY: sendAlertSecrets
-                .secretValueFromJson("honeycombApiKey")
-                .unsafeUnwrap(),
             GITHUB_ACTIONS_WEBHOOK_SECRET: sendAlertSecrets
                 .secretValueFromJson("gitHubActionsWebhookSecret")
                 .unsafeUnwrap(),

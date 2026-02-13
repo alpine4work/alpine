@@ -48,172 +48,6 @@ Author: [developer123](https://github.com/developer123) • Triggered by: [devel
 "
 `;
 
-exports[`sendAlertToAlpine Honeycomb dataset iteration tries multiple datasets until finding results 1`] = `
-"URL: https://api.test.cyberworlds.com/posts
-Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
-
-## 🚨 Trigger: Database Connection Error
-
-[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
-
-*High error rate detected in database connections*
-
----
-
-\`\`\`text
-display.message: Found in resource-service
-\`\`\`
-"
-`;
-
-exports[`sendAlertToAlpine Honeycomb displayFields and userTags auto-adds context names when displayFields are present 1`] = `
-"URL: https://api.test.cyberworlds.com/posts
-Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
-
-## 🚨 Trigger: Database Connection Error
-
-[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
-
-*High error rate detected in database connections*
-
----
-
-\`\`\`text
-display.message: Error occurred
-context.known_account.name: Josh Johnson
-context.known_space.name: Engineering
-\`\`\`
-
-[Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short)
-"
-`;
-
-exports[`sendAlertToAlpine Honeycomb displayFields and userTags does not fetch query results for resolved alerts 1`] = `
-"URL: https://api.test.cyberworlds.com/posts
-Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
-
-## ✅ Trigger: Database Connection Error
-
-[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
-
-*High error rate detected in database connections*
-
-**Measurement has returned to normal status.**
-"
-`;
-
-exports[`sendAlertToAlpine Honeycomb displayFields and userTags fetches query results and displays specified fields 1`] = `
-"URL: https://api.test.cyberworlds.com/posts
-Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
-
-## 🚨 Trigger: Database Connection Error
-
-[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
-
-*High error rate detected in database connections*
-
----
-
-\`\`\`text
-display.message: Failed to load user profile
-http.path: /api/users/123
-\`\`\`
-
-\`\`\`text
-display.message: Connection timeout
-http.path: /api/data/fetch
-\`\`\`
-"
-`;
-
-exports[`sendAlertToAlpine Honeycomb displayFields and userTags handles no matching display fields gracefully 1`] = `
-"URL: https://api.test.cyberworlds.com/posts
-Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
-
-## 🚨 Trigger: Database Connection Error
-
-[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
-
-*High error rate detected in database connections*
-"
-`;
-
-exports[`sendAlertToAlpine Honeycomb displayFields and userTags shows user tags even without displayFields 1`] = `
-"URL: https://api.test.cyberworlds.com/posts
-Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
-
-## 🚨 Trigger: Database Connection Error
-
-[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
-
-*High error rate detected in database connections*
-
-[Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short) [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/jttc8n911at1wxt0b8rm75n270?mention=short)
-"
-`;
-
-exports[`sendAlertToAlpine Honeycomb displayFields and userTags shows user tags from context.known_account.name 1`] = `
-"URL: https://api.test.cyberworlds.com/posts
-Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
-
-## 🚨 Trigger: Database Connection Error
-
-[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
-
-*High error rate detected in database connections*
-
----
-
-\`\`\`text
-display.message: Failed to load user profile
-http.path: /api/users/123
-context.known_account.name: Josh Johnson
-\`\`\`
-
-\`\`\`text
-display.message: Connection timeout
-http.path: /api/data/fetch
-context.known_account.name: Rachel Date
-\`\`\`
-
-\`\`\`text
-display.message: Another error
-http.path: /api/other
-context.known_account.name: Josh Johnson
-\`\`\`
-
-[Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short) [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/jttc8n911at1wxt0b8rm75n270?mention=short)
-"
-`;
-
-exports[`sendAlertToAlpine Honeycomb displayFields and userTags truncates results to 3 and shows remaining count 1`] = `
-"URL: https://api.test.cyberworlds.com/posts
-Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
-
-## 🚨 Trigger: Database Connection Error
-
-[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
-
-*High error rate detected in database connections*
-
----
-
-\`\`\`text
-display.message: Error 1
-\`\`\`
-
-\`\`\`text
-display.message: Error 2
-\`\`\`
-
-\`\`\`text
-display.message: Error 3
-\`\`\`
-
-*(2 more results...)*
-"
-`;
-
 exports[`sendAlertToAlpine Honeycomb event alert 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
@@ -278,7 +112,7 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 "
 `;
 
-exports[`sendAlertToAlpine Honeycomb webhook payload data extracts user tags from webhook groupsTriggered 1`] = `
+exports[`sendAlertToAlpine Honeycomb webhook payload data aggregates by non-user columns and shows user mentions at bottom 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
@@ -290,26 +124,16 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 ---
 
-\`\`\`text
-context.known_account.name: Josh Johnson
-Result: 1
-\`\`\`
-
-\`\`\`text
-context.known_account.name: Rachel Date
-Result: 2
-\`\`\`
-
-\`\`\`text
-context.known_account.name: Josh Johnson
-Result: 3
-\`\`\`
+| error.type | Count |
+| - | - |
+| ConnectionError | 8 |
+| TimeoutError | 2<span hidden data-width="2"/> |
 
 [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short) [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/jttc8n911at1wxt0b8rm75n270?mention=short)
 "
 `;
 
-exports[`sendAlertToAlpine Honeycomb webhook payload data uses groupsTriggered from webhook payload instead of API 1`] = `
+exports[`sendAlertToAlpine Honeycomb webhook payload data displays groupsTriggered data in a table with keys as headers 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
@@ -321,19 +145,60 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 ---
 
-\`\`\`text
-error.type: ConnectionError
-context.known_account.name: Josh Johnson
-Result: 5
-\`\`\`
+| error.type | service.name | Count |
+| - | - | - |
+| ConnectionError | api-gateway | 5 |
+| TimeoutError | database | 3<span hidden data-width="3"/> |
+"
+`;
 
-\`\`\`text
-error.type: TimeoutError
-context.known_account.name: Rachel Date
-Result: 3
-\`\`\`
+exports[`sendAlertToAlpine Honeycomb webhook payload data shows no table when groupsTriggered is empty 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+"
+`;
+
+exports[`sendAlertToAlpine Honeycomb webhook payload data shows only user mentions when context.known_account.name is the only key 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
 
 [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short) [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/jttc8n911at1wxt0b8rm75n270?mention=short)
+"
+`;
+
+exports[`sendAlertToAlpine Honeycomb webhook payload data truncates results to 5 and shows remaining count 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+---
+
+| error | Count |
+| - | - |
+| Error 1 | 1 |
+| Error 2 | 2 |
+| Error 3 | 3 |
+| Error 4 | 4 |
+| Error 5 | 5<span hidden data-width="2"/> |
+
+*(2 more results...)*
 "
 `;
 

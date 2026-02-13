@@ -14,66 +14,20 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
     EDGE_SERVICE_URL: "https://test.cyberworlds.com",
-    HONEYCOMB_API_KEY: "test-honeycomb-api-key",
 };
 
 // Store original environment
 const originalEnv = process.env;
 
-// Mock Honeycomb API response data
-type MockHoneycombResponse = {
-    complete: boolean;
-    data: {
-        results: Array<Record<string, unknown>>;
-        series: Array<unknown>;
-    };
-};
-
-let mockHoneycombResponse: MockHoneycombResponse | null = null;
-// Map of dataset -> response for testing dataset iteration
-let mockHoneycombDatasetResponses: Map<string, MockHoneycombResponse> = new Map();
-// Track which Honeycomb API URLs were called
+// Track which Honeycomb API URLs were called (to verify no API calls are made)
 let mockHoneycombApiCalls: Array<string> = [];
 
 // Mock fetch function
 let mockFetchCalls: Array<{url: string; body: unknown}> = [];
 const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options?: any) => {
-    // Handle Honeycomb API calls
+    // Track any Honeycomb API calls (to verify none are made)
     if (url.startsWith("https://api.honeycomb.io/")) {
         mockHoneycombApiCalls.push(url);
-
-        // Check for dataset-specific responses first
-        const datasetMatch = url.match(/\/query_results\/([^/]+)\//);
-        if (datasetMatch) {
-            const dataset = datasetMatch[1]!;
-            const datasetResponse = mockHoneycombDatasetResponses.get(dataset);
-            if (datasetResponse) {
-                return Promise.resolve({
-                    ok: true,
-                    status: 200,
-                    statusText: "OK",
-                    json: () => Promise.resolve(datasetResponse),
-                    text: () => Promise.resolve(JSON.stringify(datasetResponse)),
-                });
-            }
-        }
-
-        // Fall back to global response
-        if (mockHoneycombResponse) {
-            return Promise.resolve({
-                ok: true,
-                status: 200,
-                statusText: "OK",
-                json: () => Promise.resolve(mockHoneycombResponse),
-                text: () => Promise.resolve(JSON.stringify(mockHoneycombResponse)),
-            });
-        }
-        return Promise.resolve({
-            ok: false,
-            status: 404,
-            statusText: "Not Found",
-            text: () => Promise.resolve("Not found"),
-        });
     }
 
     // Handle Alpine API calls
@@ -109,8 +63,6 @@ describe("sendAlertToAlpine", () => {
 
         // Reset mock data
         mockFetchCalls = [];
-        mockHoneycombResponse = null;
-        mockHoneycombDatasetResponses = new Map();
         mockHoneycombApiCalls = [];
 
         // Mock global fetch
@@ -248,301 +200,40 @@ describe("sendAlertToAlpine", () => {
             expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
         });
 
-        describe("displayFields and userTags", () => {
-            test("fetches query results and displays specified fields", async () => {
-                mockHoneycombResponse = {
-                    complete: true,
-                    data: {
-                        results: [
-                            {
-                                "display.message": "Failed to load user profile",
-                                "http.path": "/api/users/123",
-                            },
-                            {
-                                "display.message": "Connection timeout",
-                                "http.path": "/api/data/fetch",
-                            },
-                        ],
-                        series: [],
-                    },
-                };
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message, http.path",
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                expect(mockFetchCalls).toHaveLength(1);
-                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
-            });
-
-            test("shows user tags from context.known_account.name", async () => {
-                mockHoneycombResponse = {
-                    complete: true,
-                    data: {
-                        results: [
-                            {
-                                "display.message": "Failed to load user profile",
-                                "http.path": "/api/users/123",
-                                "context.known_account.name": "Josh Johnson",
-                            },
-                            {
-                                "display.message": "Connection timeout",
-                                "http.path": "/api/data/fetch",
-                                "context.known_account.name": "Rachel Date",
-                            },
-                            {
-                                "display.message": "Another error",
-                                "http.path": "/api/other",
-                                "context.known_account.name": "Josh Johnson",
-                            },
-                        ],
-                        series: [],
-                    },
-                };
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message, http.path",
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                expect(mockFetchCalls).toHaveLength(1);
-                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
-            });
-
-            test("shows user tags even without displayFields", async () => {
-                mockHoneycombResponse = {
-                    complete: true,
-                    data: {
-                        results: [
-                            {
-                                "some.field": "value1",
-                                "context.known_account.name": "Josh Johnson",
-                            },
-                            {
-                                "some.field": "value2",
-                                "context.known_account.name": "Rachel Date",
-                            },
-                        ],
-                        series: [],
-                    },
-                };
-
-                const payload = createHoneycombFixture();
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                expect(mockFetchCalls).toHaveLength(1);
-                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
-            });
-
-            test("truncates results to 3 and shows remaining count", async () => {
-                mockHoneycombResponse = {
-                    complete: true,
-                    data: {
-                        results: [
-                            {"display.message": "Error 1", "http.path": "/api/1"},
-                            {"display.message": "Error 2", "http.path": "/api/2"},
-                            {"display.message": "Error 3", "http.path": "/api/3"},
-                            {"display.message": "Error 4", "http.path": "/api/4"},
-                            {"display.message": "Error 5", "http.path": "/api/5"},
-                        ],
-                        series: [],
-                    },
-                };
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message",
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                expect(mockFetchCalls).toHaveLength(1);
-                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
-            });
-
-            test("auto-adds context names when displayFields are present", async () => {
-                mockHoneycombResponse = {
-                    complete: true,
-                    data: {
-                        results: [
-                            {
-                                "display.message": "Error occurred",
-                                "context.known_account.name": "Josh Johnson",
-                                "context.known_space.name": "Engineering",
-                            },
-                        ],
-                        series: [],
-                    },
-                };
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message",
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                expect(mockFetchCalls).toHaveLength(1);
-                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
-            });
-
-            test("handles no matching display fields gracefully", async () => {
-                mockHoneycombResponse = {
-                    complete: true,
-                    data: {
-                        results: [{"other.field": "some value"}],
-                        series: [],
-                    },
-                };
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message",
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                expect(mockFetchCalls).toHaveLength(1);
-                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
-            });
-
-            test("does not fetch query results for resolved alerts", async () => {
-                mockHoneycombResponse = {
-                    complete: true,
-                    data: {
-                        results: [{"display.message": "Should not appear"}],
-                        series: [],
-                    },
-                };
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message",
-                    alert: {
-                        instanceId: "alert-instance-456",
-                        description: "Issue resolved",
-                        status: "ok",
-                        summary: "Resolved",
-                        isTest: false,
-                    },
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                expect(mockFetchCalls).toHaveLength(1);
-                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
-            });
-        });
-
-        describe("dataset iteration", () => {
-            test("tries multiple datasets until finding results", async () => {
-                // Only the third dataset (resource-service) has results
-                mockHoneycombDatasetResponses.set("resource-service", {
-                    complete: true,
-                    data: {
-                        results: [{"display.message": "Found in resource-service"}],
-                        series: [],
-                    },
-                });
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message",
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                // Should have tried tracer, edge-service, then found in resource-service
-                const honeycombCalls = mockHoneycombApiCalls.filter(url =>
-                    url.includes("/query_results/"),
-                );
-                expect(honeycombCalls).toHaveLength(3);
-                expect(honeycombCalls[0]).toContain("/query_results/tracer/");
-                expect(honeycombCalls[1]).toContain("/query_results/edge-service/");
-                expect(honeycombCalls[2]).toContain("/query_results/resource-service/");
-
-                // Should have sent the alert with the found data
-                expect(mockFetchCalls).toHaveLength(1);
-                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
-            });
-
-            test("stops searching after finding results in first dataset", async () => {
-                // First dataset (tracer) has results
-                mockHoneycombDatasetResponses.set("tracer", {
-                    complete: true,
-                    data: {
-                        results: [{"display.message": "Found in tracer"}],
-                        series: [],
-                    },
-                });
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message",
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                // Should have only tried tracer
-                const honeycombCalls = mockHoneycombApiCalls.filter(url =>
-                    url.includes("/query_results/"),
-                );
-                expect(honeycombCalls).toHaveLength(1);
-                expect(honeycombCalls[0]).toContain("/query_results/tracer/");
-            });
-
-            test("tries all datasets when none have results", async () => {
-                // No datasets have results (all return 404)
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message",
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                // Should have tried all 5 datasets
-                const honeycombCalls = mockHoneycombApiCalls.filter(url =>
-                    url.includes("/query_results/"),
-                );
-                expect(honeycombCalls).toHaveLength(5);
-                expect(honeycombCalls[0]).toContain("/query_results/tracer/");
-                expect(honeycombCalls[1]).toContain("/query_results/edge-service/");
-                expect(honeycombCalls[2]).toContain("/query_results/resource-service/");
-                expect(honeycombCalls[3]).toContain("/query_results/agent-service/");
-                expect(honeycombCalls[4]).toContain("/query_results/lifecycle/");
-
-                // Should still send the alert (just without query data)
-                expect(mockFetchCalls).toHaveLength(1);
-            });
-
-            test("uses correct query result ID from URL when searching datasets", async () => {
-                mockHoneycombDatasetResponses.set("edge-service", {
-                    complete: true,
-                    data: {
-                        results: [{"display.message": "Found it"}],
-                        series: [],
-                    },
-                });
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message",
-                    links: {
-                        trigger: "https://ui.honeycomb.io/cyberworlds/triggers/test",
-                        result: "https://ui.honeycomb.io/cyberworlds/environments/production/result/queryId123/a/resultId456",
-                    },
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                // All calls should use the same query result ID
-                const honeycombCalls = mockHoneycombApiCalls.filter(url =>
-                    url.includes("/query_results/"),
-                );
-                for (const call of honeycombCalls) {
-                    expect(call).toContain("/resultId456");
-                }
-            });
-        });
-
         describe("webhook payload data", () => {
-            test("uses groupsTriggered from webhook payload instead of API", async () => {
+            test("displays groupsTriggered data in a table with keys as headers", async () => {
+                const payload = createHoneycombFixture({
+                    groupsTriggered: [
+                        {
+                            group: [
+                                {key: "error.type", value: "ConnectionError"},
+                                {key: "service.name", value: "api-gateway"},
+                            ],
+                            result: 5,
+                        },
+                        {
+                            group: [
+                                {key: "error.type", value: "TimeoutError"},
+                                {key: "service.name", value: "database"},
+                            ],
+                            result: 3,
+                        },
+                    ],
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                // Should NOT make any Honeycomb API calls
+                const honeycombCalls = mockHoneycombApiCalls.filter(url =>
+                    url.includes("/query_results/"),
+                );
+                expect(honeycombCalls).toHaveLength(0);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+            });
+
+            test("aggregates by non-user columns and shows user mentions at bottom", async () => {
                 const payload = createHoneycombFixture({
                     groupsTriggered: [
                         {
@@ -554,9 +245,38 @@ describe("sendAlertToAlpine", () => {
                         },
                         {
                             group: [
-                                {key: "error.type", value: "TimeoutError"},
+                                {key: "error.type", value: "ConnectionError"},
                                 {key: "context.known_account.name", value: "Rachel Date"},
                             ],
+                            result: 3,
+                        },
+                        {
+                            group: [
+                                {key: "error.type", value: "TimeoutError"},
+                                {key: "context.known_account.name", value: "Josh Johnson"},
+                            ],
+                            result: 2,
+                        },
+                    ],
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                // Should aggregate: ConnectionError=8, TimeoutError=2
+                // Should show user mentions: Josh Johnson, Rachel Date
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+            });
+
+            test("shows only user mentions when context.known_account.name is the only key", async () => {
+                const payload = createHoneycombFixture({
+                    groupsTriggered: [
+                        {
+                            group: [{key: "context.known_account.name", value: "Josh Johnson"}],
+                            result: 5,
+                        },
+                        {
+                            group: [{key: "context.known_account.name", value: "Rachel Date"}],
                             result: 3,
                         },
                     ],
@@ -564,32 +284,38 @@ describe("sendAlertToAlpine", () => {
 
                 await sendHoneycombAlertToAlpine(payload);
 
-                // Should NOT make any Honeycomb API calls since data is in payload
+                expect(mockFetchCalls).toHaveLength(1);
+                // Should show only user mentions, no table
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+            });
+
+            test("shows no table when groupsTriggered is empty", async () => {
+                const payload = createHoneycombFixture({
+                    groupsTriggered: [],
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                // Should NOT make any Honeycomb API calls
                 const honeycombCalls = mockHoneycombApiCalls.filter(url =>
                     url.includes("/query_results/"),
                 );
                 expect(honeycombCalls).toHaveLength(0);
 
-                // Should still send the alert with the webhook data
                 expect(mockFetchCalls).toHaveLength(1);
                 expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
 
-            test("extracts user tags from webhook groupsTriggered", async () => {
+            test("truncates results to 5 and shows remaining count", async () => {
                 const payload = createHoneycombFixture({
                     groupsTriggered: [
-                        {
-                            group: [{key: "context.known_account.name", value: "Josh Johnson"}],
-                            result: 1,
-                        },
-                        {
-                            group: [{key: "context.known_account.name", value: "Rachel Date"}],
-                            result: 2,
-                        },
-                        {
-                            group: [{key: "context.known_account.name", value: "Josh Johnson"}],
-                            result: 3,
-                        },
+                        {group: [{key: "error", value: "Error 1"}], result: 1},
+                        {group: [{key: "error", value: "Error 2"}], result: 2},
+                        {group: [{key: "error", value: "Error 3"}], result: 3},
+                        {group: [{key: "error", value: "Error 4"}], result: 4},
+                        {group: [{key: "error", value: "Error 5"}], result: 5},
+                        {group: [{key: "error", value: "Error 6"}], result: 6},
+                        {group: [{key: "error", value: "Error 7"}], result: 7},
                     ],
                 });
 
@@ -597,31 +323,6 @@ describe("sendAlertToAlpine", () => {
 
                 expect(mockFetchCalls).toHaveLength(1);
                 expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
-            });
-
-            test("falls back to API when groupsTriggered is empty", async () => {
-                mockHoneycombDatasetResponses.set("tracer", {
-                    complete: true,
-                    data: {
-                        results: [{"display.message": "From API"}],
-                        series: [],
-                    },
-                });
-
-                const payload = createHoneycombFixture({
-                    displayFields: "display.message",
-                    result: {
-                        groupsTriggered: [],
-                    },
-                });
-
-                await sendHoneycombAlertToAlpine(payload);
-
-                // Should make API calls since webhook data is empty
-                const honeycombCalls = mockHoneycombApiCalls.filter(url =>
-                    url.includes("/query_results/"),
-                );
-                expect(honeycombCalls.length).toBeGreaterThan(0);
             });
         });
     });

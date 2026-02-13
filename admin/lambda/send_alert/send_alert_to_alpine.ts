@@ -6,10 +6,7 @@ import {
     sendAlertAvailableChannels,
 } from "~/admin/lambda/send_alert/send_alert_available_channels.js";
 import {GitHubActionsEventPayload} from "~/admin/lambda/send_alert/send_alert_github_actions.js";
-import {
-    HoneycombEventPayload,
-    HoneycombResultGroup,
-} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
+import {HoneycombEventPayload} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerduty.js";
 import {
     gitHubUsernameToAlpineId,
@@ -25,202 +22,6 @@ import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 
 type ApiContentElement = ApiContent["elements"][number];
 type SendAlertResult = {ok: true} | {ok: false; error: string; statusCode?: number};
-
-// Honeycomb API types
-type HoneycombQueryResultData = {
-    complete: boolean;
-    data: {
-        results: Array<Record<string, unknown>>;
-        series: Array<unknown>;
-    };
-};
-
-// All Honeycomb dataset slugs to search for query results.
-// The webhook payload doesn't include which dataset triggered the alert, so we
-// iterate through all datasets and return the first one that has results.
-const allHoneycombDatasets = [
-    "tracer",
-    "edge-service",
-    "resource-service",
-    "agent-service",
-    "lifecycle",
-];
-
-// Parse Honeycomb result URL to extract query result ID
-// URL format: https://ui.honeycomb.io/{team}/environments/{environment}/result/{queryId}/a/{queryResultId}
-function parseHoneycombResultUrl(url: string): {queryResultId: string} | null {
-    const regex = /ui\.honeycomb\.io\/[^/]+\/environments\/[^/]+\/result\/[^/]+\/a\/([^/?]+)/;
-    const match = url.match(regex);
-    if (!match || !match[1]) {
-        console.error(`Failed to parse Honeycomb result URL: ${url}`);
-        return null;
-    }
-    return {
-        queryResultId: match[1],
-    };
-}
-
-// Fetch query results from Honeycomb API by searching across all datasets
-// See: https://api-docs.honeycomb.io/api/query-data
-async function fetchHoneycombQueryResults(
-    queryResultId: string,
-): Promise<HoneycombQueryResultData | null> {
-    const apiKey = process.env.HONEYCOMB_API_KEY;
-    if (!apiKey) {
-        console.error("HONEYCOMB_API_KEY is not set in environment variables");
-        return null;
-    }
-
-    // Try each dataset until we find the query result
-    for (const dataset of allHoneycombDatasets) {
-        const apiUrl = `https://api.honeycomb.io/1/query_results/${dataset}/${queryResultId}`;
-
-        console.log(`Fetching Honeycomb query results from: ${apiUrl}`);
-
-        try {
-            // eslint-disable-next-line cyberworlds/no-global-fetch
-            const response = await fetch(apiUrl, {
-                headers: {
-                    "X-Honeycomb-Team": apiKey,
-                },
-            });
-
-            if (!response.ok) {
-                // Try next dataset if not found
-                if (response.status === 404) {
-                    console.log(`Query result not found in dataset ${dataset}, trying next...`);
-                    continue;
-                }
-                const errorText = await response.text();
-                console.error(
-                    `Failed to fetch Honeycomb results: ${response.status} ${response.statusText}`,
-                );
-                console.error(`Response: ${errorText}`);
-                continue;
-            }
-
-            const data = (await response.json()) as HoneycombQueryResultData;
-
-            console.log(`Found query result in dataset: ${dataset}`);
-            console.debug(JSON.stringify(data, null, 2));
-
-            if (!data.complete) {
-                console.error("Honeycomb query results are not complete yet");
-                return null;
-            }
-
-            return data;
-        } catch (error) {
-            console.error(`Error fetching Honeycomb query results from ${dataset}:`, error);
-            continue;
-        }
-    }
-
-    console.error("Query result not found in any dataset");
-    return null;
-}
-
-// Extract display fields from webhook template's groupsTriggered data
-// Structure: {group: [{key, value}, ...], result: number}
-// See: https://docs.honeycomb.io/notify/webhooks/variables/
-function extractHoneycombWebhookDisplayFields(
-    groupsTriggered: Array<HoneycombResultGroup>,
-): Array<Array<{field: string; value: string}>> {
-    const allResults: Array<Array<{field: string; value: string}>> = [];
-
-    for (const group of groupsTriggered) {
-        const rowFields: Array<{field: string; value: string}> = [];
-
-        // Add all GROUP BY column values
-        for (const col of group.group) {
-            rowFields.push({field: col.key, value: String(col.value)});
-        }
-
-        // Add the result value
-        if (group.result !== undefined) {
-            rowFields.push({field: "Result", value: String(group.result)});
-        }
-
-        if (rowFields.length > 0) {
-            allResults.push(rowFields);
-        }
-    }
-
-    return allResults;
-}
-
-// Extract unique user names from webhook template's groupsTriggered
-function extractHoneycombWebhookUserTags(
-    groupsTriggered: Array<HoneycombResultGroup>,
-): Array<string> {
-    const userNames = new Set<string>();
-    const userFieldName = "context.known_account.name";
-
-    for (const group of groupsTriggered) {
-        for (const col of group.group) {
-            if (col.key === userFieldName && col.value && col.value.length > 0) {
-                userNames.add(col.value);
-            }
-        }
-    }
-
-    return Array.from(userNames);
-}
-
-// Extract display fields from Honeycomb query results (API response)
-// Returns an array of results, where each result contains an array of field/value pairs
-function extractHoneycombDisplayFields(
-    queryResult: HoneycombQueryResultData,
-    displayFieldNames: Array<string>,
-): Array<Array<{field: string; value: string}>> {
-    const allResults: Array<Array<{field: string; value: string}>> = [];
-    const results = queryResult.data.results ?? [];
-
-    // Each result row contains the breakdown columns and calculation results
-    for (const row of results) {
-        const rowFields: Array<{field: string; value: string}> = [];
-        for (const fieldName of displayFieldNames) {
-            const trimmedField = fieldName.trim();
-            if (trimmedField in row) {
-                const value = row[trimmedField];
-                rowFields.push({
-                    field: trimmedField,
-                    value: String(value),
-                });
-            }
-        }
-
-        // Only add rows that have at least one field
-        if (rowFields.length > 0) {
-            allResults.push(rowFields);
-        }
-    }
-
-    return allResults;
-}
-
-// Extract unique user names from context.known_account.name field in query results
-function extractHoneycombUserTags(queryResult: HoneycombQueryResultData): Array<string> {
-    const userNames = new Set<string>();
-    const results = queryResult.data.results ?? [];
-    const userFieldName = "context.known_account.name";
-
-    for (const row of results) {
-        if (userFieldName in row) {
-            const value = row[userFieldName];
-            if (
-                value !== null &&
-                value !== undefined &&
-                typeof value === "string" &&
-                value.length > 0
-            ) {
-                userNames.add(value);
-            }
-        }
-    }
-
-    return Array.from(userNames);
-}
 
 // Create a user mention or link element based on available mappings
 function createUserElement(
@@ -734,95 +535,155 @@ export async function sendHoneycombAlertToAlpine(
         });
     }
 
-    // Display query results and user tags for triggered alerts
+    // Display query results in a table for triggered alerts
     if (status !== "ok") {
-        let resultRows: Array<Array<{field: string; value: string}>> = [];
-        let userTags: Array<string> = [];
-
-        // Use data from webhook payload if available (no API call needed)
-        // Configure webhook template to include: "groupsTriggered": {{ toJson .Result.GroupsTriggered }}
         const groupsTriggered = data.groupsTriggered;
 
+        // Render a table using group keys as column headers
         if (groupsTriggered && groupsTriggered.length > 0) {
-            console.log("Using query results from webhook payload");
-            resultRows = extractHoneycombWebhookDisplayFields(groupsTriggered);
-            userTags = extractHoneycombWebhookUserTags(groupsTriggered);
-        } else {
-            // Fall back to fetching from Honeycomb API (requires Enterprise plan)
-            const parsedUrl = parseHoneycombResultUrl(data.links.result);
-            if (parsedUrl) {
-                const queryResult = await fetchHoneycombQueryResults(parsedUrl.queryResultId);
+            // Extract all column keys from the first row (all rows have same keys)
+            const allColumnKeys = groupsTriggered[0]!.group.map(col => col.key);
+            const hasUserColumn = allColumnKeys.includes("context.known_account.name");
 
-                if (queryResult) {
-                    let displayFieldNames = data.displayFields
-                        ? data.displayFields.split(",").map(f => f.trim())
-                        : [];
-
-                    // Auto-add context names if other display fields are present
-                    if (displayFieldNames.length > 0) {
-                        displayFieldNames = [
-                            ...displayFieldNames,
-                            "context.known_account.name",
-                            "context.known_space.name",
-                        ];
+            // Collect unique user names for mentions
+            const userNames = new Set<string>();
+            if (hasUserColumn) {
+                for (const row of groupsTriggered) {
+                    const userCol = row.group.find(col => col.key === "context.known_account.name");
+                    if (userCol?.value && nameToAlpineId[userCol.value.toLowerCase()]) {
+                        userNames.add(userCol.value);
                     }
-
-                    resultRows = extractHoneycombDisplayFields(queryResult, displayFieldNames);
-                    userTags = extractHoneycombUserTags(queryResult);
                 }
             }
-        }
 
-        // Render the result rows
-        if (resultRows.length > 0) {
-            elements.push({type: "Divider"});
+            // Filter out the user column from table display
+            const tableColumnKeys = allColumnKeys.filter(k => k !== "context.known_account.name");
 
-            const maxResults = 3;
-            const displayRows = resultRows.slice(0, maxResults);
-            const remainingCount = resultRows.length - maxResults;
+            // If user column is the only column, just show user mentions without a table
+            if (tableColumnKeys.length === 0) {
+                if (userNames.size > 0) {
+                    const userElements: Array<
+                        ApiSpecification.components["schemas"]["ContentInlineElement"]
+                    > = [];
+                    Array.from(userNames).forEach((userName, index) => {
+                        if (index > 0) {
+                            userElements.push({type: "Text", text: " "});
+                        }
+                        userElements.push(createUserElement(userName, "", userName));
+                    });
+                    elements.push({
+                        type: "Paragraph",
+                        elements: userElements,
+                    });
+                }
+            } else {
+                // Aggregate rows by non-user columns, summing up counts
+                const aggregatedRows = new Map<string, number>();
+                for (const row of groupsTriggered) {
+                    const keyValues = row.group
+                        .filter(col => col.key !== "context.known_account.name")
+                        .map(col => col.value)
+                        .join("\0"); // Use null char as separator
+                    aggregatedRows.set(
+                        keyValues,
+                        (aggregatedRows.get(keyValues) || 0) + row.result,
+                    );
+                }
 
-            // Each result row becomes a code block with one line per field
-            for (const rowFields of displayRows) {
-                elements.push({
-                    type: "Code",
-                    language: "text",
-                    lines: rowFields.map(({field, value}) => ({
-                        elements: [{type: "Text", text: `${field}: ${value}`}],
-                    })),
-                });
-            }
+                elements.push({type: "Divider"});
 
-            if (remainingCount > 0) {
-                elements.push({
-                    type: "Paragraph",
-                    elements: [
+                const maxResults = 5;
+                const allRows = Array.from(aggregatedRows.entries());
+                const displayRows = allRows.slice(0, maxResults);
+                const remainingCount = allRows.length - maxResults;
+
+                const columnCount = tableColumnKeys.length + 1; // +1 for Count column
+
+                // Build header row using the keys (excluding user column)
+                const headerRow = {
+                    cells: [
+                        ...tableColumnKeys.map(key => ({
+                            elements: [
+                                {
+                                    type: "Paragraph" as const,
+                                    elements: [{type: "Text" as const, text: key}],
+                                },
+                            ],
+                        })),
                         {
-                            type: "Text",
-                            text: `(${remainingCount} more result${remainingCount === 1 ? "" : "s"}...)`,
-                            marks: [{type: "Italic"}],
+                            elements: [
+                                {
+                                    type: "Paragraph" as const,
+                                    elements: [{type: "Text" as const, text: "Count"}],
+                                },
+                            ],
                         },
                     ],
+                };
+
+                // Build data rows from aggregated data
+                const dataRows = displayRows.map(([keyValues, count]) => {
+                    const values = keyValues.split("\0");
+                    return {
+                        cells: [
+                            ...values.map(value => ({
+                                elements: [
+                                    {
+                                        type: "Paragraph" as const,
+                                        elements: [{type: "Text" as const, text: value || ""}],
+                                    },
+                                ],
+                            })),
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph" as const,
+                                        elements: [{type: "Text" as const, text: String(count)}],
+                                    },
+                                ],
+                            },
+                        ],
+                    };
                 });
-            }
-        }
 
-        // Add user mentions for any users found in the results
-        if (userTags.length > 0) {
-            const userElements: Array<
-                ApiSpecification.components["schemas"]["ContentInlineElement"]
-            > = [];
+                elements.push({
+                    type: "Table",
+                    width: columnCount,
+                    hasHeaderRow: true,
+                    columns: Array(columnCount).fill({width: 1}),
+                    rows: [headerRow, ...dataRows],
+                });
 
-            userTags.forEach((userName, index) => {
-                if (index > 0) {
-                    userElements.push({type: "Text", text: " "});
+                if (remainingCount > 0) {
+                    elements.push({
+                        type: "Paragraph",
+                        elements: [
+                            {
+                                type: "Text",
+                                text: `(${remainingCount} more result${remainingCount === 1 ? "" : "s"}...)`,
+                                marks: [{type: "Italic"}],
+                            },
+                        ],
+                    });
                 }
-                userElements.push(createUserElement(userName, "", userName));
-            });
 
-            elements.push({
-                type: "Paragraph",
-                elements: userElements,
-            });
+                // Add user mentions at the bottom if we have any
+                if (userNames.size > 0) {
+                    const userElements: Array<
+                        ApiSpecification.components["schemas"]["ContentInlineElement"]
+                    > = [];
+                    Array.from(userNames).forEach((userName, index) => {
+                        if (index > 0) {
+                            userElements.push({type: "Text", text: " "});
+                        }
+                        userElements.push(createUserElement(userName, "", userName));
+                    });
+                    elements.push({
+                        type: "Paragraph",
+                        elements: userElements,
+                    });
+                }
+            }
         }
     }
 
