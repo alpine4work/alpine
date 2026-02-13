@@ -71,7 +71,9 @@ async function fetchHoneycombQueryResults(
         // eslint-disable-next-line cyberworlds/no-global-fetch
         const response = await fetch(apiUrl, {
             headers: {
-                "X-Honeycomb-Team": apiKey,
+                // Configuration Keys require Authorization: Bearer header (not X-Honeycomb-Team)
+                // Key format should be KEY_ID:SECRET_KEY
+                Authorization: `Bearer ${apiKey}`,
             },
         });
 
