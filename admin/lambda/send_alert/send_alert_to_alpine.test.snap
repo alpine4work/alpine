@@ -48,6 +48,24 @@ Author: [developer123](https://github.com/developer123) • Triggered by: [devel
 "
 `;
 
+exports[`sendAlertToAlpine Honeycomb dataset iteration tries multiple datasets until finding results 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+---
+
+\`\`\`text
+display.message: Found in resource-service
+\`\`\`
+"
+`;
+
 exports[`sendAlertToAlpine Honeycomb displayFields and userTags auto-adds context names when displayFields are present 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
@@ -257,6 +275,65 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 
 *High error rate detected in database connections*
+"
+`;
+
+exports[`sendAlertToAlpine Honeycomb webhook payload data extracts user tags from webhook groupsTriggered 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+---
+
+\`\`\`text
+context.known_account.name: Josh Johnson
+Result: 1
+\`\`\`
+
+\`\`\`text
+context.known_account.name: Rachel Date
+Result: 2
+\`\`\`
+
+\`\`\`text
+context.known_account.name: Josh Johnson
+Result: 3
+\`\`\`
+
+[Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short) [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/jttc8n911at1wxt0b8rm75n270?mention=short)
+"
+`;
+
+exports[`sendAlertToAlpine Honeycomb webhook payload data uses groupsTriggered from webhook payload instead of API 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+---
+
+\`\`\`text
+error.type: ConnectionError
+context.known_account.name: Josh Johnson
+Result: 5
+\`\`\`
+
+\`\`\`text
+error.type: TimeoutError
+context.known_account.name: Rachel Date
+Result: 3
+\`\`\`
+
+[Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short) [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/jttc8n911at1wxt0b8rm75n270?mention=short)
 "
 `;
 

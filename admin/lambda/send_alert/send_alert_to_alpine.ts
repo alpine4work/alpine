@@ -6,7 +6,10 @@ import {
     sendAlertAvailableChannels,
 } from "~/admin/lambda/send_alert/send_alert_available_channels.js";
 import {GitHubActionsEventPayload} from "~/admin/lambda/send_alert/send_alert_github_actions.js";
-import {HoneycombEventPayload} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
+import {
+    HoneycombEventPayload,
+    HoneycombResultGroup,
+} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerduty.js";
 import {
     gitHubUsernameToAlpineId,
@@ -32,28 +35,34 @@ type HoneycombQueryResultData = {
     };
 };
 
-// Parse Honeycomb result URL to extract query result ID and environment
+// All Honeycomb dataset slugs to search for query results.
+// The webhook payload doesn't include which dataset triggered the alert, so we
+// iterate through all datasets and return the first one that has results.
+const allHoneycombDatasets = [
+    "tracer",
+    "edge-service",
+    "resource-service",
+    "agent-service",
+    "lifecycle",
+];
+
+// Parse Honeycomb result URL to extract query result ID
 // URL format: https://ui.honeycomb.io/{team}/environments/{environment}/result/{queryId}/a/{queryResultId}
-function parseHoneycombResultUrl(url: string): {
-    environment: string;
-    queryResultId: string;
-} | null {
-    const regex = /ui\.honeycomb\.io\/[^/]+\/environments\/([^/]+)\/result\/[^/]+\/a\/([^/?]+)/;
+function parseHoneycombResultUrl(url: string): {queryResultId: string} | null {
+    const regex = /ui\.honeycomb\.io\/[^/]+\/environments\/[^/]+\/result\/[^/]+\/a\/([^/?]+)/;
     const match = url.match(regex);
-    if (!match || !match[1] || !match[2]) {
+    if (!match || !match[1]) {
         console.error(`Failed to parse Honeycomb result URL: ${url}`);
         return null;
     }
     return {
-        environment: match[1],
-        queryResultId: match[2],
+        queryResultId: match[1],
     };
 }
 
-// Fetch query results from Honeycomb API
+// Fetch query results from Honeycomb API by searching across all datasets
 // See: https://api-docs.honeycomb.io/api/query-data
 async function fetchHoneycombQueryResults(
-    environment: string,
     queryResultId: string,
 ): Promise<HoneycombQueryResultData | null> {
     const apiKey = process.env.HONEYCOMB_API_KEY;
@@ -62,45 +71,103 @@ async function fetchHoneycombQueryResults(
         return null;
     }
 
-    // The dataset slug is the environment name for environment-scoped queries
-    const apiUrl = `https://api.honeycomb.io/1/query_results/${environment}/${queryResultId}`;
+    // Try each dataset until we find the query result
+    for (const dataset of allHoneycombDatasets) {
+        const apiUrl = `https://api.honeycomb.io/1/query_results/${dataset}/${queryResultId}`;
 
-    console.log(`Fetching Honeycomb query results from: ${apiUrl}`);
+        console.log(`Fetching Honeycomb query results from: ${apiUrl}`);
 
-    try {
-        // eslint-disable-next-line cyberworlds/no-global-fetch
-        const response = await fetch(apiUrl, {
-            headers: {
-                "X-Honeycomb-Team": apiKey,
-            },
-        });
+        try {
+            // eslint-disable-next-line cyberworlds/no-global-fetch
+            const response = await fetch(apiUrl, {
+                headers: {
+                    "X-Honeycomb-Team": apiKey,
+                },
+            });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(
-                `Failed to fetch Honeycomb results: ${response.status} ${response.statusText}`,
-            );
-            console.error(`Response: ${errorText}`);
-            return null;
+            if (!response.ok) {
+                // Try next dataset if not found
+                if (response.status === 404) {
+                    console.log(`Query result not found in dataset ${dataset}, trying next...`);
+                    continue;
+                }
+                const errorText = await response.text();
+                console.error(
+                    `Failed to fetch Honeycomb results: ${response.status} ${response.statusText}`,
+                );
+                console.error(`Response: ${errorText}`);
+                continue;
+            }
+
+            const data = (await response.json()) as HoneycombQueryResultData;
+
+            console.log(`Found query result in dataset: ${dataset}`);
+            console.debug(JSON.stringify(data, null, 2));
+
+            if (!data.complete) {
+                console.error("Honeycomb query results are not complete yet");
+                return null;
+            }
+
+            return data;
+        } catch (error) {
+            console.error(`Error fetching Honeycomb query results from ${dataset}:`, error);
+            continue;
         }
-
-        const data = (await response.json()) as HoneycombQueryResultData;
-
-        console.debug(JSON.stringify(data, null, 2));
-
-        if (!data.complete) {
-            console.error("Honeycomb query results are not complete yet");
-            return null;
-        }
-
-        return data;
-    } catch (error) {
-        console.error("Error fetching Honeycomb query results:", error);
-        return null;
     }
+
+    console.error("Query result not found in any dataset");
+    return null;
 }
 
-// Extract display fields from Honeycomb query results
+// Extract display fields from webhook template's groupsTriggered data
+// Structure: {group: [{key, value}, ...], result: number}
+// See: https://docs.honeycomb.io/notify/webhooks/variables/
+function extractHoneycombWebhookDisplayFields(
+    groupsTriggered: Array<HoneycombResultGroup>,
+): Array<Array<{field: string; value: string}>> {
+    const allResults: Array<Array<{field: string; value: string}>> = [];
+
+    for (const group of groupsTriggered) {
+        const rowFields: Array<{field: string; value: string}> = [];
+
+        // Add all GROUP BY column values
+        for (const col of group.group) {
+            rowFields.push({field: col.key, value: String(col.value)});
+        }
+
+        // Add the result value
+        if (group.result !== undefined) {
+            rowFields.push({field: "Result", value: String(group.result)});
+        }
+
+        if (rowFields.length > 0) {
+            allResults.push(rowFields);
+        }
+    }
+
+    return allResults;
+}
+
+// Extract unique user names from webhook template's groupsTriggered
+function extractHoneycombWebhookUserTags(
+    groupsTriggered: Array<HoneycombResultGroup>,
+): Array<string> {
+    const userNames = new Set<string>();
+    const userFieldName = "context.known_account.name";
+
+    for (const group of groupsTriggered) {
+        for (const col of group.group) {
+            if (col.key === userFieldName && col.value && col.value.length > 0) {
+                userNames.add(col.value);
+            }
+        }
+    }
+
+    return Array.from(userNames);
+}
+
+// Extract display fields from Honeycomb query results (API response)
 // Returns an array of results, where each result contains an array of field/value pairs
 function extractHoneycombDisplayFields(
     queryResult: HoneycombQueryResultData,
@@ -667,84 +734,95 @@ export async function sendHoneycombAlertToAlpine(
         });
     }
 
-    // Fetch query results from Honeycomb API for display fields and user tags
+    // Display query results and user tags for triggered alerts
     if (status !== "ok") {
-        const parsedUrl = parseHoneycombResultUrl(data.links.result);
+        let resultRows: Array<Array<{field: string; value: string}>> = [];
+        let userTags: Array<string> = [];
 
-        if (parsedUrl) {
-            const queryResult = await fetchHoneycombQueryResults(
-                parsedUrl.environment,
-                parsedUrl.queryResultId,
-            );
+        // Use data from webhook payload if available (no API call needed)
+        // Configure webhook template to include: "groupsTriggered": {{ toJson .Result.GroupsTriggered }}
+        const groupsTriggered = data.groupsTriggered;
 
-            if (queryResult) {
-                let displayFieldNames = data.displayFields
-                    ? data.displayFields.split(",").map(f => f.trim())
-                    : [];
+        if (groupsTriggered && groupsTriggered.length > 0) {
+            console.log("Using query results from webhook payload");
+            resultRows = extractHoneycombWebhookDisplayFields(groupsTriggered);
+            userTags = extractHoneycombWebhookUserTags(groupsTriggered);
+        } else {
+            // Fall back to fetching from Honeycomb API (requires Enterprise plan)
+            const parsedUrl = parseHoneycombResultUrl(data.links.result);
+            if (parsedUrl) {
+                const queryResult = await fetchHoneycombQueryResults(parsedUrl.queryResultId);
 
-                // Auto-add context names if other display fields are present
-                if (displayFieldNames.length > 0) {
-                    displayFieldNames = [
-                        ...displayFieldNames,
-                        "context.known_account.name",
-                        "context.known_space.name",
-                    ];
-                }
+                if (queryResult) {
+                    let displayFieldNames = data.displayFields
+                        ? data.displayFields.split(",").map(f => f.trim())
+                        : [];
 
-                const resultRows = extractHoneycombDisplayFields(queryResult, displayFieldNames);
-                const userTags = extractHoneycombUserTags(queryResult);
-
-                if (resultRows.length > 0) {
-                    elements.push({type: "Divider"});
-
-                    const maxResults = 3;
-                    const displayRows = resultRows.slice(0, maxResults);
-                    const remainingCount = resultRows.length - maxResults;
-
-                    // Each result row becomes a code block with one line per field
-                    for (const rowFields of displayRows) {
-                        elements.push({
-                            type: "Code",
-                            language: "text",
-                            lines: rowFields.map(({field, value}) => ({
-                                elements: [{type: "Text", text: `${field}: ${value}`}],
-                            })),
-                        });
+                    // Auto-add context names if other display fields are present
+                    if (displayFieldNames.length > 0) {
+                        displayFieldNames = [
+                            ...displayFieldNames,
+                            "context.known_account.name",
+                            "context.known_space.name",
+                        ];
                     }
 
-                    if (remainingCount > 0) {
-                        elements.push({
-                            type: "Paragraph",
-                            elements: [
-                                {
-                                    type: "Text",
-                                    text: `(${remainingCount} more result${remainingCount === 1 ? "" : "s"}...)`,
-                                    marks: [{type: "Italic"}],
-                                },
-                            ],
-                        });
-                    }
-                }
-
-                // Add user mentions for any users found in the results
-                if (userTags.length > 0) {
-                    const userElements: Array<
-                        ApiSpecification.components["schemas"]["ContentInlineElement"]
-                    > = [];
-
-                    userTags.forEach((userName, index) => {
-                        if (index > 0) {
-                            userElements.push({type: "Text", text: " "});
-                        }
-                        userElements.push(createUserElement(userName, "", userName));
-                    });
-
-                    elements.push({
-                        type: "Paragraph",
-                        elements: userElements,
-                    });
+                    resultRows = extractHoneycombDisplayFields(queryResult, displayFieldNames);
+                    userTags = extractHoneycombUserTags(queryResult);
                 }
             }
+        }
+
+        // Render the result rows
+        if (resultRows.length > 0) {
+            elements.push({type: "Divider"});
+
+            const maxResults = 3;
+            const displayRows = resultRows.slice(0, maxResults);
+            const remainingCount = resultRows.length - maxResults;
+
+            // Each result row becomes a code block with one line per field
+            for (const rowFields of displayRows) {
+                elements.push({
+                    type: "Code",
+                    language: "text",
+                    lines: rowFields.map(({field, value}) => ({
+                        elements: [{type: "Text", text: `${field}: ${value}`}],
+                    })),
+                });
+            }
+
+            if (remainingCount > 0) {
+                elements.push({
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: `(${remainingCount} more result${remainingCount === 1 ? "" : "s"}...)`,
+                            marks: [{type: "Italic"}],
+                        },
+                    ],
+                });
+            }
+        }
+
+        // Add user mentions for any users found in the results
+        if (userTags.length > 0) {
+            const userElements: Array<
+                ApiSpecification.components["schemas"]["ContentInlineElement"]
+            > = [];
+
+            userTags.forEach((userName, index) => {
+                if (index > 0) {
+                    userElements.push({type: "Text", text: " "});
+                }
+                userElements.push(createUserElement(userName, "", userName));
+            });
+
+            elements.push({
+                type: "Paragraph",
+                elements: userElements,
+            });
         }
     }
 
