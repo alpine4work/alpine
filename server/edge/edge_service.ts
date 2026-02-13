@@ -16,6 +16,7 @@ import {TaskRealtimeServiceEdgeRouter} from "~/server/edge/task_realtime_service
 import {uploadAvatar} from "~/server/edge/upload_avatar.js";
 import {uploadFile} from "~/server/edge/upload_file.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
@@ -232,6 +233,12 @@ async function handleFetch(
         return fetch(request);
     }
 
+    // TODO(ifitzsimmons, #local-kinesis): This will eventually be required. For now,
+    // there is no local Kinesis stream so we don't need to pass in a stream name.
+    const streamName = env.KINESIS_TRACER_STREAM_NAME;
+    if (!streamName && process.env.NODE_ENV === "production")
+        throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
+
     // Create a new tracer for every request because we need a Honeycomb client and
     // the Honeycomb client needs `executionContext.waitUntil()` which is request
     // scoped. Tracers are cheap to construct so this is fine.
@@ -241,6 +248,21 @@ async function handleFetch(
         honeycombApiKey: env.HONEYCOMB_API_KEY,
         honeycombDataset: "tracer",
         waitUntil: promise => executionContext.waitUntil(promise),
+        kinesisTracerStreamOptions: streamName
+            ? {
+                  streamName,
+                  awsSigner: new AwsRequestSigner({
+                      accessKeyId: assertExists(
+                          env.KINESIS_AWS_ACCESS_KEY_ID,
+                          "`KINESIS_AWS_ACCESS_KEY_ID` is required",
+                      ),
+                      secretAccessKey: assertExists(
+                          env.KINESIS_AWS_SECRET_ACCESS_KEY,
+                          "`KINESIS_AWS_SECRET_ACCESS_KEY` is required",
+                      ),
+                  }),
+              }
+            : undefined,
     });
 
     let routeString = "/*";

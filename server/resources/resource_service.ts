@@ -1,4 +1,5 @@
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {fetchAppStaticFile} from "~/server/resources/fetch_app_static_file.js";
 import {fetchAvatar} from "~/server/resources/fetch_avatar.js";
@@ -18,6 +19,7 @@ import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_content_file_download_name_from_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, AvatarId, BotId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -174,6 +176,12 @@ async function handleFetch(
         return fetchAppStaticFile(request, env, executionContext, url);
     }
 
+    // TODO(ifitzsimmons, #local-kinesis): This will eventually be required. For now,
+    // there is no local Kinesis stream so we don't need to pass in a stream name.
+    const streamName = env.KINESIS_TRACER_STREAM_NAME;
+    if (!streamName && process.env.NODE_ENV === "production")
+        throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
+
     // Create a new tracer for every request because we need a Honeycomb client and
     // the Honeycomb client needs `executionContext.waitUntil()` which is request
     // scoped. Tracers are cheap to construct so this is fine.
@@ -183,6 +191,21 @@ async function handleFetch(
         honeycombApiKey: env.HONEYCOMB_API_KEY,
         honeycombDataset: "resource-service",
         waitUntil: promise => executionContext.waitUntil(promise),
+        kinesisTracerStreamOptions: streamName
+            ? {
+                  streamName,
+                  awsSigner: new AwsRequestSigner({
+                      accessKeyId: assertExists(
+                          env.KINESIS_AWS_ACCESS_KEY_ID,
+                          "`KINESIS_AWS_ACCESS_KEY_ID` is required",
+                      ),
+                      secretAccessKey: assertExists(
+                          env.KINESIS_AWS_SECRET_ACCESS_KEY,
+                          "`KINESIS_AWS_SECRET_ACCESS_KEY` is required",
+                      ),
+                  }),
+              }
+            : undefined,
     });
 
     let routeString: string | null = null;

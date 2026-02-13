@@ -12,6 +12,7 @@ import {
     AgentUsageDatabaseInterface,
 } from "~/server/agents/internal/d1/agent_usage_database.js";
 import {OpenAiClient, OpenAiClientInterface} from "~/server/agents/internal/open_ai_client.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
@@ -24,7 +25,7 @@ import {
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError} from "~/shared/error/error.js";
+import {DataLossError, InternalError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -94,15 +95,36 @@ export abstract class AgentDurableObjectBase<
         this._state = state;
         this._env = env;
 
-        this._tracer = new Lazy(() =>
-            createServerTracer({
+        this._tracer = new Lazy(() => {
+            // TODO(ifitzsimmons, #local-kinesis): This will eventually be required. For now,
+            // there is no local Kinesis stream so we don't need to pass in a stream name.
+            const streamName = env.KINESIS_TRACER_STREAM_NAME;
+            if (!streamName && process.env.NODE_ENV === "production")
+                throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
+
+            return createServerTracer({
                 serviceName,
                 jsHost: "CloudflareWorker",
                 honeycombApiKey: env.HONEYCOMB_API_KEY,
                 honeycombDataset: "tracer",
                 waitUntil: promise => state.waitUntil(promise),
-            }),
-        );
+                kinesisTracerStreamOptions: streamName
+                    ? {
+                          streamName,
+                          awsSigner: new AwsRequestSigner({
+                              accessKeyId: assertExists(
+                                  env.KINESIS_AWS_ACCESS_KEY_ID,
+                                  "`KINESIS_AWS_ACCESS_KEY_ID` is required",
+                              ),
+                              secretAccessKey: assertExists(
+                                  env.KINESIS_AWS_SECRET_ACCESS_KEY,
+                                  "`KINESIS_AWS_SECRET_ACCESS_KEY` is required",
+                              ),
+                          }),
+                      }
+                    : undefined,
+            });
+        });
 
         this._processContext = new Lazy(() =>
             Context.new({

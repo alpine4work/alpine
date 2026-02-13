@@ -19,6 +19,7 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -44,6 +45,7 @@ import {
 } from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -66,6 +68,11 @@ export type DurableObjectEnv = {
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     TOKEN_AGENT_SECRET?: string;
     HONEYCOMB_API_KEY?: string;
+
+    // Kinesis configuration for tracer event archival. Only required in production.
+    KINESIS_TRACER_STREAM_NAME?: string;
+    KINESIS_AWS_ACCESS_KEY_ID?: string;
+    KINESIS_AWS_SECRET_ACCESS_KEY?: string;
 };
 
 /**
@@ -213,12 +220,35 @@ export function createDurableObject<
             // When the token agent has resolved, we don't need to await it anymore.
             void tokenAgentPromise.then(tokenAgent => (this._tokenAgent = tokenAgent));
 
+            // TODO(ifitzsimmons, #local-kinesis): This will eventually be required. For now,
+            // there is no local Kinesis stream so we don't need to pass in a stream name.
+            const streamName = env.KINESIS_TRACER_STREAM_NAME;
+            if (!streamName && process.env.NODE_ENV === "production")
+                throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
+
             this._tracer = createServerTracer({
                 serviceName,
                 jsHost: "CloudflareWorker",
                 honeycombApiKey: env.HONEYCOMB_API_KEY,
                 honeycombDataset: "tracer",
                 waitUntil: promise => state.waitUntil(promise),
+                // TODO(ifitzsimmons, #local-kinesis): This will eventually be required. For now,
+                // there is no local Kinesis stream so we don't need to pass in a stream name.
+                kinesisTracerStreamOptions: streamName
+                    ? {
+                          streamName,
+                          awsSigner: new AwsRequestSigner({
+                              accessKeyId: assertExists(
+                                  env.KINESIS_AWS_ACCESS_KEY_ID,
+                                  "`KINESIS_AWS_ACCESS_KEY_ID` is required",
+                              ),
+                              secretAccessKey: assertExists(
+                                  env.KINESIS_AWS_SECRET_ACCESS_KEY,
+                                  "`KINESIS_AWS_SECRET_ACCESS_KEY` is required",
+                              ),
+                          }),
+                      }
+                    : undefined,
             });
 
             this._processContext = Context.new({

@@ -15,4 +15,7 @@ export type ResourceServiceEnv = {
     FILE_PROCESSOR_SERVICE_URL?: string;
     HONEYCOMB_API_KEY?: string;
     CORS_TRUSTED_ORIGINS?: Array<string>;
+    KINESIS_TRACER_STREAM_NAME?: string;
+    KINESIS_AWS_ACCESS_KEY_ID?: string;
+    KINESIS_AWS_SECRET_ACCESS_KEY?: string;
 };

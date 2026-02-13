@@ -1,12 +1,14 @@
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {AgentUsageDatabase} from "~/server/agents/internal/d1/agent_usage_database.js";
 import {refreshAccountEntitlements} from "~/server/agents/internal/refresh_account_entitlements.js";
+import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {ApiBotWebhookRequestBody} from "~/shared/api/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -85,6 +87,10 @@ async function handleFetch(
         }
     }
 
+    const streamName = env.KINESIS_TRACER_STREAM_NAME;
+    if (!streamName && process.env.NODE_ENV === "production")
+        throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
+
     // Create a new tracer for every request because we need a Honeycomb client and
     // the Honeycomb client needs `executionContext.waitUntil()` which is request
     // scoped. Tracers are cheap to construct so this is fine.
@@ -94,6 +100,21 @@ async function handleFetch(
         honeycombApiKey: env.HONEYCOMB_API_KEY,
         honeycombDataset: "tracer",
         waitUntil: promise => executionContext.waitUntil(promise),
+        kinesisTracerStreamOptions: streamName
+            ? {
+                  streamName,
+                  awsSigner: new AwsRequestSigner({
+                      accessKeyId: assertExists(
+                          env.KINESIS_AWS_ACCESS_KEY_ID,
+                          "`KINESIS_AWS_ACCESS_KEY_ID` is required",
+                      ),
+                      secretAccessKey: assertExists(
+                          env.KINESIS_AWS_SECRET_ACCESS_KEY,
+                          "`KINESIS_AWS_SECRET_ACCESS_KEY` is required",
+                      ),
+                  }),
+              }
+            : undefined,
     });
 
     return traceServerResponse(tracer, request, url, routeString, async (span, request) => {

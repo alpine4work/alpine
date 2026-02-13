@@ -15,6 +15,11 @@ export function createServerTracer(options: {
     honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
     honeycombDataset: HoneycombDataset;
+    // TODO(ifitzsimmons, #local-kinesis): This will eventually be required
+    kinesisTracerStreamOptions?: {
+        streamName: string;
+        awsSigner: AwsRequestSigner;
+    };
 }): TracerRoot {
     return createServerTracerAndHoneycombClient(options)[0];
 }
