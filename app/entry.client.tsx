@@ -7,8 +7,8 @@ import {AppContext, AppContextProvider} from "~/client/web/context/app_context.j
 import {ReactContextModule} from "~/client/web/context/react_context_module.js";
 import {registerAlwaysClearSelectionOnMouseDown} from "~/client/web/design/register_always_clear_selection_on_mouse_down.js";
 import {installScrollbarAuditorInDev} from "~/client/web/design/scrollbar.js";
-import {attachDevConsoleNotInProduction} from "~/client/web/dev/dev_console.js";
 import {subscribeToColorSchemeChange} from "~/client/web/helpers/color_scheme.js";
+import {attachDevConsoleNotInProduction} from "~/client/web/helpers/dev_console.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {updateNativeMobileThemeColors} from "~/client/web/remix/update_native_mobile_theme_colors.js";
 import {ClientRpcContextModule} from "~/client/web/rpc/client_rpc_context_module.js";

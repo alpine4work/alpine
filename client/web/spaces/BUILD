@@ -14,7 +14,6 @@ ts_project(
         "//:node_modules/react-router",
         "//client/web/avatar",
         "//client/web/design",
-        "//client/web/dev",
         "//client/web/helpers",
         "//client/web/styles",
         "//client/web/web_socket",

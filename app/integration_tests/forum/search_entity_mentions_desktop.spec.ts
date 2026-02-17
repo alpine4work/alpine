@@ -192,7 +192,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
         await page.goto(`/s/${space.id}/posts/${post.id}`);
 
         // Wait for React to mount
-        await page.waitForFunction("dev.contentEditor");
+        await page.waitForFunction("dev.ready");
 
         await expect(page.getByRole("link", {name: "Lorem Ipsum"})).toBeVisible();
         await expect(page.getByRole("link", {name: "Dolor Sit Amet"})).toBeHidden();
@@ -226,7 +226,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
             await page.goto(`/s/${space.id}/documents/${generateId()}?create`);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await page.getByRole("textbox", {name: "Document"}).focus();
 

@@ -28,11 +28,11 @@ import {RootOverlayScopeContextProvider} from "~/client/web/design/overlay_scope
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/web/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/web/design/use_is_behind_mobile_full_screen_modal.js";
 import {useTextInputVisibilityMaintainer} from "~/client/web/design/use_text_input_visibility_maintainer.js";
+import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
 import {
     attachDevConsoleForAccountInProduction,
     useDevConsoleTool,
-} from "~/client/web/dev/dev_console.js";
-import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
+} from "~/client/web/helpers/dev_console.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/web/helpers/disable_mobile_web_kit_default_scroll.js";
 import {isNodeBlockLevel} from "~/client/web/helpers/elements/is_node_block_level.js";
 import {

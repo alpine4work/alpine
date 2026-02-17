@@ -6,7 +6,7 @@ import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-rou
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {useDevConsoleTool} from "~/client/web/dev/dev_console.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/web/helpers/use_store.js";

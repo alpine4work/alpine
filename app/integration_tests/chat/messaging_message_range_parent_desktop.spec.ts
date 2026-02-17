@@ -118,7 +118,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 
@@ -208,7 +208,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 
@@ -296,7 +296,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 
@@ -371,7 +371,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 
@@ -450,7 +450,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 
@@ -532,7 +532,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 
@@ -640,7 +640,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 
@@ -735,7 +735,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 
@@ -830,7 +830,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 
@@ -917,7 +917,7 @@ for (const [roomType, testCase] of Object.entries(testCases)) {
             await page.goto(roomPath);
 
             // Wait for React to mount
-            await page.waitForFunction("dev.contentEditor");
+            await page.waitForFunction("dev.ready");
 
             await expect(page.getByText("Reply")).toBeHidden();
 

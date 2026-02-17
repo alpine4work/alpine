@@ -55,7 +55,6 @@ import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/web/design/use_is_behind_mobile_full_screen_modal.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/web/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
-import {useDevConsoleTool} from "~/client/web/dev/dev_console.js";
 import {
     DocumentCommentThreadListView,
     DocumentCommentThreadListViewRef,
@@ -77,6 +76,7 @@ import {
     useDocumentContentEditorWebSocket,
 } from "~/client/web/documents/use_document_content_editor_web_socket.js";
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";

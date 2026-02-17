@@ -20,7 +20,7 @@ import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/web/design/use_is_behind_mobile_full_screen_modal.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/web/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
-import {useDevConsoleTool} from "~/client/web/dev/dev_console.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {isElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_by.js";
 import {useInitialAppRenderId} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";

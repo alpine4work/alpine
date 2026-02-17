@@ -37,7 +37,7 @@ test("can add and remove a document cover", async ({page, context: browserContex
     await expect(editor).toBeVisible();
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await openCoverModal(page);
     const coverOptions = page.getByTestId("DocumentContentCoverBlobsArtOption");
@@ -94,7 +94,7 @@ test("can use randomize button in cover modal", async ({
     await expect(editor).toBeVisible();
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await openCoverModal(page);
     const coverOptions = page.getByTestId("DocumentContentCoverBlobsArtOption");

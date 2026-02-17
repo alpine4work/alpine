@@ -22,7 +22,6 @@ ts_project(
         "//:node_modules/react-dom",
         "//:node_modules/unicode-default-word-boundary",
         "//client/web/context",
-        "//client/web/dev",
         "//client/web/helpers",
         "//client/web/icons",
         "//client/web/remix",

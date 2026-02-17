@@ -1,5 +1,5 @@
 import {ReactNode, useCallback, useMemo, useState} from "react";
-import {useDevConsoleTool} from "~/client/web/dev/dev_console.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {
     MyAccountWebSocketContext,
     SpaceContextDefinition,

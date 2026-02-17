@@ -19,7 +19,7 @@ test("chat message stays when changing chat selection", async ({page, context: b
     await page.goto(`/s/${space.id}/chat/new`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByLabel("Send message")).toBeDisabled();
     await expect(page.getByLabel("New message")).toHaveText("");
@@ -92,7 +92,7 @@ test("send chat message to another account", async ({page, context: browserConte
     await page.goto(`/s/${space.id}/chat/new`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByLabel("Send message")).toBeDisabled();
     await expect(page.getByLabel("New message")).toHaveText("");
@@ -139,7 +139,7 @@ test("can see chat message from recipient account", async ({page, context: brows
     await page.goto(`/s/${space.id}/chat/new`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("message1")).toBeHidden();
 
@@ -169,7 +169,7 @@ test("can not see chat message from non-recipient account but can send a differe
     await page.goto(`/s/${space.id}/chat/new`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
@@ -212,7 +212,7 @@ test("send chat message to multiple accounts", async ({page, context: browserCon
     await page.goto(`/s/${space.id}/chat/new`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
@@ -279,7 +279,7 @@ test("reloading the page will keep the chat selection", async ({page, context: b
     await page.goto(`/s/${space.id}/chat/new`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
@@ -335,7 +335,7 @@ test("can remove selected chat accounts", async ({page, context: browserContext}
     await page.goto(`/s/${space.id}/chat/new`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
@@ -426,7 +426,7 @@ test("includes recommended group chats for autocomplete", async ({
     await page.goto(`/s/${space.id}/chat/new`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
@@ -524,7 +524,7 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
     await page.goto(`/s/${space.id}/chat/${chat1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByRole("heading", {name: "Siobahn"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Kendall"})).toBeHidden();
@@ -600,7 +600,7 @@ test("can send self a message", async ({page, context: browserContext}) => {
     await page.goto(`/s/${space.id}/chat/new`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Logan Roy")).toBeHidden();
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();

@@ -14,7 +14,7 @@ import {Button} from "~/client/web/design/button.js";
 import {Link} from "~/client/web/design/link.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
-import {useDevConsoleTool} from "~/client/web/dev/dev_console.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";

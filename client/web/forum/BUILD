@@ -23,7 +23,6 @@ ts_project(
         "//client/web/content/state",
         "//client/web/context",
         "//client/web/design",
-        "//client/web/dev",
         "//client/web/dynamo",
         "//client/web/helpers",
         "//client/web/icons",

@@ -18,7 +18,6 @@ ts_project(
         "//client/web/accounts",
         "//client/web/context",
         "//client/web/design",
-        "//client/web/dev",
         "//client/web/helpers",
         "//client/web/remix",
         "//client/web/search/core",

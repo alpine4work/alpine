@@ -454,7 +454,7 @@ test("can paste URL to add file entity to document", async ({
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     const url = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());
 
@@ -540,7 +540,7 @@ test("can paste URL to add file entity to document with blobs cover", async ({
     await page.goto(`/s/${space.id}/documents/${document0.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     const canPrimaryInputHover = await page.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
@@ -635,7 +635,7 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     const url1 = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());
     const url2 = new URL(`/s/${space.id}/documents/${document3.id}`, services.getBaseUrl());
@@ -700,7 +700,7 @@ test("can paste URL to add file entity to chat", async ({
     await page.goto(`/s/${space.id}/chat/${chat.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     const url = new URL(`/s/${space.id}/documents/${document.id}`, services.getBaseUrl());
 
@@ -764,7 +764,7 @@ test("can paste `<iframe>` HTML to add file entity to chat", async ({
     await page.goto(`/s/${space.id}/chat/${chat.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     const url1 = new URL(`/s/${space.id}/documents/${document1.id}`, services.getBaseUrl());
     const url2 = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());

@@ -539,7 +539,7 @@ test("can create task by typing subtask title", async ({
     await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -611,7 +611,7 @@ test("can create task by hitting enter in ghost subtask", async ({
     await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),

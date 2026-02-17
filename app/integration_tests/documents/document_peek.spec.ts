@@ -84,7 +84,7 @@ test("clicking a link will open a peek", async ({context: browserContext, page})
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("Test document content 2")).toBeHidden();
     await expect(page.getByText("Test document content 1")).toBeVisible();
@@ -124,7 +124,7 @@ test("clicking close will close a peek", async ({context: browserContext, page})
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("Test document content 2")).toBeHidden();
     await expect(page.getByText("Test document content 1")).toBeVisible();
@@ -169,7 +169,7 @@ test("clicking expand will expand a peek", async ({context: browserContext, page
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("Test document content 2")).toBeHidden();
     await expect(page.getByText("Test document content 1")).toBeVisible();
@@ -252,7 +252,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("Test document content 4")).toBeHidden();
     await expect(page.getByText("Test document content 3")).toBeHidden();
@@ -348,7 +348,7 @@ test("can open multiple peeks", async ({context: browserContext, page}) => {
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("Test document content 4")).toBeHidden();
     await expect(page.getByText("Test document content 3")).toBeHidden();
@@ -451,7 +451,7 @@ test("can close all peeks with a shift click", async ({context: browserContext, 
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("Test document content 4")).toBeHidden();
     await expect(page.getByText("Test document content 3")).toBeHidden();
@@ -561,7 +561,7 @@ test("remembers peek state across page reloads", async ({context: browserContext
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("Test document content 5")).toBeHidden();
     await expect(page.getByText("Test document content 4")).toBeHidden();
@@ -709,7 +709,7 @@ test("expand remembers peeks on the previous page including the expanded peek", 
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
     // Wait for React to mount
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await expect(page.getByText("Test document content 4")).toBeHidden();
     await expect(page.getByText("Test document content 3")).toBeHidden();

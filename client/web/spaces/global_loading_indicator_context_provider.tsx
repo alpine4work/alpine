@@ -1,7 +1,7 @@
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
-import {useDevConsoleTool} from "~/client/web/dev/dev_console.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {
     GlobalLoadingIndicator,

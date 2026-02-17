@@ -422,7 +422,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
         await expect(page.getByRole("heading", {name: "Test Document"})).toBeVisible();
         await expect(page.getByRole("textbox", {name: "Document"})).toBeVisible();
 
-        await page.waitForFunction("dev.contentEditor");
+        await page.waitForFunction("dev.ready");
 
         await page
             .getByRole("textbox", {name: "Document"})
@@ -577,7 +577,7 @@ test("can comment on document with comment only access", async ({
     await expect(page.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page.getByRole("textbox", {name: "Document"})).toBeVisible();
 
-    await page.waitForFunction("dev.contentEditor");
+    await page.waitForFunction("dev.ready");
 
     await page
         .getByRole("textbox", {name: "Document"})

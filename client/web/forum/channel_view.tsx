@@ -4,7 +4,6 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
-import {useDevConsoleTool} from "~/client/web/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/web/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
 import {ChannelMobileEditor} from "~/client/web/forum/channel_mobile_editor.js";
@@ -19,6 +18,7 @@ import {
     PostQueryListDynamoGeneralRealtimeIndexQuery,
 } from "~/client/web/forum/post_list.js";
 import {PostListView} from "~/client/web/forum/post_list_view.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";

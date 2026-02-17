@@ -81,7 +81,7 @@ function defineSchemaProperty<T>(
  * These tools are useful for manipulating the application in development from
  * the browser console.
  */
-export function useDevConsoleTool(key: string, createTools: () => object) {
+export function useDevConsoleTool(key: string, createTools: () => unknown) {
     useEffect(() => {
         // If the tools already exist, don't add them again. Only the first component
         // to attach debug tools will be usable.

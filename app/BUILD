@@ -86,7 +86,6 @@ ts_project(
         "//client/web/context",
         "//client/web/debug/chat_gpt",
         "//client/web/design",
-        "//client/web/dev",
         "//client/web/documents",
         "//client/web/feed",
         "//client/web/forum",

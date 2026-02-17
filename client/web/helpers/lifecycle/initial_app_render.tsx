@@ -1,5 +1,6 @@
 import {AppInitialRenderContext} from "@react-aria/ssr";
 import {ReactElement, ReactNode, useContext, useEffect, useRef, useState} from "react";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Id, generateId} from "~/shared/id/id.js";
@@ -132,6 +133,11 @@ export function useAppInitialRenderContextProvider(
             wasInitialAppRenderForClient = false;
         }
     }, [initialAppRender]);
+
+    // Useful for integration tests or other scripting to know when our JavaScript
+    // has finished running, React has finished running, and the initial render is
+    // over (so components like `<ContentEditor>` are ready).
+    useDevConsoleTool("ready", () => initialAppRender === false);
 
     return (
         <AppInitialRenderContext.Provider value={initialAppRender}>
