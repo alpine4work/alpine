@@ -18,8 +18,29 @@ const context = createTestContext({
 });
 
 const server = createTestApiServer(context, apiChatPaths);
+
 test("not found route", async () => {
     expect(await server.GET("/asdf")).toEqual({
+        status: 404,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {error: {message: "Path not found.", retry: {able: false}}},
+    });
+});
+
+test("not found route returns JSON without accept header", async () => {
+    expect(await server.GET("/asdf", {unsetHeaders: ["accept"]})).toEqual({
+        status: 404,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {error: {message: "Path not found.", retry: {able: false}}},
+    });
+});
+
+test("not found route returns JSON with wildcard accept header", async () => {
+    expect(
+        await server.GET("/asdf", {
+            headers: {accept: "*/*"},
+        }),
+    ).toEqual({
         status: 404,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {error: {message: "Path not found.", retry: {able: false}}},
@@ -37,6 +58,16 @@ test("redirects favicon request", async () => {
         status: 301,
         headers: expect.objectContaining({location: "https://test.cyberworlds.dev/favicon.svg"}),
         body: "",
+    });
+});
+
+test("serves the final API specification", async () => {
+    const response = await server.GET("/specification.yaml", {unsetHeaders: ["accept"]});
+
+    expect(response).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/yaml"}),
+        body: expect.stringContaining("openapi: 3.0.0"),
     });
 });
 
@@ -721,6 +752,33 @@ test("responds with pretty HTML if asked", async () => {
     expect(
         await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
             headers: {authorization: `bearer ${apiKey}`, accept: "text/html"},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "text/html"}),
+        body: expect.stringContaining(`\
+<span class="tok-punctuation">{</span>
+  <span class="tok-propertyName">&quot;spaceId&quot;</span>: <span class="tok-string">&quot;${space.id}&quot;</span>`),
+    });
+});
+
+test("responds to representative browser `Accept` header with pretty HTML", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({role: "Admin"});
+    const session2 = await space.createSession();
+
+    const bot = await TestBot.createAndInstantiate(session1);
+    const apiKey = await bot.createApiKey(session1);
+
+    const chat = await TestChat.get(session1, session2);
+    const message = await chat.sendMessage(session1);
+
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {
+                authorization: `bearer ${apiKey}`,
+                accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+            },
         }),
     ).toEqual({
         status: 200,

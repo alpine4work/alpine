@@ -32,6 +32,14 @@ servers:
     - url: https://api.alpine.inc
 
 paths:
+    /specification.yaml:
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/yaml: {}
+
     # TODO(calebmer, #public-api): Document that if you have a bot and the bot is
     # trying to read an account that was a former member of the space you'll get
     # the account's old data at removal time instead of the latest data.

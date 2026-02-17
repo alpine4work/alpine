@@ -165,8 +165,8 @@ export async function createApiServiceRequestListener(
                     if (request.headers.has("accept")) {
                         const negotiator = new Negotiator(req);
                         const negotiatedMediaType = negotiator.mediaType([
-                            "text/html",
                             "application/json",
+                            "text/html",
                         ]);
 
                         isHtmlRequest = negotiatedMediaType === "text/html";
@@ -265,6 +265,23 @@ export async function createApiServiceRequestListener(
         });
     });
 
+    router.on("GET", "/specification.yaml", (req, res) => {
+        standardizedRequestListener(tracer, req, res, async request => {
+            const url = new URL(request.url);
+            return traceServerResponse(
+                tracer,
+                request,
+                url,
+                "/specification.yaml",
+                async () =>
+                    new Response(apiSpecificationString, {
+                        status: 200,
+                        headers: {"content-type": "application/yaml"},
+                    }),
+            );
+        });
+    });
+
     const ajv = new Ajv({strict: false});
 
     // Support formats like `date-time` from the OpenAPI specification.
@@ -325,6 +342,7 @@ export async function createApiServiceRequestListener(
 
     for (const [openApiPath, openApiPathItem] of Object.entries(apiSpecification.paths)) {
         if (!openApiPathItem) continue;
+        if (openApiPath === "/specification.yaml") continue;
 
         // Convert path parameters from the OpenAPI format (`/hello/{name}`) to the
         // `find-my-way` format (`/hello/:name`). Right now we only support path

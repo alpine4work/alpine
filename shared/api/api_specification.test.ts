@@ -217,11 +217,14 @@ function validate(specification: JsonValue) {
 
                 // Rule: Path segments should be `kebab-case` since that's standard for URLs.
                 // Unless we have a parameter, parameters should be `{camelCase}`.
+                // We also allow a single file extension suffix (e.g. `foo.yaml`).
                 if (path[0] === "paths" && path.length === 1) {
                     for (const pathSegment of (key.startsWith("/") ? key.slice(1) : key).split(
                         "/",
                     )) {
-                        if (!/^([a-z-]+|\{[a-z][a-zA-Z0-9]*\})$/.test(pathSegment)) {
+                        if (
+                            !/^([a-z0-9-]+(\.[a-z0-9-]+)?|\{[a-z][a-zA-Z0-9]*\})$/.test(pathSegment)
+                        ) {
                             addError(
                                 quote`Path segment ${pathSegment} in path ${key} must be \`kebab-case\` if it\u2019s not a parameter and \`{camelCase}\` if it is a parameter`,
                             );
@@ -476,7 +479,6 @@ test("can validate invalid specification", () => {
         "Path segment `Ping1` in path `/Ping1` must be `kebab-case` if it\u2019s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
         "`additionalProperties` must be set to `false` on all object schemas in the API specification (path: `#/paths/%2FPing1/get/responses/200/content/application%2Fjson/schema`)",
         "Object property `Pong` must be `camelCase` (path: `#/paths/%2FPing1/get/responses/200/content/application%2Fjson/schema`)",
-        "Path segment `ping2` in path `/ping2` must be `kebab-case` if it\u2019s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
         "`responses` must have a `default` property with a `$ref` pointing to `#/components/responses/Error` (path: `#/paths/%2Fping2/get/responses`)",
         "`additionalProperties` must be set to `false` on all object schemas in the API specification (path: `#/paths/%2Fping2/get/responses/200/content/application%2Fjson/schema`)",
         "Path segment `pingAgain` in path `/pingAgain` must be `kebab-case` if it\u2019s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",

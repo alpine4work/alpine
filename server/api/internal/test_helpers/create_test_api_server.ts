@@ -19,6 +19,7 @@ type TestApiServerRequest = (
 type TestApiServerRequestOptions = {
     headers?: Record<string, string>;
     body?: unknown;
+    unsetHeaders?: Array<string>;
 };
 
 type TestApiServerResponse = {
@@ -97,6 +98,10 @@ export function createTestApiServer(
 
         for (const [key, value] of Object.entries(options?.headers ?? {})) {
             request = request.set(key, value);
+        }
+
+        for (const header of options?.unsetHeaders ?? []) {
+            request = request.unset(header);
         }
 
         if (options?.body) {

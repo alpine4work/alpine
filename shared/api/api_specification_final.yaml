@@ -8,6 +8,14 @@ info:
 servers:
     - url: https://api.alpine.inc
 paths:
+    /specification.yaml:
+        get:
+            responses:
+                "200":
+                    content:
+                        application/yaml: {}
+                default:
+                    $ref: "#/components/responses/Error"
     /accounts/{id}:
         parameters:
             - name: id
