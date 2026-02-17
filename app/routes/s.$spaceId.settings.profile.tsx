@@ -216,7 +216,7 @@ export default function SpaceProfileSettingsRoute() {
                         </Box>
                     </Box>
                     {colorScheme !== null && (
-                        <Box marginRight="-2">
+                        <Box>
                             <MenuButton
                                 placement="bottom-end"
                                 actions={[
@@ -237,7 +237,14 @@ export default function SpaceProfileSettingsRoute() {
                                     },
                                 ]}
                             >
-                                <Button variant="quiet" icon={<CaretDown />} iconPlacement="end">
+                                <Button
+                                    variant="text-input"
+                                    height="9"
+                                    paddingX="3"
+                                    fontSize="100"
+                                    icon={<CaretDown />}
+                                    iconPlacement="end"
+                                >
                                     {themeSettingLabel}
                                 </Button>
                             </MenuButton>
@@ -281,6 +288,9 @@ export default function SpaceProfileSettingsRoute() {
                     >
                         <Button
                             variant="accent"
+                            fontSize="100"
+                            height="9"
+                            paddingX="3"
                             isDisabled={hasLifetimeAccess}
                             pressErrorTitle="Couldn&#x2019;t purchase lifetime access"
                             onPress={async () => {

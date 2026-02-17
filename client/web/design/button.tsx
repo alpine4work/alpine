@@ -55,7 +55,8 @@ type ButtonVariant =
     | "neutral-disabled"
     | "accent"
     | "accent-even-when-disabled"
-    | "outline";
+    | "outline"
+    | "text-input";
 
 function Button(
     props: Omit<AriaButtonProps<"button">, "onPress"> & {
@@ -609,13 +610,28 @@ function Button(
                   };
             break;
         }
+        case "text-input": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed ? "grey-5" : "grey-0",
+                      color: "grey-100",
+                      boxShadow: "elevation-5-with-grey-10-border",
+                  }
+                : {
+                      backgroundColor: "grey-5",
+                      color: "grey-30",
+                      boxShadow: "elevation-5-with-grey-10-border",
+                  };
+            break;
+        }
         default:
             throw exhaustive(variant);
     }
 
     const isOutlineVariant = variant === "outline";
 
-    const willDarkenWithOverlayOnPress = !isQuietVariant && !isOutlineVariant;
+    const willDarkenWithOverlayOnPress =
+        !isQuietVariant && !isOutlineVariant && variant !== "text-input";
 
     useEffect(() => {
         // Element is re-created when this prop changes.

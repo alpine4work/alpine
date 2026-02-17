@@ -17,7 +17,7 @@ import {
 import {SpaceAvatarWithThemeOverride} from "~/client/web/spaces/space_avatar_with_theme_avatar_override.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
-import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {
     SelectableSpaceThemeColor,
@@ -266,7 +266,7 @@ export default function SpaceGeneralSettingsRoute() {
                                 fontFeatureSettings: '"calt" on',
                             }}
                         >
-                            An accent color used for buttons, completed tasks, and more
+                            An accent color used for links, buttons, and more
                         </Box>
                     </Box>
                     <MenuButton
@@ -286,8 +286,9 @@ export default function SpaceGeneralSettingsRoute() {
                                         width="2"
                                         height="2"
                                         borderRadius="full"
-                                        style={{
-                                            backgroundColor: colorSchemeVars[`${color}-50`],
+                                        backgroundColor={{
+                                            light: `${color}-40`,
+                                            dark: `${color}-50`,
                                         }}
                                     />
                                 </Box>
@@ -302,9 +303,10 @@ export default function SpaceGeneralSettingsRoute() {
                         }))}
                     >
                         <Button
-                            height="6"
-                            paddingX="2"
-                            variant="quiet"
+                            variant="text-input"
+                            height="9"
+                            paddingX="3"
+                            fontSize="100"
                             icon={<CaretDown />}
                             iconPlacement="end"
                         >
@@ -313,9 +315,9 @@ export default function SpaceGeneralSettingsRoute() {
                                     width="2"
                                     height="2"
                                     borderRadius="full"
-                                    style={{
-                                        backgroundColor:
-                                            colorSchemeVars[`${originalSpace.themeColor}-50`],
+                                    backgroundColor={{
+                                        light: `${originalSpace.themeColor}-40`,
+                                        dark: `${originalSpace.themeColor}-50`,
                                     }}
                                 />
                                 {originalSpace.themeColor in themeColorNames
