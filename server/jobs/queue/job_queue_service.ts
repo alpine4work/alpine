@@ -89,6 +89,7 @@ import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -202,7 +203,7 @@ export async function run({
     // In tests, don't send push notifications. Otherwise in development and
     // production set up a connection pool to APNs so we can send notifications.
     let apnsContextModule: ApnsContextModuleBase;
-    if (process.env.NODE_ENV === "test") {
+    if (isTestNodeEnvOrAdminScenariosScript) {
         apnsContextModule = new TestApnsContextModule();
     } else {
         const apnsConnectionPool = new ApnsConnectionPool(basicProcessContext, {

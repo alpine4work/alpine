@@ -97,6 +97,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -302,7 +303,7 @@ async function createAppService({
     // In tests, don't send push notifications. Otherwise in development and
     // production set up a connection pool to APNs so we can send notifications.
     let apnsContextModule: ApnsContextModuleBase;
-    if (process.env.NODE_ENV === "test") {
+    if (isTestNodeEnvOrAdminScenariosScript) {
         apnsContextModule = new TestApnsContextModule();
     } else {
         const apnsConnectionPool = new ApnsConnectionPool(basicProcessContext, {

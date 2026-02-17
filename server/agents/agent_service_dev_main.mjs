@@ -43,6 +43,7 @@ async function main() {
             honeycombApiKey,
             openAiDevApiKey,
             cursorAgentSmeeWebhookUrl,
+            withoutD1Migrations,
             inspectorPort: inspectorPortString,
         },
     } = parseArgs({
@@ -59,6 +60,7 @@ async function main() {
             honeycombApiKey: {type: "string"},
             openAiDevApiKey: {type: "string"},
             cursorAgentSmeeWebhookUrl: {type: "string"},
+            withoutD1Migrations: {type: "boolean"},
             inspectorPort: {type: "string"},
         },
     });
@@ -72,12 +74,14 @@ async function main() {
         throw new Error("Missing `durableObjectsLocalDataPath` option");
     if (!d1LocalDataPath) throw new Error("Missing `d1LocalDataPath` option");
     if (!apiServiceUrl) throw new Error("Missing `apiServiceUrl` option");
-    if (!chatGptApiServiceKeyPath) throw new Error("Missing `chatGptApiServiceKey` option");
-    if (!cursorApiServiceKeyPath) throw new Error("Missing `cursorApiServiceKey` option");
     if (!mockChatGptApiServiceKeyPath) throw new Error("Missing `mockChatGptApiServiceKey` option");
 
-    const chatGptApiServiceKey = (await fs.readFile(chatGptApiServiceKeyPath, "utf8")).trim();
-    const cursorApiServiceKey = (await fs.readFile(cursorApiServiceKeyPath, "utf8")).trim();
+    const chatGptApiServiceKey = chatGptApiServiceKeyPath
+        ? (await fs.readFile(chatGptApiServiceKeyPath, "utf8")).trim()
+        : undefined;
+    const cursorApiServiceKey = cursorApiServiceKeyPath
+        ? (await fs.readFile(cursorApiServiceKeyPath, "utf8")).trim()
+        : undefined;
     const mockChatGptApiServiceKey = (
         await fs.readFile(mockChatGptApiServiceKeyPath, "utf8")
     ).trim();
@@ -93,11 +97,14 @@ async function main() {
     );
     const config = toml.parse(configString);
 
-    if ((await runDevAgentsD1StatusCommand({quiet: true})) === "CommittedMigrations") {
-        // eslint-disable-next-line no-console
-        console.log("D1 migrations required, applying...");
+    // Integration tests turn off D1 migrations.
+    if (!withoutD1Migrations) {
+        if ((await runDevAgentsD1StatusCommand({quiet: true})) === "CommittedMigrations") {
+            // eslint-disable-next-line no-console
+            console.log("D1 migrations required, applying...");
 
-        await runDevAgentsD1ApplyCommand();
+            await runDevAgentsD1ApplyCommand();
+        }
     }
 
     const miniflare = new Miniflare({

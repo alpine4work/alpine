@@ -4,6 +4,7 @@ import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_priva
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 
 /**
  * Get and verify the `SessionTokenPayload` in the requests session cookie if
@@ -139,6 +140,6 @@ export function getSessionCookieSetCookieHeaderForTest(
     cookieNameSuffix: string,
     token: SessionTokenPayload | null,
 ) {
-    assert(process.env.NODE_ENV === "test");
+    assert(isTestNodeEnvOrAdminScenariosScript);
     return getSessionCookieSetCookieHeader(tokenAgentPrivateSide, cookieNameSuffix, token);
 }

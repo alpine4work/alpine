@@ -22,6 +22,7 @@ export abstract class WebPushContextModuleBase extends ContextModuleBase<ServerA
         options?: SendWebPushNotificationOptions,
     ): Promise<webPush.SendResult>;
 }
+
 export class WebPushContextModule extends WebPushContextModuleBase {
     private readonly _webPush: typeof webPush;
 

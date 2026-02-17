@@ -83,9 +83,17 @@ js_binary(
         "//shared/tracer",
     ],
     entry_point = "agent_service_dev_main.mjs",
-    env = {"NODE_ENV": "development"},
+    env = {
+        "NODE_ENV": "development",
+        # On paid plans, Cloudflare Workers can make up to 1000 subrequests.
+        # https://developers.cloudflare.com/workers/platform/limits/#subrequests
+        #
+        # This environment variable is parsed here:
+        # https://github.com/cloudflare/miniflare/blob/b536e56ee19803f0c1fbb922394992bbed7e7c96/packages/shared/src/context.ts#L17-L19
+        "MINIFLARE_SUBREQUEST_LIMIT": "1000",
+    },
     node_options = ["--experimental-vm-modules"],
-    visibility = ["//app/integration_tests:__pkg__"],
+    visibility = ["//admin/environment/test/integration:__pkg__"],
 )
 
 production_transition(
@@ -99,6 +107,36 @@ MIGRATIONS = glob(
         "internal/d1/migrations/meta/*.json",
     ],
     allow_empty = True,
+)
+
+genrule(
+    name = "agents_d1_local_data",
+    srcs = MIGRATIONS + ["wrangler.toml"],
+    outs = ["agents_d1_local_data.tar.gz"],
+    cmd = """
+set -euo pipefail
+
+export BAZEL_BINDIR="$(BINDIR)"
+execroot="$$(pwd)"
+
+log_path="$$execroot/$(RULEDIR)/cmd.log"
+
+export HOME="$$execroot/$(RULEDIR)/home"
+mkdir -p "$$HOME"
+
+data_path="$$execroot/$(RULEDIR)/agents_d1_local_data"
+mkdir -p "$$data_path"
+
+config_path="$$execroot/$(location wrangler.toml)"
+output_path="$$execroot/$@"
+
+{
+  "$$execroot/$(location :wrangler_dev)" --config "$$config_path" d1 migrations apply agent-usage --local --persist-to "$$data_path"
+  tar -C "$$data_path" -czf "$$output_path" .
+} >"$$log_path" 2>&1 || { cat "$$log_path"; exit 1; }
+""",
+    tools = [":wrangler_dev"],
+    visibility = ["//admin/environment/test/integration:__pkg__"],
 )
 
 wrangler_bin.wrangler_binary(

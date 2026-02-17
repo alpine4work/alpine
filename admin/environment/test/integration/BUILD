@@ -6,6 +6,9 @@ filegroup(
     name = "integration_data",
     srcs = [
         "//app:app_test",
+        "//server/agents",
+        "//server/agents:agents_d1_local_data",
+        "//server/api",
         "//server/apns:apns_development_certificates",
         "//server/edge",
         "//server/files/processor",
@@ -39,6 +42,7 @@ ts_project(
         "//server/documents/data",
         "//server/forum/data",
         "//server/helpers/node",
+        "//server/node",
         "//server/notifications/data",
         "//server/search/data/index",
         "//server/spaces",

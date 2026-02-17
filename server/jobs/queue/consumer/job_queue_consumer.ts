@@ -29,6 +29,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -452,7 +453,7 @@ export class JobQueueConsumer<
                             // requests instead of waiting out `WaitTimeSeconds`. In non-test environments
                             // use our safer abort handling that continues waiting (so we don't have issues
                             // when there's a race where SQS is just about to send us messages).
-                            process.env.NODE_ENV === "test"
+                            isTestNodeEnvOrAdminScenariosScript
                                 ? {abortSignal: this._abortController.signal}
                                 : undefined,
                         );

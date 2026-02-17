@@ -634,14 +634,6 @@ async function createArtifacts() {
                 publicPort: agentsDevPort,
                 privatePort: agentsPrivatePort,
             },
-            env: {
-                // On paid plans, Cloudflare Workers can make up to 1000 subrequests.
-                // https://developers.cloudflare.com/workers/platform/limits/#subrequests
-                //
-                // This environment variable is parsed here:
-                // https://github.com/cloudflare/miniflare/blob/b536e56ee19803f0c1fbb922394992bbed7e7c96/packages/shared/src/context.ts#L17-L19
-                MINIFLARE_SUBREQUEST_LIMIT: "1000",
-            },
             args: [
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "agents")}`,
                 `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "agents/do")}`,

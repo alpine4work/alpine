@@ -39,6 +39,7 @@ js_binary(
     name = "api",
     data = [":api_lib"],
     entry_point = "api_service_main.js",
+    visibility = ["//admin/environment/test/integration:__pkg__"],
 )
 
 js_image_layer(

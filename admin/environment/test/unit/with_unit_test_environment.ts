@@ -782,10 +782,18 @@ export function actuallyCreateUnitTestEnvironment(
     }, beforeAllTimeoutMs);
 
     testHooks.afterAll(async () => {
+        debug("Stopping services");
+
         await runAllPromises([
-            dynamoLocal?.stop(),
-            sqsLocal?.stop({force: true}),
-            opensearchLocal?.stop(),
+            dynamoLocal?.stop().then(() => {
+                debug("DynamoDB was stopped");
+            }),
+            sqsLocal?.stop({force: true}).then(() => {
+                debug("SQS was stopped");
+            }),
+            opensearchLocal?.stop().then(() => {
+                debug("OpenSearch was stopped");
+            }),
         ]);
     });
 
