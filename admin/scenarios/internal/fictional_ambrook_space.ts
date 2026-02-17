@@ -12,7 +12,7 @@ const debug = createDebug(import.meta.url);
 
 export type FictionalAmbrookAccounts = Awaited<ReturnType<typeof createFictionalAmbrookAccounts>>;
 
-export async function createFictionalAmbrookSpace(context: TestContext, tokenAgent: TokenAgent) {
+export async function createFictionalAmbrookSpace(context: TestContext) {
     debug("Creating space");
 
     const space = await TestSpace.create(context, {
@@ -54,27 +54,30 @@ export async function createFictionalAmbrookSpace(context: TestContext, tokenAge
         ),
     ]);
 
-    context.process.waitUntil(async () => {
-        await runAllPromises([
-            uploadScenarioSpaceAvatar(
-                tokenAgent,
-                accounts.cassCade,
-                "light",
-                "scenario_space_avatar_light.svg",
-            ),
-            uploadScenarioSpaceAvatar(
-                tokenAgent,
-                accounts.cassCade,
-                "dark",
-                "scenario_space_avatar_dark.svg",
-            ),
-            uploadFictionalAmbrookAccountAvatars(tokenAgent, accounts),
-        ]);
-
-        debug("Uploaded avatars");
-    });
-
     return {space, accounts, cassCadeEmailAddress, roseCompasEmailAddress};
+}
+
+export async function uploadFictionalAmbrookAvatars(
+    tokenAgent: TokenAgent,
+    accounts: FictionalAmbrookAccounts,
+) {
+    await runAllPromises([
+        uploadScenarioSpaceAvatar(
+            tokenAgent,
+            accounts.cassCade,
+            "light",
+            "scenario_space_avatar_light.svg",
+        ),
+        uploadScenarioSpaceAvatar(
+            tokenAgent,
+            accounts.cassCade,
+            "dark",
+            "scenario_space_avatar_dark.svg",
+        ),
+        uploadFictionalAmbrookAccountAvatars(tokenAgent, accounts),
+    ]);
+
+    debug("Uploaded avatars");
 }
 
 async function createFictionalAmbrookAccounts(space: TestSpace) {

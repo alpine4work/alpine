@@ -4,6 +4,7 @@ import * as inquirer from "@inquirer/prompts";
 import chalk from "chalk";
 import {inspect} from "util";
 import {withDevelopmentEnvironment} from "~/admin/environment/development/with_development_environment.js";
+import {createLandingPageScenario} from "~/admin/scenarios/landing_page_scenario.js";
 import {createLaunchVideoScenario} from "~/admin/scenarios/launch_video_scenario.js";
 import {createMockAgentPlaygroundScenario} from "~/admin/scenarios/mock_agent_playground_scenario.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
@@ -19,12 +20,13 @@ type ScenarioFunction = (
 ) => Promise<{log: JsonObjectValue}>;
 
 const allScenarios: Record<string, ScenarioFunction> = {
-    LaunchVideo: createLaunchVideoScenario,
+    LandingPage: createLandingPageScenario,
     MockAgentPlayground: createMockAgentPlaygroundScenario,
+    LaunchVideo: createLaunchVideoScenario,
 };
 
 async function main() {
-    await withDevelopmentEnvironment(async (context, options) => {
+    const output = await withDevelopmentEnvironment(async (context, options) => {
         const scenarioNameArg = process.argv[2] ?? "";
 
         let scenarioName: string;
@@ -59,16 +61,18 @@ async function main() {
                 return createScenario(contextWithSpan, options);
             });
 
-        // eslint-disable-next-line no-console
-        console.log(
-            inspect(output.log, {
-                depth: Infinity,
-                colors: !!chalk.supportsColor,
-                // Split objects onto new lines even if they're below the break length.
-                compact: false,
-            }),
-        );
+        return output;
     });
+
+    // eslint-disable-next-line no-console
+    console.log(
+        inspect(output.log, {
+            depth: Infinity,
+            colors: !!chalk.supportsColor,
+            // Split objects onto new lines even if they're below the break length.
+            compact: false,
+        }),
+    );
 }
 
 main().then(

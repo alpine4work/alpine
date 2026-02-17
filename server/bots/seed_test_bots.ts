@@ -8,13 +8,7 @@ import {assertApiKey} from "~/shared/id/api_key.js";
 
 export async function seedTestBots(
     context: DynamoContext,
-    {
-        agentServiceLocalPort,
-        chatGptLocalUnscopedApiKey,
-        chatGptLocalScopedApiKey,
-        cursorLocalUnscopedApiKey,
-        mockChatGptLocalUnscopedApiKey,
-    }: {
+    options: {
         agentServiceLocalPort: string;
         chatGptLocalUnscopedApiKey: string;
         chatGptLocalScopedApiKey: string;
@@ -23,22 +17,36 @@ export async function seedTestBots(
     },
 ) {
     assert(process.env.NODE_ENV !== "production");
-    const {
-        adminAccountId,
-        defaultSpaceId,
-        chatGptBotId,
-        chatGptBotAccountIdForDefaultSpace,
-        cursorBotId,
-        mockChatGptBotId,
-    } = getDynamoSeedConstants();
-
-    const currentTime = new Date();
 
     await runAllPromises([
         // Update all bot settings to their latest values in dev.
         runUpdateKnownBotSettingsMigration(context),
 
-        // Seed the ChatGPT bot.
+        seedTestChatGptBot(context, options),
+        seedTestCursorBot(context, options),
+        seedTestMockChatGptBot(context, options),
+    ]);
+}
+
+async function seedTestChatGptBot(
+    context: DynamoContext,
+    {
+        agentServiceLocalPort,
+        chatGptLocalUnscopedApiKey,
+        chatGptLocalScopedApiKey,
+    }: {
+        agentServiceLocalPort: string;
+        chatGptLocalUnscopedApiKey: string;
+        chatGptLocalScopedApiKey: string;
+    },
+) {
+    assert(process.env.NODE_ENV !== "production");
+    const {adminAccountId, defaultSpaceId, chatGptBotId, chatGptBotAccountIdForDefaultSpace} =
+        getDynamoSeedConstants();
+
+    const currentTime = new Date();
+
+    await runAllPromises([
         BotsTable.updateItem(
             context,
             {
@@ -89,8 +97,25 @@ export async function seedTestBots(
             createdTime: currentTime,
             name: "Scoped API Key",
         }),
+    ]);
+}
 
-        // Seed the Cursor bot.
+async function seedTestCursorBot(
+    context: DynamoContext,
+    {
+        agentServiceLocalPort,
+        cursorLocalUnscopedApiKey,
+    }: {
+        agentServiceLocalPort: string;
+        cursorLocalUnscopedApiKey: string;
+    },
+) {
+    assert(process.env.NODE_ENV !== "production");
+    const {cursorBotId} = getDynamoSeedConstants();
+
+    const currentTime = new Date();
+
+    await runAllPromises([
         BotsTable.updateItem(
             context,
             {
@@ -128,8 +153,25 @@ export async function seedTestBots(
             createdTime: currentTime,
             name: "Unscoped API Key",
         }),
+    ]);
+}
 
-        // Seed the mock ChatGPT bot.
+export async function seedTestMockChatGptBot(
+    context: DynamoContext,
+    {
+        agentServiceLocalPort,
+        mockChatGptLocalUnscopedApiKey,
+    }: {
+        agentServiceLocalPort: string | number;
+        mockChatGptLocalUnscopedApiKey: string;
+    },
+) {
+    assert(process.env.NODE_ENV !== "production");
+    const {mockChatGptBotId} = getDynamoSeedConstants();
+
+    const currentTime = new Date();
+
+    await runAllPromises([
         BotsTable.updateItem(
             context,
             {

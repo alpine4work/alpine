@@ -6,6 +6,7 @@ import {
 import {
     FictionalAmbrookAccounts,
     createFictionalAmbrookSpace,
+    uploadFictionalAmbrookAvatars,
 } from "~/admin/scenarios/internal/fictional_ambrook_space.js";
 import {putMockAgentRecording} from "~/admin/scenarios/internal/put_mock_agent_recording.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
@@ -40,7 +41,7 @@ export async function createLaunchVideoScenario(
     {tokenAgent}: {tokenAgent: TokenAgent},
 ) {
     const {space, accounts, cassCadeEmailAddress, roseCompasEmailAddress} =
-        await createFictionalAmbrookSpace(context, tokenAgent);
+        await createFictionalAmbrookSpace(context);
 
     const {
         cassCade,
@@ -97,6 +98,8 @@ export async function createLaunchVideoScenario(
 
             return chat;
         })(),
+
+        uploadFictionalAmbrookAvatars(tokenAgent, accounts),
     ]);
 
     await runAllPromises([

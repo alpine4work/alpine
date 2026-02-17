@@ -5,6 +5,8 @@ import {join as joinPath, resolve as resolvePath} from "path";
 import {chromium, devices} from "playwright";
 import {withIntegrationTestEnvironment} from "~/admin/environment/test/integration/with_integration_test_environment.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
+import {createLandingPageScenario} from "~/admin/scenarios/landing_page_scenario.js";
+import {seedTestMockChatGptBot} from "~/server/bots/seed_test_bots.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 
@@ -28,7 +30,20 @@ async function main() {
             },
         },
         async (context, services) => {
-            debug("Launching Playwright");
+            debug("Seeding database");
+
+            await seedTestMockChatGptBot(context, {
+                agentServiceLocalPort: services.getAgentServicePort(),
+                mockChatGptLocalUnscopedApiKey: await services.getMockChatGptLocalUnscopedApiKey(),
+            });
+
+            debug("Initializing scenario");
+
+            const {space, cassCade} = await createLandingPageScenario(context, {
+                tokenAgent: services.getAppServiceTokenAgent(),
+            });
+
+            debug("Launching Playwright browser");
 
             const browser = await chromium.launch();
             const browserContext = await browser.newContext({
@@ -48,7 +63,8 @@ async function main() {
 
                 debug("Opening Alpine");
 
-                await page.goto(services.getBaseUrl());
+                await services.signIn(browserContext, cassCade);
+                await page.goto(`${services.getBaseUrl()}/s/${space.id}`);
 
                 await wait(2000);
 
@@ -56,6 +72,8 @@ async function main() {
 
                 await page.screenshot({path: joinPath(outputPath, "screenshot.png")});
             } finally {
+                debug("Closing Playwright browser");
+
                 await browserContext.close();
                 await browser.close();
             }
