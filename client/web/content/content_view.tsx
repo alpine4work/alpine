@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import Color from "color";
 import {animate} from "motion";
+import {Link as LinkIcon} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {Selection} from "prosemirror-state";
 import {
@@ -46,6 +47,7 @@ import {
 import {writeContentToClipboard} from "~/client/web/content/write_content_to_clipboard.js";
 import {useAppContextIfExists} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
+import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/web/design/pretty_absolute_date.js";
 import {useReporter} from "~/client/web/design/reporter.js";
@@ -56,6 +58,7 @@ import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
@@ -72,6 +75,7 @@ import {
     createContentCodeBlockHtmlSerializationDecorationsStore,
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -82,7 +86,12 @@ import {
 } from "~/shared/design/core/constant_class_names.js";
 import {easeOutCubic} from "~/shared/design/core/easing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {
+    FileEntityId,
+    parseFileEntityId,
+    printFileEntityIdIntoPath,
+} from "~/shared/files/file_entity_id.js";
+import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -1441,6 +1450,64 @@ export function ContentView<Content extends ContentWithReferences>({
         posAttributeOffset,
         spaceId,
     ]);
+
+    useEffect(() => {
+        const element = assertExists(ref.current);
+
+        const handleContextMenu = (event: MouseEvent) => {
+            if (!(event.target instanceof Element)) return;
+
+            const mentionContainerElement = event.target.closest(
+                `.${contentStyles.mentionContainerClassName}`,
+            );
+            if (!mentionContainerElement) return;
+
+            // Select the entire mention when right clicking.
+            const selection = window.getSelection();
+            if (selection) {
+                const range = document.createRange();
+                range.selectNodeContents(mentionContainerElement);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+
+            const posString = assertExists(mentionContainerElement.getAttribute("data-pos"));
+            const pos = parseInt(posString, 10);
+            const $pos = content.doc.resolve(pos);
+            assert($pos.nodeAfter?.type.name === "mention");
+
+            const mention: ContentMention = $pos.nodeAfter.attrs.mention;
+            if (mention.type === "Account") return;
+
+            const entityNoun = getFileEntityNoun(parseFileEntityId(mention.entityId).type);
+
+            addContextMenuActions(event, [
+                [
+                    {
+                        label: `Copy ${entityNoun} link`,
+                        pressErrorTitle: `Couldn\u2019t copy ${entityNoun} link`,
+                        icon: <LinkIcon />,
+                        iconPlacement: "end",
+                        onPress: async () => {
+                            if (!spaceId) return;
+
+                            const url = new URL(
+                                printFileEntityIdIntoPath(spaceId, mention.entityId),
+                                window.location.href,
+                            );
+                            await writeTextToClipboard(url.toString());
+                        },
+                    },
+                ],
+            ]);
+        };
+
+        element.addEventListener("contextmenu", handleContextMenu);
+
+        return () => {
+            element.removeEventListener("contextmenu", handleContextMenu);
+        };
+    }, [content.doc, spaceId]);
 
     return (
         <>

@@ -99,6 +99,43 @@ export function addContextMenuActions(
 }
 
 /**
+ * Tries adding new actions to a previous section. If we can't find a previous
+ * section that matches the predicate we add a new section.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function addContextMenuActionsToPreviousSection(
+    event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
+    predicate: (action: MenuAction) => boolean,
+    actions: ReadonlyArray<MenuAction>,
+) {
+    const extension = (event[contextMenuEventExtensionSymbol] ??= {});
+    extension.actions ??= [];
+
+    const previousSectionIndex = extension.actions.findIndex(previousSection => {
+        if (isReadonlyArray(previousSection)) {
+            return previousSection.some(predicate);
+        } else {
+            return previousSection.actions.some(predicate);
+        }
+    });
+    if (previousSectionIndex === -1) {
+        extension.actions.push(actions);
+        return;
+    }
+
+    const previousSection = extension.actions[previousSectionIndex]!;
+
+    if (isReadonlyArray(previousSection)) {
+        extension.actions[previousSectionIndex] = [...previousSection, ...actions];
+    } else {
+        extension.actions[previousSectionIndex] = {
+            ...previousSection,
+            actions: [...previousSection.actions, ...actions],
+        };
+    }
+}
+
+/**
  * Is there an action with the provided `key` in the current context menu
  * actions?
  */
@@ -112,6 +149,21 @@ export function hasContextMenuActionWithKey(
             (isReadonlyArray(actions) ? actions : actions.actions).some(
                 action => "key" in action && action.key === key,
             ),
+        ) ?? false
+    );
+}
+
+/**
+ * Is there an action that matches the provided predicate?
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function hasContextMenuAction(
+    event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
+    predicate: (action: MenuAction) => boolean,
+): boolean {
+    return (
+        event[contextMenuEventExtensionSymbol]?.actions?.some(actions =>
+            (isReadonlyArray(actions) ? actions : actions.actions).some(predicate),
         ) ?? false
     );
 }

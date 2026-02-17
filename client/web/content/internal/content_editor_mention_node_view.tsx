@@ -1,3 +1,4 @@
+import {ArrowSquareOut, Link as LinkIcon} from "phosphor-react";
 import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
 import {To} from "react-router";
@@ -13,6 +14,7 @@ import {AppContext} from "~/client/web/context/app_context.js";
 import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {isModifiedPointerEvent} from "~/client/web/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/web/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
@@ -21,7 +23,12 @@ import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {isFileEntityId} from "~/shared/files/file_entity_id.js";
+import {
+    isFileEntityId,
+    parseFileEntityId,
+    printFileEntityIdIntoPath,
+} from "~/shared/files/file_entity_id.js";
+import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -180,11 +187,28 @@ export function createContentEditorMentionNodeViewConstructor({
             const schema = view.state.schema;
             if (!schema.nodes.fileRow || !schema.nodes.file) return;
 
+            const entityNoun = getFileEntityNoun(parseFileEntityId(mentionEntityId).type);
+
             addContextMenuActions(event, [
                 [
                     {
-                        label: "Turn into preview",
-                        pressErrorTitle: "Couldn’t turn into preview",
+                        label: `Copy ${entityNoun} link`,
+                        pressErrorTitle: `Couldn\u2019t copy ${entityNoun} link`,
+                        icon: <LinkIcon />,
+                        iconPlacement: "end",
+                        onPress: async () => {
+                            const url = new URL(
+                                printFileEntityIdIntoPath(spaceId, mentionEntityId),
+                                window.location.href,
+                            );
+                            await writeTextToClipboard(url.toString());
+                        },
+                    },
+                    {
+                        label: `Turn into ${entityNoun} preview`,
+                        pressErrorTitle: `Couldn’t turn into ${entityNoun} preview`,
+                        icon: <ArrowSquareOut />,
+                        iconPlacement: "end",
                         onPress: async () => {
                             if (!hasAccessLevel(getAccessLevel(), "Edit")) return;
 
@@ -254,7 +278,7 @@ export function createContentEditorMentionNodeViewConstructor({
                                 //   quoteBlock(unorderedListItem(paragraph(text("abc")))),
                                 // )
                                 // ```
-                                for (let depth = $pos.depth; depth > 0; depth--) {
+                                for (let depth = $pos.depth; depth > 1; depth--) {
                                     if ($pos.index(depth) === 0) {
                                         from -= 1;
                                     } else {

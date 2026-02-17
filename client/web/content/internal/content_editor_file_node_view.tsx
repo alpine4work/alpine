@@ -1,4 +1,5 @@
 import {today} from "@internationalized/date";
+import {ArrowSquareIn} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
@@ -26,7 +27,7 @@ import {
     resolveContentTableColumnWidthPx,
 } from "~/client/web/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {AppContext} from "~/client/web/context/app_context.js";
-import {addContextMenuActions} from "~/client/web/design/context_menu.js";
+import {addContextMenuActionsToPreviousSection} from "~/client/web/design/context_menu.js";
 import {Reporter} from "~/client/web/design/reporter.js";
 import {ElementEventEmitter} from "~/client/web/helpers/element_event_emitter.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
@@ -50,9 +51,10 @@ import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -132,11 +134,17 @@ export function createContentEditorFileNodeViewConstructor({
             if (!hasAccessLevel(getAccessLevel(), "Edit") || !fileId || !isFileEntityId(fileId))
                 return;
 
-            addContextMenuActions(event, [
+            const entityNoun = getFileEntityNoun(parseFileEntityId(fileId).type);
+
+            addContextMenuActionsToPreviousSection(
+                event,
+                action => !action.withCustomLayout && action.label === `Copy ${entityNoun} link`,
                 [
                     {
-                        label: "Turn into link",
-                        pressErrorTitle: "Couldn’t turn into link",
+                        label: `Turn into ${entityNoun} link`,
+                        pressErrorTitle: `Couldn’t turn into ${entityNoun} link`,
+                        icon: <ArrowSquareIn />,
+                        iconPlacement: "end",
                         onPress: async () => {
                             const {schema} = view.state;
 
@@ -204,7 +212,7 @@ export function createContentEditorFileNodeViewConstructor({
                         },
                     },
                 ],
-            ]);
+            );
         };
 
         const updateFromState = () => {

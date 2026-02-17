@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
+import {Link as LinkIcon} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {ContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
@@ -301,15 +302,10 @@ export function addContentFileEntityPreviewBehavior(
         addContextMenuActions(event, [
             [
                 {
-                    // We intentionally don't include the link icon here because it can look weird
-                    // when you right click in a message and there's "Copy document link" and the
-                    // message "Copy link". This is also why we include the entity noun. To further
-                    // differentiate the text in this case.
-                    //
-                    // Not including the icon is also consistent with the regular file right click
-                    // actions.
                     label: `Copy ${entityNoun} link`,
                     pressErrorTitle: `Couldn\u2019t copy ${entityNoun} link`,
+                    icon: <LinkIcon />,
+                    iconPlacement: "end",
                     onPress: async () => {
                         const url = new URL(
                             printFileEntityIdIntoPath(spaceId, fileEntityId),

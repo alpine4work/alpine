@@ -35,6 +35,8 @@ import {MessageContentPayloadParentWithMessages} from "~/client/web/content/mess
 import {MessageViewFiles} from "~/client/web/content/messaging/message_view_files.js";
 import {
     ContextMenuActions,
+    addContextMenuActionsToPreviousSection,
+    hasContextMenuAction,
     hasContextMenuActionWithKey,
     useContextMenuActions,
 } from "~/client/web/design/context_menu.js";
@@ -584,20 +586,38 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 ]);
             }
 
-            contextMenuActions.push([
-                {
-                    key: id,
-                    label: "Copy link",
-                    icon: <LinkIcon />,
-                    iconPlacement: "end",
-                    isDisabled: message.isOptimistic,
-                    pressErrorTitle: `Couldn\u2019t copy ${messageNoun} link`,
-                    onPress: async () => {
-                        if (message.isOptimistic) return;
-                        await writeTextToClipboard(getMessageUrl(message.index).toString());
-                    },
+            const isCopyLinkMenuAction = (action: MenuAction) =>
+                !action.withCustomLayout &&
+                action.label.startsWith("Copy ") &&
+                action.label.endsWith(" link");
+
+            const hasOtherCopyLinkMenuAction = hasContextMenuAction(event, isCopyLinkMenuAction);
+
+            const copyLinkMenuAction: MenuAction = {
+                key: id,
+                // If there's another "Copy" context menu action (e.g. "Copy document link"
+                // when right clicking on a document file entity) then a menu action saying
+                // "Copy link" (to copy the message link) would be confusing. So disambiguate
+                // what this item is copying with the `messageNoun` (either "message" or
+                // "comment") so you end up with "Copy document link" and "Copy message link".
+                label: hasOtherCopyLinkMenuAction ? `Copy ${messageNoun} link` : "Copy link",
+                icon: <LinkIcon />,
+                iconPlacement: "end",
+                isDisabled: message.isOptimistic,
+                pressErrorTitle: `Couldn\u2019t copy ${messageNoun} link`,
+                onPress: async () => {
+                    if (message.isOptimistic) return;
+                    await writeTextToClipboard(getMessageUrl(message.index).toString());
                 },
-            ]);
+            };
+
+            if (hasOtherCopyLinkMenuAction) {
+                addContextMenuActionsToPreviousSection(event, isCopyLinkMenuAction, [
+                    copyLinkMenuAction,
+                ]);
+            } else {
+                contextMenuActions.push([copyLinkMenuAction]);
+            }
 
             if (
                 !isReadOnly &&
@@ -1393,7 +1413,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 mergeReadonlyCopyAction={(actionSections, copyTextAction) => {
                     const copyLinkActionSectionIndex = actionSections.findIndex(actionSection =>
                         ("actions" in actionSection ? actionSection.actions : actionSection).some(
-                            action => !action.withCustomLayout && action.label === "Copy link",
+                            action =>
+                                !action.withCustomLayout &&
+                                action.label.startsWith("Copy ") &&
+                                action.label.endsWith(" link"),
                         ),
                     );
 

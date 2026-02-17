@@ -570,8 +570,8 @@ function getMessagingViewPointerToolbarStateBase(
 
     const {
         start,
-        startNode,
-        startOffset,
+        startNode: actualStartNode,
+        startOffset: actualStartOffset,
         endNode: actualEndNode,
         endOffset: actualEndOffset,
     } = getSelectionStartNodeAndEndNode({
@@ -588,8 +588,46 @@ function getMessagingViewPointerToolbarStateBase(
     if (!startContentElement) return null;
     if (!offsetParent.contains(startContentElement)) return null;
 
+    let startNode = actualStartNode;
+    let startOffset = actualStartOffset;
     let endNode = actualEndNode;
     let endOffset = actualEndOffset;
+
+    // This case is to support when we right click on a mention and
+    // get a selection where the selection starts at offset 0 in the `<a>` mention
+    // container element.
+    if (!(startNode instanceof Text) && startOffset === 0) {
+        let startFirstChildLeafNode: Node | null = firstChildLeafNode(startNode);
+        while (
+            startFirstChildLeafNode &&
+            !(startFirstChildLeafNode instanceof Text) &&
+            startNode.contains(startFirstChildLeafNode)
+        ) {
+            startFirstChildLeafNode = nextLeafNode(startFirstChildLeafNode);
+        }
+        if (startFirstChildLeafNode && startFirstChildLeafNode instanceof Text) {
+            startNode = startFirstChildLeafNode;
+            startOffset = 0;
+        }
+    }
+
+    // This case is to support when we right click on a mention and
+    // get a selection where the selection ends at offset 1 in the `<a>` mention
+    // container element.
+    if (!(endNode instanceof Text) && endOffset > 0) {
+        let endLastChildLeafNode: Node | null = lastChildLeafNode(endNode);
+        while (
+            endLastChildLeafNode &&
+            !(endLastChildLeafNode instanceof Text) &&
+            endNode.contains(endLastChildLeafNode)
+        ) {
+            endLastChildLeafNode = previousLeafNode(endLastChildLeafNode);
+        }
+        if (endLastChildLeafNode && endLastChildLeafNode instanceof Text) {
+            endNode = endLastChildLeafNode;
+            endOffset = endLastChildLeafNode.length;
+        }
+    }
 
     let endContentElement = start === "Anchor" ? focusContentElement : anchorContentElement;
 
@@ -828,6 +866,24 @@ function previousLeafNode(node: Node): Node | null {
     }
 
     return null;
+}
+
+/**
+ * Traverse to the first leaf node that's a child of the provided node in the DOM tree.
+ */
+function firstChildLeafNode(node: Node): Node {
+    let childNode = node;
+    while (childNode.firstChild) childNode = childNode.firstChild;
+    return childNode;
+}
+
+/**
+ * Traverse to the last leaf node that's a child of the provided node in the DOM tree.
+ */
+function lastChildLeafNode(node: Node): Node {
+    let childNode = node;
+    while (childNode.lastChild) childNode = childNode.lastChild;
+    return childNode;
 }
 
 export type MessagingViewPointerToolbarState<RoomKey extends string> =
