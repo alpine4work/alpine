@@ -100,7 +100,7 @@ export class AwsObservability extends Construct {
 
         // Create Glue database and table for the Parquet schema. Firehose uses this schema
         // to convert JSON records to Parquet format.
-        const glueDatabase = new CfnDatabase(this, "TracerEventsGlueDatabase", {
+        const glueDatabase = new CfnDatabase(this, "TracerGlueDatabase", {
             catalogId: Stack.of(this).account,
             databaseInput: {
                 name: this._tracerEventGlueDatabaseName,

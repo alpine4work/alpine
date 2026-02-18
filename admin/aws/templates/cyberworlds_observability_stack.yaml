@@ -171,7 +171,7 @@ Resources:
                 - Ref: AwsObservabilityKinesisStreamPutsUserC08897E7
         Metadata:
             aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/KinesisStreamPutsUser/DefaultPolicy/Resource
-    AwsObservabilityTracerEventsGlueDatabase61FCF08E:
+    AwsObservabilityTracerGlueDatabase9BA516EC:
         Type: AWS::Glue::Database
         Properties:
             CatalogId:
@@ -180,7 +180,7 @@ Resources:
                 Description: Database for tracer event data stored in Parquet format
                 Name: tracer
         Metadata:
-            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerEventsGlueDatabase
+            aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerGlueDatabase
     AwsObservabilityTracerEventsGlueTableF3156455:
         Type: AWS::Glue::Table
         Properties:
@@ -1684,7 +1684,7 @@ Resources:
                         SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
                 TableType: EXTERNAL_TABLE
         DependsOn:
-            - AwsObservabilityTracerEventsGlueDatabase61FCF08E
+            - AwsObservabilityTracerGlueDatabase9BA516EC
         Metadata:
             aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/TracerEventsGlueTable
     AwsObservabilityS3FirehoseRoleE276D682:
