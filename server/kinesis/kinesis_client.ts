@@ -181,12 +181,39 @@ export class KinesisClient {
         // we look first for the record-specific error and then fall back to the batch error.
         let pendingState: {
             pendingRecords: Array<{
-                record: KinesisPutRecordsRequestEntry;
+                record: {Data: string; PartitionKey: string};
                 previousError?: {errorCode: string; errorMessage?: string};
             }>;
             previousBatchError: {errorCode: string; errorMessage?: string} | undefined;
         } = {
-            pendingRecords: records.map(record => ({record})),
+            pendingRecords: records.map(record => {
+                let dataString = JSON.stringify(record.data);
+                // Detect `?sig=` URL search params and redact them before sending events to
+                // Kinesis. `?sig=` parameters would allow a developer to look at any users
+                // files without their permission just by looking at logs. The value of `?sig=`
+                // is a detached JWS (see `dangerouslySignUrl()`). So look for any
+                // base64 characters or `.`.
+                //
+                // Also if we see an [AWS S3 signed URL][1] we want to redact the amazon
+                // signature.
+                //
+                // [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
+                dataString = dataString.replaceAll(
+                    /([?&](?:sig|X-Amz-Signature)=)[A-Za-z0-9+/\-_=.]+/gi,
+                    `$1${debugRedactedString}`,
+                );
+
+                return {
+                    record: {
+                        // Kinesis expects a base64-encoded string [1].
+                        //
+                        // [1]: https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html#Streams-Type-PutRecordsRequestEntry-Data
+                        Data: encodeBase64(new TextEncoder().encode(dataString)),
+                        PartitionKey: record.partitionKey,
+                    },
+                    previousError: undefined,
+                };
+            }),
             previousBatchError: undefined,
         };
 
@@ -197,32 +224,6 @@ export class KinesisClient {
         try {
             return await retryWithExponentialBackoff(
                 async retry => {
-                    const apiRecords = pendingState.pendingRecords.map(({record}) => {
-                        let dataString = JSON.stringify(record.data);
-                        // Detect `?sig=` URL search params and redact them before sending events to
-                        // Kinesis. `?sig=` parameters would allow a developer to look at any users
-                        // files without their permission just by looking at logs. The value of `?sig=`
-                        // is a detached JWS (see `dangerouslySignUrl()`). So look for any
-                        // base64 characters or `.`.
-                        //
-                        // Also if we see an [AWS S3 signed URL][1] we want to redact the amazon
-                        // signature.
-                        //
-                        // [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
-                        dataString = dataString.replaceAll(
-                            /([?&](?:sig|X-Amz-Signature)=)[A-Za-z0-9+/\-_=.]+/gi,
-                            `$1${debugRedactedString}`,
-                        );
-
-                        return {
-                            // Kinesis expects a base64-encoded string [1].
-                            //
-                            // [1]: https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html#Streams-Type-PutRecordsRequestEntry-Data
-                            Data: encodeBase64(new TextEncoder().encode(dataString)),
-                            PartitionKey: record.partitionKey,
-                        };
-                    });
-
                     let request = new Request(this._url, {
                         method: "POST",
                         headers: {
@@ -231,7 +232,7 @@ export class KinesisClient {
                         },
                         body: JSON.stringify({
                             StreamName: this._streamName,
-                            Records: apiRecords,
+                            Records: pendingState.pendingRecords.map(({record}) => record),
                         }),
                     });
 
@@ -283,16 +284,17 @@ export class KinesisClient {
                             `Kinesis PutRecords failed: ${errorType ?? "Unknown"} - ${output.message ?? "No message"}`,
                         );
 
+                        pendingState.previousBatchError = {
+                            errorCode: errorType ?? "UnknownError",
+                            errorMessage: output.message,
+                        };
+
                         // Retry on 5xx errors or throttling.
                         if (
                             response.status >= 500 ||
                             errorType === "ProvisionedThroughputExceededException" ||
                             errorType === "KMSThrottlingException"
                         ) {
-                            pendingState.previousBatchError = {
-                                errorCode: errorType ?? "UnknownError",
-                                errorMessage: output.message,
-                            };
                             throw retry(error);
                         }
 

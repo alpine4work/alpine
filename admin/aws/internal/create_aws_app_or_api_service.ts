@@ -38,6 +38,7 @@ import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {AwsApplicationLoadBalancerFromCloudflare} from "~/admin/aws/internal/constructs/aws_application_load_balancer_from_cloudflare.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {ecsStopTimeoutMs} from "~/server/helpers/node/shutdown_timeouts.js";
 
 /**
  * Creates either the API service or the App service.
@@ -244,7 +245,7 @@ export function createAwsAppOrApiService(
         // Increase stop timeout to two minutes so essential background processes
         // have ample time to finish. For example, task action indexing which is done
         // in the background with `context.process.waitUntil()`.
-        stopTimeout: Duration.minutes(2),
+        stopTimeout: Duration.millis(ecsStopTimeoutMs),
         // For security, use the `www-data` user which exists on our Linux image. It
         // only has read access and execute access to files on our system.
         user: "www-data",

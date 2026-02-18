@@ -5,7 +5,7 @@ import * as os from "os";
 import process from "process";
 import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
-import {ShutdownManager} from "~/server/node/shutdown_manager.js";
+import {ShutdownManager, ShutdownReason} from "~/server/node/shutdown_manager.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
 import {HoneycombDataset, TracerClient} from "~/server/tracer/tracer_client.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -59,6 +59,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     import: importService,
     withoutCluster = false,
     honeycombDataset,
+    shutdownAfterRun = false,
 }: {
     serviceName: TracerServiceName;
     import: () => Promise<{
@@ -74,12 +75,25 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     }>;
     withoutCluster?: boolean;
     honeycombDataset: HoneycombDataset;
+    /**
+     * If true, the service will gracefully shutdown after `run()` completes.
+     * Use this for non-daemon services like `MigrationService` that should exit
+     * after their work is done. Daemon services like `AppService` should leave
+     * this false so they keep running their HTTP server until a shutdown signal
+     * is received.
+     */
+    shutdownAfterRun?: boolean;
 }) {
     // Make our service easy to find in process managers. We include
     // "cyberworlds" and "node" so you can grep by those strings.
     process.title = `${serviceName}${
         withoutCluster ? " " : cluster.isPrimary ? " primary " : " worker "
     }(cyberworlds, node)`;
+
+    let shutdown: (
+        reason: ShutdownReason,
+        propagationContext: TracerSpanPropagationContext | null,
+    ) => Promise<void>;
 
     async function main() {
         const serviceModuleResult =
@@ -216,13 +230,15 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             },
         });
 
-        const {shutdownManager, shutdown} = ShutdownManager.new({
+        const result = ShutdownManager.new({
             tracer,
             isClusterPrimary: cluster.isPrimary,
             flushTracer: async () => {
                 await honeycombClient?.flushScheduledEventBatch();
             },
         });
+        const shutdownManager = result.shutdownManager;
+        shutdown = result.shutdown;
 
         // Perform a graceful shutdown when requested. Any code in our system can
         // schedule a callback for graceful shutdown with
@@ -432,18 +448,22 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     main().then(
         () => {
             process.off("beforeExit", handleBeforeExitDuringMainCall);
-            process.exitCode = 0;
 
-            // Don't actually call `process.exit()` at this point. For services that start
-            // HTTP servers the service will need to keep running until a shutdown signal
-            // is received (see `shutdownManager`).
+            // For non-daemon services (like MigrationService), gracefully shutdown
+            // after run() completes. Daemon services (like AppService) should keep
+            // running their HTTP server until a shutdown signal is received.
+            if (shutdownAfterRun) {
+                assert(shutdown);
+                void shutdown({type: "ProcessEnded"}, null);
+            }
         },
         error => {
             process.off("beforeExit", handleBeforeExitDuringMainCall);
-            process.exitCode = 1;
 
             // eslint-disable-next-line no-console
             console.error(error);
+
+            process.exit(1);
         },
     );
 }

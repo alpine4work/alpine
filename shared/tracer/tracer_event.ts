@@ -20,6 +20,7 @@ export class TracerEvent {
     private readonly _eventData: LinkedList<TracerEventFullData>;
     private readonly _propagatedEventFlatData: TracerEventFlatData | null;
     private _flatEventData: TracerEventFlatData | null = null;
+    private _flatEventDataForKinesis: TracerEventFlatData | null = null;
 
     constructor(
         time: number,
@@ -43,5 +44,35 @@ export class TracerEvent {
                     : (this._propagatedEventFlatData ?? {});
         }
         return this._flatEventData;
+    }
+
+    public getFlatDataForKinesis(): TracerEventFlatData {
+        const convertPropagatedFlatDataToKinesisFlatData = () => {
+            if (!this._propagatedEventFlatData) return {};
+
+            const newFlatData: TracerEventFlatData = {};
+            for (const [key, value] of Object.entries(this._propagatedEventFlatData)) {
+                newFlatData[key.replaceAll(".", "__")] = value;
+            }
+            return newFlatData;
+        };
+
+        if (this._flatEventDataForKinesis === null) {
+            const flatData =
+                this._eventData !== null
+                    ? buildTracerEventFlatData(this._eventData, this._propagatedEventFlatData, "__")
+                    : convertPropagatedFlatDataToKinesisFlatData();
+
+            flatData["time"] = new Date(this.time).toISOString();
+
+            const eventDuration = flatData["duration_ms"];
+            if (typeof eventDuration === "number") {
+                flatData["end_time"] = new Date(this.time + eventDuration).toISOString();
+            }
+
+            this._flatEventDataForKinesis = flatData;
+        }
+
+        return this._flatEventDataForKinesis;
     }
 }

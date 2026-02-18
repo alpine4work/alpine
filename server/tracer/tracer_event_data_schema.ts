@@ -677,3 +677,32 @@ export const TracerEventFlatDataSchema: ReadonlyMap<
 
     return schema;
 })();
+
+/**
+ * Schema for the flat event data. The map keys are the snake cased key paths.
+ */
+export const TracerEventFlatDataSchemaForGlue: ReadonlyMap<
+    string,
+    SchemaWithOnlyDeserialization<TracerEventFlatData[string]>
+> = (() => {
+    const schema = new Map<string, SchemaWithOnlyDeserialization<TracerEventFlatData[string]>>();
+
+    const add = (snakeCaseKeyPath: string, value: TracerEventDataSchemaBase[string]) => {
+        if (!isPlainObject(value)) {
+            schema.set(snakeCaseKeyPath, value);
+        } else {
+            for (const [camelCaseKey, keyValue] of Object.entries(value)) {
+                const snakeCaseKey = convertCamelCaseToSnakeCase(camelCaseKey);
+                add(`${snakeCaseKeyPath}__${snakeCaseKey}`, keyValue);
+            }
+        }
+    };
+
+    const nestedSchema: TracerEventDataSchemaBase = TracerEventDataSchema;
+    for (const [camelCaseKey, keyValue] of Object.entries(nestedSchema)) {
+        const snakeCaseKey = convertCamelCaseToSnakeCase(camelCaseKey);
+        add(snakeCaseKey, keyValue);
+    }
+
+    return schema;
+})();

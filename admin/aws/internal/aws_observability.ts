@@ -37,7 +37,7 @@ export class AwsObservability extends Construct {
     private readonly _logsBucketPrefix = "logs/";
     private readonly _tracerEventBucketPrefix = "tracer/events";
     private readonly _tracerEventS3FirehoseStreamName = "tracer-events-s3";
-    private readonly _tracerEventGlueDatabaseName = "tracer_events";
+    private readonly _tracerEventGlueDatabaseName = "tracer";
 
     private readonly _loggingBucket: Bucket;
     private readonly _tracerEventStream: KinesisDataStream;
@@ -118,11 +118,26 @@ export class AwsObservability extends Construct {
                 tableType: "EXTERNAL_TABLE",
                 parameters: {
                     classification: "parquet",
+                    "projection.enabled": "true",
+
+                    "projection.partition_date.type": "date",
+                    "projection.partition_date.range": "2024-01-01,NOW",
+                    "projection.partition_date.format": "yyyy-MM-dd",
+
+                    "storage.location.template":
+                        // eslint-disable-next-line no-template-curly-in-string
+                        "s3://cyberworlds-observability-logs/tracer/events/parquet/${partition_date}/",
                 },
                 // NOTE(ifitzsimmons): This is absolutely derived from Stack Overflow [1]
                 // [1]: https://stackoverflow.com/questions/71213512/how-to-add-serde-parameters-in-cdk
                 storageDescriptor: {
-                    columns: [...generateTracerEventGlueSchema()],
+                    columns: [
+                        // Added manually since it's not part of the tracer event data schema
+                        // in TracerEvent.getFlatDataForKinesis()
+                        {name: "time", type: "string"},
+                        {name: "end_time", type: "string"},
+                        ...generateTracerEventGlueSchema(),
+                    ],
                     location: `s3://${this._loggingBucket.bucketName}/${this._tracerEventBucketPrefix}/parquet/`,
                     inputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
                     outputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
@@ -134,6 +149,7 @@ export class AwsObservability extends Construct {
                         },
                     },
                 },
+                partitionKeys: [{name: "partition_date", type: "string"}],
             },
         });
         glueTable.addDependency(glueDatabase);
@@ -201,8 +217,8 @@ export class AwsObservability extends Construct {
             extendedS3DestinationConfiguration: {
                 bucketArn: this._loggingBucket.bucketArn,
                 roleArn: s3FirehoseRole.roleArn,
-                prefix: `${this._tracerEventBucketPrefix}/parquet/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/`,
-                errorOutputPrefix: `${this._tracerEventBucketPrefix}/parquet-errors/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/!{firehose:error-output-type}/`,
+                prefix: `${this._tracerEventBucketPrefix}/parquet/!{timestamp:yyyy-MM-dd}/`,
+                errorOutputPrefix: `${this._tracerEventBucketPrefix}/parquet-errors/!{timestamp:yyyy-MM-dd}/!{firehose:error-output-type}/`,
                 bufferingHints: {
                     intervalInSeconds: 300, // 5 minutes
                     sizeInMBs: 128, // 128MB

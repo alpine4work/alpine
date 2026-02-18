@@ -21,6 +21,7 @@ export type TracerEventFlatData = {
 export function buildTracerEventFlatData(
     nestedDataList: LinkedList<TracerEventDataBase>,
     propagatedFlatData: TracerEventFlatData | null,
+    joinOperator: "." | "__" = ".",
 ): TracerEventFlatData {
     const data: TracerEventFlatData = {};
 
@@ -39,7 +40,7 @@ export function buildTracerEventFlatData(
         } else {
             for (const [camelCaseKey, keyValue] of Object.entries(value)) {
                 const snakeCaseKey = convertCamelCaseToSnakeCase(camelCaseKey);
-                add(`${snakeCaseKeyPath}.${snakeCaseKey}`, keyValue);
+                add(`${snakeCaseKeyPath}${joinOperator}${snakeCaseKey}`, keyValue);
             }
         }
     };
@@ -57,11 +58,24 @@ export function buildTracerEventFlatData(
 
     if (propagatedFlatData !== null) {
         for (const [key, value] of Object.entries(propagatedFlatData)) {
-            // Propagated event data is overridden by event data defined in this process.
-            // So make sure the key doesn't have a value already before copying over
-            // propagated flat data.
-            if (data[key] === undefined) {
-                data[key] = value;
+            // If the flattened data was flattened with a different join operator,
+            // convert the key to the new join operator.
+            let newKey = key;
+
+            // TODO(ifitzsimmons) To avoid adding O(n) replace calls to our logging
+            // processes, we can/should precompute the key conversion map and use it
+            // here.
+            if (joinOperator === ".") {
+                newKey = key.replace(/__/g, ".");
+            } else if (joinOperator === "__") {
+                newKey = key.replace(/\./g, "__");
+            }
+
+            // Propagated event data is overridden by event data defined in this
+            // process. So make sure the key doesn't have a value already before
+            // copying over propagated flat data.
+            if (data[newKey] === undefined) {
+                data[newKey] = value;
             }
         }
     }

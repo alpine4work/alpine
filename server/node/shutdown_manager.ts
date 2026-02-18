@@ -1,5 +1,9 @@
+import {shutdownManagerTimeoutMs} from "~/server/helpers/node/shutdown_timeouts.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {DeadlineExceededError} from "~/shared/error/error.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
@@ -12,6 +16,9 @@ export type ShutdownReason =
     | {
           readonly type: "Error";
           readonly error: unknown;
+      }
+    | {
+          readonly type: "ProcessEnded";
       };
 
 export interface ShutdownManagerBase {
@@ -200,10 +207,28 @@ export class ShutdownManager implements ShutdownManagerBase {
                 if (hasError) throw error;
             });
 
-        const fullShutdownPromise = runAllPromises([
-            ingressTrafficShutdownPromise,
-            shutdownPromise,
-            waitUntilShutdownPromise,
+        // Create a cancellable timeout that rejects after 5 minutes if shutdown
+        // hangs. We use `createTimeout` instead of `wait()` because `wait()`
+        // creates a timer that cannot be cancelled. If we used `wait()`, the
+        // timer would keep running even after shutdown completes, preventing
+        // Node.js from exiting.
+        const shutdownTimeoutPromise = createPromiseResolver();
+        const timeout = createTimeout(() => {
+            shutdownTimeoutPromise.reject(
+                new DeadlineExceededError("Shutdown timed out after 5 minutes"),
+            );
+        }, shutdownManagerTimeoutMs);
+
+        const fullShutdownPromise = Promise.race([
+            (async () => {
+                await runAllPromises([
+                    ingressTrafficShutdownPromise,
+                    shutdownPromise,
+                    waitUntilShutdownPromise,
+                ]);
+                timeout.clear();
+            })(),
+            shutdownTimeoutPromise.promise,
         ]);
 
         await fullShutdownPromise.then(

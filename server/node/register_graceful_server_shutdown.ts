@@ -22,12 +22,9 @@
 
 import {Server} from "http";
 import {Socket} from "net";
+import {httpServerGracefulForceShutdownTimeoutMs} from "~/server/helpers/node/shutdown_timeouts.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
-
-// If the server needs to be stopped and it seems to be having trouble keeping
-// up with pending requests we should just force the closing of the connections
-const forcedStopTimeoutMs = 1000 * 120;
 
 // In cases a client is sending no more requests, we won't have the opportunity
 // to send `Connection: close` back In these cases we should just end the
@@ -146,7 +143,7 @@ export function registerGracefulServerShutdown(shutdownManager: ShutdownManager,
             for (const socket of reqCountBySocket.keys()) {
                 socket.end();
             }
-        }, forcedStopTimeoutMs);
+        }, httpServerGracefulForceShutdownTimeoutMs);
 
         await new Promise<void>((resolve, reject) =>
             // callback won't be called as long as there are open connections. So here

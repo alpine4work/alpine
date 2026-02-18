@@ -289,7 +289,7 @@ async function sendEventsToKinesis(
             try {
                 const kinesisRecords = events.map((event): KinesisPutRecordsRequestEntry => {
                     return {
-                        data: event.getFlatData(),
+                        data: event.getFlatDataForKinesis(),
                         partitionKey:
                             tracer.getRoot().sharedEventData.trace?.traceId ||
                             generateId<TraceId>(),
