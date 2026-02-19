@@ -33,7 +33,6 @@ export const taskDetailViewTitleFontSize = "300";
 export const taskDetailViewTitleLineHeight = "6";
 export const taskDetailViewFieldLabelColor = "grey-60";
 export const taskDetailViewFieldLabelFontSize = "75";
-export const taskDetailViewCommentSidebarWidth = "128";
 export const taskDetailNotesFieldLabelPaddingBottom = "1";
 export const taskDetailViewSubtasksFieldLabelPaddingBottom = "2";
 export const taskCommentsHeaderNavigationBarSpacing = "8";

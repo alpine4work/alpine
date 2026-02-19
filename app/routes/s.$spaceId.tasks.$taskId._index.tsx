@@ -18,7 +18,6 @@ import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hou
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {taskDetailViewCommentSidebarWidth} from "~/client/web/styles/tasks_shared_styles.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/web/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {
@@ -684,7 +683,6 @@ export default function TaskRoute() {
         {
             initialEntry: inboxEntry,
             maxWidth: "full",
-            sidebarRightWidth: taskDetailViewCommentSidebarWidth,
         },
         <TaskGridViewDndContext store={store}>
             <TaskDetailView

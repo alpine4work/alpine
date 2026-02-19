@@ -52,7 +52,6 @@ export function InboxBannerOutletContainer({
     parentEntry,
     navigation,
     maxWidth,
-    sidebarRightWidth,
     withoutArchiveButton,
     children,
 }: {
@@ -60,7 +59,6 @@ export function InboxBannerOutletContainer({
     parentEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     navigation: InboxContextNavigation | null;
     maxWidth: Spacing | "full";
-    sidebarRightWidth?: Spacing;
     withoutArchiveButton?: boolean;
     children?: ReactNode;
 }) {
@@ -563,9 +561,6 @@ export function InboxBannerOutletContainer({
                                 </Button>
                             )}
                         </Box>
-                        {sidebarRightWidth && routeLayout !== "narrow" ? (
-                            <Box height="full" flexShrink="0" width={sidebarRightWidth}></Box>
-                        ) : null}
                     </Box>
                 </Box>
                 <InboxContextProvider entry={entry}>{children}</InboxContextProvider>
