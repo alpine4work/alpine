@@ -1588,7 +1588,16 @@ export function TaskDetailView({
                     // `<TaskCommentInput>` is replying to some text and so has a border that
                     // renders on top of the input when scrolled to the top the border renders
                     // under our task comment section header.
-                    zIndex: "30",
+                    //
+                    // This is a little hacky since we only use `z-index: 30` if there's a parent.
+                    // When there's not a parent, we want the `<TaskCommentInput>`s toolbar to
+                    // render over the comment section header ([otherwise we get this bug][1]).
+                    // When there's a parent, coincidentally the toolbar doesn't render outside the
+                    // bounds of the `<TaskCommentInput>` so the comment header <> toolbar overlap
+                    // case isn't possible.
+                    //
+                    // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cbx1taekdm9vmzj1hqj4xb57ym
+                    zIndex: commentInputParent ? "30" : undefined,
                     node: (
                         <Box
                             display="flex"
@@ -2192,6 +2201,8 @@ function TaskDetailViewMain(
         [focusDueDateInput, focusPriorityInput, statusButtonRef, titleInputRef],
     );
 
+    const childTaskCount = task?.getChildTaskCount() ?? 0;
+
     return (
         <>
             <Box height="safe-area-inset-top" />
@@ -2250,7 +2261,7 @@ function TaskDetailViewMain(
                             onTitleChange={onTitleChange}
                             placeholder={taskFallbackTitle}
                         />
-                        {task && task.getChildTaskCount() > 0 && (
+                        {task && childTaskCount > 0 && (
                             <TaskDetailViewChildTasksButton viewRef={viewRef} task={task} />
                         )}
                     </Box>
@@ -2468,7 +2479,14 @@ function TaskDetailViewMain(
                         // Affordance for mouse users. Clicking on a label focuses child tasks.
                         onClick={focusChildrenGridViewStart}
                     >
-                        <Box fontSize={taskDetailViewFieldLabelFontSize}>Subtasks</Box>
+                        <Box fontSize={taskDetailViewFieldLabelFontSize}>
+                            Subtasks
+                            {childTaskCount > 100
+                                ? ` ∙ 100+`
+                                : childTaskCount > 0
+                                  ? ` ∙ ${childTaskCount}`
+                                  : ""}
+                        </Box>
                     </span>
                 </Box>
             </Box>
