@@ -24,6 +24,7 @@ import {
     lightColorSchemeSelector,
     mediumSpacingScaleSelector,
     mobilePlatformSelector,
+    overscrollBehaviorVar,
     selectionColorSchemeVars,
     selectorBySpacingScale,
 } from "~/client/web/styles/core/styles_core.js";
@@ -746,7 +747,7 @@ globalStyle(codeBlockWrapper2ClassName, {
     // vertical scrollbar within the element. So this fixes iOS Safari without
     // negatively impacting the experience on other browsers.
     overflowY: "auto",
-    overscrollBehaviorX: "contain",
+    overscrollBehaviorX: overscrollBehaviorVar,
     counterReset: "code-block-line-number",
     borderRadius: borderRadius["1.5"],
     backgroundColor: backgroundColorVar,
@@ -795,7 +796,7 @@ globalStyle(`${fileViewCodeBlockClassName}${codeBlockWrapper2ClassName}`, {
     paddingTop: fileViewCodeBlockMargin,
     paddingBottom: `calc(${fileViewCodeBlockMargin} + var(--safe-area-inset-bottom, 0px))`,
     overflowY: "auto",
-    overscrollBehaviorY: "contain",
+    overscrollBehaviorY: overscrollBehaviorVar,
 });
 
 // In Safari, when the user is scrolling and they reach the end of the scroll
@@ -2556,7 +2557,7 @@ globalStyle(tableWrapper2ClassName, {
     // vertical scrollbar within the element. So this fixes iOS Safari without
     // negatively impacting the experience on other browsers.
     overflowY: "auto",
-    overscrollBehaviorX: "contain",
+    overscrollBehaviorX: overscrollBehaviorVar,
     width: `calc(100% + (${tableOverflowGradientWidth} * 2))`,
     marginTop: `-${tableWrapper2MarginTop}`,
     marginBottom: `-${tableWrapper2MarginBottom}`,

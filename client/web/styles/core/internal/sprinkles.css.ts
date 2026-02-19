@@ -9,7 +9,7 @@
  * [2]: https://tailwindcss.com
  */
 
-import {createVar} from "@vanilla-extract/css";
+import {createVar, fallbackVar, globalStyle} from "@vanilla-extract/css";
 import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
 import murmurhash from "murmurhash";
 import {
@@ -29,34 +29,51 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
+const overscrollBehaviorVar = createVar("overscroll-behavior");
+
+const overscrollBehaviorVarWithFallback = fallbackVar(overscrollBehaviorVar, "none");
+export {overscrollBehaviorVarWithFallback as overscrollBehaviorVar};
+
+globalStyle(mobilePlatformSelector, {
+    vars: {
+        [overscrollBehaviorVar]: "contain",
+    },
+});
+
 const properties = defineProperties({
     properties: {
         // Wherever we have `overflow: "auto"` or `overflow: "scroll"` also add
-        // `overscrollBehavior: "contain"` to prevent scroll chaining. This is
-        // generally a better user experience for elements like drop down menus and
-        // modals which is why we make it the default.
+        // `overscrollBehavior: "none"` (`"contain"` on mobile) to prevent scroll
+        // chaining. This is generally a better user experience for elements like drop
+        // down menus and modals which is why we make it the default.
         //
         // It's especially important, however, on iOS Safari when the keyboard is open.
         // iOS Safari is annoying and makes the `html` element unconditionally
         // scrollable when the keyboard is open. So if the user scrolls a scrollable
         // element we can't let overscroll affect the newly scrollable `html` element.
+        //
+        // We use `overscrollBehavior: "none"` on desktop because the default MacOS
+        // scroll bouncing doesn't feel right for our rich application. And sometimes
+        // looks outright strange when you have sticky top bars/bottom bars that don't
+        // move with the bounce. On mobile, however, scrolling feels broken if it
+        // doesn't bounce.
         overflow: {
-            auto: {overflow: "auto", overscrollBehavior: "contain"},
+            auto: {overflow: "auto", overscrollBehavior: overscrollBehaviorVarWithFallback},
             hidden: "hidden",
             visible: "visible",
-            scroll: {overflow: "scroll", overscrollBehavior: "contain"},
+            scroll: {overflow: "scroll", overscrollBehavior: overscrollBehaviorVarWithFallback},
         },
         overflowX: {
-            auto: {overflowX: "auto", overscrollBehaviorX: "contain"},
+            auto: {overflowX: "auto", overscrollBehaviorX: overscrollBehaviorVarWithFallback},
             hidden: "hidden",
             visible: "visible",
-            scroll: {overflowX: "scroll", overscrollBehaviorX: "contain"},
+            scroll: {overflowX: "scroll", overscrollBehaviorX: overscrollBehaviorVarWithFallback},
         },
         overflowY: {
-            auto: {overflowY: "auto", overscrollBehaviorY: "contain"},
+            auto: {overflowY: "auto", overscrollBehaviorY: overscrollBehaviorVarWithFallback},
             hidden: "hidden",
             visible: "visible",
-            scroll: {overflowY: "scroll", overscrollBehaviorY: "contain"},
+            scroll: {overflowY: "scroll", overscrollBehaviorY: overscrollBehaviorVarWithFallback},
         },
         position: {
             static: "static",
