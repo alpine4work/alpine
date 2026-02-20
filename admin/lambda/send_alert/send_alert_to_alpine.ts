@@ -590,8 +590,6 @@ export async function sendHoneycombAlertToAlpine(
                     );
                 }
 
-                elements.push({type: "Divider"});
-
                 const maxResults = 5;
                 const allRows = Array.from(aggregatedRows.entries());
                 const displayRows = allRows.slice(0, maxResults);
@@ -626,11 +624,21 @@ export async function sendHoneycombAlertToAlpine(
                     const values = keyValues.split("\0");
                     return {
                         cells: [
-                            ...values.map(value => ({
+                            ...values.map((value, index) => ({
                                 elements: [
                                     {
                                         type: "Paragraph" as const,
-                                        elements: [{type: "Text" as const, text: value || ""}],
+                                        elements: [
+                                            {
+                                                type: "Text" as const,
+                                                text: value || "",
+                                                ...(tableColumnKeys[index]?.startsWith(
+                                                    "exception.",
+                                                ) && {
+                                                    marks: [{type: "Code" as const}],
+                                                }),
+                                            },
+                                        ],
                                     },
                                 ],
                             })),
@@ -650,7 +658,7 @@ export async function sendHoneycombAlertToAlpine(
                     type: "Table",
                     width: 1,
                     hasHeaderRow: true,
-                    columns: Array(columnCount).fill({width: 1}),
+                    columns: [...Array(columnCount - 1).fill({width: 1}), {width: 0.000001}],
                     rows: [headerRow, ...dataRows],
                 });
 

@@ -122,12 +122,10 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 *High error rate detected in database connections*
 
----
-
 | error.type | Count |
 | - | - |
 | ConnectionError | 8 |
-| TimeoutError | 2 |
+| TimeoutError | 2<span hidden data-column-widths="1,0.000001"/> |
 
 [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/7dw297xezx6rs6qy4gjh6h5xx4?mention=short) [Unknown](https://alpine.inc/s/test_space_id_for_snapshots/accounts/jttc8n911at1wxt0b8rm75n270?mention=short)
 "
@@ -143,12 +141,43 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 *High error rate detected in database connections*
 
----
-
 | error.type | service.name | Count |
 | - | - | - |
 | ConnectionError | api-gateway | 5 |
-| TimeoutError | database | 3 |
+| TimeoutError | database | 3<span hidden data-column-widths="1,1,0.000001"/> |
+"
+`;
+
+exports[`sendAlertToAlpine Honeycomb webhook payload data formats exception columns with inline code 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+| exception.message | exception.type | service.name | Count |
+| - | - | - | - |
+| \`Connection refused\` | \`NetworkError\` | api-gateway | 5 |
+| \`Timeout exceeded\` | \`TimeoutError\` | database | 3<span hidden data-column-widths="1,1,1,0.000001"/> |
+"
+`;
+
+exports[`sendAlertToAlpine Honeycomb webhook payload data renders single group as a table 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+| exception.message | exception.type | service.name | Count |
+| - | - | - | - |
+| \`Connection refused\` | \`NetworkError\` | api-gateway | 5<span hidden data-column-widths="1,1,1,0.000001"/> |
 "
 `;
 
@@ -188,15 +217,13 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 *High error rate detected in database connections*
 
----
-
 | error | Count |
 | - | - |
 | Error 1 | 1 |
 | Error 2 | 2 |
 | Error 3 | 3 |
 | Error 4 | 4 |
-| Error 5 | 5 |
+| Error 5 | 5<span hidden data-column-widths="1,0.000001"/> |
 
 *(2 more results...)*
 "

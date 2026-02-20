@@ -324,6 +324,54 @@ describe("sendAlertToAlpine", () => {
                 expect(mockFetchCalls).toHaveLength(1);
                 expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
+
+            test("formats exception columns with inline code", async () => {
+                const payload = createHoneycombFixture({
+                    groupsTriggered: [
+                        {
+                            group: [
+                                {key: "exception.message", value: "Connection refused"},
+                                {key: "exception.type", value: "NetworkError"},
+                                {key: "service.name", value: "api-gateway"},
+                            ],
+                            result: 5,
+                        },
+                        {
+                            group: [
+                                {key: "exception.message", value: "Timeout exceeded"},
+                                {key: "exception.type", value: "TimeoutError"},
+                                {key: "service.name", value: "database"},
+                            ],
+                            result: 3,
+                        },
+                    ],
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+            });
+
+            test("renders single group as a table", async () => {
+                const payload = createHoneycombFixture({
+                    groupsTriggered: [
+                        {
+                            group: [
+                                {key: "exception.message", value: "Connection refused"},
+                                {key: "exception.type", value: "NetworkError"},
+                                {key: "service.name", value: "api-gateway"},
+                            ],
+                            result: 5,
+                        },
+                    ],
+                });
+
+                await sendHoneycombAlertToAlpine(payload);
+
+                expect(mockFetchCalls).toHaveLength(1);
+                expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+            });
         });
     });
 
