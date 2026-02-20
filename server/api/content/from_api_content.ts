@@ -121,10 +121,17 @@ export function* fromApiContentBlockElements(
                 break;
             }
             case "Quote": {
-                yield schema.nodes.quoteBlock!.create(
-                    null,
-                    Array.from(fromApiContentBlockElements(schema, element.elements)),
+                const quoteContent = Array.from(
+                    fromApiContentBlockElements(schema, element.elements),
                 );
+
+                // Quote blocks require at least one block element ((paragraph | listItem)+)
+                // If the quote is empty, add an empty paragraph
+                if (quoteContent.length === 0) {
+                    quoteContent.push(schema.nodes.paragraph!.create());
+                }
+
+                yield schema.nodes.quoteBlock!.create(null, quoteContent);
                 break;
             }
             case "Heading": {

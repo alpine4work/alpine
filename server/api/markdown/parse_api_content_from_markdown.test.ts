@@ -1351,6 +1351,19 @@ test("table HTML in blockquote throws error", () => {
     ).toThrow("Table HTML isn\u2019t supported in this Markdown block content parent");
 });
 
+test("empty blockquote creates empty Quote element", () => {
+    // Notion exports can have empty blockquotes like "> \n> \n"
+    // These should be parsed as Quote with empty elements
+    expect(parseApiContentFromMarkdown("> \n> \n", {spaceId})).toEqual({
+        elements: [
+            {
+                type: "Quote",
+                elements: [],
+            },
+        ],
+    });
+});
+
 test("table HTML in inline content throws error", () => {
     expect(() =>
         parseApiContentFromMarkdown(
