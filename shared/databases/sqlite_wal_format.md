@@ -103,6 +103,37 @@ Checksum words stored in WAL are always written as big-endian.
 
 `db_size_after_commit != 0` marks commit frame (transaction boundary).
 
+### Frame page data payload (`page_size` bytes)
+
+The page-data region is a full database page image for `pgno`, not a row-level
+or cell-level diff.
+
+For WAL application semantics, treat frame payload as:
+
+```text
+database_page[pgno] = wal_frame.page_data
+```
+
+subject to commit visibility (`mxFrame`) and checksum/salt validity.
+
+What can appear in frame page data:
+
+- Any normal SQLite database page type from the main DB format.
+- For `pgno=1`, bytes `0..99` are the 100-byte database file header.
+- B-tree pages (table/index, interior/leaf), overflow pages, freelist pages.
+- Pointer-map pages when auto-vacuum/incremental-vacuum is enabled.
+- Reserved bytes at end-of-page (if configured) are included verbatim.
+
+Common b-tree page type bytes:
+
+- `0x02` interior index page
+- `0x05` interior table page
+- `0x0a` leaf index page
+- `0x0d` leaf table page
+
+Implication for replication: WAL payload should be handled as opaque
+`page_size` bytes unless we intentionally build page-level introspection tools.
+
 ## Valid Frame Rules
 
 A frame is valid only if:
@@ -152,15 +183,50 @@ Commit: 0    0   100   0    0   103
 Txn:         TXN A           TXN B
 ```
 
-## WAL Reset and Salt Epochs
+## Checkpointing and WAL File Evolution
 
-After checkpointing all visible frames, WAL can be reset/reused from frame 1.
-On reset:
+Checkpointing moves committed state from `X-wal` back into the main DB file.
+
+Operationally:
+
+1. Choose a checkpoint target frame (a committed frame boundary).
+2. For each page number, apply the latest frame at or before that target.
+3. Sync DB pages per checkpoint mode requirements.
+
+Important: checkpointing updates main DB durability, but it does not require
+rewriting or immediately deleting existing WAL frames.
+
+Simple lifecycle sketch:
+
+```text
+append frames -> checkpoint backfills pages -> WAL may still contain frames
+             -> reset/restart point reached -> WAL reuses frame slot #1
+             -> optional truncate-to-zero
+```
+
+### Checkpoint modes (practical behavior)
+
+- `PASSIVE`: attempt checkpoint without blocking readers/writers; may be partial.
+- `FULL`: wait for writers/readers as needed to checkpoint all possible frames.
+- `RESTART`: like `FULL`, plus ensure next writer restarts WAL at frame 1.
+- `TRUNCATE`: like `RESTART`, plus truncate WAL file to 0 bytes on success.
+
+### Reset and salt epochs
+
+When WAL is restarted from frame 1, SQLite writes a new WAL header epoch:
 
 - `salt1` increments
 - `salt2` is re-randomized
 
-This invalidates stale older-epoch frames left in file tail.
+This invalidates stale older-epoch frame bytes that may still exist in the file
+tail.
+
+### Checkpointing and commit visibility
+
+- Readers only see frames up to their chosen end mark (`mxFrame`).
+- A checkpoint may backfill many pages while readers continue.
+- Uncheckpointed committed frames can remain in WAL and still be valid for
+  readers until reset/truncate conditions are met.
 
 ## Exclusive Locking Mode and WASM
 
@@ -197,5 +263,6 @@ For frame-level replication and optimistic rebase, the hard invariants are:
 - [SQLite WAL Overview (`wal.html`)](https://www.sqlite.org/wal.html)
 - [SQLite source: `src/wal.c` (canonical implementation details)](https://www.sqlite.org/src/doc/tip/src/wal.c)
 - [SQLite PRAGMA docs (`wal_autocheckpoint`, `wal_checkpoint`)](https://www.sqlite.org/pragma.html)
+- [SQLite C API: `sqlite3_wal_checkpoint_v2()`](https://www.sqlite.org/c3ref/wal_checkpoint_v2.html)
 - [SQLite C API: `sqlite3_wal_autocheckpoint()`](https://www.sqlite.org/c3ref/wal_autocheckpoint.html)
 - [SQLite WASM persistence docs (WAL with OPFS)](https://sqlite.org/wasm/doc/tip/persistence.md)
