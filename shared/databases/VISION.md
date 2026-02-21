@@ -18,9 +18,12 @@ flow through the server, which:
 1. Applies SQL writes to the canonical database.
 2. Produces WAL frames as a byproduct of each transaction.
 3. Streams those WAL frames to all connected clients in commit order.
+4. Archives WAL frames in a **frame log** with a retention window (e.g. 7–30 days) for delta sync
+   on client reconnection.
 
 The server is the single source of truth. Its WAL frame sequence defines the authoritative state of
-the database.
+the database. The server checkpoints its own database normally—the frame log is a separate append-
+only archive, not the server's live WAL.
 
 ### Client
 
@@ -29,8 +32,25 @@ for the same database share this one worker. The worker processes one operation 
 concurrent reads or writes within SQLite. Since all interactions are driven by humans through UI, this
 serialization is not a bottleneck.
 
-On connection the client receives a snapshot of the database and then a continuous stream of WAL
-frames from the server.
+#### Storage and sync
+
+The client persists its database locally via **OPFS** (Origin Private File System). This enables
+fast startup: instead of downloading the full database on every connection, the client can resume
+from its local copy.
+
+On connection the client reports its last confirmed frame number to the server. The server decides
+the sync strategy:
+
+- **Delta sync (common case):** The client's frame number falls within the server's frame log
+  retention window. The server streams only the WAL frames the client missed. The client applies
+  them and checkpoints locally. For a productivity database driven by human writes, even a week of
+  frames is typically only tens of megabytes—fast to stream.
+- **Full snapshot (stale client):** The client's frame number is older than the retention window (or
+  the client has no local database at all). The server sends a full database snapshot. The client
+  replaces its local copy and starts fresh.
+
+The threshold is simple: if the server still has the frames, send the delta; otherwise send a
+snapshot. This avoids ever needing to keep WAL frames indefinitely.
 
 #### Reads
 
@@ -106,23 +126,21 @@ connection owns the database. In this mode:
 This is a perfect fit for us. We deliberately run a single SQLite connection in one web worker—we
 don't want or need concurrency. Exclusive locking mode is not a limitation, it's our design.
 
-The remaining challenge is that the official WASM build's exclusive-mode WAL support is tied to OPFS
-storage. We need WAL working with an **in-memory VFS** (since our database state comes from the
-server, not local storage) and we need frame-level control that the official build doesn't expose.
+The remaining challenge is that the official WASM build doesn't expose the frame-level control we
+need. We can likely use its OPFS VFS (or a derivative) for storage, but we need hooks to intercept,
+inject, and revert WAL frames.
 
 ### What we need to build
 
-A **custom SQLite WASM build** with a VFS that implements the `xShm*` methods for single-threaded
-use. This means:
+A **custom SQLite WASM build** that supports WAL in exclusive locking mode with frame-level control.
+This means:
 
-1. Compiling SQLite to WASM with `SQLITE_ENABLE_WAL` (or rather, not disabling it) and
-   `sqlite3_io_methods` version 2+.
-2. Writing a custom VFS (likely in C, compiled alongside SQLite) that:
-   - Stores the database and WAL in memory (we receive state from the server, no need for persistent
-     local storage).
-   - Implements `xShmMap`/`xShmLock`/`xShmBarrier`/`xShmUnmap` as described above.
-   - Exposes hooks to JavaScript for injecting server WAL frames and extracting local WAL frames.
-3. Wrapping this in a JavaScript API that the rest of Alpine's client code can use.
+1. Compiling SQLite to WASM with WAL enabled and exclusive locking mode.
+2. Using OPFS for local persistence (the official build already supports this) or writing a custom
+   VFS if we need more control over file I/O.
+3. Adding hooks (likely thin C API extensions) for injecting server WAL frames, extracting local WAL
+   frames, and reverting optimistic writes.
+4. Wrapping this in a JavaScript API that the rest of Alpine's client code can use.
 
 The VFS also needs to give us **control over the WAL lifecycle** beyond what SQLite's public API
 normally exposes. Specifically we need to:
@@ -139,9 +157,9 @@ Some of this may require patching SQLite's WAL logic or adding thin C API extens
 
 - **wa-sqlite** implemented WAL-like concurrency at the VFS layer (OPFSPermutedVFS) rather than
   using SQLite's actual WAL mode. Interesting engineering but a different approach from ours.
-- **Official SQLite WASM (3.47+)** supports WAL in exclusive locking mode only, which uses heap
-  memory for the WAL index. This proves the basic machinery works in WASM but doesn't give us the
-  frame-level control we need.
+- **Official SQLite WASM (3.47+)** supports WAL in exclusive locking mode, which uses heap memory for
+  the WAL index. Proves the WAL machinery works in WASM but is tied to OPFS and doesn't give us
+  frame-level control.
 - **cr-sqlite** supports WAL in native Node.js but not in browser WASM.
 
 None of these projects have attempted what we're doing: using WAL frames as a synchronization
@@ -173,9 +191,10 @@ protocol. We are likely the first to need this specific capability.
 6. **Memory management.** With the database, WAL, and WAL index all in WASM linear memory, we need
    to be mindful of memory usage for large databases. Checkpointing strategy directly impacts this.
 
-7. **Initial sync.** Clients need to receive the full database state on connection. For large
-   databases this could be a significant transfer. We may need to support incremental sync or
-   compression.
+7. **Frame log retention.** The server needs to archive WAL frames in an append-only log with a
+   retention window. Choosing the right retention period is a tradeoff between storage cost and how
+   often clients fall back to full snapshots. The frame log storage (likely R2 or similar) needs to
+   support efficient range reads by frame number.
 
 ## Open questions
 
@@ -186,10 +205,10 @@ protocol. We are likely the first to need this specific capability.
 - How do we handle schema migrations in a world where clients may be mid-transaction when a schema
   change arrives?
 - What is our story for conflict resolution beyond "last writer wins at the SQL level"?
-- How large can databases get before the in-memory WASM approach becomes impractical?
+- How large can databases get before the WASM/OPFS approach becomes impractical?
 
 ## Non-goals (for now)
 
-- Offline support / local persistence (databases live on the server, clients are online).
-- Multi-tab coordination (one tab, one connection, one thread).
+- Offline support (OPFS persistence is for fast reconnect, not offline editing).
+- SQLite concurrency (single connection in exclusive locking mode by design).
 - UI design (TBD, the current focus is the synchronization engine).
