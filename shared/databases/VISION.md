@@ -44,8 +44,9 @@ the sync strategy:
 
 - **Delta sync (common case):** The client's frame number falls within the server's frame log
   retention window. The server streams only the WAL frames the client missed. The client applies
-  them and checkpoints locally. For a productivity database driven by human writes, even a week of
-  frames is typically only tens of megabytes—fast to stream.
+  them and checkpoints locally (safe because these are confirmed server frames with no pending
+  optimistic writes at reconnect time). For a productivity database driven by human writes, even a
+  week of frames is typically only tens of megabytes—fast to stream.
 - **Full snapshot (stale client):** The client's frame number is older than the retention window (or
   the client has no local database at all). The server sends a full database snapshot. The client
   replaces its local copy and starts fresh.
@@ -171,18 +172,42 @@ protocol. We are likely the first to need this specific capability.
 1. **Custom SQLite WASM build.** We need to compile SQLite ourselves with a custom VFS rather than
    using an off-the-shelf WASM distribution. This is a meaningful build infrastructure investment.
 
-2. **WAL frame interception.** SQLite's WAL is an internal implementation detail, not a public API
-   surface. Extracting frames after local writes and injecting server frames will require either
-   patching SQLite source or carefully hooking the VFS layer.
+2. **WAL frame interception and invariants.** SQLite's WAL is an internal implementation detail, not
+   a public API surface. Extracting frames after local writes and injecting server frames will
+   require either patching SQLite source or carefully hooking the VFS layer. Beyond the
+   interception mechanism, frame replication has hard physical invariants that must be maintained:
+   - **Page size pinning.** Server and all clients must use the same page size. This must be set at
+     database creation and never changed, since WAL frames are raw pages.
+   - **Checksum chain.** Each WAL frame contains a cumulative checksum that chains from the previous
+     frame. Injecting server frames means either replaying the server's checksum chain or
+     recomputing it locally. A broken chain makes the WAL unreadable.
+   - **Salt values.** The WAL header contains two salt values that change on every WAL reset
+     (checkpoint that truncates the WAL). Frames are only valid if their salts match the WAL
+     header. Server-to-client frame injection must account for this.
+   - These invariants need to be fully understood and pinned down during the feasibility spike
+     before we commit to a wire format.
 
 3. **Revert semantics.** SQLite doesn't natively support "undo the last transaction's WAL frames."
-   We need to figure out the right mechanism—possibly manipulating the WAL index's `mxFrame` and
-   relying on the fact that unreferenced frames are invisible to readers, or using savepoints, or
-   direct WAL file manipulation.
+   We need to figure out the exact mechanism, and it's harder than "just discard the frames"
+   because we need to account for:
+   - **Connection state:** What happens to open transactions, prepared statements, and cached state
+     when we rewind the WAL underneath SQLite? We may need to close and reopen the connection, or
+     find a way to invalidate SQLite's internal caches.
+   - **WAL index consistency:** If we manipulate `mxFrame` to hide optimistic frames, the WAL index
+     hash table still has entries for those frames. We need to understand whether SQLite handles
+     this gracefully or whether the index must be rebuilt/corrected.
+   - **Frame boundaries:** We must track exactly which WAL frames belong to each optimistic write so
+     we know precisely where to rewind to. This means recording the frame boundary (start/end frame
+     number and base server commit sequence) for every speculative mutation.
+   - Possible approaches: manipulating `mxFrame` and relying on unreferenced frames being invisible
+     to readers, savepoints, direct WAL file truncation, or closing and reopening the database.
+     The feasibility spike must determine which approach is correct.
 
-4. **Checkpoint control.** SQLite auto-checkpoints by default (after 1000 WAL frames). We need fine-
-   grained control over when checkpointing happens so we don't lose the ability to revert optimistic
-   writes.
+4. **Checkpoint control.** SQLite auto-checkpoints by default (after 1000 WAL frames). We need to
+   disable auto-checkpoint and only checkpoint at explicit safe boundaries. The rule:
+   checkpointing is safe after applying **confirmed server frames** with no pending optimistic
+   writes. It is never safe to checkpoint while optimistic frames exist, because checkpointing
+   merges WAL pages into the database file, making them irreversible.
 
 5. **Rebase correctness.** When rebasing a local optimistic write on top of newly-arrived server
    state, re-executing the SQL command may produce different results (different rows affected,
