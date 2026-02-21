@@ -12,8 +12,9 @@ concurrency model.
 
 ### Server
 
-A centralized server holds the canonical SQLite database for each user database. All committed writes
-flow through the server, which:
+A centralized server holds the canonical SQLite database for each user database. The server runs the
+**same custom SQLite WASM build and TypeScript code** as the client—one shared implementation across
+Cloudflare Workers, Node.js, and the browser. All committed writes flow through the server, which:
 
 1. Applies SQL writes to the canonical database.
 2. Produces WAL frames as a byproduct of each transaction.
@@ -188,8 +189,10 @@ protocol. We are likely the first to need this specific capability.
    constraint violations that didn't exist before). The client needs to handle these cases
    gracefully.
 
-6. **Memory management.** With the database, WAL, and WAL index all in WASM linear memory, we need
-   to be mindful of memory usage for large databases. Checkpointing strategy directly impacts this.
+6. **Memory management.** With OPFS, only SQLite's page cache lives in WASM linear memory—the full
+   database stays on disk and pages are loaded on demand. This means large databases don't blow up
+   memory, but we still need to be thoughtful about page cache sizing and WAL growth (uncheck-
+   pointed WAL frames accumulate in memory via the WAL index).
 
 7. **Frame log retention.** The server needs to archive WAL frames in an append-only log with a
    retention window. Choosing the right retention period is a tradeoff between storage cost and how
@@ -200,8 +203,6 @@ protocol. We are likely the first to need this specific capability.
 
 - What is the right granularity for server-to-client sync: raw WAL frames, or a higher-level
   representation?
-- Should the server run SQLite too, or could it use a different storage engine that produces
-  WAL-compatible frames?
 - How do we handle schema migrations in a world where clients may be mid-transaction when a schema
   change arrives?
 - What is our story for conflict resolution beyond "last writer wins at the SQL level"?
