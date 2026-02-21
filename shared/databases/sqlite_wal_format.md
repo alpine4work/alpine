@@ -6,7 +6,6 @@ format we need to reason about for Alpine realtime semantics.
 It focuses on:
 
 - `-wal` on-disk format (cross-platform)
-- `-shm` wal-index format (unix/windows reference implementation)
 - exclusive-locking behavior (important for WASM/OPFS)
 - invariants that matter for frame streaming, injection, rebase, and rollback
 
@@ -15,9 +14,8 @@ It focuses on:
 SQLite currently defines:
 
 - WAL file format version: `3007000`
-- WAL-index format version: `3007000`
 
-Those values are explicitly enforced in SQLite's WAL implementation.
+That value is explicitly enforced in SQLite's WAL implementation.
 
 ## Files In WAL Mode
 
@@ -25,10 +23,9 @@ In active WAL mode, SQLite usually uses:
 
 - main DB: `X`
 - WAL: `X-wal`
-- wal-index: `X-shm`
 
-In `PRAGMA locking_mode=EXCLUSIVE`, SQLite omits `X-shm` and keeps the
-wal-index in heap memory.
+In `PRAGMA locking_mode=EXCLUSIVE` (our mode), WAL behavior still applies but
+shared-memory coordination details are not part of the integration surface.
 
 ## `-wal` Binary Format
 
@@ -165,90 +162,11 @@ On reset:
 
 This invalidates stale older-epoch frames left in file tail.
 
-## `-shm` WAL-Index Format (Reference Implementation)
-
-`X-shm` is a transient index/cache for fast page lookup and lock coordination.
-It is reconstructible from WAL, not part of durable DB state.
-
-Key properties:
-
-- multi-byte integers use host native byte order (not cross-platform format)
-- except copied WAL salt bytes, which keep WAL byte order
-- file is chunked in 32,768-byte units
-
-### Unit layout
-
-First 32,768-byte unit:
-
-```text
-u8  aWalIndexHeader[136]
-u32 aPgno[4062]
-u16 aHash[8192]
-```
-
-Subsequent 32,768-byte units:
-
-```text
-u32 aPgno[4096]
-u16 aHash[8192]
-```
-
-### Header layout (136 bytes total)
-
-The first 96 bytes are two copies of `WalIndexHdr` (48 bytes each), then
-checkpoint/reader-lock metadata.
-
-| Offset | Size | Field |
-|---:|---:|---|
-| 0..47 | 48 | WalIndexHdr copy #1 |
-| 48..95 | 48 | WalIndexHdr copy #2 |
-| 96..99 | 4 | `nBackfill` |
-| 100..119 | 20 | `readMark[0..4]` |
-| 120..127 | 8 | lock bytes |
-| 128..131 | 4 | `nBackfillAttempted` |
-| 132..135 | 4 | padding/reserved |
-
-`WalIndexHdr` field offsets (within each 48-byte copy):
-
-| Offset | Size | Field |
-|---:|---:|---|
-| 0..3 | 4 | `iVersion` (`3007000`) |
-| 4..7 | 4 | unused |
-| 8..11 | 4 | `iChange` |
-| 12 | 1 | `isInit` |
-| 13 | 1 | `bigEndCksum` |
-| 14..15 | 2 | `szPage` (`1` encodes 65536) |
-| 16..19 | 4 | `mxFrame` |
-| 20..23 | 4 | `nPage` |
-| 24..31 | 8 | `aFrameCksum` |
-| 32..39 | 8 | `aSalt` |
-| 40..47 | 8 | `aCksum` (checksum of bytes 0..39) |
-
-Notes:
-
-- SQLite double-copies this header and validates equality + checksum to detect
-  torn/dirty concurrent reads.
-- The lock region begins at offset 120 in the standard implementation.
-- `readMark[0..4]` reflects the default 5-reader build configuration.
-
-### Hash lookup
-
-For page `P`, base hash is:
-
-```text
-h = (P * 383) % 8192
-```
-
-`aHash` open-addresses into `aPgno` indexes. Search proceeds from newest unit to
-oldest to find latest frame ≤ reader max frame.
-
 ## Exclusive Locking Mode and WASM
 
 In exclusive locking mode:
 
-- SQLite does not require shared-memory APIs (`xShmMap/xShmLock/...`)
-- no `-shm` file is required
-- wal-index is maintained in heap memory
+- no shared-memory `-shm` file is part of the required runtime contract
 
 Important for us:
 
@@ -268,11 +186,9 @@ For frame-level replication and optimistic rebase, the hard invariants are:
 4. Salt epoch transitions (WAL reset) must be tracked; old-epoch frames are
    invalid against new header salts.
 5. Commit boundaries come only from commit frames (`db_size_after_commit != 0`).
-6. Rewind/rebase logic must preserve coherent `mxFrame` semantics and either
-   rebuild or correctly maintain wal-index mappings.
+6. Rewind/rebase logic must preserve coherent `mxFrame` visibility semantics.
 7. Auto-checkpoint should be disabled during speculative periods where rollback
    of optimistic frames may be needed.
-8. Replicate WAL frames, not `-shm`; wal-index is host-endian transient state.
 
 ## References
 
