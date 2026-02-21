@@ -37,15 +37,17 @@ effectively zero.
 1. The client executes a SQL write against its local SQLite instance. This produces local WAL frames
    that are immediately visible to local reads (optimistic update).
 2. The client sends the SQL command to the server for canonical execution.
-3. **Success, no intervening commits:** The server commits the write. The server's WAL frames arrive
-   at the client. The client's local WAL frames already reflect the same state, so the client just
-   advances its checkpoint past the local frames.
-4. **Success, with intervening commits:** Other server commits arrived while the client was waiting.
-   The client reverts its local WAL frames (restoring the pre-optimistic state), applies the
-   intervening server frames, then re-executes the original SQL command locally to produce new
-   optimistic frames. This "rebase" is analogous to a git rebase—replay local work on top of the
-   latest canonical state.
-5. **Failure:** The server rejects the write (constraint violation, permission error, etc.). The
+3. **Success:** The server commits the write and streams back its WAL frames. The client reverts its
+   local optimistic WAL frames and applies all the server's frames. The server always wins—even if
+   no other commits intervened, the server's frames are canonical because SQL can be
+   non-deterministic (`random()`, `now()`, trigger side effects, etc.) so the client's optimistic
+   frames may differ from the server's actual result.
+   - **Intervening commits:** While the client's write is in flight, other users' commits may arrive
+     via the realtime stream. The client must revert its optimistic frames, apply the incoming server
+     frames, then re-execute the original SQL command locally to produce fresh optimistic frames on
+     top of the new base state. This "rebase" may need to happen multiple times before the client's
+     own write is confirmed by the server.
+4. **Failure:** The server rejects the write (constraint violation, permission error, etc.). The
    client reverts its local WAL frames, discarding the optimistic update.
 
 The key property that makes this work: **WAL frames are revertible.** We can undo a local optimistic
