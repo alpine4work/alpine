@@ -24,8 +24,13 @@ the database.
 
 ### Client
 
-Each client runs its own SQLite instance in WASM. On connection it receives a snapshot of the
-database and then a continuous stream of WAL frames from the server.
+Each client runs a single SQLite instance in WASM inside a **shared web worker**. All browser tabs
+for the same database share this one worker. The worker processes one operation at a time—no
+concurrent reads or writes within SQLite. Since all interactions are driven by humans through UI, this
+serialization is not a bottleneck.
+
+On connection the client receives a snapshot of the database and then a continuous stream of WAL
+frames from the server.
 
 #### Reads
 
@@ -71,12 +76,12 @@ frames are:
 
 ## The WASM WAL problem
 
-SQLite's official WASM build does not support WAL mode (except in exclusive locking mode, which
-disables concurrency). This is our primary technical challenge.
+SQLite's official WASM build does not support WAL mode in the general case. This is our primary
+technical challenge.
 
 ### Why WAL doesn't work in WASM today
 
-WAL mode requires the VFS to implement four shared-memory methods (`xShmMap`, `xShmLock`,
+WAL mode normally requires the VFS to implement four shared-memory methods (`xShmMap`, `xShmLock`,
 `xShmBarrier`, `xShmUnmap`). These manage the **WAL index** (the `-shm` file), a shared-memory
 region that:
 
@@ -87,30 +92,23 @@ region that:
 On native platforms this is implemented via `mmap()` on a shared file. Browsers have no equivalent
 primitive, so the official WASM build omits these methods entirely.
 
-There is a second, deeper issue: SQLite's `wal.c` performs **direct pointer arithmetic** on the
-shared memory returned by `xShmMap` using atomic load/store macros. These bypass the VFS abstraction.
-On native builds they compile to atomic CPU instructions on memory-mapped regions. In WASM, the
-pointers live in linear memory, which is fine for single-threaded access but would require custom
-SQLite macro redefinitions for any multi-threaded scenario.
+### Exclusive locking mode: our path forward
 
-### Why this should be solvable for us
+SQLite has an **exclusive locking mode** (`PRAGMA locking_mode=EXCLUSIVE`) where it assumes a single
+connection owns the database. In this mode:
 
-Our use case is fundamentally **single-threaded, single-connection**. Each client has exactly one
-SQLite connection in one JavaScript thread. We don't need:
+- The WAL index is kept in **heap memory** instead of shared memory. The `xShm*` VFS methods are
+  never called.
+- No lock arbitration or atomic operations are needed.
+- The official SQLite WASM build (3.47+) already supports WAL in exclusive locking mode for
+  OPFS-hosted databases, proving the basic machinery works.
 
-- Cross-process shared memory (no other process is accessing our database).
-- Atomic instructions (no concurrent threads are touching the WAL index).
-- Lock arbitration (there's only one reader/writer).
+This is a perfect fit for us. We deliberately run a single SQLite connection in one web worker—we
+don't want or need concurrency. Exclusive locking mode is not a limitation, it's our design.
 
-In this context:
-
-- `xShmMap` can allocate regions in WASM linear memory (normal `malloc`).
-- `xShmLock` can be a no-op or trivial bookkeeping (no contention possible).
-- `xShmBarrier` can be a no-op (no other threads to synchronize with).
-- `xShmUnmap` can free the allocated memory.
-
-The atomic load/store macros in `wal.c` compile to plain memory reads/writes in single-threaded WASM,
-which is correct behavior. No macro redefinition should be needed.
+The remaining challenge is that the official WASM build's exclusive-mode WAL support is tied to OPFS
+storage. We need WAL working with an **in-memory VFS** (since our database state comes from the
+server, not local storage) and we need frame-level control that the official build doesn't expose.
 
 ### What we need to build
 
