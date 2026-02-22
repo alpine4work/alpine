@@ -103,7 +103,7 @@ export type SpaceWelcomePackageKeys =
 export const SpaceAccountDimensionSchema = Schema.object({
     space_id: Schema.string,
     account_id: Schema.string,
-    role: Schema.string,
+    role: Schema.string.optional(),
     added_time: Schema.string,
     state: Schema.string,
 });

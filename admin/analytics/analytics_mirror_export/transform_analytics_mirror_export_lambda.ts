@@ -29,6 +29,8 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertId} from "~/shared/id/id.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const s3Client = new S3Client({});
 
@@ -103,7 +105,7 @@ export const handler: S3Handler = async (event: S3Event, context: Context) => {
             const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, " "));
 
             // Extract table name from the export path
-            // Path format: exports/{table-name}/AWSDynamoDB/{export-id}/manifest-files.json
+            // Path format: raw-exports/{table-name}/AWSDynamoDB/{export-id}/manifest-files.json
             const tableName = extractTableNameFromPath(key);
             if (!tableName) {
                 // eslint-disable-next-line no-console
@@ -154,8 +156,8 @@ export const handler: S3Handler = async (event: S3Event, context: Context) => {
 };
 
 function extractTableNameFromPath(key: string): string | null {
-    // Path format: exports/{table-name}/AWSDynamoDB/{export-id}/manifest-files.json
-    const match = key.match(/^exports\/([^/]+)\/AWSDynamoDB\//);
+    // Path format: raw-exports/{table-name}/AWSDynamoDB/{export-id}/manifest-files.json
+    const match = key.match(/^raw-exports\/([^/]+)\/AWSDynamoDB\//);
     return match?.[1] ?? null;
 }
 
@@ -307,8 +309,8 @@ function transformAccountsTableItem(
     mergeData: MergeData,
 ): void {
     // Account#Attributes -> merge into accounts
-    if (partitionKey.startsWith("Account#") && sortKey === "Attributes") {
-        const accountId = partitionKey.replace("Account#", "");
+    if (partitionKey.startsWith("Account#") && sortKey.endsWith("#Attributes")) {
+        const accountId = assertId<AccountId>(partitionKey.replace("Account#", ""));
 
         // Parse the bot field if present
         const botValue = parseAttributeValue<{spaceId: string; botId: string} | undefined>(
@@ -318,8 +320,8 @@ function transformAccountsTableItem(
         let botId: string | null = null;
         if (botValue && typeof botValue === "object" && !Array.isArray(botValue)) {
             const bot = botValue;
-            botSpaceId = typeof bot.spaceId === "string" ? bot.spaceId : null;
-            botId = typeof bot.botId === "string" ? bot.botId : null;
+            botSpaceId = typeof bot.spaceId === "string" ? assertId<SpaceId>(bot.spaceId) : null;
+            botId = typeof bot.botId === "string" ? assertId<BotId>(bot.botId) : null;
 
             if ((botSpaceId && !botId) || (botId && !botSpaceId)) {
                 throw new InvalidArgumentError(
@@ -342,8 +344,8 @@ function transformAccountsTableItem(
     }
 
     // Account#Settings -> merge into accounts
-    if (partitionKey.startsWith("Account#") && sortKey === "Settings") {
-        const accountId = partitionKey.replace("Account#", "");
+    if (partitionKey.startsWith("Account#") && sortKey.endsWith("#Settings")) {
+        const accountId = assertId<AccountId>(assertExists(partitionKey.replace("Account#", "")));
 
         mergeData.accountSettings.set(accountId, {
             last_opened_space_id: parseAttributeValue<string>(item.lastOpenedSpaceId),
@@ -353,12 +355,12 @@ function transformAccountsTableItem(
     }
 
     // AccountEmailAddress#Attributes -> account_email_addresses
-    if (partitionKey.startsWith("AccountEmailAddress#") && sortKey === "Attributes") {
+    if (partitionKey.startsWith("AccountEmailAddress#") && sortKey.endsWith("#Attributes")) {
         const emailAddress = partitionKey.replace("AccountEmailAddress#", "");
 
         const record: AccountEmailAddressDimension = {
             email_address: emailAddress,
-            account_id: parseRequiredAttributeValue<string>(item.accountId),
+            account_id: assertId<AccountId>(parseRequiredAttributeValue<string>(item.accountId)),
             created_time: parseRequiredAttributeValue<string>(item.createdTime),
             is_verified: parseRequiredAttributeValue<boolean>(item.isVerified),
         };
@@ -371,12 +373,12 @@ function transformAccountsTableItem(
     }
 
     // StripeCustomer#Attributes -> stripe_customers
-    if (partitionKey.startsWith("StripeCustomer#") && sortKey === "Attributes") {
+    if (partitionKey.startsWith("StripeCustomer#") && sortKey.endsWith("#Attributes")) {
         const stripeCustomerId = partitionKey.replace("StripeCustomer#", "");
 
         const record: StripeCustomerDimension = {
             stripe_customer_id: stripeCustomerId,
-            account_id: parseRequiredAttributeValue<string>(item.accountId),
+            account_id: assertId<AccountId>(parseRequiredAttributeValue<string>(item.accountId)),
         };
 
         if (!dimensionRecords[stripeCustomersDimensionS3Path]) {
@@ -395,8 +397,8 @@ function transformSpacesTableItem(
     mergeData: MergeData,
 ): void {
     // Space#Attributes -> merge into spaces
-    if (partitionKey.startsWith("Space#") && sortKey === "Attributes") {
-        const spaceId = partitionKey.replace("Space#", "");
+    if (partitionKey.startsWith("Space#") && sortKey.endsWith("#Attributes")) {
+        const spaceId = assertId<SpaceId>(assertExists(partitionKey.replace("Space#", "")));
 
         mergeData.spaceAttributes.set(spaceId, {
             id: spaceId,
@@ -407,8 +409,8 @@ function transformSpacesTableItem(
     }
 
     // Space#WelcomePackage -> merge into spaces
-    if (partitionKey.startsWith("Space#") && sortKey === "WelcomePackage") {
-        const spaceId = partitionKey.replace("Space#", "");
+    if (partitionKey.startsWith("Space#") && sortKey.endsWith("#WelcomePackage")) {
+        const spaceId = assertId<SpaceId>(assertExists(partitionKey.replace("Space#", "")));
 
         mergeData.spaceWelcomePackage.set(spaceId, {
             welcome_package_general_channel_id: parseRequiredAttributeValue<string>(
@@ -424,9 +426,10 @@ function transformSpacesTableItem(
     }
 
     // Space#Account -> space_accounts
-    if (partitionKey.startsWith("Space#") && sortKey.startsWith("Account#")) {
+    // Sort key format: a1#Account#<account-id>
+    if (partitionKey.startsWith("Space#") && sortKey.includes("#Account#")) {
         const spaceId = partitionKey.replace("Space#", "");
-        const accountId = sortKey.replace("Account#", "");
+        const accountId = sortKey.split("#").at(-1);
 
         // Parse state union type
         const stateValue = parseAttributeValue(item.removal);
@@ -438,10 +441,10 @@ function transformSpacesTableItem(
         }
 
         const record: SpaceAccountDimension = {
-            space_id: spaceId,
-            account_id: accountId,
-            role: parseRequiredAttributeValue<string>(item.role),
-            added_time: parseRequiredAttributeValue<string>(item.addedTime),
+            space_id: assertId<SpaceId>(assertExists(spaceId)),
+            account_id: assertId<AccountId>(assertExists(accountId)),
+            role: parseAttributeValue<string>(item.role),
+            added_time: parseRequiredAttributeValue<string>(item.joinedTime),
             state: stateType ?? "unknown",
         };
 
@@ -453,15 +456,13 @@ function transformSpacesTableItem(
     }
 
     // AutoAddAccountsFromEmailDomain#Space -> space_email_domains
-    if (
-        partitionKey.startsWith("AutoAddAccountsFromEmailDomain#") &&
-        sortKey.startsWith("Space#")
-    ) {
+    // spaceId is stored as a separate field, not in the sort key
+    if (partitionKey.startsWith("AutoAddAccountsFromEmailDomain#") && sortKey.endsWith("#Space")) {
         const emailDomain = partitionKey.replace("AutoAddAccountsFromEmailDomain#", "");
-        const spaceId = sortKey.replace("Space#", "");
+        const spaceId = parseRequiredAttributeValue<string>(item.spaceId);
 
         const record: SpaceEmailDomainDimension = {
-            space_id: spaceId,
+            space_id: assertId<SpaceId>(spaceId),
             email_domain: emailDomain,
             is_enabled: parseRequiredAttributeValue<boolean>(item.isEnabled),
         };
@@ -511,7 +512,7 @@ function parseAttributeValue<T>(value: DynamoDbAttributeValue | undefined): T | 
 
 function parseRequiredAttributeValue<T>(value: DynamoDbAttributeValue | undefined): T {
     const parsed = parseAttributeValue(value);
-    assert(parsed);
+    assert(parsed !== undefined);
 
     return parsed as T;
 }
