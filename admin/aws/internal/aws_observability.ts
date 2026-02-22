@@ -13,8 +13,8 @@ import {CfnDeliveryStream, DeliveryStream, IDeliveryStream} from "aws-cdk-lib/aw
 import {Bucket} from "aws-cdk-lib/aws-s3";
 import {CfnAssociation, ParameterTier, StringParameter} from "aws-cdk-lib/aws-ssm";
 import {Construct, IConstruct} from "constructs";
+import {generateTracerEventGlueSchema} from "~/admin/analytics/generate_tracer_event_glue_schema.js";
 import {cloudwatchAgentConfig} from "~/admin/aws/internal/cloudwatch_agent_config.js";
-import {generateTracerEventGlueSchema} from "~/admin/glue/generate_tracer_event_glue_schema.js";
 
 /**
  * Construct to set up shared observability resources for our infrastructure and services.
@@ -38,6 +38,8 @@ export class AwsObservability extends Construct {
     private readonly _tracerEventBucketPrefix = "tracer/events";
     private readonly _tracerEventS3FirehoseStreamName = "tracer-events-s3";
     private readonly _tracerEventGlueDatabaseName = "tracer";
+    private readonly _analyticsDimensionGlueDatabaseName = "analytics";
+    private readonly _dynamoExportPrefix = "exports";
 
     private readonly _loggingBucket: Bucket;
     private readonly _tracerEventStream: KinesisDataStream;
@@ -303,6 +305,22 @@ export class AwsObservability extends Construct {
 
     public installCloudWatchAgent(construct: IConstruct) {
         Tags.of(construct).add("CloudWatchAgent", "true");
+    }
+
+    public get dynamoExportPrefix(): string {
+        return this._dynamoExportPrefix;
+    }
+
+    public get loggingBucketName(): string {
+        return this._loggingBucket.bucketName;
+    }
+
+    public get loggingBucketArn(): string {
+        return this._loggingBucket.bucketArn;
+    }
+
+    public grantReadWriteToLoggingBucket(grantee: IGrantable) {
+        this._loggingBucket.grantReadWrite(grantee);
     }
 }
 

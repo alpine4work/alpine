@@ -7,6 +7,8 @@ Every `ts_project()` rule in our codebase.
 WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//.vscode/extensions/bazel_test_codelens:bazel_test_codelens",
     "//admin/adhoc:adhoc_lib",
+    "//admin/analytics:analytics",
+    "//admin/analytics/analytics_mirror_export:analytics_mirror_export",
     "//admin/aws:aws",
     "//admin/crawl:crawl",
     "//admin/cron:cron",
@@ -18,7 +20,6 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//admin/environment/test/integration:integration",
     "//admin/environment/test/unit:unit",
     "//admin/eslint:eslint",
-    "//admin/glue:glue",
     "//admin/helpers:helpers",
     "//admin/lambda/local:local",
     "//admin/lambda/schedule_deploy:schedule_deploy",

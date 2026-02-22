@@ -2,6 +2,7 @@ import {App, Duration, Stack, aws_iam, aws_lambda} from "aws-cdk-lib";
 import {SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {ciScheduleDeployIamArn} from "~/admin/aws/aws_known_ids.js";
+import {AwsAnalyticsMirror} from "~/admin/aws/internal/aws_analytics_mirror.js";
 import {AwsApiService} from "~/admin/aws/internal/aws_api_service.js";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
@@ -140,6 +141,12 @@ async function addAwsResources(
         ecsCluster,
         cloudflareAccountId,
         dynamo,
+        sqs,
+        observability,
+    });
+
+    new AwsAnalyticsMirror(stack, {
+        cloudflareAccountId,
         sqs,
         observability,
     });

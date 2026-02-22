@@ -8174,6 +8174,820 @@ Resources:
             ValidationMethod: DNS
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/Certificate/Resource
+    AwsAnalyticsMirrorExportBucket56D42964:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: analytics-mirror
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/ExportBucket/Resource
+    AwsAnalyticsMirrorExportBucketNotificationsA2DC14DF:
+        Type: Custom::S3BucketNotifications
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+                    - Arn
+            BucketName:
+                Ref: AwsAnalyticsMirrorExportBucket56D42964
+            NotificationConfiguration:
+                LambdaFunctionConfigurations:
+                    - Events:
+                          - s3:ObjectCreated:*
+                      Filter:
+                          Key:
+                              FilterRules:
+                                  - Name: suffix
+                                    Value: manifest-files.json
+                                  - Name: prefix
+                                    Value: raw-exports/
+                      LambdaFunctionArn:
+                          Fn::GetAtt:
+                              - AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionAE146861
+                              - Arn
+            Managed: true
+            SkipDestinationValidation: false
+        DependsOn:
+            - AwsAnalyticsMirrorExportBucketAllowBucketNotificationsToCyberworldsStackAwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionE5EE2D423E2520D9
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/ExportBucket/Notifications/Resource
+    AwsAnalyticsMirrorExportBucketAllowBucketNotificationsToCyberworldsStackAwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionE5EE2D423E2520D9:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionAE146861
+                    - Arn
+            Principal: s3.amazonaws.com
+            SourceAccount:
+                Ref: AWS::AccountId
+            SourceArn:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorExportBucket56D42964
+                    - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/ExportBucket/AllowBucketNotificationsToCyberworldsStackAwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionE5EE2D42
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleF4DFCE03:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/ExecutionRole/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleDefaultPolicy7B668D6C:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionDeadLetterQueue6ABDB473
+                              - Arn
+                    - Action: dynamodb:ExportTableToPointInTime
+                      Effect: Allow
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:dynamodb:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :table/Accounts
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:dynamodb:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :table/Spaces
+                    - Action:
+                          - s3:Abort*
+                          - s3:DeleteObject*
+                          - s3:PutObject
+                          - s3:PutObjectLegalHold
+                          - s3:PutObjectRetention
+                          - s3:PutObjectTagging
+                          - s3:PutObjectVersionTagging
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - AwsAnalyticsMirrorExportBucket56D42964
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AwsAnalyticsMirrorExportBucket56D42964
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+            PolicyName: AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleDefaultPolicy7B668D6C
+            Roles:
+                - Ref: AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleF4DFCE03
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/ExecutionRole/DefaultPolicy/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionDeadLetterQueue6ABDB473:
+        Type: AWS::SQS::Queue
+        Properties:
+            MessageRetentionPeriod: 1209600
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/Function/DeadLetterQueue/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunction47E2CAA7:
+        Type: AWS::Lambda::Function
+        Properties:
+            Architectures:
+                - arm64
+            Code:
+                ImageUri:
+                    Fn::Join:
+                        - ""
+                        - - Ref: AWS::AccountId
+                          - .dkr.ecr.us-east-1.
+                          - Ref: AWS::URLSuffix
+                          - /
+                          - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                          - :latest
+            DeadLetterConfig:
+                TargetArn:
+                    Fn::GetAtt:
+                        - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionDeadLetterQueue6ABDB473
+                        - Arn
+            Environment:
+                Variables:
+                    EXPORT_BUCKET:
+                        Ref: AwsAnalyticsMirrorExportBucket56D42964
+                    EXPORT_BUCKET_PREFIX: raw-exports
+                    ACCOUNTS_TABLE_ARN:
+                        Fn::Join:
+                            - ""
+                            - - "arn:aws:dynamodb:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :table/Accounts
+                    SPACES_TABLE_ARN:
+                        Fn::Join:
+                            - ""
+                            - - "arn:aws:dynamodb:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :table/Spaces
+                    NODE_ENV: production
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorJobQueue551DBCF8
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorLightJobQueueDC9222EF
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
+                    KINESIS_TRACER_STREAM_NAME:
+                        Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
+                    RUNFILES: /var/task/admin/analytics/analytics_mirror_export/trigger_analytics_mirror_export_lambda_binary.runfiles
+            MemorySize: 256
+            PackageType: Image
+            Role:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleF4DFCE03
+                    - Arn
+            Timeout: 60
+        DependsOn:
+            - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleDefaultPolicy7B668D6C
+            - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleF4DFCE03
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/Function/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionLogRetention423252CC:
+        Type: Custom::LogRetention
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+                    - Arn
+            LogGroupName:
+                Fn::Join:
+                    - ""
+                    - - /aws/lambda/
+                      - Ref: AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunction47E2CAA7
+            RetentionInDays: 7
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/Function/LogRetention/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportSchedule626C7527:
+        Type: AWS::Events::Rule
+        Properties:
+            ScheduleExpression: cron(0 4 * * ? *)
+            State: ENABLED
+            Targets:
+                - Arn:
+                      Fn::GetAtt:
+                          - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunction47E2CAA7
+                          - Arn
+                  Id: Target0
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExportSchedule/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportScheduleAllowEventRuleCyberworldsStackAwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionA071234090F1A04D:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunction47E2CAA7
+                    - Arn
+            Principal: events.amazonaws.com
+            SourceArn:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportSchedule626C7527
+                    - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExportSchedule/AllowEventRuleCyberworldsStackAwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionA0712340
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRole02DBBC45:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/ExecutionRole/Resource
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRoleDefaultPolicyDA751A98:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionDeadLetterQueueF7FBD3D6
+                              - Arn
+                    - Action:
+                          - s3:Abort*
+                          - s3:DeleteObject*
+                          - s3:GetBucket*
+                          - s3:GetObject*
+                          - s3:List*
+                          - s3:PutObject
+                          - s3:PutObjectLegalHold
+                          - s3:PutObjectRetention
+                          - s3:PutObjectTagging
+                          - s3:PutObjectVersionTagging
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - AwsAnalyticsMirrorExportBucket56D42964
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AwsAnalyticsMirrorExportBucket56D42964
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+            PolicyName: AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRoleDefaultPolicyDA751A98
+            Roles:
+                - Ref: AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRole02DBBC45
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/ExecutionRole/DefaultPolicy/Resource
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionDeadLetterQueueF7FBD3D6:
+        Type: AWS::SQS::Queue
+        Properties:
+            MessageRetentionPeriod: 1209600
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/Function/DeadLetterQueue/Resource
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionAE146861:
+        Type: AWS::Lambda::Function
+        Properties:
+            Architectures:
+                - arm64
+            Code:
+                ImageUri:
+                    Fn::Join:
+                        - ""
+                        - - Ref: AWS::AccountId
+                          - .dkr.ecr.us-east-1.
+                          - Ref: AWS::URLSuffix
+                          - /
+                          - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                          - :latest
+            DeadLetterConfig:
+                TargetArn:
+                    Fn::GetAtt:
+                        - AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionDeadLetterQueueF7FBD3D6
+                        - Arn
+            Environment:
+                Variables:
+                    OUTPUT_BUCKET:
+                        Ref: AwsAnalyticsMirrorExportBucket56D42964
+                    OUTPUT_PREFIX: parquet
+                    NODE_ENV: production
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorJobQueue551DBCF8
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorLightJobQueueDC9222EF
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
+                    KINESIS_TRACER_STREAM_NAME:
+                        Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
+                    RUNFILES: /var/task/admin/analytics/analytics_mirror_export/transform_analytics_mirror_export_lambda_binary.runfiles
+            MemorySize: 1024
+            PackageType: Image
+            Role:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRole02DBBC45
+                    - Arn
+            Timeout: 300
+        DependsOn:
+            - AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRoleDefaultPolicyDA751A98
+            - AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRole02DBBC45
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/Function/Resource
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionLogRetentionEF1AB53E:
+        Type: Custom::LogRetention
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+                    - Arn
+            LogGroupName:
+                Fn::Join:
+                    - ""
+                    - - /aws/lambda/
+                      - Ref: AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionAE146861
+            RetentionInDays: 7
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/Function/LogRetention/Resource
+    AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD:
+        Type: AWS::Glue::Database
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseInput:
+                Description: Database for analytics dimension tables (accounts, spaces)
+                Name: app
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/AppDimensionGlueDatabase
+    AwsAnalyticsMirrorAccountsDimensionGlueTableF8C842C7:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Accounts dimension table with allowlisted columns
+                Name: accounts
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: id
+                          Type: string
+                        - Name: name
+                          Type: string
+                        - Name: plan
+                          Type: string
+                        - Name: created_time
+                          Type: string
+                        - Name: has_internal_access
+                          Type: boolean
+                        - Name: has_not_signed_up
+                          Type: boolean
+                        - Name: bot_space_id
+                          Type: string
+                        - Name: bot_id
+                          Type: string
+                        - Name: last_opened_space_id
+                          Type: string
+                        - Name: observed_time_zone
+                          Type: string
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/accounts/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/AccountsDimensionGlueTable
+    AwsAnalyticsMirrorSpacesDimensionGlueTable388FCF32:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Spaces dimension table with allowlisted columns
+                Name: spaces
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: id
+                          Type: string
+                        - Name: name
+                          Type: string
+                        - Name: created_time
+                          Type: string
+                        - Name: welcome_package_general_channel_id
+                          Type: string
+                        - Name: welcome_package_random_channel_id
+                          Type: string
+                        - Name: welcome_package_chat_gpt_bot_account_id
+                          Type: string
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/spaces/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/SpacesDimensionGlueTable
+    AwsAnalyticsMirrorAccountEmailAddressesDimensionGlueTableB77625C2:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Account email addresses dimension table
+                Name: account_email_addresses
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: email_address
+                          Type: string
+                        - Name: account_id
+                          Type: string
+                        - Name: created_time
+                          Type: string
+                        - Name: is_verified
+                          Type: boolean
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/account_email_addresses/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/AccountEmailAddressesDimensionGlueTable
+    AwsAnalyticsMirrorStripeCustomersDimensionGlueTable883FEB24:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Stripe customers dimension table
+                Name: stripe_customers
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: stripe_customer_id
+                          Type: string
+                        - Name: account_id
+                          Type: string
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/stripe_customers/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/StripeCustomersDimensionGlueTable
+    AwsAnalyticsMirrorSpaceAccountsDimensionGlueTableF78D5D7F:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Space accounts dimension table for membership data
+                Name: space_accounts
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: space_id
+                          Type: string
+                        - Name: account_id
+                          Type: string
+                        - Name: role
+                          Type: string
+                        - Name: added_time
+                          Type: string
+                        - Name: state
+                          Type: string
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/space_accounts/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/SpaceAccountsDimensionGlueTable
+    AwsAnalyticsMirrorSpaceEmailDomainsDimensionGlueTable54AF5A43:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Space email domains for auto-add accounts feature
+                Name: space_email_domains
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: space_id
+                          Type: string
+                        - Name: email_domain
+                          Type: string
+                        - Name: is_enabled
+                          Type: boolean
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/space_email_domains/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/SpaceEmailDomainsDimensionGlueTable
+    BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+    BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: s3:PutBucketNotification
+                      Effect: Allow
+                      Resource: "*"
+                Version: 2012-10-17
+            PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+            Roles:
+                - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+    BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+        Type: AWS::Lambda::Function
+        Properties:
+            Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources
+                (@aws-cdk/aws-s3)
+            Code:
+                ZipFile: >-
+                    import boto3  # type: ignore
+
+                    import json
+
+                    import logging
+
+                    import urllib.request
+
+
+                    s3 = boto3.client("s3")
+
+
+                    EVENTBRIDGE_CONFIGURATION = 'EventBridgeConfiguration'
+
+                    CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations",
+                    "LambdaFunctionConfigurations"]
+
+
+                    def handler(event: dict, context):
+                      response_status = "SUCCESS"
+                      error_message = ""
+                      try:
+                        props = event["ResourceProperties"]
+                        notification_configuration = props["NotificationConfiguration"]
+                        managed = props.get('Managed', 'true').lower() == 'true'
+                        skipDestinationValidation = props.get('SkipDestinationValidation', 'false').lower() == 'true'
+                        stack_id = event['StackId']
+                        old = event.get("OldResourceProperties", {}).get("NotificationConfiguration", {})
+                        if managed:
+                          config = handle_managed(event["RequestType"], notification_configuration)
+                        else:
+                          config = handle_unmanaged(props["BucketName"], stack_id, event["RequestType"], notification_configuration, old)
+                        s3.put_bucket_notification_configuration(Bucket=props["BucketName"], NotificationConfiguration=config, SkipDestinationValidation=skipDestinationValidation)
+                      except Exception as e:
+                        logging.exception("Failed to put bucket notification configuration")
+                        response_status = "FAILED"
+                        error_message = f"Error: {str(e)}. "
+                      finally:
+                        submit_response(event, context, response_status, error_message)
+
+                    def handle_managed(request_type, notification_configuration):
+                      if request_type == 'Delete':
+                        return {}
+                      return notification_configuration
+
+                    def handle_unmanaged(bucket, stack_id, request_type, notification_configuration,
+                    old):
+                      def get_id(n):
+                        n['Id'] = ''
+                        sorted_notifications = sort_filter_rules(n)
+                        strToHash=json.dumps(sorted_notifications, sort_keys=True).replace('"Name": "prefix"', '"Name": "Prefix"').replace('"Name": "suffix"', '"Name": "Suffix"')
+                        return f"{stack_id}-{hash(strToHash)}"
+                      def with_id(n):
+                        n['Id'] = get_id(n)
+                        return n
+
+                      external_notifications = {}
+                      existing_notifications = s3.get_bucket_notification_configuration(Bucket=bucket)
+                      for t in CONFIGURATION_TYPES:
+                        if request_type == 'Update':
+                            old_incoming_ids = [get_id(n) for n in old.get(t, [])]
+                            external_notifications[t] = [n for n in existing_notifications.get(t, []) if not get_id(n) in old_incoming_ids]      
+                        elif request_type == 'Delete':
+                            external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+                        elif request_type == 'Create':
+                            external_notifications[t] = [n for n in existing_notifications.get(t, [])]
+                      if EVENTBRIDGE_CONFIGURATION in existing_notifications:
+                        external_notifications[EVENTBRIDGE_CONFIGURATION] = existing_notifications[EVENTBRIDGE_CONFIGURATION]
+
+                      if request_type == 'Delete':
+                        return external_notifications
+
+                      notifications = {}
+                      for t in CONFIGURATION_TYPES:
+                        external = external_notifications.get(t, [])
+                        incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+                        notifications[t] = external + incoming
+
+                      if EVENTBRIDGE_CONFIGURATION in notification_configuration:
+                        notifications[EVENTBRIDGE_CONFIGURATION] = notification_configuration[EVENTBRIDGE_CONFIGURATION]
+                      elif EVENTBRIDGE_CONFIGURATION in external_notifications:
+                        notifications[EVENTBRIDGE_CONFIGURATION] = external_notifications[EVENTBRIDGE_CONFIGURATION]
+
+                      return notifications
+
+                    def submit_response(event: dict, context, response_status: str, error_message:
+                    str):
+                      response_body = json.dumps(
+                        {
+                          "Status": response_status,
+                          "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                          "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                          "StackId": event["StackId"],
+                          "RequestId": event["RequestId"],
+                          "LogicalResourceId": event["LogicalResourceId"],
+                          "NoEcho": False,
+                        }
+                      ).encode("utf-8")
+                      headers = {"content-type": "", "content-length": str(len(response_body))}
+                      try:
+                        req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+                        with urllib.request.urlopen(req) as response:
+                          print(response.read().decode("utf-8"))
+                        print("Status code: " + response.reason)
+                      except Exception as e:
+                          print("send(..) failed executing request.urlopen(..): " + str(e))
+
+                    def sort_filter_rules(json_obj):
+                      if not isinstance(json_obj, dict):
+                          return json_obj
+                      for key, value in json_obj.items():
+                          if isinstance(value, dict):
+                              json_obj[key] = sort_filter_rules(value)
+                          elif isinstance(value, list):
+                              json_obj[key] = [sort_filter_rules(item) for item in value]
+                      if "Filter" in json_obj and "Key" in json_obj["Filter"] and "FilterRules" in json_obj["Filter"]["Key"]:
+                          filter_rules = json_obj["Filter"]["Key"]["FilterRules"]
+                          sorted_filter_rules = sorted(filter_rules, key=lambda x: x["Name"])
+                          json_obj["Filter"]["Key"]["FilterRules"] = sorted_filter_rules
+                      return json_obj
+            Handler: index.handler
+            Role:
+                Fn::GetAtt:
+                    - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+                    - Arn
+            Runtime: python3.11
+            Timeout: 300
+        DependsOn:
+            - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+            - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
     ScheduleDeployExecutionRoleE801ABF6:
         Type: AWS::IAM::Role
         Properties:

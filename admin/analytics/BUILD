@@ -3,8 +3,11 @@ load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "glue",
-    visibility = ["//admin/aws:__pkg__"],
+    name = "analytics",
+    visibility = [
+        "//admin/aws:__pkg__",
+        "//admin/analytics/analytics_mirror_export:__pkg__",
+    ],
     deps = [
         "//server/tracer",
         "//shared/error",
