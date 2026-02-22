@@ -1,7 +1,8 @@
 # SQLite WAL Format (Implementation Reference)
 
 This document is a practical, byte-level reference for the exact SQLite WAL format we need to reason
-about for Alpine realtime semantics.
+about for Alpine realtime semantics (see `shared/databases/meta/databases_technical_vision.md` for
+more information on how we're using this in Alpine).
 
 It focuses on:
 
