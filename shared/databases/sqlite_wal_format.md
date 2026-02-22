@@ -109,7 +109,7 @@ wal_size(n) = 32 + n * (24 + page_size)
 | 0 | 4 | magic | `0x377f0682` or `0x377f0683` |
 | 4 | 4 | version | format version, currently `3007000` |
 | 8 | 4 | page_size | DB page size in bytes |
-| 12 | 4 | checkpoint_seq | checkpoint sequence counter |
+| 12 | 4 | checkpoint_seq | WAL reset/checkpoint sequence counter |
 | 16 | 4 | salt1 | salt epoch value |
 | 20 | 4 | salt2 | salt epoch value |
 | 24 | 4 | cksum1 | checksum over first 24 header bytes |
@@ -122,18 +122,36 @@ Magic value controls checksum byte-order interpretation:
 
 Checksum words stored in WAL are always written as big-endian.
 
+### WAL header field notes
+
+`checkpoint_seq` (`nCkpt` in SQLite source):
+
+- Is read from header offset `12` when WAL is opened/recovered.
+- Is incremented when WAL is restarted from frame 1 (after a complete
+  checkpoint and when reset conditions are met).
+- Is written into each new WAL header at log restart.
+- Participates in the WAL header checksum and therefore affects frame checksum
+  chaining.
+- Is used by SQLite runtime logic (for example savepoint-undo handling across
+  log restart), but is not itself the transaction visibility boundary
+  (`mxFrame` is).
+
 ### Frame header (24 bytes, all 32-bit big-endian words)
 
 | Offset | Size | Field | Meaning |
 |---:|---:|---|---|
 | 0 | 4 | pgno | database page number (`>0`) |
-| 4 | 4 | db_size_after_commit | non-zero on SQL txn commit frame (DB pages) |
+| 4 | 4 | db_size_after_commit | `0` except on SQL commit frames |
 | 8 | 4 | salt1 | copy of WAL header salt1 |
 | 12 | 4 | salt2 | copy of WAL header salt2 |
 | 16 | 4 | cksum1 | rolling checksum after this frame |
 | 20 | 4 | cksum2 | rolling checksum after this frame |
 
-`db_size_after_commit != 0` marks an SQL transaction commit frame.
+`db_size_after_commit` semantics:
+
+- `0`: this frame does not end a committed SQL write transaction.
+- `>0`: this frame is a commit marker and the value is the total database size
+  in pages after that commit.
 
 ### Frame page data payload (`page_size` bytes)
 
@@ -208,18 +226,23 @@ All adds are unsigned 32-bit with wraparound.
   sets `mxFrame` to the last valid SQL commit frame.
 - Frames after `mxFrame` are ignored for visibility.
 
-Simple transaction boundary view:
+Simple transaction boundary example:
 
 ```text
-Frame:  1    2    3    4    5    6
-dbsz:   0    0   100   0    0   103
-Txn:         TXN A           TXN B
+TXN A -> frames 1..3, commit frame = 3, db_size_after_commit = 100
+TXN B -> frames 4..6, commit frame = 6, db_size_after_commit = 103
 ```
+
+Interpretation of `100 -> 103`: TXN B leaves the committed database image at
+103 pages (net growth of 3 pages versus previous committed size 100).
 
 ## Checkpointing and WAL File Evolution
 
 Checkpointing moves SQL-committed state from `X-wal` back into the main DB
 file.
+
+"Backfill" in this section means copying page content from committed WAL frames
+into their corresponding page offsets in the main database file.
 
 Operationally:
 
@@ -234,7 +257,7 @@ Simple lifecycle sketch:
 
 ```text
 append frames -> checkpoint backfills pages -> WAL may still contain frames
-             -> reset/restart point reached -> WAL reuses frame slot #1
+             -> reset conditions met -> WAL reuses frame slot #1
              -> optional truncate-to-zero
 ```
 
@@ -255,6 +278,16 @@ When WAL is restarted from frame 1, SQLite writes a new WAL header epoch:
 This invalidates stale older-epoch frame bytes that may still exist in the file
 tail.
 
+Reset trigger conditions:
+
+- WAL can reset only after a complete checkpoint has backfilled all committed
+  frames that are eligible.
+- WAL can reset only when active readers are no longer pinned to older WAL
+  frames.
+- `RESTART` and `TRUNCATE` checkpoints explicitly drive these conditions.
+- WAL reset can also happen without those explicit modes: after a complete
+  checkpoint, a later writer may restart at frame 1 when conditions allow.
+
 ### Checkpointing and commit visibility
 
 - Readers only see frames up to their chosen end mark (`mxFrame`).
@@ -267,6 +300,7 @@ tail.
 In exclusive locking mode:
 
 - no shared-memory `-shm` file is part of the required runtime contract
+- the `X-wal` binary format is the same as standard WAL mode
 
 Important for us:
 
@@ -275,21 +309,6 @@ Important for us:
   access.
 - This enables WAL semantics without shared-memory primitives, but with no
   concurrency benefits (single-owner semantics).
-
-## Implications For Alpine Realtime WAL Replication
-
-For frame-level replication and optimistic rebase, the hard invariants are:
-
-1. Page size must be identical on server and clients.
-2. Frame order must be preserved exactly.
-3. Checksum chain must stay valid across injected/replayed frames.
-4. Salt epoch transitions (WAL reset) must be tracked; old-epoch frames are
-   invalid against new header salts.
-5. SQL transaction boundaries come only from commit frames
-   (`db_size_after_commit != 0`).
-6. Rewind/rebase logic must preserve coherent `mxFrame` visibility semantics.
-7. Auto-checkpoint should be disabled during speculative periods where rollback
-   of optimistic frames may be needed.
 
 ## References
 
