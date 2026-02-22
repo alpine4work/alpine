@@ -22,8 +22,8 @@ That value is explicitly enforced in SQLite's WAL implementation.
 In this document, `commit` always refers to SQLite SQL transaction commit
 semantics, not source-control commits.
 
-- SQL `COMMIT`: ends a write transaction and makes it durable/visible if it
-  succeeds.
+- SQL `COMMIT`: ends a write transaction and makes its effects logically
+  committed/visible if it succeeds.
 - WAL commit frame: a frame where `db_size_after_commit != 0`; this marks the
   end of a committed SQL write transaction in the WAL stream.
 - Source-control commit (Git): unrelated to WAL format; never what this doc
@@ -222,8 +222,9 @@ All adds are unsigned 32-bit with wraparound.
 - WAL can contain multiple SQL write transactions.
 - Readers take an end mark at last valid SQL commit frame (`mxFrame`) and ignore
   newer frames.
-- Recovery scans WAL from start, stops at first invalid checksum (or EOF), and
-  sets `mxFrame` to the last valid SQL commit frame.
+- Recovery scans WAL from start, stops at first invalid frame (for example salt
+  mismatch, `pgno==0`, checksum failure, or malformed/truncated frame) or EOF,
+  and sets `mxFrame` to the last valid SQL commit frame.
 - Frames after `mxFrame` are ignored for visibility.
 
 Simple transaction boundary example:
