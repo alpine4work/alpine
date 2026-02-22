@@ -224,6 +224,9 @@ protocol. We are likely the first to need this specific capability.
    often clients fall back to full snapshots. The frame log storage (likely R2 or similar) needs to
    support efficient range reads by frame number.
 
+`shared/databases/meta/sqlite_wal_format.md` is a useful reference on the SQLite WAL format for our
+use case we can refer to while working through these difficulties.
+
 ## Open questions
 
 - What is the right granularity for server-to-client sync: raw WAL frames, or a higher-level
