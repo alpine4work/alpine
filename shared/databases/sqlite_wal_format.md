@@ -17,6 +17,18 @@ SQLite currently defines:
 
 That value is explicitly enforced in SQLite's WAL implementation.
 
+## Terminology: "Commit" In This Doc
+
+In this document, `commit` always refers to SQLite SQL transaction commit
+semantics, not source-control commits.
+
+- SQL `COMMIT`: ends a write transaction and makes it durable/visible if it
+  succeeds.
+- WAL commit frame: a frame where `db_size_after_commit != 0`; this marks the
+  end of a committed SQL write transaction in the WAL stream.
+- Source-control commit (Git): unrelated to WAL format; never what this doc
+  means.
+
 ## Files In WAL Mode
 
 In active WAL mode, SQLite usually uses:
@@ -95,13 +107,13 @@ Checksum words stored in WAL are always written as big-endian.
 | Offset | Size | Field | Meaning |
 |---:|---:|---|---|
 | 0 | 4 | pgno | database page number (`>0`) |
-| 4 | 4 | db_size_after_commit | non-zero only on commit frame |
+| 4 | 4 | db_size_after_commit | non-zero on SQL txn commit frame (DB pages) |
 | 8 | 4 | salt1 | copy of WAL header salt1 |
 | 12 | 4 | salt2 | copy of WAL header salt2 |
 | 16 | 4 | cksum1 | rolling checksum after this frame |
 | 20 | 4 | cksum2 | rolling checksum after this frame |
 
-`db_size_after_commit != 0` marks commit frame (transaction boundary).
+`db_size_after_commit != 0` marks an SQL transaction commit frame.
 
 ### Frame page data payload (`page_size` bytes)
 
@@ -114,7 +126,7 @@ For WAL application semantics, treat frame payload as:
 database_page[pgno] = wal_frame.page_data
 ```
 
-subject to commit visibility (`mxFrame`) and checksum/salt validity.
+subject to SQL-commit visibility (`mxFrame`) and checksum/salt validity.
 
 What can appear in frame page data:
 
@@ -166,30 +178,31 @@ checksum for first frame), then extends with frame `k` input.
 
 All adds are unsigned 32-bit with wraparound.
 
-## Commit, Snapshot, Recovery Semantics
+## SQL Commit, Snapshot, Recovery Semantics
 
-- WAL can contain multiple transactions.
-- Readers take an end mark at last valid commit frame (`mxFrame`) and ignore
+- WAL can contain multiple SQL write transactions.
+- Readers take an end mark at last valid SQL commit frame (`mxFrame`) and ignore
   newer frames.
 - Recovery scans WAL from start, stops at first invalid checksum (or EOF), and
-  sets `mxFrame` to the last valid commit frame.
+  sets `mxFrame` to the last valid SQL commit frame.
 - Frames after `mxFrame` are ignored for visibility.
 
 Simple transaction boundary view:
 
 ```text
 Frame:  1    2    3    4    5    6
-Commit: 0    0   100   0    0   103
+dbsz:   0    0   100   0    0   103
 Txn:         TXN A           TXN B
 ```
 
 ## Checkpointing and WAL File Evolution
 
-Checkpointing moves committed state from `X-wal` back into the main DB file.
+Checkpointing moves SQL-committed state from `X-wal` back into the main DB
+file.
 
 Operationally:
 
-1. Choose a checkpoint target frame (a committed frame boundary).
+1. Choose a checkpoint target frame (an SQL commit boundary).
 2. For each page number, apply the latest frame at or before that target.
 3. Sync DB pages per checkpoint mode requirements.
 
@@ -225,7 +238,7 @@ tail.
 
 - Readers only see frames up to their chosen end mark (`mxFrame`).
 - A checkpoint may backfill many pages while readers continue.
-- Uncheckpointed committed frames can remain in WAL and still be valid for
+- Uncheckpointed SQL-committed frames can remain in WAL and still be valid for
   readers until reset/truncate conditions are met.
 
 ## Exclusive Locking Mode and WASM
@@ -251,7 +264,8 @@ For frame-level replication and optimistic rebase, the hard invariants are:
 3. Checksum chain must stay valid across injected/replayed frames.
 4. Salt epoch transitions (WAL reset) must be tracked; old-epoch frames are
    invalid against new header salts.
-5. Commit boundaries come only from commit frames (`db_size_after_commit != 0`).
+5. SQL transaction boundaries come only from commit frames
+   (`db_size_after_commit != 0`).
 6. Rewind/rebase logic must preserve coherent `mxFrame` visibility semantics.
 7. Auto-checkpoint should be disabled during speculative periods where rollback
    of optimistic frames may be needed.
