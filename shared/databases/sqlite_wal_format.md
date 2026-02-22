@@ -29,6 +29,26 @@ semantics, not source-control commits.
 - Source-control commit (Git): unrelated to WAL format; never what this doc
   means.
 
+## Terminology: `mxFrame`
+
+`mxFrame` is the frame-number boundary for WAL visibility.
+
+- Definition: largest WAL frame index considered visible for a given reader
+  snapshot.
+- Purpose: gives readers a stable "end mark" so they do not see newer frames
+  appended after snapshot start.
+- Checkpoint relevance: checkpoint operations backfill frames up to a chosen
+  valid commit boundary that is constrained by WAL visibility state.
+- Not stored in `X-wal` bytes directly: SQLite derives it from valid commit
+  frames/checksums and stores it in WAL runtime metadata.
+- Storage in normal WAL mode: runtime metadata in shared-memory wal-index
+  state.
+- Storage in exclusive locking mode (our setup): runtime metadata in heap
+  memory in the owning SQLite connection.
+
+When docs say "frames after `mxFrame` are ignored", it means ignored for that
+reader's snapshot visibility.
+
 ## Files In WAL Mode
 
 In active WAL mode, SQLite usually uses:
@@ -126,7 +146,8 @@ For WAL application semantics, treat frame payload as:
 database_page[pgno] = wal_frame.page_data
 ```
 
-subject to SQL-commit visibility (`mxFrame`) and checksum/salt validity.
+subject to SQL-commit visibility (`mxFrame`, defined above) and checksum/salt
+validity.
 
 What can appear in frame page data:
 
