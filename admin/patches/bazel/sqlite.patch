@@ -1,0 +1,19 @@
+diff --git a/a/ext/wasm/GNUmakefile b/b/ext/wasm/GNUmakefile
+index 937e16d..6ce0519 100644
+--- a/ext/wasm/GNUmakefile
++++ b/ext/wasm/GNUmakefile
+@@ -248,8 +248,13 @@ c-pp.D.64bit = -Dbits64
+ #
+ # This is intended to be used in makefile targets which generate an
+ # Emscripten module and where $@ is the module's .js/.mjs file.
++#
++# NOTE(calebmer): The `$(if)` we've patched in is due to an unfortunate
++# incompatibility between MacOS `sed` and GNU `sed`. MacOS `sed` requires an
++# argument after `-i` (even if it's an empty string) which tells MacOS where to
++# write a backup of the old file.
+ b.strip-js-emcc-bindings = \
+-  sed -i -e '/^.*= \(_sqlite3\|_fiddle\)[^=]*=.*createExportWrapper/d' \
++  sed -i $(if $(filter Darwin,$(shell uname -s)),'') -e '/^.*= \(_sqlite3\|_fiddle\)[^=]*=.*createExportWrapper/d' \
+   -e '/^var \(_sqlite3\|_fiddle\)[^=]*=.*makeInvalidEarlyAccess/d' $@ || exit; \
+   echo '$(1) $(emo.garbage) (Probably) /createExportWrapper()/d and /makeInvalidEarlyAccess()/d'
+ 

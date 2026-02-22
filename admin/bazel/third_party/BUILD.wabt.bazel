@@ -1,0 +1,9 @@
+filegroup(
+    name = "all",
+    srcs = glob(
+        ["**"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = ["**/.*"],
+    ),
+    visibility = ["//visibility:public"],
+)

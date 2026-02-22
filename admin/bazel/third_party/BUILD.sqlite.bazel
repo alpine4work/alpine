@@ -1,0 +1,141 @@
+# TODO: Currently, building `@sqlite` is not 100% hermetic. List of known
+# issues we need to fix to make it fully hermetic:
+#
+# - `make` must be installed globally for building packages with `make` (this
+#   means `apt-get install build-essential` on Linux machines).
+genrule(
+    name = "sqlite",
+    srcs = glob(
+        include = ["**"],
+        exclude = [
+            # Exclude dot-files like `.DS_Store` on MacOS.
+            ".*",
+            # Exclude test files.
+            "test/**",
+            # Exclude documentation files.
+            "doc/**",
+        ],
+    ) + [
+        # Needed by `cd ext/wasm && make oz` for some reason.
+        "test/speedtest1.c",
+    ],
+    outs = [
+        "sqlite3.c",
+        "ext/wasm/jswasm/sqlite3-worker1-bundler-friendly.mjs",
+        "ext/wasm/jswasm/sqlite3.mjs",
+        "ext/wasm/jswasm/esm/sqlite3.mjs",
+        "ext/wasm/jswasm/esm/sqlite3.wasm",
+        "ext/wasm/jswasm/sqlite3.wasm",
+        "ext/wasm/jswasm/sqlite3-worker1-promiser.js",
+        "ext/wasm/jswasm/sqlite3-worker1.mjs",
+        "ext/wasm/jswasm/sqlite3-worker1-promiser.mjs",
+        "ext/wasm/jswasm/sqlite3-opfs-async-proxy.js",
+        "ext/wasm/jswasm/sqlite3.js",
+        "ext/wasm/jswasm/sqlite3-worker1.js",
+        "ext/wasm/jswasm/sqlite3-worker1-promiser-bundler-friendly.mjs",
+        "ext/wasm/jswasm/vanilla/sqlite3.wasm",
+        "ext/wasm/jswasm/vanilla/sqlite3.js",
+    ],
+    # Notes:
+    #
+    # - SQLite WASM [doesn't support out-of-tree builds][1] so we copy all source
+    #   files into the Bazel build directory before building.
+    #
+    # - We put WABT tools in `PATH` since SQLite needs `wasm-strip` for release builds.
+    #
+    # [1]: https://github.com/sqlite/sqlite/blob/60f132bf1288549ef1e7043f4a88fe6e199f0cf4/autosetup/sqlite-config.tcl#L1012-L1019
+    cmd = """
+platform_name="$$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+arch_name="$$(uname -m)"
+if [ "$$arch_name" = "x86_64" ]; then
+    arch_name="amd64"
+fi
+if [ "$$arch_name" = "aarch64" ]; then
+    arch_name="arm64"
+fi
+
+export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
+export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
+export CC="$$(pwd)/$(location @//:zig) cc"
+export CXX="$$(pwd)/$(location @//:zig) c++"
+export AR="$$(pwd)/$(location @//:zig) ar"
+export LD="$$(pwd)/$(location @//:zig) ld.lld"
+
+if [ "$$platform_name" = "darwin" ]; then
+    if [ "$$arch_name" = "amd64" ]; then
+        emscripten_external_name="emscripten_bin_mac"
+    fi
+    if [ "$$arch_name" = "arm64" ]; then
+        emscripten_external_name="emscripten_bin_mac_arm64"
+        wabt_external_name="wabt_macos_arm64"
+    fi
+fi
+if [ "$$platform_name" = "linux" ]; then
+    if [ "$$arch_name" = "amd64" ]; then
+        emscripten_external_name="emscripten_bin_linux"
+        wabt_external_name="wabt_linux_x64"
+    fi
+    if [ "$$arch_name" = "arm64" ]; then
+        emscripten_external_name="emscripten_bin_linux_arm64"
+        wabt_external_name="wabt_linux_arm64"
+    fi
+fi
+
+bazel_sandbox="$$(pwd)"
+cmd_log="$$bazel_sandbox/$(RULEDIR)/cmd.log"
+
+cp -r "$$bazel_sandbox/external/sqlite" "$$(dirname $(RULEDIR))"
+cp -r "$$bazel_sandbox/external/emsdk" $(RULEDIR)
+cp -r "$$bazel_sandbox/external/$$emscripten_external_name" $(RULEDIR)/emsdk
+mv "$(RULEDIR)/emsdk/$$emscripten_external_name" $(RULEDIR)/emsdk/upstream
+
+cat >$(RULEDIR)/emsdk/.emscripten <<EOF
+import os
+emsdk_path = os.path.dirname(os.getenv('EM_CONFIG')).replace('\\\\\\\\', '/')
+LLVM_ROOT = emsdk_path + '/upstream/bin'
+BINARYEN_ROOT = emsdk_path + '/upstream'
+EMSCRIPTEN_ROOT = emsdk_path + '/upstream/emscripten'
+EOF
+
+export PATH="$$bazel_sandbox/external/$$wabt_external_name/bin:$$PATH"
+which wasm-strip || (echo "Could not find wasm-strip" && exit 1)
+
+cd $(RULEDIR)
+
+echo "# ========================================================================== #" >> "$$cmd_log"
+echo "#                                 configure                                  #" >> "$$cmd_log"
+echo "# ========================================================================== #" >> "$$cmd_log"
+echo >> "$$cmd_log"
+
+./configure \\
+    "--prefix=$$(pwd)/install" \\
+    --disable-shared \\
+    --disable-static \\
+    --disable-threadsafe \\
+    --disable-load-extension \\
+    --disable-json \\
+    --disable-carray \\
+    --disable-tcl \\
+    --disable-readline \\
+    --disable-rpath \\
+    --column-metadata \\
+    "--with-emsdk=$$bazel_sandbox/$(RULEDIR)/emsdk" \\
+    >> "$$cmd_log" 2>> "$$cmd_log" || (cat "$$cmd_log" && exit 1)
+
+echo >> "$$cmd_log"
+echo "# ========================================================================== #" >> "$$cmd_log"
+echo "#                                    make                                    #" >> "$$cmd_log"
+echo "# ========================================================================== #" >> "$$cmd_log"
+echo >> "$$cmd_log"
+
+make sqlite3.c --jobs=6 >> "$$cmd_log" 2>> "$$cmd_log" || (cat "$$cmd_log" && exit 1)
+
+cd ext/wasm
+
+make dist --jobs=6 >> "$$cmd_log" 2>> "$$cmd_log" || (cat "$$cmd_log" && exit 1)
+""",
+    tags = ["cpu:6"],
+    tools = ["@//:zig", "@//:emscripten", "@emsdk//:all", "@//:wabt"],
+    visibility = ["//visibility:public"],
+)

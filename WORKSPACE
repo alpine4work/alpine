@@ -1,6 +1,7 @@
 workspace(name = "cyberworlds")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 # `rules_xcodeproj` needs an updated version of `bazel_features` but someone in
 # this file is downloading an old version. Make sure we install a new version
@@ -489,6 +490,44 @@ load(
 xcodeproj_rules_dependencies()
 
 # =========================================================================== #
+#                                     Zig                                     #
+# =========================================================================== #
+
+# We use `zig` as a hermetic C compiler.
+
+http_archive(
+    name = "zig_macos_x86_64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-aFgWFm8h8LjW/Hqmo26ROW3NgsplVt++PjKd7/wB/sM=",
+    strip_prefix = "zig-macos-x86_64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-macos-x86_64-0.14.0.tar.xz",
+)
+
+http_archive(
+    name = "zig_macos_aarch64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-tx5LfEtL6ZU2V4d/f55vfuiRFMcW2nwHD0ojgiDpXX4=",
+    strip_prefix = "zig-macos-aarch64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-macos-aarch64-0.14.0.tar.xz",
+)
+
+http_archive(
+    name = "zig_linux_x86_64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-Rz7CaAYTPPTRkYyvGkEPhAOhPZeXJqkEW0IbaFAxqYI=",
+    strip_prefix = "zig-linux-x86_64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz",
+)
+
+http_archive(
+    name = "zig_linux_aarch64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-q2Tj6id/b8Xz1yPc2V2c4asoLI7Q9DG03ogNMN+JHk8=",
+    strip_prefix = "zig-linux-aarch64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-linux-aarch64-0.14.0.tar.xz",
+)
+
+# =========================================================================== #
 #                                   FFmpeg                                    #
 # =========================================================================== #
 
@@ -590,34 +629,64 @@ http_archive(
     url = "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.gz",
 )
 
+# =========================================================================== #
+#                                 Emscripten                                  #
+# =========================================================================== #
+
 http_archive(
-    name = "zig_macos_x86_64",
-    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-aFgWFm8h8LjW/Hqmo26ROW3NgsplVt++PjKd7/wB/sM=",
-    strip_prefix = "zig-macos-x86_64-0.14.0",
-    url = "https://ziglang.org/download/0.14.0/zig-macos-x86_64-0.14.0.tar.xz",
+    name = "emsdk",
+    build_file = "@//admin/bazel:third_party/BUILD.emsdk.bazel",
+    integrity = "sha256-LTKS1Qi09Ud/SQsICzijSq7+1D6FJYod5yy43eP4868=",
+    strip_prefix = "emsdk-4.0.6",
+    url = "https://github.com/emscripten-core/emsdk/archive/refs/tags/4.0.6.tar.gz",
+)
+
+load("@emsdk//bazel:deps.bzl", emsdk_deps = "deps")
+
+emsdk_deps()
+
+load("@emsdk//bazel:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
+
+emsdk_emscripten_deps(emscripten_version = "4.0.6")
+
+load("@emsdk//bazel:toolchains.bzl", "register_emscripten_toolchains")
+
+register_emscripten_toolchains()
+
+http_archive(
+    name = "wabt_linux_arm64",
+    build_file = "@//admin/bazel:third_party/BUILD.wabt.bazel",
+    integrity = "sha256-V6lOiwkISrkZxblVWcHbi+h6CEg4S4SFPU0nTMqltG0=",
+    strip_prefix = "wabt-1.0.39",
+    url = "https://github.com/WebAssembly/wabt/releases/download/1.0.39/wabt-1.0.39-linux-arm64.tar.gz",
 )
 
 http_archive(
-    name = "zig_macos_aarch64",
-    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-tx5LfEtL6ZU2V4d/f55vfuiRFMcW2nwHD0ojgiDpXX4=",
-    strip_prefix = "zig-macos-aarch64-0.14.0",
-    url = "https://ziglang.org/download/0.14.0/zig-macos-aarch64-0.14.0.tar.xz",
+    name = "wabt_linux_x64",
+    build_file = "@//admin/bazel:third_party/BUILD.wabt.bazel",
+    integrity = "sha256-HfElS2Y59fH4lmWQfujNDNMBFPQEg1FeWDzMuGJAhA8=",
+    strip_prefix = "wabt-1.0.39",
+    url = "https://github.com/WebAssembly/wabt/releases/download/1.0.39/wabt-1.0.39-linux-x64.tar.gz",
 )
 
 http_archive(
-    name = "zig_linux_x86_64",
-    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-Rz7CaAYTPPTRkYyvGkEPhAOhPZeXJqkEW0IbaFAxqYI=",
-    strip_prefix = "zig-linux-x86_64-0.14.0",
-    url = "https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz",
+    name = "wabt_macos_arm64",
+    build_file = "@//admin/bazel:third_party/BUILD.wabt.bazel",
+    integrity = "sha256-FoqD8iElp32W7LIwNB7Q4rBrlwqttX64nS7Qb5t/iso=",
+    strip_prefix = "wabt-1.0.39",
+    url = "https://github.com/WebAssembly/wabt/releases/download/1.0.39/wabt-1.0.39-macos-arm64.tar.gz",
 )
 
+# =========================================================================== #
+#                                   SQLite                                    #
+# =========================================================================== #
+
 http_archive(
-    name = "zig_linux_aarch64",
-    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-q2Tj6id/b8Xz1yPc2V2c4asoLI7Q9DG03ogNMN+JHk8=",
-    strip_prefix = "zig-linux-aarch64-0.14.0",
-    url = "https://ziglang.org/download/0.14.0/zig-linux-aarch64-0.14.0.tar.xz",
+    name = "sqlite",
+    build_file = "@//admin/bazel:third_party/BUILD.sqlite.bazel",
+    integrity = "sha256-hREPdi1QeUFNmd1deRe8P/fgWHbmzL0T2ElqOBfyCCk=",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/sqlite.patch"],
+    strip_prefix = "sqlite-src-3510200",
+    url = "https://sqlite.org/2026/sqlite-src-3510200.zip",
 )
