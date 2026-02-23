@@ -1,6 +1,6 @@
-import {authorizeChatAccess} from "~/server/chat/data/chat_actions.js";
+import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     MessageStreamAttributesSchema,
@@ -181,6 +181,14 @@ export const ChatTable = DynamoTableSchema.new({
         },
     ],
 });
+
+export type ChatAttributesItem = DynamoTableItemType<typeof ChatTable, "Chat", "Attributes">;
+export type ChatAccountItem = DynamoTableItemType<typeof ChatTable, "Chat", "Account">;
+
+export type ChatItem = {
+    readonly attributesItem: ChatAttributesItem;
+    readonly accountItems: ReadonlyArray<ChatAccountItem>;
+};
 
 export const AccountChatsIndex = ChatTable.addIndex({
     name: "AccountChats",

@@ -1,4 +1,5 @@
-import {createChatForTest, getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
+import {createChatForTest} from "~/server/chat/data/create_chat_for_test.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_durable_object.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";

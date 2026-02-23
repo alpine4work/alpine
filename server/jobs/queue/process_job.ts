@@ -1,5 +1,5 @@
 import {processCallBotWebhookJob} from "~/server/bots/process_call_bot_webhook_job.js";
-import {processSendShareNotificationJob} from "~/server/chat/data/chat_actions.js";
+import {processSendShareNotificationJob} from "~/server/chat/data/chat_messaging.js";
 import {
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,

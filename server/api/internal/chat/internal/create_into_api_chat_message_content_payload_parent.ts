@@ -1,5 +1,5 @@
 import {intoApiMessageContentPayloadParent} from "~/server/api/internal/shared/into_api_message_content_payload_parent.js";
-import {getChatMessageParentContent} from "~/server/chat/data/chat_actions.js";
+import {getChatMessageParentContent} from "~/server/chat/data/chat_messaging.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";

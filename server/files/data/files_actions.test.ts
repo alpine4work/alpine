@@ -1,5 +1,6 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
-import {FileChatAuthorizer, getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
+import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";

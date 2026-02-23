@@ -1,6 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {wait} from "~/shared/helpers/async/wait.js";

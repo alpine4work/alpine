@@ -30,15 +30,17 @@ function getAvatarInPileByInitials(page: Page, initials: string) {
 }
 
 async function tapSendComment(page: Page) {
-    await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
+    const sendCommentButton = page.getByRole("button", {name: "Send comment"});
+    await expect(sendCommentButton).toBeEnabled();
 
     // Make sure the keyboard toolbar isn't animating when we tap.
-    await (await page
-        .getByRole("button", {name: "Send comment"})
-        .elementHandle())!.waitForElementState("stable");
+    const sendCommentButtonHandle = await sendCommentButton.elementHandle();
+    if (sendCommentButtonHandle !== null) {
+        await sendCommentButtonHandle.waitForElementState("stable");
+    }
 
-    await page.getByRole("button", {name: "Send comment"}).tap();
-    await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
+    await sendCommentButton.click();
+    await expect(sendCommentButton).toBeDisabled();
 }
 
 test("can open and close post comments in channel", async ({

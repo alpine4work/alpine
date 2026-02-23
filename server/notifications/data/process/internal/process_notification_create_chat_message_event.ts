@@ -1,9 +1,7 @@
 import {differenceInMinutes} from "date-fns";
-import {
-    FileChatAuthorizer,
-    authorizeChatAccessIfPossible,
-    getChatAccountIds,
-} from "~/server/chat/data/chat_actions.js";
+import {authorizeChatAccessIfPossible} from "~/server/chat/data/authorize_chat_access.js";
+import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
+import {getChatAccountIds} from "~/server/chat/data/get_chat_account_ids.js";
 import {NotificationCreateChatMessageEvent} from "~/server/notifications/core/notification_event.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";

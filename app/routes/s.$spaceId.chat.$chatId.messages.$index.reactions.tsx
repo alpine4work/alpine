@@ -7,7 +7,7 @@ import {getMessageReactionsForSearchParam} from "~/app/helpers/get_message_react
 import {ReactionsView} from "~/client/web/reactions/reactions_view.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
-import {getChatMessagePayload} from "~/server/chat/data/chat_actions.js";
+import {getChatMessagePayload} from "~/server/chat/data/chat_messaging.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";

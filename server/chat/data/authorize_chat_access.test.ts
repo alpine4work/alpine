@@ -3,11 +3,11 @@ import {
     authorizeChatAccess,
     authorizeChatAccessForAccount,
     authorizeChatAccessIfPossible,
-    getChat,
-    getChatAccountIds,
-    getChatAndInitialMessages,
-} from "~/server/chat/data/chat_actions.js";
+} from "~/server/chat/data/authorize_chat_access.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {getChat} from "~/server/chat/data/get_chat.js";
+import {getChatAccountIds} from "~/server/chat/data/get_chat_account_ids.js";
+import {getChatAndInitialMessages} from "~/server/chat/data/get_chat_and_initial_messages.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";

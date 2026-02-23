@@ -1,16 +1,14 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {
-    FileChatAuthorizer,
     authorizeChatAccess,
     authorizeChatAccessIfPossible,
+} from "~/server/chat/data/authorize_chat_access.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {
     backfillChatMessages,
     completeChatMessageStream,
-    createChatForTest,
     deleteChatMessage,
     deleteChatMessageReaction,
-    getChat,
-    getChatAccountIds,
-    getChatAccountIdsForBotScope,
     getChatMessage,
     getChatMessageParentContent,
     getChatMessagePayload,
@@ -18,18 +16,22 @@ import {
     getChatMessagePayloadsFromStart,
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
-    getOptimisticChatId,
-    getOrCreateChatForAccounts,
-    getSharedChatsForTest,
     pingChatMessageStream,
     processSendShareNotificationJob,
     putChatMessageStreamPart,
     sendChatMessage,
-    sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     setChatMessageReaction,
     updateChatMessageContent,
-} from "~/server/chat/data/chat_actions.js";
-import {chatInjection} from "~/server/chat/data/chat_injection.js";
+} from "~/server/chat/data/chat_messaging.js";
+import {createChatForTest} from "~/server/chat/data/create_chat_for_test.js";
+import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
+import {getChat} from "~/server/chat/data/get_chat.js";
+import {getChatAccountIds} from "~/server/chat/data/get_chat_account_ids.js";
+import {getChatAccountIdsForBotScope} from "~/server/chat/data/get_chat_account_ids_for_bot_scope.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
+import {sendChatMessageToAccountsBeforeCreateChatTestCheckpoint} from "~/server/chat/data/internal/actually_get_or_create_chat_for_accounts.js";
+import {getOptimisticChatId} from "~/server/chat/data/internal/get_optimistic_chat_id.js";
+import {getSharedChats} from "~/server/chat/data/internal/get_shared_chats.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
@@ -3056,8 +3058,9 @@ test("can get chats shared between an account and other accounts", async () => {
     const scenario = await createScenario();
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [],
         }),
     ).toEqual(sortSharedChats([]));
@@ -3163,8 +3166,9 @@ test("can get chats shared between an account and other accounts", async () => {
     });
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [],
         }),
     ).toEqual(
@@ -3184,8 +3188,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [scenario.sessionA2.account.id],
         }),
     ).toEqual(
@@ -3199,8 +3204,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA2), {
+        await getSharedChats(context.action(scenario.sessionA2), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA2.account.id,
             otherAccountIds: [scenario.sessionA1.account.id],
         }),
     ).toEqual(
@@ -3214,8 +3220,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [scenario.sessionA3.account.id],
         }),
     ).toEqual(
@@ -3228,8 +3235,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionA3.account.id],
         }),
     ).toEqual(
@@ -3241,8 +3249,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [
                 scenario.sessionA2.account.id,
                 scenario.sessionA3.account.id,
@@ -3257,8 +3266,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [],
         }),
     ).toEqual(
@@ -3272,8 +3282,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [],
         }),
     ).toEqual(
@@ -3284,8 +3295,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [scenario.sessionX2.account.id],
         }),
     ).toEqual(
@@ -3296,15 +3308,17 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [scenario.sessionX2.account.id],
         }),
     ).toEqual(sortSharedChats([{id: message13.chatId, accountCount: 3}]));
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [scenario.sessionA1.account.id],
         }),
     ).toEqual(sortSharedChats([]));

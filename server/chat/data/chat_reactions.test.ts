@@ -1,5 +1,6 @@
-import {FileChatAuthorizer, getChatMessagePayload} from "~/server/chat/data/chat_actions.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {getChatMessagePayload} from "~/server/chat/data/chat_messaging.js";
+import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";

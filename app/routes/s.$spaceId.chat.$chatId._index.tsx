@@ -14,7 +14,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {getChatAndInitialMessages} from "~/server/chat/data/chat_actions.js";
+import {getChatAndInitialMessages} from "~/server/chat/data/get_chat_and_initial_messages.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

@@ -1,6 +1,6 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
-import {processSendShareNotificationJob} from "~/server/chat/data/chat_actions.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {processSendShareNotificationJob} from "~/server/chat/data/chat_messaging.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";

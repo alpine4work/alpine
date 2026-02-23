@@ -220,7 +220,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                 // From [the documentation][1]:
                 //
                 // > - **registeredResources:** [...] For port resource types, this parameter
-                // >   describes the ports that were reserved by the Amazon ECS container agent
+                // >   describes the ports that were reserved by the Amazon ECS container agent
                 // >   when it registered the container instance with Amazon ECS.
                 // > - **remainingResources:** [...] For port resource types, this parameter
                 // >   describes the ports that were reserved by the Amazon ECS container agent

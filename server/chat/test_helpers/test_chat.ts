@@ -4,12 +4,12 @@ import {
     deleteChatMessage,
     deleteChatMessageReaction,
     getChatMessage,
-    getOrCreateChatForAccounts,
     putChatMessageStreamPart,
     sendChatMessage,
     setChatMessageReaction,
     updateChatMessageContent,
-} from "~/server/chat/data/chat_actions.js";
+} from "~/server/chat/data/chat_messaging.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {TestMessageRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";

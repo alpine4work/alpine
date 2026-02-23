@@ -3,7 +3,7 @@ import {
     pingChatMessageStream,
     putChatMessageStreamPart,
     sendChatMessage,
-} from "~/server/chat/data/chat_actions.js";
+} from "~/server/chat/data/chat_messaging.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {

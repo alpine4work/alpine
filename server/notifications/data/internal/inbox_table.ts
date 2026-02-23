@@ -1,8 +1,6 @@
 import {Node} from "prosemirror-model";
-import {
-    authorizeChatAccessForAccount,
-    getChatMessagePayload,
-} from "~/server/chat/data/chat_actions.js";
+import {authorizeChatAccessForAccount} from "~/server/chat/data/authorize_chat_access.js";
+import {getChatMessagePayload} from "~/server/chat/data/chat_messaging.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,

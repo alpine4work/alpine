@@ -3,7 +3,7 @@ import {
     deserializeAccountIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 
 export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {

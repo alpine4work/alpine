@@ -1,6 +1,5 @@
+import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
 import {
-    FileChatAuthorizer,
-    authorizeChatAccess,
     backfillChatMessages,
     deleteChatMessage,
     deleteChatMessageReaction,
@@ -10,7 +9,8 @@ import {
     sendChatMessage,
     setChatMessageReaction,
     updateChatMessageContent,
-} from "~/server/chat/data/chat_actions.js";
+} from "~/server/chat/data/chat_messaging.js";
+import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/chat_rpc_definitions.js";

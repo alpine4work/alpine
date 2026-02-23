@@ -3,7 +3,7 @@ import {
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {loader as actualLoader} from "~/app/routes/s.$spaceId.chat.$chatId._index.js";
-import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 
 /**

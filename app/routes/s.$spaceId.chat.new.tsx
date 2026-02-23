@@ -27,7 +27,7 @@ import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {selectChatForAccounts} from "~/server/chat/data/chat_actions.js";
+import {selectChatForAccounts} from "~/server/chat/data/select_chat_for_accounts.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";

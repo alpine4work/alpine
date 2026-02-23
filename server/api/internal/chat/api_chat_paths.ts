@@ -10,14 +10,14 @@ import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
     completeChatMessageStream,
-    getChatAccountIds,
     getChatMessagePayload,
     getChatMessagePayloadsFromEnd,
     getChatMessagePayloadsFromStart,
     pingChatMessageStream,
     putChatMessageStreamPart,
     sendChatMessage,
-} from "~/server/chat/data/chat_actions.js";
+} from "~/server/chat/data/chat_messaging.js";
+import {getChatAccountIds} from "~/server/chat/data/get_chat_account_ids.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
