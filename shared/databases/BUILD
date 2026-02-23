@@ -4,6 +4,8 @@ ts_project(
     name = "databases",
     visibility = ["//visibility:public"],
     deps = [
+        "@sqlite",
+        "//admin/external_types:sqlite",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",

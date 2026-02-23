@@ -1,10 +1,22 @@
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+
+js_library(
+    name = "sqlite",
+    srcs = [
+        "ext/wasm/jswasm/sqlite3.mjs",
+        "ext/wasm/jswasm/sqlite3.wasm",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 # TODO: Currently, building `@sqlite` is not 100% hermetic. List of known
 # issues we need to fix to make it fully hermetic:
 #
 # - `make` must be installed globally for building packages with `make` (this
 #   means `apt-get install build-essential` on Linux machines).
 genrule(
-    name = "sqlite",
+    name = "sqlite_wasm",
     srcs = glob(
         include = ["**"],
         exclude = [
@@ -15,10 +27,7 @@ genrule(
             # Exclude documentation files.
             "doc/**",
         ],
-    ) + [
-        # Needed by `cd ext/wasm && make oz` for some reason.
-        "test/speedtest1.c",
-    ],
+    ),
     outs = [
         "sqlite3.c",
         "ext/wasm/jswasm/sqlite3-worker1-bundler-friendly.mjs",
@@ -137,5 +146,4 @@ make dist --jobs=6 >> "$$cmd_log" 2>> "$$cmd_log" || (cat "$$cmd_log" && exit 1)
 """,
     tags = ["cpu:6"],
     tools = ["@//:zig", "@//:emscripten", "@emsdk//:all", "@//:wabt"],
-    visibility = ["//visibility:public"],
 )

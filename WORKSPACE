@@ -641,17 +641,9 @@ http_archive(
     url = "https://github.com/emscripten-core/emsdk/archive/refs/tags/4.0.6.tar.gz",
 )
 
-load("@emsdk//bazel:deps.bzl", emsdk_deps = "deps")
-
-emsdk_deps()
-
 load("@emsdk//bazel:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
 
 emsdk_emscripten_deps(emscripten_version = "4.0.6")
-
-load("@emsdk//bazel:toolchains.bzl", "register_emscripten_toolchains")
-
-register_emscripten_toolchains()
 
 http_archive(
     name = "wabt_linux_arm64",
@@ -689,4 +681,10 @@ http_archive(
     patches = ["//admin/patches:bazel/sqlite.patch"],
     strip_prefix = "sqlite-src-3510200",
     url = "https://sqlite.org/2026/sqlite-src-3510200.zip",
+)
+
+http_file(
+    name = "sqlite_dts",
+    integrity = "sha256-o4RoN7nanENHIdBVMhQgYTM8409WN41ExINWxzMdlI0=",
+    url = "https://raw.githubusercontent.com/sqlite/sqlite-wasm/2adc35d7f3e8306edb7b8738812c9a11a635b198/src/index.d.ts",
 )

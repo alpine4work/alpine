@@ -40,7 +40,10 @@
         // things since module resolution would always look at `node_modules`
         // instead of performing the Node.js module resolution algorithm.
         "baseUrl": "./admin/typescript/base",
-        "paths": {"~/*": ["../../../*"]},
+        "paths": {
+            "~/*": ["../../../*"],
+            "~/external/*": ["../../../admin/external_types/*"],
+        },
 
         /* ========================================================================== *\
          *                              Type Checking                                 *
@@ -51,8 +54,8 @@
         "noPropertyAccessFromIndexSignature": false,
         "noImplicitOverride": true,
         "allowJs": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
     },
     "include": ["**/*.ts", "**/*.tsx", ".vscode/**/*.ts", ".vscode/**/*.tsx"],
-    "exclude": ["node_modules", "bazel-*"]
+    "exclude": ["node_modules", "bazel-*"],
 }
