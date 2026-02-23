@@ -181,33 +181,22 @@ test("can\u2019t create a channel if the actor doesn\u2019t have manage access",
     });
 });
 
-test("can\u2019t create a channel with URL grant", async () => {
+test("can create a channel with URL grant", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    await expect(
-        createChannel(session1.action(), {
-            spaceId: space.id,
-            name: "Test",
-            accessPolicy: {
-                accountGrantById: new Map([
-                    [session2.account.id, {level: "Manage", generation: 0}],
-                ]),
-                defaultGrant: {level: "Manage", generation: 1},
-                urlGrant: {level: "View"},
-            },
-        }),
-    ).rejects.toThrow("Channels don\u2019t currently support `urlGrant`s");
-
-    await createChannel(session1.action(), {
+    const channel = await createChannel(session1.action(), {
         spaceId: space.id,
         name: "Test",
         accessPolicy: {
             accountGrantById: new Map([[session2.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
-            urlGrant: null,
+            urlGrant: {level: "View"},
         },
     });
+
+    const channelPreview = await getChannelPreview(session1.action(), channel.id);
+    expect(channelPreview.accessPolicy.urlGrant).toEqual({level: "View"});
 });
 
 test("can create a channel", async () => {
@@ -1332,24 +1321,22 @@ test("can\u2019t update channel access policy with bot account", async () => {
     ).rejects.toThrow("Can\u2019t grant access to a bot account");
 });
 
-test("can\u2019t update channel access policy with `urlGrant``", async () => {
+test("can update channel access policy with `urlGrant`", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const channel = await TestChannel.create(session);
 
-    await expect(
-        updateChannelAccessPolicy(session.action(), {
-            channelId: channel.id,
-            accessPolicy: {
-                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-                defaultGrant: {level: "Manage", generation: 1},
-                urlGrant: {level: "View"},
-            },
-            notification: null,
-        }),
-    ).rejects.toThrow("Channels don\u2019t currently support `urlGrant`s");
+    await updateChannelAccessPolicy(session.action(), {
+        channelId: channel.id,
+        accessPolicy: {
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: {level: "View"},
+        },
+        notification: null,
+    });
 
-    expect((await channel.access.get()).urlGrant).toEqual(null);
+    expect((await channel.access.get()).urlGrant).toEqual({level: "View"});
 });
 
 test("can create a post", async () => {

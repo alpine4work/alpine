@@ -16,6 +16,7 @@ import {getPostAndInitialComments} from "~/server/forum/data/post_messaging.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -40,7 +41,7 @@ const LoaderSchema = Schema.object({
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
-    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const context = await unauthenticatedContext.actor.authenticate();
 
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
     const postId = deserializePostIdForLoader(params.postId ?? null);
@@ -53,14 +54,16 @@ export async function loader({params, context: unauthenticatedContext, request}:
     // include any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
+    const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId)).ok;
+
     const [{post, initialComments, initialOtherReferencedComments}, inboxEntry] =
         await runAllPromises([
             getPostAndInitialComments(context, {
                 postId,
                 commentLimit,
             }),
-            url.searchParams.get("inbox") === "show"
-                ? getInboxEntry(context, {
+            isSpaceAccessAuthorized && url.searchParams.get("inbox") === "show"
+                ? getInboxEntry(context.actor.authorizeSession(), {
                       spaceId,
                       key: {type: "PostComments", postId},
                   })

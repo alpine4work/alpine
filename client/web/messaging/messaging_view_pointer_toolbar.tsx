@@ -34,7 +34,7 @@ import {
     ReactionButtonBase,
 } from "~/client/web/reactions/reaction_button.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     messagingStyles,
     sprinkles,
@@ -94,7 +94,7 @@ export function MessagingViewPointerToolbar<
     const isInitialAppRender = useIsInitialAppRender();
     const platform = usePlatform();
     const reporter = useReporter();
-    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {currentAccount} = useSpaceContext();
     const isContextMenuOpen = useIsContextMenuOpen();
     const inboxContext = useInboxContext();
 
@@ -288,6 +288,8 @@ export function MessagingViewPointerToolbar<
         // (which may be rendered on another frame).
         window.getSelection()?.removeAllRanges();
     };
+
+    if (!currentAccount) return null;
 
     return (
         <OverlayAnimated

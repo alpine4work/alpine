@@ -68,7 +68,7 @@ export function ChannelFilesView({
     const clientInfo = useClientInfo();
     const spacingScale = useSpacingScale();
     const remPx = remPxBySpacingScale[spacingScale];
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -76,10 +76,12 @@ export function ChannelFilesView({
 
     const channelId = initialChannelResult.items[0].model.id;
 
+    const shouldConnectToChannelRealtime = currentAccount !== null;
+
     const {isConnected, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "ChannelRealtimeService",
         ChannelRealtimeProtocol,
-        `/api/durable-objects/channels/${channelId}`,
+        shouldConnectToChannelRealtime ? `/api/durable-objects/channels/${channelId}` : null,
     );
 
     const {

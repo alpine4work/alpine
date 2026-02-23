@@ -139,13 +139,16 @@ function usePostCommentInputRealtime({
     shouldBeConnectedToChannelRealtime,
     onPostRealtimeEventTransaction,
 }: ComponentProps<typeof PostCommentInput>) {
+    const {currentAccount} = useSpaceContext();
+    const shouldConnectToPostRealtime = currentAccount !== null;
+
     // We connect to realtime in our `<PostCommentInput>` component. When comments
     // are open this component is always rendered and we only want to connect to
     // realtime when comments are open so works out.
     const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "PostRealtimeService",
         PostRealtimeProtocol,
-        `/api/durable-objects/posts/${post.id}`,
+        shouldConnectToPostRealtime ? `/api/durable-objects/posts/${post.id}` : null,
     );
 
     useImperativeHandle(

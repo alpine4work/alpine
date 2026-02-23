@@ -4,7 +4,10 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {dangerouslyGetAccountStubIfExistsWithoutAuthorization} from "~/server/spaces/dangerously_get_account_stub_if_exists_without_authorization.js";
-import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
+import {
+    ContentReferencedIds,
+    getContentReferencedIdsForNode,
+} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -21,15 +24,13 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * actor has view access to the content. Since we'll dangerously load account
  * stubs assuming you've already authorized access.
  */
-export async function getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
+export async function getContentReferencedIdsAssumingViewAccessWithOptionalSpaceAccess(
     context: ServerActionContext,
     spaceId: SpaceId,
-    fileAuthorizer: FileAuthorizer,
-    content: Node,
+    fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
+    referencedIds: ContentReferencedIds,
     options?: {withPreloadedFiles?: boolean},
 ): Promise<ContentReferences> {
-    const referencedIds = getContentReferencedIdsForNode(content);
-
     // If the actor has space access we can fetch content references as normal.
     // However, if the actor doesn't have space access (but has view access) then
     // when we fetch accounts we want to return stubs that only reveal the
@@ -75,4 +76,22 @@ export async function getContentReferencesAssumingViewAccessWithOptionalSpaceAcc
 
         return {...contentReferences, accountById};
     }
+}
+
+export async function getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
+    content: Node,
+    options?: {withPreloadedFiles?: boolean},
+): Promise<ContentReferences> {
+    const referencedIds = getContentReferencedIdsForNode(content);
+
+    return getContentReferencedIdsAssumingViewAccessWithOptionalSpaceAccess(
+        context,
+        spaceId,
+        fileAuthorizer,
+        referencedIds,
+        options,
+    );
 }

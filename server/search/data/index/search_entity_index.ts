@@ -97,6 +97,7 @@ import {
     authorizeSpaceAccessIfPossible,
 } from "~/server/spaces/authorize_space_access.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
+import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {getSpaceAccount} from "~/server/spaces/get_space_account.js";
 import {getSpaceAccountNameSearchIndex} from "~/server/spaces/get_space_account_name_search_index.js";
 import {getSpaceAccountSettings} from "~/server/spaces/get_space_account_settings.js";
@@ -2561,7 +2562,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
             const postContentTitleSnippet = getPostSearchEntityTitleContentSnippet(post.content);
 
             const [author, references] = await runAllPromises([
-                getAccount(
+                getAccountOrDangerouslyGetStubWithoutAuthorization(
                     // It's fine to read references with eventual consistency.
                     context.dynamo.unexpectStrongReadConsistency(),
                     spaceId,

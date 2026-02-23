@@ -63,7 +63,6 @@ describe("User access to search entities based on urlGrant and context", () => {
                     expectedAccess: true,
                 },
             ],
-            // Channels and Posts aren't supported anonymously yet
             Channel: [
                 {
                     urlGrantLevel: null,
@@ -76,6 +75,18 @@ describe("User access to search entities based on urlGrant and context", () => {
                     defaultGrantType: "Space",
                     grantedIndividualAccess: false,
                     expectedAccess: false,
+                },
+                {
+                    urlGrantLevel: "View",
+                    defaultGrantType: null,
+                    grantedIndividualAccess: false,
+                    expectedAccess: true,
+                },
+                {
+                    urlGrantLevel: "View",
+                    defaultGrantType: "Space",
+                    grantedIndividualAccess: false,
+                    expectedAccess: true,
                 },
             ],
             Post: [
@@ -90,6 +101,18 @@ describe("User access to search entities based on urlGrant and context", () => {
                     defaultGrantType: "Space",
                     grantedIndividualAccess: false,
                     expectedAccess: false,
+                },
+                {
+                    urlGrantLevel: "View",
+                    defaultGrantType: null,
+                    grantedIndividualAccess: false,
+                    expectedAccess: true,
+                },
+                {
+                    urlGrantLevel: "View",
+                    defaultGrantType: "Space",
+                    grantedIndividualAccess: false,
+                    expectedAccess: true,
                 },
             ],
         },
@@ -223,7 +246,6 @@ describe("User access to search entities based on urlGrant and context", () => {
         }
 
         if (urlGrantLevel && accessTarget.access) {
-            // Only Documents support urlGrant among the tested entity types
             await accessTarget.access.grantUrl(session, urlGrantLevel);
         }
 
@@ -375,16 +397,16 @@ describe("User access to search entities based on urlGrant and context", () => {
             expect(privateResult).toEqual({isPrivate: true});
         });
 
-        test("Document with urlGrant vs entities that don\u2019t support urlGrant", async () => {
+        test("Document with urlGrant vs entities without urlGrant", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            // Create entities - one that supports urlGrant, others that don't
+            // Create entities - one with urlGrant, others without
             const document = await TestDocument.create(session);
             const channel = await TestChannel.create(session, {name: "Test Channel"});
             const post = await channel.createPost(session, {});
 
-            // Grant URL access to document (channel and post don't support urlGrant)
+            // Grant URL access to document (channel and post do not have urlGrant)
             await document.access.grantUrl(session, "View");
 
             // Test access to all entities

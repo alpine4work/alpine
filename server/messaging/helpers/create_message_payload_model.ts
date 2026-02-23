@@ -1,7 +1,5 @@
-import {
-    getContentFileReference,
-    getContentReferences,
-} from "~/server/content/get_content_references.js";
+import {getContentFileReference} from "~/server/content/get_content_references.js";
+import {getContentReferencedIdsAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
@@ -38,7 +36,7 @@ export async function createMessagePayloadModel(
         }
         case "Content": {
             const [references, files] = await runAllPromises([
-                getContentReferences(
+                getContentReferencedIdsAssumingViewAccessWithOptionalSpaceAccess(
                     context,
                     spaceId,
                     "AssertHasNoFiles",

@@ -40,10 +40,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
-import {
-    useSpaceContext,
-    useSpaceContextAndRequireSpaceAccess,
-} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
@@ -110,9 +107,10 @@ export function PostContentView({
     post,
     postComments,
     postCommentsState,
-    shouldShowChannel,
     postEditing,
+    shouldShowChannel,
     isPostView,
+    isReadOnly,
     initialScroll,
     jumpState,
     idBase,
@@ -132,6 +130,7 @@ export function PostContentView({
     postEditing: PostEditing;
     shouldShowChannel: boolean;
     isPostView: boolean;
+    isReadOnly: boolean;
     initialScroll: PostContentViewInitialScroll | null;
     jumpState: JumpToPostRangeState | null;
     idBase: string;
@@ -502,6 +501,7 @@ export function PostContentView({
                 post={post}
                 postComments={postComments}
                 postCommentsState={postCommentsState}
+                isReadOnly={isReadOnly}
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
                 onOptimisticPostRealtimeEventTransaction={onOptimisticPostRealtimeEventTransaction}
@@ -514,6 +514,7 @@ function PostContentViewFooter({
     post,
     postComments,
     postCommentsState,
+    isReadOnly,
     onTogglePostComments,
     onLoadInitialPostComments,
     onOptimisticPostRealtimeEventTransaction,
@@ -521,6 +522,7 @@ function PostContentViewFooter({
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
+    isReadOnly: boolean;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
     onOptimisticPostRealtimeEventTransaction: (
@@ -532,7 +534,7 @@ function PostContentViewFooter({
     const context = useAppContext();
     const {locale} = useClientInfo();
     const platform = usePlatform();
-    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {space, currentAccount} = useSpaceContext();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const reporter = useReporter();
@@ -603,8 +605,11 @@ function PostContentViewFooter({
                 style={{width: postContentViewFooterReactionButtonAreaWidth}}
             >
                 <ReactionButton
+                    isReadOnly={isReadOnly}
                     reactions={post.reactions}
                     onSetReaction={reaction => {
+                        if (!currentAccount) return;
+
                         const promise = setPostReaction(context, {postId: post.id, reaction}).then(
                             ({eventTransaction}) => eventTransaction,
                         );
@@ -625,6 +630,8 @@ function PostContentViewFooter({
                         });
                     }}
                     onDeleteReaction={() => {
+                        if (!currentAccount) return;
+
                         const promise = deletePostReaction(context, {postId: post.id}).then(
                             ({eventTransaction}) => eventTransaction,
                         );

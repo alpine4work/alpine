@@ -35,6 +35,7 @@ import {isSubscribedToChannel} from "~/server/forum/data/is_subscribed_to_channe
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
@@ -75,7 +76,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {channelResult}}) =
 });
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
-    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const context = await unauthenticatedContext.actor.authenticate();
 
     const url = new URL(request.url);
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
@@ -96,11 +97,14 @@ export async function loader({request, params, context: unauthenticatedContext}:
         try {
             const checkpoint = generateServerSynchronizationCheckpoint();
 
-            const {getDynamoGeneralRealtimeItem} = await createChannel(context, {
-                spaceId,
-                channelId,
-                name: createSearchParam,
-            });
+            const {getDynamoGeneralRealtimeItem} = await createChannel(
+                context.actor.authorizeSession(),
+                {
+                    spaceId,
+                    channelId,
+                    name: createSearchParam,
+                },
+            );
 
             created = {checkpoint, getDynamoGeneralRealtimeItem};
         } catch (error) {
@@ -131,29 +135,36 @@ export async function loader({request, params, context: unauthenticatedContext}:
         // If we're creating the channel then create an empty query since we should
         // know the channel model and initial channel contributors:
         created
-            ? runAllPromises([
-                  created.getDynamoGeneralRealtimeItem(context),
-                  getAccount(context, spaceId, context.actor.getAccountId()),
-              ]).then(
-                  ([item, account]): DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel> => ({
-                      checkpoint: created.checkpoint,
-                      partitionKey: getChannelAndMetadataPartitionKey(channelId),
-                      startItemKey: null,
-                      endItemKey: null,
-                      pageInfo: {type: "FromStart", afterItemKey: null, hasNextPage: false},
-                      items: [
+            ? (() => {
+                  const sessionContext = context.actor.authorizeSession();
+
+                  return runAllPromises([
+                      created.getDynamoGeneralRealtimeItem(sessionContext),
+                      getAccount(sessionContext, spaceId, sessionContext.actor.getAccountId()),
+                  ]).then(
+                      ([
                           item,
-                          {
-                              key: getChannelContributorsKey(channelId),
-                              version: 0,
-                              model: new ChannelContributorsModel({
-                                  contributorCount: 1,
-                                  topContributors: [account],
-                              }),
-                          },
-                      ],
-                  }),
-              )
+                          account,
+                      ]): DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel> => ({
+                          checkpoint: created.checkpoint,
+                          partitionKey: getChannelAndMetadataPartitionKey(channelId),
+                          startItemKey: null,
+                          endItemKey: null,
+                          pageInfo: {type: "FromStart", afterItemKey: null, hasNextPage: false},
+                          items: [
+                              item,
+                              {
+                                  key: getChannelContributorsKey(channelId),
+                                  version: 0,
+                                  model: new ChannelContributorsModel({
+                                      contributorCount: 1,
+                                      topContributors: [account],
+                                  }),
+                              },
+                          ],
+                      }),
+                  );
+              })()
             : getChannelAndMetadata(context, {
                   channelId,
                   // NOTE(calebmer): A small optimization could be to set this to 0 if we're
@@ -186,7 +197,11 @@ export async function loader({request, params, context: unauthenticatedContext}:
               }),
 
         // If we just created the channel then we should know the actor is subscribed:
-        created ? true : isSubscribedToChannel(context, channelId, {consistency}),
+        created
+            ? true
+            : (await authorizeSpaceAccessIfPossible(context, spaceId)).ok
+              ? isSubscribedToChannel(context.actor.authorizeSession(), channelId, {consistency})
+              : false,
 
         isSearchFavoriteEntity(context, {
             spaceId,

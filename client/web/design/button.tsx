@@ -49,6 +49,9 @@ type ButtonVariant =
     | "quiet"
     | "quieter"
     | "quietest"
+    | "quiet-even-when-disabled"
+    | "quieter-even-when-disabled"
+    | "quietest-even-when-disabled"
     | "quiet-on"
     | "quiet-off"
     | "neutral"
@@ -518,6 +521,60 @@ function Button(
                 : {
                       backgroundColor: undefined,
                       color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet-even-when-disabled": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredBackground
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-100",
+                  };
+            break;
+        }
+        case "quieter-even-when-disabled": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredBackground
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: isPressed ? "grey-100" : "grey-60",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-60",
+                  };
+            break;
+        }
+        case "quietest-even-when-disabled": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredBackground
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: isPressed ? "grey-100" : "grey-50",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-50",
                   };
             break;
         }

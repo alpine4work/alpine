@@ -66,7 +66,7 @@ export function ChannelViewContributorsSection({
     // When we open the `<ShareNotificationOverlay>` we immediately focus the
     // account input. Preload the account list so we don't need to show a loading
     // spinner after focusing the account input.
-    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id});
+    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
     const [showShareMobileModal, setShowShareMobileModal] = useState(false);
     if (platform !== "mobile" && showShareMobileModal) setShowShareMobileModal(false);

@@ -453,9 +453,6 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                             <ShareButton
                                                 entityNoun={shareButton.entityNoun}
                                                 entityId={shareButton.entityId}
-                                                withoutUrlGrantIfNull={
-                                                    shareButton.withoutUrlGrantIfNull
-                                                }
                                                 isReadOnly={shareButton.isReadOnly}
                                                 accessPolicy={shareButton.accessPolicy}
                                                 onAccessPolicyChange={
@@ -590,7 +587,6 @@ function NavigationBarContentMoreButton({
                                 ref={overlayRef}
                                 id={shareState.modalOwnerId}
                                 entityId={shareButton.entityId}
-                                withoutUrlGrantIfNull={shareButton.withoutUrlGrantIfNull}
                                 accessLevelText={
                                     shareButton.accessLevelText ?? defaultAccessLevelText
                                 }
@@ -693,7 +689,6 @@ function NavigationBarContentMoreButton({
                             {shareState.modals}
                             <ShareMobileModal
                                 entityNoun={shareButton.entityNoun}
-                                withoutUrlGrantIfNull={shareButton.withoutUrlGrantIfNull}
                                 accessLevelText={
                                     shareButton.accessLevelText ?? defaultAccessLevelText
                                 }

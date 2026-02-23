@@ -1,8 +1,5 @@
 import {Mapping} from "prosemirror-transform";
-import {
-    getContentReferencesForNode,
-    getMessageContentReferencesForNode,
-} from "~/server/content/get_content_references.js";
+import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
@@ -16,7 +13,7 @@ import {authorizePostAccess} from "~/server/forum/data/authorize_post_access.js"
 import {authorizePostDraftAccess} from "~/server/forum/data/authorize_post_draft_access.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
-import {getAccount} from "~/server/spaces/get_account.js";
+import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {
     MessageContent,
@@ -388,7 +385,11 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                     outer: for (const batchedAccountIds of iterateBatchedTopContributorAccountIds()) {
                         const newTopContributors = await runAllPromises(
                             mapIterable(batchedAccountIds, accountId =>
-                                getAccount(context, item.spaceId, accountId),
+                                getAccountOrDangerouslyGetStubWithoutAuthorization(
+                                    context,
+                                    item.spaceId,
+                                    accountId,
+                                ),
                             ),
                         );
 
@@ -654,9 +655,10 @@ async function createChannelModelFromItem(
         name: item.name,
         description: {
             doc: item.description,
-            references: await getMessageContentReferencesForNode(
+            references: await getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
                 context,
                 item.spaceId,
+                "AssertHasNoFiles",
                 item.description,
             ),
         },
@@ -687,7 +689,7 @@ async function createPostModelFromItem(
 ): Promise<PostModel> {
     const [channel, author, previewCommentAuthors, contentReferences] = await runAllPromises([
         channelPromise,
-        getAccount(context, item.spaceId, item.authorId),
+        getAccountOrDangerouslyGetStubWithoutAuthorization(context, item.spaceId, item.authorId),
         runAllPromises(
             Array.from(
                 sliceIterable(
@@ -695,10 +697,15 @@ async function createPostModelFromItem(
                     0,
                     maxPostPreviewCommentAuthorCount,
                 ),
-                accountId => getAccount(context, item.spaceId, accountId),
+                accountId =>
+                    getAccountOrDangerouslyGetStubWithoutAuthorization(
+                        context,
+                        item.spaceId,
+                        accountId,
+                    ),
             ),
         ),
-        getContentReferencesForNode(
+        getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
             context,
             item.spaceId,
             FilePostAuthorizer.bind({type: "Post", postId: item.postId}),

@@ -16,7 +16,6 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {generateId} from "~/shared/id/id.js";
@@ -54,10 +53,6 @@ export async function createChannel(
     ) => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
-
-    if (accessPolicy.urlGrant) {
-        throw new InvalidArgumentError("Channels don\u2019t currently support `urlGrant`s");
-    }
 
     await validateAccessPolicyUpdateForServer(context, spaceId, null, accessPolicy);
 

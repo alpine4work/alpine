@@ -31,7 +31,6 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ShareMobileModal({
     entityNoun,
-    withoutUrlGrantIfNull,
     accessLevelText,
     accessPolicy,
     onAccessPolicyChange,
@@ -39,7 +38,6 @@ export function ShareMobileModal({
     onCloseWithAnimation,
 }: {
     entityNoun: string;
-    withoutUrlGrantIfNull?: boolean;
     accessLevelText: Record<AccessLevel, string>;
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (
@@ -208,17 +206,13 @@ export function ShareMobileModal({
                             isReadOnly={isReadOnly}
                             isAltKeyDown={false}
                         />
-                        {(!withoutUrlGrantIfNull || accessPolicy.urlGrant) && (
-                            <>
-                                <Spacer space="3" />
-                                <ShareOverlayUrlGrant
-                                    accessLevelText={accessLevelText}
-                                    urlGrant={accessPolicy.urlGrant}
-                                    onAccessPolicyChange={onAccessPolicyChange}
-                                    isReadOnly={isReadOnly}
-                                />
-                            </>
-                        )}
+                        <Spacer space="3" />
+                        <ShareOverlayUrlGrant
+                            accessLevelText={accessLevelText}
+                            urlGrant={accessPolicy.urlGrant}
+                            onAccessPolicyChange={onAccessPolicyChange}
+                            isReadOnly={isReadOnly}
+                        />
                         <Spacer space="5" />
                     </Box>
                 </>

@@ -49,6 +49,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     getClipboardSerializerAuthorPrefix,
     jumpAnimation = null,
     reactionsByPos,
+    isReadOnly,
     onSetReaction,
     onDeleteReaction,
     onPressSeeReactions,
@@ -63,6 +64,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     | ContentViewWithReactionPartiesSupportedPropsKey
 > & {
     reactionsByPos: ReadonlyMap<number, ReactionSet>;
+    isReadOnly: boolean;
     onSetReaction: (pos: number | "Files", reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number | "Files") => void;
     onPressSeeReactions: (pos: number | "Files") => Promise<void>;
@@ -106,6 +108,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
                     previousPos={orderedReactionsByPosEntries[index - 1]?.[0] ?? 0}
                     pos={pos}
                     reactions={reactions}
+                    isReadOnly={isReadOnly}
                     onSetReaction={onSetReaction}
                     onDeleteReaction={onDeleteReaction}
                     onPressSeeReactions={onPressSeeReactions}
@@ -128,6 +131,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     previousPos,
     pos,
     reactions,
+    isReadOnly,
     onSetReaction,
     onDeleteReaction,
     onPressSeeReactions,
@@ -144,6 +148,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     previousPos: number;
     pos: number;
     reactions: ReactionSet | null;
+    isReadOnly: boolean;
     onSetReaction: (pos: number | "Files", reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number | "Files") => void;
     onPressSeeReactions: (pos: number | "Files") => Promise<void>;
@@ -208,6 +213,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                 <ContentViewReactionParty
                     pos={pos}
                     reactions={reactions}
+                    isReadOnly={isReadOnly}
                     onSetReaction={onSetReaction}
                     onDeleteReaction={onDeleteReaction}
                     onPressSeeReactions={onPressSeeReactions}
@@ -225,6 +231,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
 export function ContentViewReactionParty({
     pos,
     reactions,
+    isReadOnly,
     onSetReaction,
     onDeleteReaction,
     onPressSeeReactions,
@@ -233,6 +240,7 @@ export function ContentViewReactionParty({
 }: {
     pos: number | "Files";
     reactions: ReactionSet;
+    isReadOnly: boolean;
     onSetReaction: (pos: number | "Files", reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number | "Files") => void;
     onPressSeeReactions: (pos: number | "Files") => Promise<void>;
@@ -298,6 +306,7 @@ export function ContentViewReactionParty({
             >
                 <ReactionButton
                     reactions={reactions}
+                    isReadOnly={isReadOnly}
                     onSetReaction={reaction => onSetReaction(pos, reaction)}
                     onDeleteReaction={() => onDeleteReaction(pos)}
                     onPressSeeReactions={() => onPressSeeReactions(pos)}

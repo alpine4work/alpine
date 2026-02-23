@@ -14,7 +14,7 @@ import {ReactionRadialPicker} from "~/client/web/reactions/internal/reaction_rad
 import {ReactionTooltip} from "~/client/web/reactions/internal/reaction_tooltip.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonHeightRem,
@@ -34,15 +34,19 @@ export const reactionButtonContextMenuActionKey = "reaction-button";
 
 export function ReactionButton({
     reactions,
+    isReadOnly,
     onSetReaction,
     onDeleteReaction,
     onPressSeeReactions,
 }: {
     reactions: ReactionSet;
+    isReadOnly: boolean;
     onSetReaction: (reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: () => void;
     onPressSeeReactions: () => Promise<void>;
 }) {
+    const {currentAccount} = useSpaceContext();
+
     const genericLikeReactions = useMemo(
         () =>
             Array.from(
@@ -63,9 +67,12 @@ export function ReactionButton({
                 <ReactionTooltip
                     introduction="Liked by"
                     reactions={genericLikeReactions}
-                    withContextMenuInstructions={true}
+                    withContextMenuInstructions={!!currentAccount}
                 >
                     <ContextMenuActions
+                        // The `/reactions` route doesn't work when the actor doesn't have access to
+                        // the space because we don't let the actor see accounts that left reactions.
+                        isDisabled={!currentAccount}
                         actions={[
                             [
                                 {
@@ -78,7 +85,12 @@ export function ReactionButton({
                         ]}
                     >
                         <Button
-                            variant={genericLikeReactions.length > 0 ? "quieter" : "quietest"}
+                            variant={
+                                genericLikeReactions.length > 0
+                                    ? "quieter-even-when-disabled"
+                                    : "quietest-even-when-disabled"
+                            }
+                            isDisabled={isReadOnly}
                             isPressed={isPointerDownFromOverlayOpen}
                             height={postContentViewFooterButtonHeight}
                             paddingX="1.5"
@@ -161,7 +173,7 @@ export function ReactionButtonBase({
         isPointerDownFromOverlayOpen: boolean;
     }) => ReactElement;
 }) {
-    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {currentAccount} = useSpaceContext();
     const platform = usePlatform();
 
     const reactionPickerRef = useRef<ReactionPickerRef>(null);
@@ -170,6 +182,13 @@ export function ReactionButtonBase({
     const [isPointerDownFromOverlayOpen, setIsPointerDownFromOverlayOpen] = useState(false);
 
     const [isMegaPickerOpen, setIsMegaPickerOpen] = useState(false);
+
+    if (!currentAccount) {
+        return children({
+            currentAccountReaction: undefined,
+            isPointerDownFromOverlayOpen: false,
+        });
+    }
 
     const currentAccountReaction = reactions.get().get(currentAccount.id);
 

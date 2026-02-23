@@ -124,11 +124,6 @@ import {
     pulseAnimationWithReducedOpacityClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
-import {
-    AccessPolicy,
-    getAccountAccessLevelAssumingSpaceAccess,
-    hasAccessLevel,
-} from "~/shared/access/access_policy.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {linkClassName} from "~/shared/design/core/constant_class_names.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
@@ -204,7 +199,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessageReaction,
     onUpdateMessagesOptimistically,
     roomDisplayedCreatedTime,
-    readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel,
+    isReadOnly = false,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -228,7 +223,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
     onUpdateMessagesOptimistically: Memo<OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>>;
     roomDisplayedCreatedTime?: Date;
-    readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel?: AccessPolicy;
+    isReadOnly?: boolean;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -242,19 +237,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const inboxContext = useInboxContext();
 
     const currentAccountId = currentAccount?.id;
-
-    const isReadOnly = useMemo(
-        () =>
-            readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel !== undefined &&
-            !hasAccessLevel(
-                getAccountAccessLevelAssumingSpaceAccess(
-                    readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel,
-                    currentAccount?.id,
-                ),
-                "Comment",
-            ),
-        [currentAccount?.id, readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel],
-    );
 
     const messageAuthor = useAccountModel(message.author);
 
@@ -984,6 +966,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         // Don't show the add reaction button on the content if there are files. The
         // files section will show its own add reaction button.
         if (
+            !isReadOnly &&
             isLastMessage &&
             message.author.id !== currentAccountId &&
             message.payload.reactionsByPos.size === 0 &&
@@ -993,7 +976,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         }
 
         return message.payload.reactionsByPos;
-    }, [message.payload, message.author.id, isLastMessage, currentAccountId]);
+    }, [message.payload, message.author.id, isReadOnly, isLastMessage, currentAccountId]);
 
     const handleSetReaction = useCallback(
         (pos: number | "Files", reaction: Reaction | "GenericLike") => {
@@ -1137,6 +1120,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         <ContentViewReactionParty
                             pos={bigEmojiReactionsPos}
                             reactions={bigEmojiReactions}
+                            isReadOnly={isReadOnly}
                             onSetReaction={handleSetReaction}
                             onDeleteReaction={handleDeleteReaction}
                             onPressSeeReactions={async pos => {
@@ -1193,6 +1177,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     getClipboardSerializerAuthorPrefix={events.getClipboardSerializerAuthorPrefix}
                     jumpAnimation={jumpAnimation}
                     reactionsByPos={reactionsByPos}
+                    isReadOnly={isReadOnly}
                     onSetReaction={handleSetReaction}
                     onDeleteReaction={handleDeleteReaction}
                     onPressSeeReactions={async pos => {
@@ -1216,6 +1201,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         events.getClipboardSerializerAuthorPrefix,
         handleDeleteReaction,
         handleSetReaction,
+        isReadOnly,
         jumpAnimation,
         message,
         messageTextForBigEmojiMessage,
@@ -1680,6 +1666,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                     <ContentViewReactionParty
                                                         pos="Files"
                                                         reactions={message.payload.filesReactions}
+                                                        isReadOnly={isReadOnly}
                                                         onSetReaction={handleSetReaction}
                                                         onDeleteReaction={handleDeleteReaction}
                                                         onPressSeeReactions={async () => {

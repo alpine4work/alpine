@@ -90,10 +90,12 @@ export function ChannelView({
 
     const channelId = initialChannelResult.items[0].model.id;
 
+    const shouldConnectToChannelRealtime = currentAccount !== null;
+
     const {isConnected, subscribeToEvents, subscribeToPongs, toggleShouldConnect} = useWebSocket(
         "ChannelRealtimeService",
         ChannelRealtimeProtocol,
-        `/api/durable-objects/channels/${channelId}`,
+        shouldConnectToChannelRealtime ? `/api/durable-objects/channels/${channelId}` : null,
     );
 
     const {query: channelAndMetadataQuery, handleEvent: handleEventForChannel} =
@@ -312,12 +314,14 @@ export function ChannelView({
         desktopTitleLeftSlop: "1",
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
-        desktopAdditionalActions: (
+        // Don't render the subscribe button if the account doesn't have space access.
+        // They won't be allowed to see the names of accounts in the share dialog.
+        desktopAdditionalActions: currentAccount ? (
             <ChannelViewSubscribeButton
                 channelId={channelId}
                 initialIsSubscribed={initialIsSubscribed}
             />
-        ),
+        ) : undefined,
         // Always put the share UI in the more menu. You should add users to a channel
         // by clicking the invite button in `<ChannelViewContributorsSection>`. Since
         // in a public channel it doesn't make sense to invite people from the share
@@ -325,24 +329,26 @@ export function ChannelView({
         // `<ChannelViewContributorsSection>` may make it unclear what to use for
         // adding people to a channel.
         withWideRouteLayoutShareMenuItem: true,
-        shareButton: {
-            entityNoun: "channel",
-            entityId: `Channel:${channelId}`,
-            // Channels don't currently support URL grants. So hide the URL grant input.
-            withoutUrlGrantIfNull: true,
-            accessPolicy: channel.accessPolicy,
-            onAccessPolicyChange: async (notification, accessPolicy) => {
-                const event = await updateChannelAccessPolicy(context, {
-                    channelId,
-                    accessPolicy,
-                    notification,
-                });
+        // Don't render the share button if the account doesn't have space access. They
+        // won't be allowed to see the names of accounts in the share dialog.
+        shareButton: currentAccount
+            ? {
+                  entityNoun: "channel",
+                  entityId: `Channel:${channelId}`,
+                  accessPolicy: channel.accessPolicy,
+                  onAccessPolicyChange: async (notification, accessPolicy) => {
+                      const event = await updateChannelAccessPolicy(context, {
+                          channelId,
+                          accessPolicy,
+                          notification,
+                      });
 
-                handleEventForChannel(event.eventTransaction);
-            },
-            onCopyLink: handleCopyLink,
-            accessLevelText: channelAccessLevelText,
-        },
+                      handleEventForChannel(event.eventTransaction);
+                  },
+                  onCopyLink: handleCopyLink,
+                  accessLevelText: channelAccessLevelText,
+              }
+            : undefined,
         // Move the menu further away from the subscribe button. It's quite large and
         // the default offset renders our menu too close to the subscribe button in my
         // design opinion.
@@ -484,7 +490,7 @@ export function ChannelView({
 
                     setPosts(posts => posts.updateQuery(query => query.loadMore(postsResult)));
                 }}
-                shouldBeConnectedToChannelRealtime={true}
+                shouldBeConnectedToChannelRealtime={shouldConnectToChannelRealtime}
                 onPostRealtimeEventTransaction={useCallback(
                     eventTransaction => {
                         setPosts(posts =>

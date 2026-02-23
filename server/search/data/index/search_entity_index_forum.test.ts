@@ -684,18 +684,12 @@ test("channel access policies are enforced in search", async () => {
     await channel5.access.grant(session1, session2);
     await channel5.access.grant(session1, session3);
 
-    await expect(channel6.access.grantUrl(session6)).rejects.toThrow(
-        "Channels don\u2019t currently support `urlGrant`s",
-    );
+    await channel6.access.grantUrl(session6);
 
-    await expect(channel7.access.grantUrl(session6)).rejects.toThrow(
-        "Channels don\u2019t currently support `urlGrant`s",
-    );
+    await channel7.access.grantUrl(session6);
     await channel7.access.grant(session6, session5);
 
-    await expect(channel8.access.grantUrl(session6)).rejects.toThrow(
-        "Channels don\u2019t currently support `urlGrant`s",
-    );
+    await channel8.access.grantUrl(session6);
     await channel8.access.grantDefault(session6);
 
     import.meta.jest.advanceTimersByTime(10 * 1000);

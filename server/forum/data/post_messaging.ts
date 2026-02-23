@@ -50,7 +50,8 @@ import {getNotificationMessageContentSnippet} from "~/server/notifications/core/
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {getAccount} from "~/server/spaces/get_account.js";
+
+import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
@@ -1237,7 +1238,7 @@ async function createPostCommentModelFromItem(
     item: MessageItem,
 ): Promise<PostCommentModel> {
     const [author, payload] = await runAllPromises([
-        getAccount(context, spaceId, item.authorId),
+        getAccountOrDangerouslyGetStubWithoutAuthorization(context, spaceId, item.authorId),
         createMessagePayloadModel(
             context,
             spaceId,

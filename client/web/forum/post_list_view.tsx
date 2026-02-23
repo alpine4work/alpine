@@ -104,6 +104,10 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
+import {
     Spacing,
     addRemLengths,
     convertRemLengthToPx,
@@ -114,6 +118,7 @@ import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -122,6 +127,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -383,7 +389,7 @@ function PostListView(
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -1081,6 +1087,20 @@ function PostListView(
         [],
     );
 
+    const hasCommentAccessLevelByChannel = useMemo(
+        () =>
+            new DefaultWeakMap<ChannelPreviewModel, boolean>(channel =>
+                hasAccessLevel(
+                    getAccountAccessLevelAssumingSpaceAccess(
+                        channel.accessPolicy,
+                        currentAccount?.id,
+                    ),
+                    "Comment",
+                ),
+            ),
+        [currentAccount?.id],
+    );
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = posts.getItem(index);
@@ -1209,6 +1229,20 @@ function PostListView(
                                             shouldNotShowChannelId !== item.post.channel.id
                                         }
                                         isPostView={isPostView}
+                                        // You shouldn't be able to react to a post if you don't have `Comment` access
+                                        // on the post.
+                                        //
+                                        // Use the `accessPolicy` from `header` if applicable. Because we update
+                                        // the `channel` in `header` in realtime. Whereas the `channel` preview
+                                        // in the `PostModel` might not update in realtime.
+                                        isReadOnly={
+                                            !hasCommentAccessLevelByChannel.getOrSetDefault(
+                                                header?.type === "Channel" &&
+                                                    header.channel.id === item.post.channel.id
+                                                    ? header.channel
+                                                    : item.post.channel,
+                                            )
+                                        }
                                         initialScroll={
                                             index === 0 || (hasHeader && index === 1)
                                                 ? (initialScrollForFirstPost ?? null)
@@ -1384,11 +1418,13 @@ function PostListView(
                                     // Use the `accessPolicy` from `header` if applicable. Because we update
                                     // the `channel` in `header` in realtime. Whereas the `channel` preview
                                     // in the `PostModel` might not update in realtime.
-                                    readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel={
-                                        header?.type === "Channel" &&
-                                        header.channel.id === item.post.channel.id
-                                            ? header.channel.accessPolicy
-                                            : item.post.channel.accessPolicy
+                                    isReadOnly={
+                                        !hasCommentAccessLevelByChannel.getOrSetDefault(
+                                            header?.type === "Channel" &&
+                                                header.channel.id === item.post.channel.id
+                                                ? header.channel
+                                                : item.post.channel,
+                                        )
                                     }
                                 />
                             ) : (
@@ -1800,6 +1836,7 @@ function PostListView(
             jumpToPostRange,
             handleSetMessageReaction,
             handleDeleteMessageReaction,
+            hasCommentAccessLevelByChannel,
             onUpdatePostCommentsOptimistically,
             header,
             inputParentByPostId,

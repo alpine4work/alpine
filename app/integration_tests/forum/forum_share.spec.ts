@@ -1,8 +1,16 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
+import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
+import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
+import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 
 const {context, services} = createTestServices();
 
@@ -156,8 +164,7 @@ test("can toggle channel sharing on/off with share dialog default grant", async 
 
     await expect(page1.getByTestId("ShareOverlayDefaultGrant")).toBeVisible();
 
-    // URL grant is disabled for channels.
-    await expect(page1.getByTestId("ShareOverlayUrlGrant")).toBeHidden();
+    await expect(page1.getByTestId("ShareOverlayUrlGrant")).toBeVisible();
 
     await page1
         .getByTestId("ShareOverlayDefaultGrant")
@@ -1402,4 +1409,210 @@ test("can share a private channel with any other account in the space", async ({
     ).toBeVisible();
 
     await browserContext1.close();
+});
+
+test("anonymous users can view channel shared with url grant", async ({
+    browser,
+    context: browserContext2,
+    page: page2,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session, {
+        name: "Test Channel",
+        access: "Private",
+    });
+
+    const post = await channel.createPost(session, "Test post content");
+    await post.createComment(session, "Test post comment content");
+
+    await services.signIn(browserContext2, session);
+    await page2.goto(`/s/${space.id}/channels/${channel.id}`);
+
+    const browserContext1 = await browser.newContext();
+    const page1 = await browserContext1.newPage();
+
+    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+
+    await expect(page1.getByText("Couldn\u2019t open channel")).toBeVisible();
+    await expect(page1.getByText("Test Channel")).toBeHidden();
+
+    await page2.getByTestId("NavigationBar").getByLabel("More").click();
+    await page2.getByRole("menuitem", {name: "Share"}).click();
+
+    await expect(page2.getByTestId("ShareOverlayUrlGrant")).toBeVisible();
+
+    await page2
+        .getByTestId("ShareOverlayUrlGrant")
+        .getByRole("button", {name: "can\u2019t access"})
+        .click();
+    await page2.getByRole("menuitem", {name: "can view"}).click();
+
+    await expect(async () => {
+        const preview = await getChannelPreview(space.systemAction(), channel.id);
+        expect(preview.accessPolicy.urlGrant?.level).toBe("View");
+    }).toPass({timeout: 5000});
+
+    // Doesn't update in realtime so keep reloading until we can see the channel.
+    await expect(async () => {
+        await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+        await expect(page1.getByText("Test Channel")).toBeVisible({timeout: 250});
+    }).toPass({timeout: 5000});
+
+    await expect(page1.getByText("Test post content")).toBeVisible();
+
+    await page1.getByRole("button", {name: "1 comment"}).click();
+    await expect(page1.getByText("Test post comment content")).toBeVisible();
+
+    await browserContext1.close();
+});
+
+test("anonymous users can view mentions in shared channel posts and comments", async ({page}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession();
+
+    const postMentionAccount = await space.createSession({name: "Post Mention"});
+    const commentMentionAccount = await space.createSession({name: "Comment Mention"});
+
+    const publicPostDocument = await TestDocument.create(session, {
+        title: "Public post document",
+    });
+    await publicPostDocument.access.grantUrl(session, "View");
+
+    const privatePostDocument = await TestDocument.create(session, {
+        title: "Private post document",
+    });
+
+    const publicCommentDocument = await TestDocument.create(session, {
+        title: "Public comment document",
+    });
+    await publicCommentDocument.access.grantUrl(session, "View");
+
+    const privateCommentDocument = await TestDocument.create(session, {
+        title: "Private comment document",
+    });
+
+    const channel = await TestChannel.create(session, {
+        name: "Test Channel",
+        access: "Private",
+    });
+
+    const post = await channel.createPost(
+        session,
+        PostContentProsemirrorSchema.node("doc", {}, [
+            PostContentProsemirrorSchema.node("paragraph", {}, [
+                PostContentProsemirrorSchema.text("Post mentions: "),
+                PostContentProsemirrorSchema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: postMentionAccount.account.id,
+                        isShort: false,
+                    }),
+                }),
+                PostContentProsemirrorSchema.text(", "),
+                PostContentProsemirrorSchema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${publicPostDocument.id}`,
+                    }),
+                }),
+                PostContentProsemirrorSchema.text(", "),
+                PostContentProsemirrorSchema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${privatePostDocument.id}`,
+                    }),
+                }),
+                PostContentProsemirrorSchema.text("."),
+            ]),
+        ]),
+    );
+
+    await post.createComment(
+        session,
+        MessageContentProsemirrorSchema.node("doc", {}, [
+            MessageContentProsemirrorSchema.node("paragraph", {}, [
+                MessageContentProsemirrorSchema.text("Comment mentions: "),
+                MessageContentProsemirrorSchema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: commentMentionAccount.account.id,
+                        isShort: false,
+                    }),
+                }),
+                MessageContentProsemirrorSchema.text(", "),
+                MessageContentProsemirrorSchema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${publicCommentDocument.id}`,
+                    }),
+                }),
+                MessageContentProsemirrorSchema.text(", "),
+                MessageContentProsemirrorSchema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${privateCommentDocument.id}`,
+                    }),
+                }),
+                MessageContentProsemirrorSchema.text("."),
+            ]),
+        ]),
+    );
+
+    await channel.access.grantUrl(session, "View");
+
+    await expect(async () => {
+        const preview = await getChannelPreview(space.systemAction(), channel.id);
+        expect(preview.accessPolicy.urlGrant?.level).toBe("View");
+    }).toPass({timeout: 5000});
+
+    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+
+    await expect(page.getByText("Test Channel")).toBeVisible();
+    await expect(page.getByText("Post mentions:")).toBeVisible();
+
+    const mentions = page.getByTestId("ContentMentionText");
+
+    await expect(mentions.filter({hasText: "Post Mention"})).toBeVisible();
+    await expect(mentions.filter({hasText: "Public post document"})).toBeVisible();
+
+    await page.getByRole("button", {name: "1 comment"}).click();
+
+    await expect(page.getByText("Comment mentions:")).toBeVisible();
+    await expect(mentions.filter({hasText: "Comment Mention"})).toBeVisible();
+    await expect(mentions.filter({hasText: "Public comment document"})).toBeVisible();
+    await expect(mentions.filter({hasText: "Private document"})).toHaveCount(2);
+});
+
+test("anonymous users can open channel files page with post and comment files", async ({page}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session, {
+        name: "Test Channel",
+        access: "Private",
+    });
+
+    const postFile = await TestFile.create(session);
+    const commentFile = await TestFile.create(session);
+
+    const post = await channel.createPost(session, {
+        files: [postFile],
+    });
+
+    await commentFile.attach(
+        session,
+        FilePostAuthorizer.bind({type: "PostComments", postId: post.id}),
+    );
+
+    await post.createComment(session, "Comment with file", {
+        files: [commentFile],
+    });
+
+    await channel.access.grantUrl(session, "View");
+
+    await page.goto(`/s/${space.id}/channels/${channel.id}/files`);
+
+    await expect(page.getByTestId("ContentFilePreview:image/png")).toHaveCount(1);
 });

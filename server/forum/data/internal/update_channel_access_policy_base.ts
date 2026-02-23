@@ -15,7 +15,6 @@ import {
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -69,12 +68,6 @@ export async function updateChannelAccessPolicyBase(
 
                 const oldAccessPolicy = channelItem.accessPolicy;
                 const newAccessPolicy = updateAccessPolicy(oldAccessPolicy);
-
-                if (newAccessPolicy.urlGrant) {
-                    throw new InvalidArgumentError(
-                        "Channels don\u2019t currently support `urlGrant`s",
-                    );
-                }
 
                 await validateAccessPolicyUpdateForServer(
                     context,
