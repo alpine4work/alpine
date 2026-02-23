@@ -2988,11 +2988,20 @@ export async function searchByAffinity(
 
         // Should be reading data cached by `authorizeSpaceAccess()` so shouldn't add
         // any additional network requests.
-        getSpaceAccount(context, spaceId, context.actor.getAccountId()),
+        getSpaceAccount(context, spaceId, context.actor.getAccountId()).then(spaceAccount => {
+            if (spaceAccount.state.type === "Active") return spaceAccount;
+
+            // We may have an `InvitePending` cached space account in our space accounts
+            // cache. So try again with strong consistency.
+            return getSpaceAccount(context, spaceId, context.actor.getAccountId(), {
+                consistency: "Strong",
+            });
+        }),
     ]);
 
     // Should be safe since `authorizeSpaceAccess()` should throw if our account is
-    // in a non-`Active` state.
+    // in a non-`Active` state. And we also retry loading with strong consistency
+    // if we find a non-active space account.
     assert(spaceAccount.state.type === "Active");
 
     // The number of affinity results to load. We don't let the client configure

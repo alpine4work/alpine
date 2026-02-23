@@ -10,6 +10,8 @@ import {ModalWithButtons} from "~/client/web/design/modal_with_buttons.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_auto_growing_height.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
+import {generateEmailAddressForDevConsole} from "~/client/web/helpers/generate_email_address_for_dev_console.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {getErrorDisplayMessageForPartialInvitePeopleFailure} from "~/client/web/settings/internal/get_error_display_message_for_partial_invite_people_failure.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/web/styles/styles.js";
@@ -41,6 +43,20 @@ export function SettingsInvitePeopleModal({
     const appContext = useAppContext();
     const accountRegistry = useAccountRegistry();
     const {locale} = useClientInfo();
+
+    useDevConsoleTool("spaceInvite", () => ({
+        generateEmailAddress: (baseEmailAddress?: string) => {
+            const emailAddress = generateEmailAddressForDevConsole(baseEmailAddress);
+            setBatchEmailString(batchEmailString => {
+                if (batchEmailString.length === 0 || batchEmailString.endsWith("\n")) {
+                    return batchEmailString + emailAddress;
+                } else {
+                    return batchEmailString + "\n" + emailAddress;
+                }
+            });
+            return emailAddress;
+        },
+    }));
 
     const emailAddresses = useMemo(
         () =>

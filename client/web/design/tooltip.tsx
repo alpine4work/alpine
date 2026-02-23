@@ -1,5 +1,5 @@
 import {isFocusVisible} from "@react-aria/interactions";
-import classNames from "classnames";
+import {AnimationPlaybackControls, animate} from "motion";
 import {
     ReactElement,
     ReactNode,
@@ -33,16 +33,19 @@ import {useCanPrimaryInputHover} from "~/client/web/remix/platform_context.js";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
-    overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
+    overlayFadeInOutTimingFunction,
     overlayFadeOutAnimationDurationMs,
 } from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
-import {Spacing} from "~/shared/design/core/spacing.js";
+import {parseCubicBezier} from "~/shared/design/core/easing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
  * Time it takes before we present a tooltip to the user if the user has
@@ -421,6 +424,7 @@ function Tooltip(
 
     const tooltipId = useId();
     const tooltipRef = useRef<HTMLDivElement>(null);
+    const tooltipContentRef = useRef<HTMLDivElement>(null);
     const tooltipSymbol = useConstant(() =>
         Symbol(`tooltip${tooltipId.startsWith(":") ? tooltipId : `:${tooltipId}`}`),
     );
@@ -562,65 +566,173 @@ function Tooltip(
         };
     }, [coordinationContext, isDisabled, isMounted, state, tooltipSymbol]);
 
-    // If we are fading in then setup a timeout to update our state when the
-    // animation ends.
-    useEffect(() => {
-        if (state.isFadingIn) {
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!state.isFadingIn || !isVisible) return;
+
+        const tooltipContentElement = assertExists(tooltipContentRef.current);
+
+        tooltipContentElement.classList.add(overlayAnimateFadeInClassName);
+
+        const timeout = createTimeout(() => {
+            setState(state => {
+                if (!state.isFadingIn) {
+                    return state;
+                } else if (!state.isHovered && !state.isFocused) {
+                    // If we are neither hovered nor focused then immediately transition
+                    // to fading out.
+                    return {
+                        ...state,
+                        isFadingIn: false,
+                        isFadingOut: true,
+                    };
+                } else if (state.isHovered || state.isFocused) {
+                    return {...state, isFadingIn: false};
+                } else {
+                    throw exhaustive(state);
+                }
+            });
+        }, overlayFadeInAnimationDurationMs);
+
+        return () => {
+            tooltipContentElement.classList.remove(overlayAnimateFadeInClassName);
+            timeout.clear();
+        };
+    }, [isVisible, state.isFadingIn]);
+
+    const fadeOutAnimationRef = useRef<AnimationPlaybackControls | null>(null);
+
+    // NOTE(calebmer, #mobile-webkit-weirdness): Implement fade out animation with
+    // the `motion` package. I've observed CSS class based animations randomly stop
+    // working on mobile WebKit after ~3min of app use. Implementing the animation
+    // with `motion` fixes the issue. I have no idea why it fixes the issue, but it
+    // does.
+    //
+    // Adding `allowWebkitAcceleration: true` breaks the animation again.
+    // Interestingly translation will work but the opacity change won't work.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!state.isFadingOut || !isVisible) {
             if (isVisible) {
-                const timeout = createTimeout(() => {
-                    setState(state => {
-                        if (!state.isFadingIn) {
-                            return state;
-                        } else if (!state.isHovered && !state.isFocused) {
-                            // If we are neither hovered nor focused then immediately transition
-                            // to fading out.
-                            return {
-                                ...state,
-                                isFadingIn: false,
-                                isFadingOut: true,
-                            };
-                        } else if (state.isHovered || state.isFocused) {
-                            return {...state, isFadingIn: false};
-                        } else {
-                            throw exhaustive(state);
-                        }
-                    });
-                }, overlayFadeInAnimationDurationMs);
-
-                return () => {
-                    timeout.clear();
-                };
+                fadeOutAnimationRef.current?.cancel();
             } else {
-                // If we aren't visible then we're waiting to see if our coordination
-                // context tells us we are the only visible tooltip.
-            }
-        }
-    }, [state.isFadingIn, isVisible]);
+                fadeOutAnimationRef.current?.complete();
 
-    // If we are fading out then setup a timeout to update our state when the
-    // animation ends.
-    useEffect(() => {
-        if (state.isFadingOut) {
-            if (isVisible) {
-                const timeout = createTimeout(() => {
-                    setState(state => {
-                        if (!state.isFadingOut) {
-                            return state;
-                        } else {
-                            return {...state, isFadingOut: false};
-                        }
-                    });
-                }, overlayFadeOutAnimationDurationMs);
-
-                return () => {
-                    timeout.clear();
-                };
-            } else {
                 // If we aren't visible there is no animation happening, so don't wait.
-                setState(state => ({...state, isFadingOut: false}));
+                setState(state => {
+                    if (!state.isFadingOut) {
+                        return state;
+                    } else {
+                        return {...state, isFadingOut: false};
+                    }
+                });
             }
+            fadeOutAnimationRef.current = null;
+            return;
         }
-    }, [state.isFadingOut, isVisible]);
+
+        if (fadeOutAnimationRef.current !== null) {
+            let isCancelled = false;
+
+            void fadeOutAnimationRef.current.finished.finally(() => {
+                if (isCancelled) return;
+                fadeOutAnimationRef.current = null;
+                setState(state => {
+                    if (!state.isFadingOut) {
+                        return state;
+                    } else {
+                        return {...state, isFadingOut: false};
+                    }
+                });
+            });
+
+            return () => {
+                isCancelled = true;
+            };
+        }
+
+        const tooltipElement = assertExists(tooltipRef.current);
+        const tooltipContentElement = assertExists(tooltipContentRef.current);
+
+        const popperPlacement = tooltipElement.dataset.popperPlacement;
+
+        let animationKeyframes: {
+            opacity: [number, number];
+            x?: [string, string];
+            y?: [string, string];
+        };
+
+        if (popperPlacement?.startsWith("top")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                y: ["0rem", `-${spacing["1"]}`],
+            };
+        } else if (popperPlacement?.startsWith("bottom")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                y: ["0rem", spacing["1"]],
+            };
+        } else if (popperPlacement?.startsWith("left")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                x: ["0rem", `-${spacing["1"]}`],
+            };
+        } else if (popperPlacement?.startsWith("right")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                x: ["0rem", spacing["1"]],
+            };
+        } else {
+            // eslint-disable-next-line no-console
+            console.warn(
+                quote`Unexpected \`data-popper-placement\` attribute: ${popperPlacement ?? null}`,
+            );
+
+            const timeout = createTimeout(() => {
+                setState(state => {
+                    if (!state.isFadingOut) {
+                        return state;
+                    } else {
+                        return {...state, isFadingOut: false};
+                    }
+                });
+            }, overlayFadeOutAnimationDurationMs);
+
+            return () => {
+                timeout.clear();
+            };
+        }
+
+        let isCancelled = false;
+
+        // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is
+        // [quite choppy on iOS Safari][1]. I have no idea why adding this helps.
+        // My best guess is the animation is being blocked by some JavaScript code?
+        //
+        // [1]: https://gist.github.com/calebmer/ab71d37aa8ebf3866043882ad17d32ca
+        requestAnimationFrame(() => {
+            if (isCancelled) return;
+
+            fadeOutAnimationRef.current = animate(tooltipContentElement, animationKeyframes, {
+                duration: overlayFadeOutAnimationDurationMs / 1000,
+                ease: parseCubicBezier(overlayFadeInOutTimingFunction),
+            });
+
+            void fadeOutAnimationRef.current.finished.finally(() => {
+                if (isCancelled) return;
+                fadeOutAnimationRef.current = null;
+                setState(state => {
+                    if (!state.isFadingOut) {
+                        return state;
+                    } else {
+                        return {...state, isFadingOut: false};
+                    }
+                });
+            });
+        });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [isVisible, state.isFadingOut]);
 
     const onStateChange = useEvent(_onStateChange);
     useEffect(() => {
@@ -653,7 +765,6 @@ function Tooltip(
                 // and immediately show our tooltip.
                 const isFadingIn = tooltipSymbolAboutToFadeOutRef.current === null;
                 tooltipSymbolAboutToFadeOutRef.current?.immediatelyHide();
-                // eslint-disable-next-line react-compiler/react-compiler
                 tooltipSymbolAboutToFadeOutRef.current = null;
 
                 setState((state): TooltipState => {
@@ -939,6 +1050,7 @@ function Tooltip(
                         className={overlayAnimateContainerClassName}
                     >
                         <Box
+                            ref={tooltipContentRef}
                             maxWidth="64"
                             paddingX="1.5"
                             paddingY="1"
@@ -947,14 +1059,7 @@ function Tooltip(
                             backgroundColor="grey-0"
                             borderRadius="0.5"
                             boxShadow="elevation-20"
-                            className={classNames(
-                                greyElevated2ClassName,
-                                state.isFadingOut
-                                    ? overlayAnimateFadeOutClassName
-                                    : state.isFadingIn
-                                      ? overlayAnimateFadeInClassName
-                                      : undefined,
-                            )}
+                            className={greyElevated2ClassName}
                         >
                             {content}
                         </Box>
@@ -970,8 +1075,6 @@ function Tooltip(
         fallbackPlacements,
         offset,
         tooltipId,
-        state.isFadingOut,
-        state.isFadingIn,
         content,
         children,
         targetElement,

@@ -1,6 +1,6 @@
 import {compareAsc, compareDesc} from "date-fns";
-import {CaretDown} from "phosphor-react";
-import {useMemo, useState} from "react";
+import {CaretDown, ClipboardText} from "phosphor-react";
+import {useMemo, useRef, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {
@@ -10,10 +10,13 @@ import {
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {IconButton} from "~/client/web/design/icon_button.js";
 import {Link} from "~/client/web/design/link.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
+import {TooltipRef} from "~/client/web/design/tooltip.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
@@ -28,6 +31,7 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     expensivelyGetAllSpaceAccounts as expensivelyGetAllSpaceAccountsRpc,
     moveSpaceOwner,
@@ -289,6 +293,11 @@ function SpacePeopleSettingsRouteAccounts({
         setModalState({type: "ConfirmDelete", accountData: accountData});
     };
 
+    const handleCopyInviteLink = async () => {
+        const inviteUrl = `${window.location.origin}/auth/sign-in?invite=${space.id}`;
+        await writeTextToClipboard(inviteUrl);
+    };
+
     return (
         <Box display="flex" flexDirection="column" gap="10">
             <Box display="flex" flexDirection="column" gap="6">
@@ -395,33 +404,50 @@ function SpacePeopleSettingsRouteAccounts({
                                 {account.name}
                             </Box>
                             <Box flexGrow="1" />
-                            {!hasAdminAccess ? (
-                                <Box flexShrink="0">Invited</Box>
-                            ) : (
-                                <Box flexShrink="0" marginRight="-2">
-                                    <MenuButton
-                                        placement="bottom-end"
-                                        actions={[
-                                            [
-                                                {
-                                                    label: "Cancel invite",
-                                                    onPress: () => handleRemoveAccount(account),
-                                                    pressErrorTitle: "Couldn\u2019t cancel invite",
-                                                },
-                                            ],
-                                        ]}
+                            <Box
+                                flexShrink="0"
+                                display="flex"
+                                alignItems="center"
+                                marginRight="-1.5"
+                            >
+                                <MenuButton
+                                    placement="bottom-end"
+                                    actions={[
+                                        [
+                                            {
+                                                label: "Copy invite link",
+                                                onPress: handleCopyInviteLink,
+                                                pressErrorTitle: "Couldn\u2019t copy invite link",
+                                            },
+                                        ],
+                                        ...(hasAdminAccess
+                                            ? [
+                                                  [
+                                                      {
+                                                          label: "Cancel invite",
+                                                          onPress: () =>
+                                                              handleRemoveAccount(account),
+                                                          pressErrorTitle:
+                                                              "Couldn\u2019t cancel invite",
+                                                      },
+                                                  ],
+                                              ]
+                                            : []),
+                                    ]}
+                                >
+                                    <Button
+                                        height="6"
+                                        paddingX="2"
+                                        icon={<CaretDown />}
+                                        iconPlacement="start"
                                     >
-                                        <Button
-                                            height="6"
-                                            paddingX="2"
-                                            icon={<CaretDown />}
-                                            iconPlacement="start"
-                                        >
-                                            Invited
-                                        </Button>
-                                    </MenuButton>
-                                </Box>
-                            )}
+                                        Invited
+                                    </Button>
+                                </MenuButton>
+                                <SpacePeopleSettingsCopyInviteLinkButton
+                                    onPress={handleCopyInviteLink}
+                                />
+                            </Box>
                         </Box>
                     ))}
                 </Box>
@@ -548,5 +574,34 @@ function SpacePeopleSettingsRouteAccounts({
                 />
             )}
         </Box>
+    );
+}
+
+function SpacePeopleSettingsCopyInviteLinkButton({onPress}: {onPress: () => Promise<void>}) {
+    const tooltipRef = useRef<TooltipRef>(null);
+
+    const [isCopied, setIsCopied] = useState(false);
+
+    return (
+        <IconButton
+            description="Copy invite link"
+            size="md"
+            tooltipRef={tooltipRef}
+            tooltipPlacement="bottom"
+            tooltipContentOverride={isCopied ? "Copied" : undefined}
+            isTooltipVisibleAfterPress={true}
+            onHoverStart={() => setIsCopied(false)}
+            onPress={() => {
+                // We can't use `await` here since while the button is pending the tooltip will
+                // be disabled and `skipTooltipHoverDelayAndAnimation()` won't be able to skip
+                // the animation. So assume the copy works.
+                void onPress();
+
+                setIsCopied(true);
+                assertExists(tooltipRef.current).skipTooltipHoverDelayAndAnimation();
+            }}
+        >
+            <ClipboardText />
+        </IconButton>
     );
 }

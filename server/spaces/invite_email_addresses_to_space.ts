@@ -216,9 +216,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
 
         const acceptInviteUrl = `${
             context.constants.edgeServiceUrl
-        }/auth/sign-in?email=${encodeURIComponent(emailAddress)}&to=${encodeURIComponent(
-            `/s/${spaceId}/invite/accept`,
-        )}`;
+        }/auth/sign-in?email=${encodeURIComponent(emailAddress)}&invite=${spaceId}`;
         const rejectInviteAndMarkAsSpamUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}/invite/reject-and-mark-as-spam`;
 
         if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {

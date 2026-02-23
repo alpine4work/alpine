@@ -5,6 +5,7 @@ import {
     PointerEvent,
     ReactNode,
     Ref,
+    RefObject,
     createElement,
     forwardRef,
     useCallback,
@@ -21,7 +22,7 @@ import {
     subscribeToTriggeredOverlayOpenEvent,
 } from "~/client/web/design/overlay_trigger_button_event_listeners.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {Tooltip, defaultTooltipOffset} from "~/client/web/design/tooltip.js";
+import {Tooltip, TooltipRef, defaultTooltipOffset} from "~/client/web/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {useTouchSlop} from "~/client/web/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -180,6 +181,11 @@ function IconButton(
         withoutTooltip?: boolean;
 
         /**
+         * Reference to the button's tooltip.
+         */
+        tooltipRef?: RefObject<TooltipRef | null>;
+
+        /**
          * Where to place the tooltip?
          *
          * Defaults to `bottom-start`.
@@ -205,6 +211,13 @@ function IconButton(
          * Defaults to `true`.
          */
         isTooltipVisibleWhenFocused?: boolean;
+
+        /**
+         * Is the tooltip visible after our `<IconButton>` is pressed?
+         *
+         * Defaults to `false`.
+         */
+        isTooltipVisibleAfterPress?: boolean;
 
         /**
          * Disable focusing this button through sequential keyboard navigation using
@@ -280,10 +293,12 @@ function IconButton(
         children,
         isDisabled = false,
         withoutTooltip = false,
+        tooltipRef,
         tooltipPlacement = "bottom-start",
         tooltipOffset = defaultTooltipOffset,
         tooltipContentOverride,
         isTooltipVisibleWhenFocused = true,
+        isTooltipVisibleAfterPress = false,
         isTabbable = true,
         isFocusable = true,
         onHoverStart,
@@ -607,6 +622,7 @@ function IconButton(
 
     return (
         <Tooltip
+            ref={tooltipRef}
             placement={tooltipPlacement}
             offset={tooltipOffset}
             content={
@@ -631,6 +647,7 @@ function IconButton(
             }
             isDisabled={isDisabled || withoutTooltip || isPending}
             isVisibleWhenFocused={isTooltipVisibleWhenFocused}
+            isVisibleAfterPress={isTooltipVisibleAfterPress}
         >
             <FocusRing
                 offset={isQuietVariant ? "0" : "0.5"}
