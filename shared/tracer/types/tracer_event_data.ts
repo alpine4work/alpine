@@ -6,6 +6,7 @@ import {
     AccountId,
     ApnsConnectionId,
     BotId,
+    BrowserId,
     ChannelId,
     ChatId,
     DocumentId,
@@ -486,6 +487,9 @@ export type TracerEventData = {
 
         /** The type of actor making a request against our system. */
         readonly actor?: string;
+
+        /** Identifier for the browser making the request. Stored in a cookie. */
+        readonly browserId?: BrowserId;
 
         /** Information about the account who caused this event. */
         readonly accountId?: AccountId;

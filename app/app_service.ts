@@ -555,9 +555,6 @@ async function createAppService({
                             ),
                         },
                         context => {
-                            const clientInfo = context.loader.getClientInfo();
-                            const platform = getInitialAppRenderPlatform(clientInfo);
-
                             // Only include `route`, `platform`, and other information about the client
                             // state if this is a Remix data request or document request. The definition of
                             // data requests and document requests can be found here:
@@ -571,6 +568,9 @@ async function createAppService({
                                 url.searchParams.has("_data") ||
                                 (matches && matches[matches.length - 1]?.route.module.default)
                             ) {
+                                const clientInfo = context.loader.getClientInfo();
+                                const platform = getInitialAppRenderPlatform(clientInfo);
+
                                 span.addPropagatedData({
                                     context: {
                                         route,
@@ -578,6 +578,7 @@ async function createAppService({
                                         spacingScale: getInitialAppRenderSpacingScale(clientInfo),
                                         routeLayout: getDefaultRouteLayoutForPlatform(platform),
                                         renderingEngine: clientInfo.renderingEngine,
+                                        browserId: context.loader.getBrowserId(),
                                     },
                                 });
 

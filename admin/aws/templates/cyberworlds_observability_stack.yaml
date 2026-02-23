@@ -852,6 +852,8 @@ Resources:
                           Type: string
                         - Name: context__actor
                           Type: string
+                        - Name: context__browser_id
+                          Type: string
                         - Name: context__account_id
                           Type: string
                         - Name: context__space_id

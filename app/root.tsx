@@ -286,6 +286,7 @@ function useRootAppContext(
                 spacingScale,
                 routeLayout: getDefaultRouteLayoutForPlatform(platform),
                 renderingEngine: clientInfo.renderingEngine,
+                browserId: dataRouterStateContext.loaderData.root?.browserId,
             },
         });
 

@@ -181,6 +181,7 @@ const TracerEventDataSchema = {
     context: {
         handler: Schema.string,
         actor: IdentifierStringSchema,
+        browserId: Schema.id(),
         accountId: Schema.id(),
         spaceId: Schema.id(),
         botId: Schema.id(),
