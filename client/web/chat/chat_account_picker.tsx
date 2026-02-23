@@ -400,6 +400,26 @@ export function ChatAccountPicker({
         }
     }, [comboBoxState, selectedAccounts.length]);
 
+    // Auto-focus the first result when the user is typing a search query. This
+    // allows the user to press Enter immediately to select the first result
+    // instead of having to press the down arrow first.
+    //
+    // TODO: This causes an inperceivable flash where the focus ring isn't visible on the first
+    // paint. Using `useLayoutEffectWithoutServerSideWarning` doesn't help because
+    // `useComboBoxState` resets `focusedKey` to null during render when items
+    // change. Our effect sets it back, but the re-render with the correct
+    // focusedKey is preempted by the next keystroke. Fixing this is deeper than
+    // this component.
+    useEffect(() => {
+        if (searchQuery !== "" && searchedItems.length > 0) {
+            const firstItem = searchedItems[0];
+            if (firstItem && comboBoxState.selectionManager.focusedKey == null) {
+                setInteractionModality("keyboard");
+                comboBoxState.selectionManager.setFocusedKey(firstItem.key);
+            }
+        }
+    }, [comboBoxState.selectionManager, searchQuery, searchedItems]);
+
     const {labelProps, inputProps, buttonProps, listBoxProps} = useComboBox(
         {
             ...comboBoxProps,
