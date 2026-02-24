@@ -1,5 +1,5 @@
-import {startTransition, useEffect, useMemo, useState} from "react";
-import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {CalendarDate} from "@internationalized/date";
+import {useEffect, useMemo, useState} from "react";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -12,7 +12,7 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
@@ -91,7 +91,6 @@ export function useTaskQueryState({
     initialQuery,
     filters,
     sorts,
-    onActiveQueryChange,
 }: {
     store: TaskClientStore;
     initialQuery: {
@@ -100,7 +99,6 @@ export function useTaskQueryState({
     } | null;
     filters: TaskQueryNormalizedFilters | null;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-    onActiveQueryChange?: (query: TaskClientQuery | null) => void;
 }): TaskQueryState {
     const {space, currentAccount} = useSpaceContext();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
@@ -113,19 +111,11 @@ export function useTaskQueryState({
         return isTaskQueryMissingRequiredFilters(currentAccount?.id, filters);
     }, [currentAccount?.id, filters]);
 
-    const [queryState, _setQueryState] = useState<TaskQueryState>({
+    const [queryState, setQueryState] = useState<TaskQueryState>({
         activeQuery: initialQuery
             ? {isAvailable: true, query: initialQuery}
             : {isAvailable: false, isMissingRequiredFilters, query: null},
         pendingQuery: null,
-    });
-
-    const setQueryState = useEvent((newQueryState: TaskQueryState) => {
-        _setQueryState(newQueryState);
-
-        if (queryState.activeQuery.query !== newQueryState.activeQuery.query) {
-            onActiveQueryChange?.(newQueryState.activeQuery.query?.query ?? null);
-        }
     });
 
     // Make sure the queries in `queryState` stay retained during this
@@ -190,19 +180,29 @@ export function useTaskQueryState({
 
         // If our filters/sorts do not equal the active query or the pending query then
         // we need to start a new pending query.
-        if (isDeepEqual(actualActiveQuery, expectedQuery)) return;
+        if (
+            stringifyForDeepEqualCheck<CalendarDate>(actualActiveQuery, date => date.toString()) ===
+            stringifyForDeepEqualCheck<CalendarDate>(expectedQuery, date => date.toString())
+        ) {
+            return;
+        }
 
         if (!expectedQuery.isAvailable) {
-            startTransition(() => {
-                setQueryState({
-                    activeQuery: expectedQuery,
-                    pendingQuery: null,
-                });
+            setQueryState({
+                activeQuery: expectedQuery,
+                pendingQuery: null,
             });
             return;
         }
 
-        if (isDeepEqual(actualPendingQuery, expectedQuery.query)) return;
+        if (
+            stringifyForDeepEqualCheck<CalendarDate>(actualPendingQuery, date =>
+                date.toString(),
+            ) ===
+            stringifyForDeepEqualCheck<CalendarDate>(expectedQuery.query, date => date.toString())
+        ) {
+            return;
+        }
 
         const newPendingQuery = batchStoreUpdates(() => {
             const newPendingQuery = store.createAndRetainQuery({
@@ -255,26 +255,19 @@ export function useTaskQueryState({
             // Don't animate when changing the query.
             indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
 
-            // Transition to our new query since it could be a big re-render. On the same
-            // level as navigating to a new page. (Which is behind a `startTransition()`
-            // call.) Allows React to time slice the render and handle more important
-            // updates if they occur.
-            startTransition(() => {
-                setQueryState({
-                    activeQuery: {
-                        isAvailable: true,
-                        query: {
-                            query: pendingQuery,
-                            initialGridViewExpansionState:
-                                getTaskRealtimeClientIfExistsForClient(
-                                    space.id,
-                                )?.takeInitialGridViewExpansionStateForQueryIfExists(
-                                    pendingQuery,
-                                ) ?? null,
-                        },
+            setQueryState({
+                activeQuery: {
+                    isAvailable: true,
+                    query: {
+                        query: pendingQuery,
+                        initialGridViewExpansionState:
+                            getTaskRealtimeClientIfExistsForClient(
+                                space.id,
+                            )?.takeInitialGridViewExpansionStateForQueryIfExists(pendingQuery) ??
+                            null,
                     },
-                    pendingQuery: null,
-                });
+                },
+                pendingQuery: null,
             });
         });
 

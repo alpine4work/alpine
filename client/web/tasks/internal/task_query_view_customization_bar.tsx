@@ -56,6 +56,7 @@ function TaskQueryViewCustomizationBar(
         onSortsChange,
         defaultOrderSentence,
         initiallyFocus = null,
+        excludeFilters,
     }: {
         store: TaskClientStore;
         queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
@@ -70,6 +71,10 @@ function TaskQueryViewCustomizationBar(
         onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
         defaultOrderSentence: string;
         initiallyFocus?: "AddFilter" | "AddSort" | null;
+        /**
+         * Filter types to exclude from the add filter menu.
+         */
+        excludeFilters?: ReadonlySet<TaskQueryFilter["type"]>;
     },
     ref: Ref<TaskQueryViewCustomizationBarRef>,
 ) {
@@ -189,6 +194,7 @@ function TaskQueryViewCustomizationBar(
                         onAddFilter={filter => {
                             onFiltersChange([...filters, filter]);
                         }}
+                        excludeFilters={excludeFilters}
                     >
                         {filters.length > 0 ? (
                             <IconButton size="sm" description="Add filter" withoutTooltip>
