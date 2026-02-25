@@ -21,6 +21,7 @@ import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/ge
 import {Reaction, ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {saveAccountSignUpProfile} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 export function AuthenticationSignUpProfileView({
     state,
@@ -102,6 +103,7 @@ export function AuthenticationSignUpProfileView({
                 autoComplete="name"
                 placeholder="Anthony Mose"
                 fontSize="100"
+                maxLength={maxLabelStringLength}
                 value={name}
                 onChange={setName}
             />

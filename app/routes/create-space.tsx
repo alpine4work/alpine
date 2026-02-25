@@ -10,6 +10,7 @@ import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {createSpace} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 export function meta() {
     return [{title: `Create space${metaTitlePostfix}`}];
@@ -45,7 +46,13 @@ export default function CreateSpaceRoute() {
                 flexDirection="column"
                 gap="3"
             >
-                <TextInput placeholder="My Company" label="Name" onChange={setName} value={name} />
+                <TextInput
+                    placeholder="My Company"
+                    label="Name"
+                    maxLength={maxLabelStringLength}
+                    onChange={setName}
+                    value={name}
+                />
                 <Button
                     fullWidth
                     height="8"
