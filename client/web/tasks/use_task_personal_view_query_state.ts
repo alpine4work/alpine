@@ -428,8 +428,8 @@ export function useTaskPersonalViewQueryState({
             // when the effect ran may be outdated by the time the promise resolves.
             setQueryStates({
                 queries: newQueryStateQueries,
-                activeFilters: assertExists(queryStates.activeFilters),
-                activeSorts: assertExists(queryStates.activeSorts),
+                activeFilters: assertExists(queryStates.pendingFilters),
+                activeSorts: assertExists(queryStates.pendingSorts),
                 pendingFilters: null,
                 pendingSorts: null,
             });
