@@ -157,15 +157,10 @@ export function MessageStreamViewThinkingSummary({
                         className={sprinkles({
                             // This must be `inline-block` so only the text is clickable.
                             display: "inline-block",
+                            minWidth: "flex-fit",
                             maxWidth: "full",
                             fontStyle: "truncate",
                         })}
-                        style={{
-                            // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                            // have `min-width: auto` which extends with content.
-                            // https://stackoverflow.com/a/66689926/1568890
-                            minWidth: 0,
-                        }}
                     >
                         {thinkingEndTime ? (
                             <MessageStreamSectionThinkingCompletedSummary

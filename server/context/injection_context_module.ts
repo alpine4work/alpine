@@ -43,6 +43,7 @@ import {
     AccessPolicy,
     AccessPolicyWithoutGenerations,
 } from "~/shared/access/access_policy.js";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
 import {Context, ContextModulesType} from "~/shared/context/context.js";
 import {ContextModuleBase as _ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -86,15 +87,37 @@ type ContextModuleBase<Modules extends {[key: string]: ContextModuleBase | undef
 export type ChatInjectionContextModule = InstanceType<typeof ChatInjectionContextModule>;
 
 export const ChatInjectionContextModule = createInjectionContextModule<ChatInjection>({
-    getChatAccountIdsForBotScope: true,
+    getChatAccessPolicyForBotScope: true,
+    authorizeChatAccessIfPossible: true,
+    getChatAndInitialMessagesIfPossible: true,
 });
 
 export type ChatInjection = {
-    getChatAccountIdsForBotScope(
+    getChatAccessPolicyForBotScope(
         context: ServerMinimalBotActionContext,
         chatId: ChatId,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<ReadonlyArray<AccountId>>;
+    ): Promise<AccessPolicyWithoutGenerations>;
+
+    authorizeChatAccessIfPossible(
+        context: ServerActionContext,
+        chatId: ChatId,
+        expectedAccessLevel: AccessLevel,
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<Result<{spaceId: SpaceId}, ErrorBase>>;
+
+    getChatAndInitialMessagesIfPossible(
+        context: ServerActionContext,
+        options: {chatId: ChatId; messagesLimit: number},
+    ): Promise<Result<
+        {
+            chat: ChatModel;
+            initialIsSubscribed: boolean | null;
+            initialMessages: ReadonlyArray<ChatMessageModel>;
+            initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
+        },
+        ErrorBase
+    > | null>;
 };
 
 export type DocumentsInjectionContextModule = InstanceType<typeof DocumentsInjectionContextModule>;

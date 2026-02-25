@@ -36,6 +36,7 @@ import {
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -124,6 +125,8 @@ function TaskCollectionViewDesktopHeaderName(
     const inputWithAutoGrowingWidthSafeSpacerElement =
         useInputWithAutoGrowingWidthSafeSpacerElement();
 
+    const lastPointerDownTimeRef = useRef<number | null>(null);
+
     return (
         <Box
             overflow="hidden"
@@ -179,13 +182,27 @@ function TaskCollectionViewDesktopHeaderName(
                         // eslint-disable-next-line cyberworlds/string-quotes
                         fontFeatureSettings: '"calt" on',
                     }}
-                    onDoubleClick={event => {
-                        if (!hasManageAccessLevel) return;
+                    onPointerDown={event => {
+                        const currentTime = Date.now();
+                        const lastPointerDownTime = lastPointerDownTimeRef.current;
+                        lastPointerDownTimeRef.current = currentTime;
 
-                        // Disable selection from double click.
-                        event.preventDefault();
+                        if (lastPointerDownTime === null) return;
 
-                        setEditingNameState({shouldInitiallyFocusEditableName: true});
+                        if (currentTime - lastPointerDownTime > doubleClickDelayMs) return;
+
+                        if (hasManageAccessLevel) {
+                            // Disable selection from double click.
+                            //
+                            // We implement double click with `onPointerDown` instead of `onDoubleClick`
+                            // because `onDoubleClick` fires one pointer up but the browser performs text
+                            // selection on double click pointer down. So there's a small visual glitch
+                            // where you can see the browser selection after double click before pointer up
+                            // when you use `onDoubleClick`,
+                            event.preventDefault();
+
+                            setEditingNameState({shouldInitiallyFocusEditableName: true});
+                        }
                     }}
                 >
                     {name}

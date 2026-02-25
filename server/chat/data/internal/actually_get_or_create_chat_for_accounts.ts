@@ -27,8 +27,7 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 
-export const sendChatMessageToAccountsBeforeCreateChatTestCheckpoint =
-    new TestCheckpoint<AccountId>();
+export const getOrCreateChatBeforeCreateChatTestCheckpoint = new TestCheckpoint<AccountId>();
 
 export type ChatForAccountsResult =
     | {
@@ -55,7 +54,7 @@ export function actuallyGetOrCreateChatForAccounts(
         initialSharedChatsPromise: ReturnType<typeof getSharedChats> | null;
     },
 ): Promise<ChatForAccountsResult> {
-    return context.tracer.withSpan("Get or create chat", async context => {
+    return context.tracer.withSpan("Get or create chat", async (context, span) => {
         // Make sure we're either a system actor or a session actor for this account.
         await authorizeOwnSpaceAccountAccess(context, actorAccountId);
 
@@ -75,10 +74,9 @@ export function actuallyGetOrCreateChatForAccounts(
 
             const createChatForAccounts = async (
                 chatId: ChatId,
+                withClientRequestToken: boolean,
             ): Promise<ChatForAccountsResult> => {
-                await sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.waitForTest(
-                    actorAccountId,
-                );
+                await getOrCreateChatBeforeCreateChatTestCheckpoint.waitForTest(actorAccountId);
 
                 try {
                     const createdTime = new Date();
@@ -89,11 +87,13 @@ export function actuallyGetOrCreateChatForAccounts(
                         chatId,
                         spaceId,
                         createdTime,
-                        accountIdsForOneOnOne:
+                        definition: {type: "Direct"},
+                        accountIdsForDirectOneOnOne:
                             allSortedAccountIds.length === 2 ? allSortedAccountIds : null,
                         messagesSummary: {
-                            nextMessageIndex: 0,
-                            messageCount: 0,
+                            unknownAuthorMessageCount: 0,
+                            messageCountByAuthorId: new Map(),
+                            mentionCountByAccountId: new Map(),
                         },
                     };
 
@@ -124,10 +124,12 @@ export function actuallyGetOrCreateChatForAccounts(
                             //
                             // We need to hash the request token because DynamoDB imposes a maximum
                             // length on tokens.
-                            clientRequestToken: `${spaceId}:${murmurhash
-                                .v3(allSortedAccountIds.join("-"))
-                                .toString(16)
-                                .padStart(8, "0")}`,
+                            clientRequestToken: withClientRequestToken
+                                ? `${spaceId}:${murmurhash
+                                      .v3(allSortedAccountIds.join("-"))
+                                      .toString(16)
+                                      .padStart(8, "0")}`
+                                : undefined,
                         },
                     );
 
@@ -205,7 +207,17 @@ export function actuallyGetOrCreateChatForAccounts(
             // If the optimistic `ChatId` does not exist then create a new chat with the
             // optimistic `ChatId` and send a message there.
             if (!optimisticChatItem) {
-                return createChatForAccounts(optimisticChatId);
+                span.addData({common: {branch: "CreateWithOptimisticChatId"}});
+
+                return createChatForAccounts(
+                    optimisticChatId,
+                    // Don't use a `clientRequestToken`. Because we use a deterministic `ChatId`
+                    // we'll fail with a condition check error if we try to create a chat with the
+                    // same `ChatId` twice in a race condition. The condition check error then gets
+                    // retried and we'll find the new chat with an optimistic `ChatId` and
+                    // return it.
+                    false,
+                );
             }
 
             // If the optimistic `ChatId` exists then we need to double check it matches
@@ -219,6 +231,8 @@ export function actuallyGetOrCreateChatForAccounts(
                     optimisticChatItem.accountItems.map(item => item.accountId),
                 )
             ) {
+                span.addData({common: {branch: "FoundWithOptimisticChatId"}});
+
                 return {
                     type: "FoundItems",
                     chatId: optimisticChatItem.attributesItem.chatId,
@@ -234,13 +248,25 @@ export function actuallyGetOrCreateChatForAccounts(
             // We found a chat that exactly matches the accounts we want to message! Send a
             // message to that chat.
             if (firstSharedChat?.accountCount === otherAccountIds.length + 1) {
+                span.addData({common: {branch: "FoundWithSharedChats"}});
+
                 return {
                     type: "FoundIdOnly",
                     chatId: firstSharedChat.id,
                 };
             }
 
-            return createChatForAccounts(generateId());
+            span.addData({common: {branch: "CreateWithGeneratedChatId"}});
+
+            return createChatForAccounts(
+                generateId(),
+                // Always use `clientRequestToken`. In race conditions we want to create only
+                // one chat for the accounts. The `clientRequestToken` makes sure if there are
+                // two processes trying to create a chat for the same accounts only one process
+                // successfully creates the chat, the other will retry and find the new chat
+                // eventually with `getSharedChats()`.
+                true,
+            );
         });
     });
 }

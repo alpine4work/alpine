@@ -1173,16 +1173,11 @@ function TaskCollectionsInput(
                     }
                 >
                     <Box
+                        minWidth="flex-fit"
                         maxWidth="full"
                         display="flex"
                         alignItems="center"
                         gap="2"
-                        style={{
-                            // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                            // have `min-width: auto` which extends with content.
-                            // https://stackoverflow.com/a/66689926/1568890
-                            minWidth: 0,
-                        }}
                     >
                         <Box
                             position="relative"

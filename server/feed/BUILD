@@ -4,6 +4,7 @@ ts_project(
     name = "feed",
     test_deps = [
         "//server/bots/test_helpers",
+        "//server/chat/test_helpers",
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/forum/test_helpers",

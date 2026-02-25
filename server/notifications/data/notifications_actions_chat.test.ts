@@ -1,6 +1,7 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {processSendShareNotificationJob} from "~/server/chat/data/chat_messaging.js";
+import {subscribeToRoomChat} from "~/server/chat/data/subscribe_to_room_chat.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
@@ -3691,6 +3692,90 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         contentTextSnippet: `Hello, ${session2.account.initialName}!`,
                     },
                     otherChatAccount: session3,
+                }),
+            ]);
+        });
+
+        test("hides chat when account loses access to chat room they have inbox entry for", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.createRoom(session1, {access: "Private"});
+            await chat.roomAccess.grant(session1, session2);
+
+            await subscribeToRoomChat(session2.action(), chat.id);
+
+            const message = await chat.sendMessage(session1, "foo");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
+                    definition: {type: "Room"},
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message,
+                        contentTextSnippet: "foo",
+                    },
+                }),
+            ]);
+
+            await chat.roomAccess.revoke(session1, session2);
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
+                    definition: {type: "Room", isPrivate: true},
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message,
+                        contentTextSnippet: "",
+                    },
+                }),
+            ]);
+        });
+
+        test("hides chat when account loses access to chat room which was previously publicly shared they have inbox entry for", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.createRoom(session1);
+            await chat.roomAccess.grantDefault(session1);
+
+            await subscribeToRoomChat(session2.action(), chat.id);
+
+            const message = await chat.sendMessage(session1, "foo");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
+                    definition: {type: "Room"},
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message,
+                        contentTextSnippet: "foo",
+                    },
+                }),
+            ]);
+
+            await chat.roomAccess.revokeDefault(session1);
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
+                    definition: {type: "Room", isPrivate: true},
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message,
+                        contentTextSnippet: "",
+                    },
                 }),
             ]);
         });

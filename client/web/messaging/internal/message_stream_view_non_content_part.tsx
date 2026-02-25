@@ -165,6 +165,12 @@ function getApiMentionContentMention(target: ApiMentionTarget): ContentMention {
                 entityId: `Channel:${target.id}`,
             };
         }
+        case "Chat": {
+            return {
+                type: "SearchEntity",
+                entityId: `Chat:${target.id}`,
+            };
+        }
         case "Document": {
             return {
                 type: "SearchEntity",

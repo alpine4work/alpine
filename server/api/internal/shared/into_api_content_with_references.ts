@@ -1,8 +1,12 @@
 import {Node} from "prosemirror-model";
 import {intoApiContent} from "~/server/api/content/into_api_content.js";
 import {getContentFileReference} from "~/server/content/get_content_references.js";
-import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
+import {
+    ServerAccountActionContext,
+    ServerActionContext,
+} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
+import {getSearchEntityWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
@@ -29,6 +33,7 @@ import {
     SearchMentionEntityId,
     parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export async function intoApiContentWithReferences(
@@ -149,31 +154,7 @@ export async function intoApiContentWithReferencesAndReturnReferences(
                 return `${privateSearchEntityTitle} ${getSearchEntityNoun(type)}`;
             }
 
-            const entity = entityResult.entity.initialData;
-
-            // If `title` is null then we assume the entity was deleted. Otherwise, all
-            // mentionable entities should have a non-null title.
-            if (entity.title === null) {
-                const {type} = parseSearchMentionEntityId(entityId);
-                return `${deletedSearchEntityTitle} ${getSearchEntityNoun(type)}`;
-            }
-
-            let entityTitle = truncateContentMentionText(entity.title);
-
-            if (entityTitle.length === 0) {
-                const {type} = parseSearchMentionEntityId(entityId);
-                return `${missingSearchEntityTitle} ${getSearchEntityNoun(type)}`;
-            }
-
-            // Posts start with "in ${channelName}: " and expect client rendering code to
-            // add the post author name to the start of the title.
-            if (entity.media?.type === "Account" && entityId.startsWith("Post:")) {
-                entityTitle = `${getAccountShortNameWithoutFullNameTooltip(
-                    entity.media.account.initialData,
-                )} ${entityTitle}`;
-            }
-
-            return entityTitle;
+            return prepareApiMentionTitle(entityId, entityResult.entity.initialData);
         },
         getSearchTaskEntityDisplayStatusIfExists: taskId => {
             const entity = searchEntityById.get(`Task:${taskId}`);
@@ -191,5 +172,47 @@ export async function intoApiContentWithReferencesAndReturnReferences(
             searchEntityById,
             fileById,
         },
+    };
+}
+
+function prepareApiMentionTitle(
+    entityId: SearchMentionEntityId,
+    entity: {title: string | null; media: SearchEntityMediaModel | null},
+) {
+    // If `title` is null then we assume the entity was deleted. Otherwise, all
+    // mentionable entities should have a non-null title.
+    if (entity.title === null) {
+        const {type} = parseSearchMentionEntityId(entityId);
+        return `${deletedSearchEntityTitle} ${getSearchEntityNoun(type)}`;
+    }
+
+    let entityTitle = truncateContentMentionText(entity.title);
+
+    if (entityTitle.length === 0) {
+        const {type} = parseSearchMentionEntityId(entityId);
+        return `${missingSearchEntityTitle} ${getSearchEntityNoun(type)}`;
+    }
+
+    // Posts start with "in ${channelName}: " and expect client rendering code to
+    // add the post author name to the start of the title.
+    if (entity.media?.type === "Account" && entityId.startsWith("Post:")) {
+        entityTitle = `${getAccountShortNameWithoutFullNameTooltip(
+            entity.media.account.initialData,
+        )} ${entityTitle}`;
+    }
+
+    return entityTitle;
+}
+
+export async function getApiMentionTitleWithStrongConsistency(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    entityId: SearchMentionEntityId,
+): Promise<{title: string; media: SearchEntityMediaModel | null}> {
+    const entity = await getSearchEntityWithStrongConsistency(context, spaceId, entityId);
+
+    return {
+        title: prepareApiMentionTitle(entityId, entity),
+        media: entity.media,
     };
 }

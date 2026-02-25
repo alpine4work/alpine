@@ -236,18 +236,43 @@ function getInboxChatEntryDisplay({
         summary.push(
             ` shared a ${getFileEntityNoun(entry.latestMessage.clerical.entityType)} with you`,
         );
-    } else if (entry.latestMessage.isStickyMention && entry.chatAccountCount > 2) {
+    } else if (entry.definition.type === "Room") {
+        if (entry.latestMessage.isStickyMention) {
+            summary.push(entry.latestMessage.author);
+            summary.push(" mentioned you in ");
+            if (entry.definition.isPrivate) {
+                summary.push("a private chat");
+            } else {
+                summary.push(entry.definition.name);
+            }
+        } else if (entry.latestMessage.author.id !== currentAccount?.id) {
+            summary.push(entry.latestMessage.author);
+            summary.push(" sent a message in ");
+            if (entry.definition.isPrivate) {
+                summary.push("a private chat");
+            } else {
+                summary.push(entry.definition.name);
+            }
+        } else {
+            summary.push("You sent a message in ");
+            if (entry.definition.isPrivate) {
+                summary.push("a private chat");
+            } else {
+                summary.push(entry.definition.name);
+            }
+        }
+    } else if (entry.latestMessage.isStickyMention && entry.definition.accountCount > 2) {
         summary.push(entry.latestMessage.author);
         summary.push(" mentioned you in a chat with ");
 
-        if (entry.chatAccountCount === 3 && entry.otherChatAccount) {
+        if (entry.definition.accountCount === 3 && entry.otherChatAccount) {
             summary.push(entry.otherChatAccount);
         } else if (!entry.otherChatAccount) {
-            summary.push(printPrettyNumber(locale, entry.chatAccountCount - 2, "other"));
+            summary.push(printPrettyNumber(locale, entry.definition.accountCount - 2, "other"));
         } else {
             summary.push(entry.otherChatAccount);
             summary.push(" and ");
-            summary.push(printPrettyNumber(locale, entry.chatAccountCount - 3, "other"));
+            summary.push(printPrettyNumber(locale, entry.definition.accountCount - 3, "other"));
         }
     } else if (entry.latestMessage.author.id !== currentAccount?.id) {
         // NOTE(calebmer): Chat message summaries are an exception to the inbox entry
@@ -266,18 +291,18 @@ function getInboxChatEntryDisplay({
         summary.push(entry.latestMessage.author);
         summary.push(" sent you");
 
-        if (entry.chatAccountCount === 3 && entry.otherChatAccount) {
+        if (entry.definition.accountCount === 3 && entry.otherChatAccount) {
             summary.push(" and ");
             summary.push(entry.otherChatAccount);
-        } else if (entry.chatAccountCount > 2) {
+        } else if (entry.definition.accountCount > 2) {
             if (!entry.otherChatAccount) {
                 summary.push(" and ");
-                summary.push(printPrettyNumber(locale, entry.chatAccountCount - 2, "other"));
+                summary.push(printPrettyNumber(locale, entry.definition.accountCount - 2, "other"));
             } else {
                 summary.push(", ");
                 summary.push(entry.otherChatAccount);
                 summary.push(", and ");
-                summary.push(printPrettyNumber(locale, entry.chatAccountCount - 3, "other"));
+                summary.push(printPrettyNumber(locale, entry.definition.accountCount - 3, "other"));
             }
         }
 
@@ -285,16 +310,16 @@ function getInboxChatEntryDisplay({
     } else {
         summary.push("You sent a message to ");
 
-        if (entry.chatAccountCount === 1) {
+        if (entry.definition.accountCount === 1) {
             summary.push("yourself");
-        } else if (entry.chatAccountCount === 2 && entry.otherChatAccount) {
+        } else if (entry.definition.accountCount === 2 && entry.otherChatAccount) {
             summary.push(entry.otherChatAccount);
         } else if (entry.otherChatAccount) {
             summary.push(entry.otherChatAccount);
             summary.push(" and ");
-            summary.push(printPrettyNumber(locale, entry.chatAccountCount - 2, "other"));
+            summary.push(printPrettyNumber(locale, entry.definition.accountCount - 2, "other"));
         } else {
-            summary.push(printPrettyNumber(locale, entry.chatAccountCount - 1, "other"));
+            summary.push(printPrettyNumber(locale, entry.definition.accountCount - 1, "other"));
         }
     }
 

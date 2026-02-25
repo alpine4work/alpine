@@ -33,6 +33,7 @@ test("can read chat information", async () => {
         body: expect.objectContaining({
             spaceId: space.id,
             chat: expect.objectContaining({
+                type: "Direct",
                 id: chat.id,
                 members: expect.arrayContaining([
                     expect.objectContaining({
@@ -165,6 +166,7 @@ test("can read chat information with chat scope", async () => {
         body: expect.objectContaining({
             spaceId: space.id,
             chat: expect.objectContaining({
+                type: "Direct",
                 id: chat.id,
                 members: expect.arrayContaining([
                     expect.objectContaining({

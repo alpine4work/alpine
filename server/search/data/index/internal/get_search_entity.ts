@@ -6,7 +6,13 @@ import {
     getChatMessagePayload,
     putChatMessageStreamPart,
 } from "~/server/chat/data/chat_messaging.js";
-import {getChatAccountIds} from "~/server/chat/data/get_chat_account_ids.js";
+import {
+    getChatDefinition,
+    getChatDefinitionIfExists,
+} from "~/server/chat/data/get_chat_definition.js";
+import {hasChatMessages} from "~/server/chat/data/get_chat_message_count.js";
+import {getChatSearchEntityContributorIds} from "~/server/chat/data/get_chat_search_entity_contributor_ids.js";
+import {getRoomChatPreviewAccountIds} from "~/server/chat/data/get_room_chat_preview_account_ids.js";
 import {
     ServerActionContext,
     ServerSystemActionContext,
@@ -38,7 +44,12 @@ import {
     isSearchEntityDependencyIdAlsoEntityId,
     isSearchEntityIdAlsoEntityDependencyId,
 } from "~/server/search/core/search_entity_dependency_id.js";
+import {searchEntityMajorContributorCutOff} from "~/server/search/core/search_entity_major_contributor_cut_off.js";
 import {chunkSearchContent} from "~/server/search/data/index/internal/chunk_search_content.js";
+import {
+    prepareSearchDirectChatEntityTitleForResult,
+    searchChatEntityResultTitlePreviewAccountCount,
+} from "~/server/search/data/index/internal/prepare_search_chat_entity_title_for_result.js";
 import {
     SearchEntityIndexAccessPolicy,
     SearchEntityIndexDefaultGrantType,
@@ -72,6 +83,7 @@ import {
     emptyMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFrom} from "~/shared/documents/document_creator_from.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
@@ -85,6 +97,7 @@ import {
 } from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -96,14 +109,18 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {
@@ -139,8 +156,6 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskTitleModel, addFallbackToTaskTitle} from "~/shared/tasks/title/task_title.js";
-
-const searchEntityMajorContributorCutOff = 0.2;
 
 export type SearchEntity = {
     readonly id: SearchDynamicEntityId;
@@ -590,14 +605,54 @@ class SearchEntityReadState {
         };
     }
 
-    public getChatAccountIds(
-        chatId: ChatId,
-    ): Promise<{createdTime: Date; hasMessages: boolean; accountIds: ReadonlyArray<AccountId>}> {
+    public getChatDefinitionAndMessagesSummary(chatId: ChatId): Promise<{
+        version: number;
+        createdTime: Date;
+        definition:
+            | {type: "Direct"; accountIds: ReadonlySet<AccountId>}
+            | {type: "Room"; name: string; accessPolicy: AccessPolicy; creatorId: AccountId};
+        messagesSummary: {
+            unknownAuthorMessageCount: number;
+            messageCountByAuthorId: ReadonlyMap<AccountId, number>;
+        };
+    }> {
         this._recordDependencyId(`Chat:${chatId}`);
 
-        return getChatAccountIds(this._context, chatId, {
+        return getChatDefinition(this._context, chatId, {
             consistency: "StrongWithinCache",
         });
+    }
+
+    public async getChatDefinitionIfExists(
+        chatId: ChatId,
+    ): Promise<
+        | {type: "Direct"; accountIds: ReadonlySet<AccountId>}
+        | {type: "Room"; name: string; accessPolicy: AccessPolicy}
+        | null
+    > {
+        this._recordDependencyId(`Chat:${chatId}:Definition`);
+
+        const result = await getChatDefinitionIfExists(this._context, chatId, {
+            consistency: "StrongWithinCache",
+        });
+        if (!result) return null;
+
+        return result.definition;
+    }
+
+    public async getChatDefinition(
+        chatId: ChatId,
+    ): Promise<
+        | {type: "Direct"; accountIds: ReadonlySet<AccountId>}
+        | {type: "Room"; name: string; accessPolicy: AccessPolicy}
+    > {
+        this._recordDependencyId(`Chat:${chatId}:Definition`);
+
+        const result = await getChatDefinition(this._context, chatId, {
+            consistency: "StrongWithinCache",
+        });
+
+        return result.definition;
     }
 
     public async getChatMessagePayload(
@@ -1131,6 +1186,40 @@ async function getSearchMentionEntityIfExists(
             if (!channel) return null;
             return {accessPolicy: channel.accessPolicy, title: channel.name};
         }
+        case "Chat": {
+            const chat = await state.getChatDefinitionIfExists(entityIdObject.chatId);
+            if (!chat) return null;
+
+            if (chat.type === "Room") {
+                return {
+                    accessPolicy: chat.accessPolicy,
+                    title: chat.name,
+                };
+            }
+
+            const sortedAccountIds = sortSearchDirectChatEntityAccountIds(
+                entityIdObject.chatId,
+                chat.accountIds,
+            );
+
+            const previewAccounts = await runAllPromises(
+                sortedAccountIds
+                    .slice(0, searchChatEntityResultTitlePreviewAccountCount)
+                    .map(accountId => state.getAccount(accountId)),
+            );
+
+            return {
+                accessPolicy: {
+                    accountGrantAccountIds: new Set(chat.accountIds),
+                    defaultGrantType: null,
+                    urlGrantLevel: null,
+                },
+                title: prepareSearchDirectChatEntityTitleForResult("System", {
+                    previewAccounts,
+                    accountCount: sortedAccountIds.length,
+                }),
+            };
+        }
         case "Task": {
             const task = await state.getTaskTitleIfExists(entityIdObject.taskId);
             if (!task) return null;
@@ -1340,7 +1429,7 @@ async function getDocumentSearchEntity(
 
         contributorIds.set(
             nonCreatorAccountId,
-            stepCount / version > searchEntityMajorContributorCutOff ? "Major" : "Minor",
+            stepCount / version >= searchEntityMajorContributorCutOff ? "Major" : "Minor",
         );
     }
 
@@ -1749,17 +1838,56 @@ async function getPostCommentSearchEntity(
     };
 }
 
+export function sortSearchDirectChatEntityAccountIds(
+    chatId: ChatId,
+    originalAccountIds: Iterable<AccountId>,
+) {
+    // Randomize the account order based on the `ChatId`. That way we should
+    // randomly select which accounts to show in the account pile.
+    const accountIds = Array.from(originalAccountIds);
+    accountIds.sort(defaultCompareStrings);
+
+    const stableRandom = new StableRandom(`Chat:${chatId}`);
+    stableShuffleArray(stableRandom, "accountIds", accountIds);
+
+    return accountIds;
+}
+
+/**
+ * For chat room media we use an `AccountPile` and pick 2 accounts at random.
+ * We try to use major contributors for those 2 accounts but if there are minor
+ * contributros too we'll include them.
+ */
+export function getSearchRoomChatEntityMedia(
+    chatId: ChatId,
+    chatCreatorId: AccountId,
+    contributorIds: ReadonlyMap<AccountId, "Major" | "Minor">,
+): SearchEntityMedia {
+    const previewAccountIds = getRoomChatPreviewAccountIds(chatId, chatCreatorId, contributorIds);
+
+    if (previewAccountIds.length === 1) {
+        return {type: "Account", accountId: previewAccountIds[0]};
+    } else {
+        return {
+            type: "AccountPile",
+            previewAccountIds: previewAccountIds,
+            accountCount: null,
+        };
+    }
+}
+
 async function getChatSearchEntity(
     state: SearchEntityReadState,
     chatId: ChatId,
 ): Promise<SearchEntity> {
-    const {createdTime, hasMessages, accountIds} = await state.getChatAccountIds(chatId);
+    const {version, createdTime, definition, messagesSummary} =
+        await state.getChatDefinitionAndMessagesSummary(chatId);
 
     if (
         // If the chat has no messages yet, don't index any content. This means the
         // chat won't show up in search. We don't show the chat in search until it gets
         // its first message.
-        !hasMessages ||
+        (definition.type === "Direct" && !hasChatMessages(messagesSummary)) ||
         // If a chat only has two accounts, don't index the chat. Instead you should
         // access a 1:1 chat with another account by searching for their account entity
         // (indexed by `getAccountSearchEntity()`).
@@ -1770,7 +1898,7 @@ async function getChatSearchEntity(
         // Also don't index the chat if it only has one account (so it's a private,
         // personal, chat). Again if you search for your account name it'll show you
         // the chat.
-        accountIds.length <= 2
+        (definition.type === "Direct" && definition.accountIds.size <= 2)
     ) {
         return {
             id: `Chat:${chatId}`,
@@ -1796,48 +1924,29 @@ async function getChatSearchEntity(
         };
     }
 
-    const accounts = await runAllPromises(accountIds.map(accountId => state.getAccount(accountId)));
-
-    const accountNames = accounts
-        .map(account => account.name)
-        .sort((accountName1, accountName2) => accountName1.localeCompare(accountName2));
-
     let title: string;
-    if (accountNames.length === 0) {
-        title = "";
-    } else if (accountNames.length === 1) {
-        title = accountNames[0]!;
-    } else if (accountNames.length === 2) {
-        title = `${accountNames[0]!} and ${accountNames[1]!}`;
+    let contributorIds: ReadonlyMap<AccountId, "Major" | "Minor">;
+    let media: SearchEntityMedia | null;
+
+    if (definition.type === "Room") {
+        title = definition.name;
+        contributorIds = getChatSearchEntityContributorIds(definition, messagesSummary);
+        media = getSearchRoomChatEntityMedia(chatId, definition.creatorId, contributorIds);
     } else {
-        title = `${accountNames.slice(0, accountNames.length - 1).join(", ")}, and ${accountNames[
-            accountNames.length - 1
-        ]!}`;
-    }
+        const accounts = await runAllPromises(
+            mapIterable(definition.accountIds, accountId => state.getAccount(accountId)),
+        );
 
-    return {
-        id: `Chat:${chatId}`,
-
-        accessPolicy: {
-            accountGrantAccountIds: new Set(accountIds),
-            defaultGrantType: null,
-            urlGrantLevel: null,
-        },
-
-        createdTime,
-        title,
-        // TODO: There's a title, should we have a title version? We don't care too
-        // much about a title version here since clients don't need to update account
-        // names in realtime.
-        titleVersion: null,
-        body: null,
-        tags: emptyArray,
-        media:
-            accountIds.length === 1
-                ? {type: "Account", accountId: accountIds[0]!}
-                : {type: "AccountPile", accountIds},
-        embeddingChunks: emptyArray,
-        creatorId: null,
+        // We index an alphabetically ordered list of full account names. So that we
+        // can keyword match based on full names when searching. However, it's a
+        // mouthful so when we render a chat we use a simpler format of two short names
+        // and "${n} others".
+        title = joinPrettyConjunctionList(
+            accounts
+                .map(account => account.name)
+                .sort((name1, name2) => name1.localeCompare(name2, defaultLocale)),
+            "and",
+        );
 
         // Consider all members of the chat to be major contributors! Since the number
         // of people in the chat will generally be small.
@@ -1846,7 +1955,55 @@ async function getChatSearchEntity(
         // search for "chats I'm a contributor to" (aka "my chats") you'd expect to see
         // 1:1 chats there too but currently we don't index 1:1 chats. We only index
         // accounts.
-        contributorIds: new Map(accountIds.map(accountId => [accountId, "Major"])),
+        contributorIds = new Map(
+            mapIterable(definition.accountIds, accountId => [accountId, "Major"]),
+        );
+
+        media =
+            definition.accountIds.size === 1
+                ? {type: "Account", accountId: assertExists(iterableFirst(definition.accountIds))}
+                : {
+                      type: "AccountPile",
+                      previewAccountIds: sortSearchDirectChatEntityAccountIds(
+                          chatId,
+                          definition.accountIds,
+                      ).slice(
+                          0,
+                          // Add 1 to make sure we can filter out the actor account and still have enough
+                          // accounts to render a nice looking pile.
+                          searchChatEntityResultTitlePreviewAccountCount + 1,
+                      ),
+                      accountCount: definition.accountIds.size,
+                  };
+    }
+
+    return {
+        id: `Chat:${chatId}`,
+
+        accessPolicy:
+            definition.type === "Room"
+                ? getSearchEntityIndexAccessPolicy(definition.accessPolicy)
+                : {
+                      accountGrantAccountIds: new Set(definition.accountIds),
+                      defaultGrantType: null,
+                      urlGrantLevel: null,
+                  },
+
+        createdTime,
+        title,
+        // TODO: There's a title for direct chats, should we have a title version? We
+        // don't care too much about a title version here since clients don't need to
+        // update account names in realtime.
+        titleVersion: definition.type === "Room" ? {type: "Integer", version} : null,
+        body: null,
+        // Used to search for exclusively chat rooms. Also useful in keyword search
+        // since queries like "Engineering chat room" will now match "room".
+        tags: definition.type === "Room" ? ["room"] : emptyArray,
+        media,
+        embeddingChunks: emptyArray,
+        creatorId: definition.type === "Room" ? definition.creatorId : null,
+        contributorIds,
+
         dueDate: null,
         assigneeId: null,
         priority: null,
@@ -1932,10 +2089,10 @@ async function getChatMessageSearchEntity(
     const id: SearchEntityId = `ChatMessage:${chatId}-${messageIndex}`;
 
     const [
-        {accountIds: chatAccountIds},
+        chatDefinition,
         {createdTime, authorId, payload: messagePayload, stream: messageStream},
     ] = await runAllPromises([
-        state.getChatAccountIds(chatId),
+        state.getChatDefinition(chatId),
         state.getChatMessagePayload(chatId, messageIndex),
     ]);
 
@@ -1955,11 +2112,14 @@ async function getChatMessageSearchEntity(
         return {...searchDeletedMessageEntity, id};
     }
 
-    const accessPolicy: SearchEntityIndexAccessPolicy = {
-        accountGrantAccountIds: new Set(chatAccountIds),
-        defaultGrantType: null,
-        urlGrantLevel: null,
-    };
+    const accessPolicy: SearchEntityIndexAccessPolicy =
+        chatDefinition.type === "Room"
+            ? getSearchEntityIndexAccessPolicy(chatDefinition.accessPolicy)
+            : {
+                  accountGrantAccountIds: new Set(chatDefinition.accountIds),
+                  defaultGrantType: null,
+                  urlGrantLevel: null,
+              };
 
     const contentReferences = await getSearchContentReferences(
         state,
@@ -1969,18 +2129,29 @@ async function getChatMessageSearchEntity(
         emptySet,
     );
 
+    const truncatedRoomChatName = new Lazy(() =>
+        truncateTokens(
+            state.tokenizer,
+            chatDefinition.type === "Room" ? chatDefinition.name : "",
+            searchEntityEmbeddingPreambleTitleTokenCount,
+        ),
+    );
+
     const content = chunkSearchContent(messagePayload.content, {
         tokenizer: state.tokenizer,
         getAccountIfExists: contentReferences.getAccountIfExists,
         getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
         getChunkPreamble: ({isInitialChunk}) => {
             return {
-                text: `This is${isInitialChunk ? " a " : " from a "}message in a chat${
-                    chatAccountIds.length > 1
-                        ? ` between ${
-                              nameByNumber.get(chatAccountIds.length) ?? chatAccountIds.length
-                          } people`
-                        : ""
+                text: `This is${isInitialChunk ? " a " : " from a "}message in ${
+                    chatDefinition.type === "Room"
+                        ? `the \u201C${truncatedRoomChatName.get()}\u201D chat`
+                        : chatDefinition.accountIds.size > 1
+                          ? `a chat between ${
+                                nameByNumber.get(chatDefinition.accountIds.size) ??
+                                chatDefinition.accountIds.size
+                            } people`
+                          : ""
                 }:`,
                 lineMarginBottom: 2,
             };
@@ -2241,9 +2412,9 @@ async function getTaskSearchEntity(
                     // If the account is either above the cutoff for continuous actions or discrete
                     // actions then we consider it to be a major contributor. It's not really fair
                     // to compare major and discrete actions.
-                    continuousActionCount / totalApproximateContinuousActionCount >
+                    continuousActionCount / totalApproximateContinuousActionCount >=
                         searchEntityMajorContributorCutOff ||
-                    discreteActionCount / totalApproximateDiscreteActionCount >
+                    discreteActionCount / totalApproximateDiscreteActionCount >=
                         searchEntityMajorContributorCutOff
                         ? "Major"
                         : "Minor",

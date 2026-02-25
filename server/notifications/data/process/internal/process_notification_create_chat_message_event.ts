@@ -1,14 +1,17 @@
 import {differenceInMinutes} from "date-fns";
 import {authorizeChatAccessIfPossible} from "~/server/chat/data/authorize_chat_access.js";
 import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
-import {getChatAccountIds} from "~/server/chat/data/get_chat_account_ids.js";
+import {
+    ChatDefinitionForNotificationEvent,
+    getChatNotificationSubscribers,
+} from "~/server/chat/data/get_chat_notification_subscribers.js";
 import {NotificationCreateChatMessageEvent} from "~/server/notifications/core/notification_event.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {ApiSearchMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -25,27 +28,31 @@ import {
 
 export const processNotificationCreateChatMessageEvent = createNotificationEventProcessor<
     NotificationCreateChatMessageEvent,
-    {spaceId: SpaceId; accountIds: ReadonlyArray<AccountId>}
+    {spaceId: SpaceId; definition: ChatDefinitionForNotificationEvent}
 >({
     getSubscribers: async (context, event) => {
-        const {spaceId, accountIds} = await getChatAccountIds(context, event.chatId, {
-            consistency: "StrongWithinCache",
-        });
+        const {spaceId, accountIds, definition} = await getChatNotificationSubscribers(
+            context,
+            event.chatId,
+            {
+                consistency: "StrongWithinCache",
+            },
+        );
 
         return {
-            info: {spaceId, accountIds},
+            info: {spaceId, definition},
             accountIds,
         };
     },
     authorizeAccess: (context, event) => {
-        return authorizeChatAccessIfPossible(context, event.chatId, {
+        return authorizeChatAccessIfPossible(context, event.chatId, "View", {
             consistency: "StrongWithinCache",
         });
     },
     updateInboxEntry: (
         context,
         event,
-        {info: {spaceId, accountIds: chatAccountIds}, accountId, clientRequestToken},
+        {info: {spaceId, definition}, accountId, clientRequestToken},
     ) => {
         return updateInboxEntry(
             context,
@@ -171,7 +178,11 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                         // the user some diversity in other accounts they see as opposed to, say,
                         // always picking the user with the first name alphabetically.
                         const latestMessageAuthorId = latestMessage.authorId;
-                        const eligibleOtherAccountIds = chatAccountIds.filter(
+                        const eligibleOtherAccountIds = (
+                            definition.type === "Direct"
+                                ? definition.accountIds
+                                : definition.messageAuthorIds
+                        ).filter(
                             chatAccountId =>
                                 chatAccountId !== latestMessageAuthorId &&
                                 chatAccountId !== accountId,
@@ -227,14 +238,10 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
         parent: event.parent ?? undefined,
         viewingTarget: event.currentlyViewedSearchEntityId
-            ? intoApiSearchMentionTarget(event.currentlyViewedSearchEntityId)
+            ? intoApiMentionTarget(event.currentlyViewedSearchEntityId)
             : undefined,
     }),
-    getAlertContent: async (
-        context,
-        event,
-        {info: {accountIds: chatAccountIds}, entryItem, locale},
-    ) => {
+    getAlertContent: async (context, event, {info: {definition}, entryItem, locale}) => {
         assert(entryItem.sortRangeType === "ChatEntry");
 
         const [authorAccount, otherAccount, bodyFromEventContent] = await runAllPromises([
@@ -259,24 +266,26 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         // - All chat messages are loud notifications even if there's not a mention
         let subtitle: string | undefined;
 
-        if (chatAccountIds.length <= 2) {
+        if (definition.type === "Direct" && definition.accountIds.length <= 2) {
             // Use the author's full name with no subtitle if it's a direct one-to-one chat.
             title = authorAccount.initialData.name;
         } else {
             subtitle = "to ";
             title = getAccountShortNameWithoutFullNameTooltip(authorAccount.initialData);
 
-            if (chatAccountIds.length === 3 && otherAccount) {
+            if (definition.type === "Room") {
+                subtitle += definition.name;
+            } else if (definition.accountIds.length === 3 && otherAccount) {
                 subtitle += "you and ";
                 subtitle += getAccountShortNameWithoutFullNameTooltip(otherAccount.initialData);
             } else if (!otherAccount) {
                 subtitle += "you and ";
-                subtitle += printPrettyNumber(locale, chatAccountIds.length - 2, "other");
+                subtitle += printPrettyNumber(locale, definition.accountIds.length - 2, "other");
             } else {
                 subtitle += "you, ";
                 subtitle += getAccountShortNameWithoutFullNameTooltip(otherAccount.initialData);
                 subtitle += ", and ";
-                subtitle += printPrettyNumber(locale, chatAccountIds.length - 3, "other");
+                subtitle += printPrettyNumber(locale, definition.accountIds.length - 3, "other");
             }
         }
 
@@ -299,9 +308,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
     },
 });
 
-function intoApiSearchMentionTarget(
-    searchMentionEntityId: SearchMentionEntityId,
-): ApiSearchMentionTarget {
+function intoApiMentionTarget(searchMentionEntityId: SearchMentionEntityId): ApiMentionTarget {
     const entityIdObject = parseSearchMentionEntityId(searchMentionEntityId);
 
     switch (entityIdObject.type) {
@@ -309,6 +316,12 @@ function intoApiSearchMentionTarget(
             return {
                 type: "Channel",
                 id: entityIdObject.channelId,
+            };
+        }
+        case "Chat": {
+            return {
+                type: "Chat",
+                id: entityIdObject.chatId,
             };
         }
         case "Document": {

@@ -9,6 +9,7 @@ import {
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
+    runIndexChatAndChatMessageSearchEntitiesMigration,
     runIndexEverySearchEntityMigration,
     runIndexPostAndChannelSearchEntitiesMigration,
     runIndexTaskAndTaskCollectionSearchEntitiesMigration,
@@ -45,6 +46,7 @@ export const allMigrations: {
 } = {
     IndexEverySearchEntity: runIndexEverySearchEntityMigration,
     IndexPostAndChannelSearchEntities: runIndexPostAndChannelSearchEntitiesMigration,
+    IndexChatAndChatMessageSearchEntities: runIndexChatAndChatMessageSearchEntitiesMigration,
     IndexTaskAndTaskCollectionSearchEntities: runIndexTaskAndTaskCollectionSearchEntitiesMigration,
     IndexTaskInitialAssigneePosition: runIndexTaskInitialAssigneePositionMigration,
     FavoriteTaskPersonalSearchEntity: runFavoriteTaskPersonalSearchEntityMigration,

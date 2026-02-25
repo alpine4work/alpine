@@ -267,6 +267,9 @@ export type MessageStreamToolCallPartPayloadCall = SchemaType<
 const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
     Read: Schema.object({
         type: Schema.value("Read"),
+        // TODO(calebmer, #api-path-destruction): This shouldn't be a `targetPath`
+        // string but rather a `target` object like `Create`. We may be able to get
+        // rid of `ApiMentionTargetPath` after doing this.
         targetPath: Schema.string as Schema<ApiMentionTargetPath>,
     }),
     Search: Schema.object({

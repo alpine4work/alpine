@@ -169,6 +169,8 @@ function intoSearchEntityIdFromApiMentionTarget(
     switch (target.type) {
         case "Channel":
             return `Channel:${target.id}`;
+        case "Chat":
+            return `Chat:${target.id}`;
         case "Document":
             return `Document:${target.id}`;
         case "Post":

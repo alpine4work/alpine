@@ -83,6 +83,50 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/accounts/{id}/mention": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["AccountId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly mention: {
+                                    readonly target: components["schemas"]["AccountMentionTarget"];
+                                    readonly title: string;
+                                };
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/spaces/{id}": {
             readonly parameters: {
                 readonly query?: never;
@@ -296,6 +340,51 @@ export namespace ApiSpecification {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly chat: components["schemas"]["Chat"];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
+        readonly "/chats/{id}/mention": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["ChatId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["ChatId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly mention: {
+                                    readonly target: components["schemas"]["ChatMentionTarget"];
+                                    readonly title: string;
+                                };
                             };
                         };
                     };
@@ -632,7 +721,10 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly mention: components["schemas"]["SearchMention_Response"];
+                                readonly mention: {
+                                    readonly target: components["schemas"]["DocumentMentionTarget"];
+                                    readonly title: string;
+                                };
                             };
                         };
                     };
@@ -995,7 +1087,10 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly mention: components["schemas"]["SearchMention_Response"];
+                                readonly mention: {
+                                    readonly target: components["schemas"]["ChannelMentionTarget"];
+                                    readonly title: string;
+                                };
                             };
                         };
                     };
@@ -1105,7 +1200,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly mention: components["schemas"]["SearchMention_Response"];
+                                readonly mention: components["schemas"]["Mention_Response"];
                             };
                         };
                     };
@@ -1455,7 +1550,10 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly mention: components["schemas"]["SearchMention_Response"];
+                                readonly mention: {
+                                    readonly target: components["schemas"]["TaskMentionTarget_Response"];
+                                    readonly title: string;
+                                };
                             };
                         };
                     };
@@ -1761,7 +1859,10 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly mention: components["schemas"]["SearchMention_Response"];
+                                readonly mention: {
+                                    readonly target: components["schemas"]["TaskCollectionMentionTarget"];
+                                    readonly title: string;
+                                };
                             };
                         };
                     };
@@ -1905,6 +2006,14 @@ export namespace ApiSpecification {
                 readonly type: "Channel";
                 readonly id: components["schemas"]["ChannelId"];
             };
+            readonly ChatMentionTarget: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Chat";
+                readonly id: components["schemas"]["ChatId"];
+            };
             readonly DocumentMentionTarget: {
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1949,24 +2058,11 @@ export namespace ApiSpecification {
             readonly MentionTarget:
                 | components["schemas"]["AccountMentionTarget"]
                 | components["schemas"]["ChannelMentionTarget"]
+                | components["schemas"]["ChatMentionTarget"]
                 | components["schemas"]["DocumentMentionTarget"]
                 | components["schemas"]["PostMentionTarget"]
                 | components["schemas"]["TaskMentionTarget"]
                 | components["schemas"]["TaskCollectionMentionTarget"];
-            readonly SearchMention: {
-                readonly target: components["schemas"]["SearchMentionTarget"];
-                readonly title?: string;
-            };
-            readonly SearchMention_Response: {
-                readonly target: components["schemas"]["SearchMentionTarget_Response"];
-                readonly title: string;
-            };
-            readonly SearchMentionTarget:
-                | components["schemas"]["DocumentMentionTarget"]
-                | components["schemas"]["ChannelMentionTarget"]
-                | components["schemas"]["TaskMentionTarget"]
-                | components["schemas"]["TaskCollectionMentionTarget"]
-                | components["schemas"]["PostMentionTarget"];
             readonly Content: {
                 readonly elements: readonly components["schemas"]["ContentBlockElement"][];
             };
@@ -2175,6 +2271,14 @@ export namespace ApiSpecification {
                 readonly isAccountShortName?: boolean;
                 readonly marks?: readonly components["schemas"]["ContentInlineElementMark"][];
             };
+            readonly Mention: {
+                readonly target: components["schemas"]["MentionTarget"];
+                readonly title?: string;
+            };
+            readonly Mention_Response: {
+                readonly target: components["schemas"]["MentionTarget_Response"];
+                readonly title: string;
+            };
             readonly ContentInlineElementMark:
                 | components["schemas"]["ContentInlineElementBoldMark"]
                 | components["schemas"]["ContentInlineElementItalicMark"]
@@ -2286,11 +2390,26 @@ export namespace ApiSpecification {
                           };
                 };
             };
-            readonly Chat: {
+            readonly Chat: components["schemas"]["DirectChat"] | components["schemas"]["RoomChat"];
+            readonly DirectChat: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Direct";
                 readonly id: components["schemas"]["ChatId"];
                 readonly members: readonly {
                     readonly account: components["schemas"]["Account"];
                 }[];
+            };
+            readonly RoomChat: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Room";
+                readonly id: components["schemas"]["ChatId"];
+                readonly name: components["schemas"]["LabelString"];
             };
             readonly Document: {
                 readonly id: components["schemas"]["DocumentId"];
@@ -2526,7 +2645,7 @@ export namespace ApiSpecification {
                 readonly authorId: components["schemas"]["AccountId"];
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly wasMentioned?: boolean;
-                readonly viewingTarget?: components["schemas"]["SearchMentionTarget"];
+                readonly viewingTarget?: components["schemas"]["MentionTarget"];
                 readonly parent?: components["schemas"]["BotWebhookNewMessageEventParent"];
             };
             readonly BotWebhookNewMessageEventParent:
@@ -2777,16 +2896,11 @@ export namespace ApiSpecification {
             readonly MentionTarget_Response:
                 | components["schemas"]["AccountMentionTarget"]
                 | components["schemas"]["ChannelMentionTarget"]
+                | components["schemas"]["ChatMentionTarget"]
                 | components["schemas"]["DocumentMentionTarget"]
                 | components["schemas"]["PostMentionTarget"]
                 | components["schemas"]["TaskMentionTarget_Response"]
                 | components["schemas"]["TaskCollectionMentionTarget"];
-            readonly SearchMentionTarget_Response:
-                | components["schemas"]["DocumentMentionTarget"]
-                | components["schemas"]["ChannelMentionTarget"]
-                | components["schemas"]["TaskMentionTarget_Response"]
-                | components["schemas"]["TaskCollectionMentionTarget"]
-                | components["schemas"]["PostMentionTarget"];
             readonly ContentInlineElement_Response:
                 | components["schemas"]["ContentTextInlineElement"]
                 | components["schemas"]["ContentBreakInlineElement"]
@@ -2852,7 +2966,7 @@ export namespace ApiSpecification {
                 readonly authorId: components["schemas"]["AccountId"];
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly wasMentioned?: boolean;
-                readonly viewingTarget?: components["schemas"]["SearchMentionTarget_Response"];
+                readonly viewingTarget?: components["schemas"]["MentionTarget_Response"];
                 readonly parent?: components["schemas"]["BotWebhookNewMessageEventParent"];
             };
             readonly ContentBlockElement_Response:

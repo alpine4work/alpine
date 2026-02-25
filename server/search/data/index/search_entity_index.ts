@@ -3,6 +3,8 @@ import {Node} from "prosemirror-model";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {getBotAccessPolicy} from "~/server/access/get_bot_access_policy.js";
 import {authorizeInternalAccess} from "~/server/accounts/authorize_internal_access.js";
+import {getChatDefinitionIfPossible} from "~/server/chat/data/get_chat_definition.js";
+import {getChatSearchEntityContributorIds} from "~/server/chat/data/get_chat_search_entity_contributor_ids.js";
 import {
     getContentReferencesForServerPrintSingleLineTextSnippet,
     printContentSingleLineTextSnippetForServer,
@@ -17,6 +19,7 @@ import {
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getChannelIfPossible} from "~/server/forum/data/get_channel.js";
 import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
 import {getPostContentAndChannelPreviewIfPossible} from "~/server/forum/data/get_post_content_and_channel_preview.js";
@@ -56,12 +59,18 @@ import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core
 import {
     SearchEntityEmbeddingChunk,
     getSearchEntity,
+    getSearchRoomChatEntityMedia,
+    sortSearchDirectChatEntityAccountIds,
 } from "~/server/search/data/index/internal/get_search_entity.js";
 import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
 import {
     SearchNaturalLanguageFilter,
     parseSearchNaturalLanguageQuery,
 } from "~/server/search/data/index/internal/parse_search_natural_language_query.js";
+import {
+    prepareSearchDirectChatEntityTitleForResult,
+    searchChatEntityResultTitlePreviewAccountCount,
+} from "~/server/search/data/index/internal/prepare_search_chat_entity_title_for_result.js";
 import {printSearchNaturalLanguageFilter} from "~/server/search/data/index/internal/print_search_natural_language_filter.js";
 import {
     SearchEntityEmbeddingChunkIndexDocType,
@@ -110,12 +119,10 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
-    AccessPolicy,
     AccessPolicyAccountGrantWithoutGeneration,
     AccessPolicyDefaultGrantWithoutGeneration,
     AccessPolicyUrlGrant,
 } from "~/shared/access/access_policy.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
@@ -126,11 +133,12 @@ import {
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {printContentSingleLineTextSnippetPreservingMarks} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ContextBatcher} from "~/shared/context/batch_context_module.js";
-import {ContextCache} from "~/shared/context/cache_context_module.js";
+import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {
+    FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
@@ -144,7 +152,6 @@ import {
 } from "~/shared/forum/create_post_search_entity_title.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -155,15 +162,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
@@ -171,10 +175,15 @@ import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId, isId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    ChatId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
-import {missingSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {
     SearchAffinityEntityId,
     SearchDynamicEntityId,
@@ -222,7 +231,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * is to separate parts with a dash so we use a `~` to show the `SpaceId` isn't
  * a part of the base `SearchEntityId`.
  */
-type SearchEntityIdForKeywordIndex =
+export type SearchEntityIdForKeywordIndex =
     | Exclude<SearchDynamicEntityId, `Account:${AccountId}`>
     | `Account:${AccountId}~${SpaceId}`;
 
@@ -527,6 +536,7 @@ function alwaysEmbedSearchEntityType(type: SearchDynamicEntityIdObject["type"]):
         // Always index channels and task collections since they're created rarely and
         // will usually be meaningful even if their search entity doesn't immediately
         // have much content.
+        case "Chat":
         case "Channel":
         case "TaskCollection":
             return true;
@@ -536,7 +546,6 @@ function alwaysEmbedSearchEntityType(type: SearchDynamicEntityIdObject["type"]):
         case "DocumentComment":
         case "Post":
         case "PostComment":
-        case "Chat":
         case "ChatMessage":
         case "Task":
         case "TaskComment":
@@ -614,10 +623,32 @@ export async function processIndexSearchEntityJob(
     // we don't need to read it again.
     const readAfterTime = job.parentJobStartTime ?? jobStartTime;
 
+    let hasAlreadyAttempted = false;
     let hasScheduledIndexDependentsJob = false;
     let hasScheduledIndexEmbeddingChunksJob = false;
 
     await retryWithExponentialBackoff(async retry => {
+        const isInitialAttempt = !hasAlreadyAttempted;
+        hasAlreadyAttempted = true;
+
+        if (!isInitialAttempt) {
+            // On second attempt, use an empty cache when we re-run the action. We're
+            // usually retrying because there was a version conflict when we tried to write
+            // the OpenSearch doc with another process concurrently writing the doc at the
+            // same time.
+            //
+            // When we retry, we don't want to use cached values because they may be
+            // outdated! Instead, we want to read everything fresh with strong consistency.
+            // Given we use `StrongWithinCache` consistency in `getSearchEntity()` we don't
+            // want to reuse data from a previous attempt.
+            //
+            // So create a new cache on repeat attempts of this job. (`DynamoContextModule`'s
+            // `retryTransaction()` loop does something similar.)
+            context = context.clone({
+                cache: CacheContextModule.new(),
+            });
+        }
+
         const actualOldDocForKeywordIndex = await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             job.spaceId,
@@ -1306,7 +1337,7 @@ export async function searchByKeywords(
         OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>
     >;
 
-    const createQueryTextClause = (
+    const createTextQueryClause = (
         boost: number,
         queryTexts: ReadonlyArray<string>,
     ): QueryClause | null => {
@@ -1446,10 +1477,10 @@ export async function searchByKeywords(
               {dis_max: {queries: clauses}};
     };
 
-    const queryTextClause = createQueryTextClause(1, queryTexts);
+    const textQueryClause = createTextQueryClause(1, queryTexts);
 
-    const must: Array<QueryClause> = [];
-    if (queryTextClause) must.push(queryTextClause);
+    const mustQueryClauses: Array<QueryClause> = [];
+    if (textQueryClause) mustQueryClauses.push(textQueryClause);
 
     // Keep track of the fields we're using to filter by time. If we only filter by
     // updated time then let's use updated time to sort as well.
@@ -1483,7 +1514,7 @@ export async function searchByKeywords(
             return {terms: {[flattenedKey]: new OpensearchQueryValue(opensearchValues)}};
         };
 
-        const filterClauses = Array.from(parsedFilterByName.entries()).map(
+        const filterQueryClauses = Array.from(parsedFilterByName.entries()).map(
             ([filterName, {filter}]): QueryClause => {
                 const filterMust: Array<QueryClause> = [
                     createTermQueryClause("type", filter.entityTypes),
@@ -1609,24 +1640,29 @@ export async function searchByKeywords(
             },
         );
 
-        const controlQueryTextClause = createQueryTextClause(
+        const controlTextQueryClause = createTextQueryClause(
             isLowConfidence
                 ? options.naturalLanguage.controlMatchBoostIfLowConfidence
                 : options.naturalLanguage.controlMatchBoost,
             controlQueryTexts,
         );
 
-        must.push({
+        mustQueryClauses.push({
             dis_max: {
                 queries: [
-                    ...filterClauses,
-                    ...(controlQueryTextClause ? [controlQueryTextClause] : []),
+                    ...filterQueryClauses,
+                    ...(controlTextQueryClause ? [controlTextQueryClause] : []),
                 ],
             },
         });
     }
 
-    const accessPolicy = await getOpensearchQueryActorAccessClause(context, spaceId, "Keyword");
+    const accessPolicyQueryClause = await getOpensearchActorAccessQueryClause(
+        context,
+        spaceId,
+        "Keyword",
+    );
+
     const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
         explain: !!debugOptions,
         size: limit,
@@ -1644,12 +1680,15 @@ export async function searchByKeywords(
         ],
         query: {
             bool: {
-                must,
+                must: mustQueryClauses,
 
                 // Use filter context to only match content the user is allowed to see. The
                 // content must be in our space and must grant access to the account. Either
                 // directly or through a default grant.
-                filter: [{term: {spaceId: new OpensearchQueryValue(spaceId)}}, accessPolicy],
+                filter: [
+                    {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+                    accessPolicyQueryClause,
+                ],
             },
         },
         highlight: {
@@ -1780,6 +1819,7 @@ export async function searchByKeywords(
                 model = new SearchEntityModel({
                     id: entityId,
                     title: prepareSearchEntityTitleForResult(
+                        context.actor.type,
                         entityId,
                         hit.fields.title?.[0] ?? null,
                         media,
@@ -2075,7 +2115,7 @@ export async function searchBySemantics(
 
     assert(queryEmbeddingVector);
 
-    const accessPolicy = await getOpensearchQueryActorAccessClause(context, spaceId, "Semantic");
+    const accessPolicy = await getOpensearchActorAccessQueryClause(context, spaceId, "Semantic");
     const {hits} = await context.opensearch.searchWithoutSource(
         SearchEntityEmbeddingChunkIndex,
         spaceId,
@@ -2252,6 +2292,7 @@ export async function searchBySemantics(
                 model = new SearchEntityModel({
                     id: entityId,
                     title: prepareSearchEntityTitleForResult(
+                        context.actor.type,
                         entityId,
                         hit.fields["entity.title"]?.[0] ?? null,
                         media,
@@ -2278,47 +2319,65 @@ async function prepareSearchEntityMediaForResult(
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
     media: SearchEntityMedia,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<SearchEntityMediaModel> {
     switch (media.type) {
         case "Account": {
-            const account = await getAccount(context, spaceId, media.accountId);
+            const account = await getAccount(context, spaceId, media.accountId, options);
             return {type: "Account", account};
         }
         case "AccountPile": {
-            const stableRandom = new StableRandom("SearchEntityAccountPileMedia");
+            const sortAccountIdLast = (accountId: AccountId) => {
+                switch (context.actor.type) {
+                    case "System":
+                    case "Anonymous":
+                    case "Bot": {
+                        return false;
+                    }
+                    case "Session":
+                    case "ImpersonatedAccount": {
+                        return accountId === context.actor.getAccountId();
+                    }
+                    default:
+                        throw exhaustive(context.actor);
+                }
+            };
 
             // Show two accounts that aren't our actor's account. We randomly show two
-            // different accounts for every chat to try and help make different chats
+            // different accounts (`media.accountIds` should be shuffled by
+            // `getSearchEntity()`) for every chat to try and help make different chats
             // appear differently.
-            const accountIds = stableShuffleArray(
-                stableRandom,
-                entityId,
-                media.accountIds.filter(accountId => {
-                    switch (context.actor.type) {
-                        case "System":
-                        case "Anonymous": {
-                            return true;
-                        }
-                        case "Session":
-                        case "ImpersonatedAccount":
-                        case "Bot": {
-                            return accountId !== context.actor.getPossiblyBotAccountId();
-                        }
-                        default:
-                            throw exhaustive(context.actor);
-                    }
-                }),
-            );
+            //
+            // If there are only two accounts then we'll show our actor account but we'll
+            // show it last.
+            const previewAccountIds = Array.from(media.previewAccountIds)
+                .sort((accountId1, accountId2) => {
+                    const sortAccountId1Last = sortAccountIdLast(accountId1);
+                    const sortAccountId2Last = sortAccountIdLast(accountId2);
 
-            const previewAccounts = await runAllPromises([
-                accountIds[0] ? getAccount(context, spaceId, accountIds[0]) : null,
-                accountIds[1] ? getAccount(context, spaceId, accountIds[1]) : null,
-            ]);
+                    if (sortAccountId1Last && sortAccountId2Last) return 0;
+                    if (sortAccountId1Last) return 1;
+                    if (sortAccountId2Last) return -1;
+
+                    return 0;
+                })
+                .slice(
+                    0,
+                    // Make sure we slice after the filter. We want to accounts excluding the
+                    // actor account.
+                    searchChatEntityResultTitlePreviewAccountCount,
+                );
+
+            const previewAccounts = await runAllPromises(
+                mapIterable(previewAccountIds, accountId =>
+                    getAccount(context, spaceId, accountId, options),
+                ),
+            );
 
             return {
                 type: "AccountPile",
-                previewAccounts: previewAccounts.filter(isNonNullable),
-                accountCount: accountIds.length,
+                previewAccounts,
+                accountCount: media.accountCount,
             };
         }
         case "TaskCollectionColor":
@@ -2337,35 +2396,32 @@ async function prepareSearchEntityMediaForResult(
  * actor. We use the short names of the accounts in the chat's `AccountPile` media.
  */
 function prepareSearchEntityTitleForResult(
+    actorType: ServerActionContext["actor"]["type"],
     entityId: SearchDynamicEntityId,
     title: string | null,
     media: SearchEntityMediaModel | null,
 ): string | null {
     if (title === null) return null;
 
-    if (media?.type !== "AccountPile" || !entityId.startsWith("Chat:")) return title;
-
-    const accountNames = media.previewAccounts.map(account =>
-        getAccountShortNameWithoutFullNameTooltip(account.initialData),
-    );
-
-    if (media.accountCount > media.previewAccounts.length) {
-        accountNames.push(
-            printPrettyNumber(
-                defaultLocale,
-                media.accountCount - media.previewAccounts.length,
-                "other",
-            ),
-        );
+    if (
+        media?.type !== "AccountPile" ||
+        !entityId.startsWith("Chat:") ||
+        // HACK: Room chats have a null `accountCount` whereas direct chats have an
+        // integer `accountCount`. So check `accountCount === null` to tell if this is
+        // a room chat.
+        media.accountCount === null
+    ) {
+        return title;
     }
 
-    return joinPrettyConjunctionList(accountNames);
+    return prepareSearchDirectChatEntityTitleForResult(actorType, media);
 }
 
 type SearchEntityModelBaseResult =
     | {
           isPrivate: false;
           id: SearchDynamicEntityId;
+          spaceId: SpaceId;
           title: string | null;
           titleVersion: SearchEntityTitleVersion | null;
           media: SearchEntityMediaModel | null;
@@ -2434,14 +2490,17 @@ const SearchEntityBatcher = new ContextBatcher<
 export const fallbackGetSearchEntityBaseIfPossibleTestCounter =
     new TestCounter<SearchMentionEntityId>();
 
-export async function getSearchEntityMentionWithStrongConsistency(
+export async function getSearchEntityWithStrongConsistency(
     context: ServerActionContext,
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
 ) {
     const {type} = parseSearchMentionEntityId(entityId);
+
     const entity = await fallbackGetSearchEntityBaseIfPossible(
-        context,
+        // It's expected that `fallbackGetSearchEntityBaseIfPossible()` loads
+        // everything at strong consistency. Add that assertion here.
+        context.dynamo.expectStrongReadConsistency(),
         spaceId,
         entityId,
         new Set(),
@@ -2455,13 +2514,19 @@ export async function getSearchEntityMentionWithStrongConsistency(
 
     if (entity.isPrivate) {
         throw new PermissionDeniedError("Search entity is private", {
-            displayMessage: errorDisplayMessage`You aren’t allowed to access this ${getSearchEntityNoun(type)}. Ask someone with access to share it with you.`,
+            displayMessage: errorDisplayMessage`You aren’t allowed to access this ${getSearchEntityNoun(type)}.`,
+        });
+    }
+
+    if (entity.spaceId !== spaceId) {
+        throw new FailedPreconditionError("Search entity is in the wrong space", {
+            displayMessage: errorDisplayMessage`This ${getSearchEntityNoun(type)} is in the wrong space.`,
         });
     }
 
     return {
         id: entityId,
-        title: entity.title ?? `${missingSearchEntityTitle} ${getSearchEntityNoun(type)}`,
+        title: entity.title,
         titleVersion: entity.titleVersion,
         media: entity.media,
     };
@@ -2491,12 +2556,14 @@ async function fallbackGetSearchEntityBaseIfPossible(
             );
             if (!documentResult) return null;
             if (!documentResult.ok) return {isPrivate: true};
+            const document = documentResult.value;
 
             return {
                 isPrivate: false,
                 id: entityId,
-                title: documentResult.value.getTitle(),
-                titleVersion: {type: "Integer", version: documentResult.value.version},
+                spaceId: document.spaceId,
+                title: document.getTitle(),
+                titleVersion: {type: "Integer", version: document.version},
                 media: null,
             };
         }
@@ -2508,14 +2575,101 @@ async function fallbackGetSearchEntityBaseIfPossible(
             );
             if (!channelResult) return null;
             if (!channelResult.ok) return {isPrivate: true};
+            const channel = channelResult.value;
 
             return {
                 isPrivate: false,
                 id: entityId,
-                title: channelResult.value.name,
-                titleVersion: {type: "Integer", version: channelResult.value.version},
+                spaceId: channel.spaceId,
+                title: channel.name,
+                titleVersion: {type: "Integer", version: channel.version},
                 media: null,
             };
+        }
+        case "Chat": {
+            const chatResult = await getChatDefinitionIfPossible(context, entityIdObject.chatId, {
+                consistency: "StrongWithinCache",
+            });
+            if (!chatResult) return null;
+            if (!chatResult.ok) return {isPrivate: true};
+            const chat = chatResult.value;
+
+            switch (chat.definition.type) {
+                case "Room": {
+                    return {
+                        isPrivate: false,
+                        id: entityId,
+                        spaceId: chat.spaceId,
+                        title: chat.definition.name,
+                        titleVersion: {type: "Integer", version: chat.version},
+                        media: await prepareSearchEntityMediaForResult(
+                            context,
+                            spaceId,
+                            entityId,
+                            getSearchRoomChatEntityMedia(
+                                entityIdObject.chatId,
+                                chat.definition.creatorId,
+                                getChatSearchEntityContributorIds(
+                                    chat.definition,
+                                    chat.messagesSummary,
+                                ),
+                            ),
+                            {consistency: "StrongWithinCache"},
+                        ),
+                    };
+                }
+                case "Direct": {
+                    // If a chat has one or two accounts, we don't index the chat. Instead you
+                    // should access a 1:1 chat with another account by searching for their account
+                    // entity (indexed by `getAccountSearchEntity()`).
+                    //
+                    // This matches the behavior of `getChatSearchEntity()`.
+                    if (chat.definition.accountIds.size <= 2) return null;
+
+                    const media = await prepareSearchEntityMediaForResult(
+                        context,
+                        spaceId,
+                        entityId,
+                        {
+                            type: "AccountPile",
+                            previewAccountIds: sortSearchDirectChatEntityAccountIds(
+                                entityIdObject.chatId,
+                                chat.definition.accountIds,
+                            ).slice(
+                                0,
+                                // Add 1 to make sure we can filter out the actor account and still have enough
+                                // accounts to render a nice looking pile.
+                                searchChatEntityResultTitlePreviewAccountCount + 1,
+                            ),
+                            accountCount: chat.definition.accountIds.size,
+                        },
+                        {consistency: "StrongWithinCache"},
+                    );
+
+                    let title: string;
+
+                    if (media.type !== "AccountPile") {
+                        assert(media.type === "Account");
+                        title = media.account.initialData.name;
+                    } else {
+                        title = prepareSearchDirectChatEntityTitleForResult(
+                            context.actor.type,
+                            media,
+                        );
+                    }
+
+                    return {
+                        isPrivate: false,
+                        id: entityId,
+                        spaceId: chat.spaceId,
+                        title,
+                        titleVersion: null,
+                        media,
+                    };
+                }
+                default:
+                    throw exhaustive(chat.definition);
+            }
         }
         case "Task": {
             const taskResult = await context.tasks.getTaskWithoutDependenciesIfPossible(
@@ -2531,6 +2685,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
                 ...getTaskSearchEntityBase(task),
                 isPrivate: false,
                 id: entityId,
+                spaceId: task.getSpaceId(),
             };
         }
         case "TaskCollection": {
@@ -2547,6 +2702,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
                 ...getTaskCollectionSearchEntityBase(collection),
                 isPrivate: false,
                 id: entityId,
+                spaceId: collection.getSpaceId(),
             };
         }
         case "Post": {
@@ -2561,7 +2717,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
 
             const postContentTitleSnippet = getPostSearchEntityTitleContentSnippet(post.content);
 
-            const [author, references] = await runAllPromises([
+            const [postAuthor, references] = await runAllPromises([
                 getAccountOrDangerouslyGetStubWithoutAuthorization(
                     // It's fine to read references with eventual consistency.
                     context.dynamo.unexpectStrongReadConsistency(),
@@ -2587,9 +2743,10 @@ async function fallbackGetSearchEntityBaseIfPossible(
             return {
                 isPrivate: false,
                 id: entityId,
+                spaceId: post.spaceId,
                 title,
                 titleVersion: {type: "Integers", versions: [post.version, post.channel.version]},
-                media: {type: "Account", account: author},
+                media: {type: "Account", account: postAuthor},
             };
         }
         default:
@@ -2703,6 +2860,7 @@ async function getSearchEntityBaseIfPossible(
                 return {
                     isPrivate: false,
                     id: entityId,
+                    spaceId,
                     title: account.initialData.name,
                     titleVersion: {type: "Integer", version: account.initialData.nameVersion},
                     media: {type: "Account", account},
@@ -2846,7 +3004,8 @@ async function getSearchEntityBaseIfPossible(
     return {
         isPrivate: false,
         id: entityId,
-        title: prepareSearchEntityTitleForResult(entityId, title, media),
+        spaceId,
+        title: prepareSearchEntityTitleForResult(context.actor.type, entityId, title, media),
         titleVersion,
         media,
     };
@@ -3327,6 +3486,12 @@ export async function searchMentionByKeywords(
         },
     });
 
+    if (hits.length === 0) return [];
+
+    const maxScore = hits[0]!.score;
+    const minScore = hits[hits.length - 1]!.score;
+    const demotionScore = maxScore - minScore + 1;
+
     const results = await runAllPromises(
         hits.map(async hit => {
             assert(isSearchMentionEntityId(hit.id));
@@ -3340,10 +3505,29 @@ export async function searchMentionByKeywords(
                 : null;
 
             return {
-                score: hit.score,
+                score:
+                    hit.score -
+                    // Demote direct chat hits to the bottom of the list. Very rarely do you want a
+                    // direct chat mention. But you probably somewhat often want room chat
+                    // mentions.
+                    //
+                    // Our hacky way of detecting direct chats is checking whether `accountCount` is
+                    // non-null. Room chats have a null `accountCount`.
+                    //
+                    (hit.id.startsWith("Chat:") &&
+                    media?.type === "AccountPile" &&
+                    media.accountCount !== null
+                        ? demotionScore
+                        : 0),
+
                 model: new SearchEntityModel({
                     id: hit.id,
-                    title: prepareSearchEntityTitleForResult(hit.id, title, media),
+                    title: prepareSearchEntityTitleForResult(
+                        context.actor.type,
+                        hit.id,
+                        title,
+                        media,
+                    ),
                     titleVersion,
                     media,
                 }),
@@ -3351,13 +3535,15 @@ export async function searchMentionByKeywords(
         }),
     );
 
+    // Re-sort by score in case we changed scores.
+    results.sort((a, b) => b.score - a.score);
+
     return results;
 }
 
 function getChannelStandaloneSearchResult(channel: ChannelModel): {
     channel: ChannelPreviewModel;
     descriptionTextSnippet: string;
-    accessPolicy: AccessPolicy;
 } {
     const descriptionContentSnippet = getContentSnippet(channel.description.doc.resolve(0), 3, {
         // `printContentSingleLineTextSnippet()` collapses newlines. So also consider
@@ -3373,7 +3559,6 @@ function getChannelStandaloneSearchResult(channel: ChannelModel): {
     return {
         channel: channel.asPreview(),
         descriptionTextSnippet,
-        accessPolicy: channel.accessPolicy,
     };
 }
 
@@ -3398,7 +3583,6 @@ export async function searchChannelsByKeywords(
     Array<{
         channel: ChannelPreviewModel;
         descriptionTextSnippet: string;
-        accessPolicy: AccessPolicy;
     }>
 > {
     await authorizeSpaceAccess(context, spaceId);
@@ -3502,6 +3686,160 @@ export async function searchChannelsByKeywords(
 }
 
 /**
+ * Search room chats in our space by name.
+ *
+ * This search:
+ *
+ * - Only returns room chats (never direct chats)
+ * - Only returns chats all `contributorAccountIds` have contributed to
+ */
+export async function searchRoomChatsByKeywords(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        queryText,
+        limit,
+        contributorIds,
+    }: {
+        spaceId: SpaceId;
+        queryText: string;
+        limit: number;
+        contributorIds: ReadonlySet<AccountId>;
+    },
+): Promise<Array<SearchEntityModel>> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
+        storedFields: ["title", "titleVersion", "media"],
+        size: limit,
+        sort: [
+            "_score",
+            // If score is tied, put the newer collections first.
+            {createdTime: {order: "desc", missing: "_last"}},
+        ],
+        query: {
+            bool: {
+                must: [
+                    {
+                        bool: {
+                            minimum_should_match: 1,
+                            should: [
+                                ...getManualMatchBoolPrefixOpensearchShouldQueryClauses({
+                                    field: "title",
+                                    query: queryText,
+                                    // Fuzzy matching on 2gram or 3gram fields can lead to some odd results where,
+                                    // because we're fuzzy matching two words, we end up matching a two word
+                                    // pair which means something completely different. e.g. "my documents" matches
+                                    // "30 documents" or "of documents". So we only fuzzy match on the 1gram field.
+                                    fuzziness: "AUTO",
+                                    // Reduce the number of fuzzy expansions.
+                                    prefix_length: 1,
+                                    boost: 1,
+                                }),
+                                {
+                                    multi_match: {
+                                        query: new OpensearchQueryValue(queryText),
+                                        type: "most_fields",
+                                        fields: ["title._2gram", "title._3gram"],
+                                        fuzziness: 0,
+                                        boost: 1,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+
+                // Use filter context to only match content the user is allowed to see. The
+                // content must be in our space and must grant access to the account. Either
+                // directly or through a default grant.
+                //
+                // Query clauses in a filter context may be cached.
+                // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
+                filter: [
+                    {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+                    {term: {type: new OpensearchQueryValue("Chat")}},
+
+                    // Look for chats with the "room" tag to make sure we're only searching for chat
+                    // rooms and not for direct chats.
+                    {term: {tags: new OpensearchQueryValue("room")}},
+
+                    // Room chat must have ALL the provided contributors to match.
+                    ...(contributorIds.size > 0
+                        ? [
+                              {
+                                  bool: {
+                                      must: Array.from(contributorIds, contributorId => ({
+                                          term: {
+                                              anyContributorIds: new OpensearchQueryValue(
+                                                  contributorId,
+                                              ),
+                                          },
+                                      })),
+                                  },
+                              },
+                          ]
+                        : []),
+
+                    {
+                        bool: {
+                            minimum_should_match: 1,
+                            should: [
+                                {
+                                    term: {
+                                        "accessPolicy.accountGrantAccountIds":
+                                            new OpensearchQueryValue(context.actor.getAccountId()),
+                                    },
+                                },
+                                {
+                                    term: {
+                                        "accessPolicy.defaultGrantType": new OpensearchQueryValue(
+                                            SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
+                                                "Space",
+                                            ),
+                                        ),
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+    });
+
+    const chats = await runAllPromises(
+        hits.map(async hit => {
+            // Could be an assert since we should filter out non-chat entities in our search.
+            if (!hit.id.startsWith("Chat:")) return null;
+
+            const hitId = hit.id as `Chat:${ChatId}`;
+            const hitMedia = hit.fields.media?.[0] ?? null;
+            const hitTitle = hit.fields.title?.[0] ?? null;
+            const hitTitleVersion = hit.fields.titleVersion?.[0] ?? null;
+
+            const media = hitMedia
+                ? await prepareSearchEntityMediaForResult(context, spaceId, hitId, hitMedia)
+                : null;
+
+            return new SearchEntityModel({
+                id: hitId,
+                title: prepareSearchEntityTitleForResult(
+                    context.actor.type,
+                    hitId,
+                    hitTitle,
+                    media,
+                ),
+                titleVersion: hitTitleVersion,
+                media,
+            });
+        }),
+    );
+
+    return chats.filter(isNonNullable);
+}
+
+/**
  * Get a list of channels relevant to the session account. First we look at
  * channels the account has interacted with. If the user hasn't personally
  * interacted with enough channels to fill `limit` then we'll return a list of
@@ -3518,7 +3856,6 @@ export async function searchChannelsByAffinity(
     Array<{
         channel: ChannelPreviewModel;
         descriptionTextSnippet: string;
-        accessPolicy: AccessPolicy;
         origin: "Account" | "Space";
     }>
 > {
@@ -3846,7 +4183,8 @@ type SearchAccessPolicyForBotOrSessionResponse<IndexType extends "Keyword" | "Se
         : OpensearchQueryClause<
               OpensearchIndexFlattenedKeysType<typeof SearchEntityEmbeddingChunkIndex>
           >;
-async function getOpensearchQueryActorAccessClause<IndexType extends "Keyword" | "Semantic">(
+
+async function getOpensearchActorAccessQueryClause<IndexType extends "Keyword" | "Semantic">(
     context: Context<ServerAccountActionContextModules>,
     spaceId: SpaceId,
     indexType: IndexType,

@@ -136,7 +136,7 @@ const searchEntityUpdateSchemaDescription = {
             type: Schema.value("Chat"),
             chatId: Schema.id<ChatId>(),
         }),
-        updatableTraits: [],
+        updatableTraits: ["Definition"],
     },
     ChatMessage: {
         schema: Schema.object({

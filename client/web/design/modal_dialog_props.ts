@@ -14,10 +14,12 @@ export type ModalDialogProps = {
         | string
         | {readonly type: "Error"; readonly error: unknown; readonly reportingContext?: AppContext};
     readonly "data-ownedby"?: string;
+    readonly withTextInput?: boolean;
+    readonly textInputPlaceholder?: string;
     readonly primaryButtonLabel: string;
     readonly isPrimaryButtonDisabled?: boolean;
     readonly primaryButtonPressErrorTitle?: string;
-    readonly onPrimaryButtonPress?: () => MaybePromise<void>;
+    readonly onPrimaryButtonPress?: (textInputValue: string) => MaybePromise<void>;
     readonly cancelButtonLabel?: string;
     readonly cancelButtonPressErrorTitle?: string;
     readonly onCancelButtonPress?: () => MaybePromise<void>;

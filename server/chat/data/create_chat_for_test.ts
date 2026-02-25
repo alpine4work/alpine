@@ -56,10 +56,12 @@ export async function createChatForTest(
             chatId: id,
             spaceId,
             createdTime,
-            accountIdsForOneOnOne: accountIds.length === 2 ? accountIds : null,
+            definition: {type: "Direct"},
+            accountIdsForDirectOneOnOne: accountIds.length === 2 ? accountIds : null,
             messagesSummary: {
-                nextMessageIndex: 0,
-                messageCount: 0,
+                unknownAuthorMessageCount: 0,
+                messageCountByAuthorId: new Map(),
+                mentionCountByAccountId: new Map(),
             },
         }),
         ...Array.from(accountIds, accountId =>

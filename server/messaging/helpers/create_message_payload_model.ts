@@ -21,6 +21,10 @@ import {MessagePayload, MessageStream} from "~/shared/messaging/message_schema.j
 /**
  * Create a `MessagePayloadModel` (what we send to the client) from a
  * `MessagePayload` (what we store in the database).
+ *
+ * IMPORTANT: It's only safe to use this function if you've authorized that the
+ * actor has view access to the content. Since we'll dangerously load account
+ * stubs assuming you've already authorized access.
  */
 export async function createMessagePayloadModel(
     context: ServerActionContext,
@@ -81,9 +85,8 @@ export async function getMessageContentPayloadModelFile(
     } else {
         const fileEntityResult = await getFileEntityIfPossible(context, spaceId, fileId);
 
-        // Only returns null if we've exceeded the file entity recursion depth. If the
-        // entity doesn't exist we return a result object with a not found error.
-        assert(fileEntityResult);
+        // Should only be null if we hit the file entity recursion depth limit.
+        if (!fileEntityResult) return {type: "Null", fileId};
 
         return {
             type: "FileEntity" as const,

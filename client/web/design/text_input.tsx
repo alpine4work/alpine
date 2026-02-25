@@ -137,6 +137,11 @@ export type TextInputProps = {
      * The maximum number of characters allowed in the input.
      */
     maxLength?: number;
+
+    /**
+     * What describes this text input for accessibility purposes?
+     */
+    "aria-describedby"?: string;
 };
 
 /**
@@ -193,6 +198,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         id,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledby,
+        "aria-describedby": ariaDescribedby,
         value,
         onChange,
         onEnter,
@@ -287,6 +293,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                 id={id}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledby}
+                aria-describedby={ariaDescribedby}
                 type={inputType}
                 value={value}
                 onChange={event => onChange(event.currentTarget.value)}

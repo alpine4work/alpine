@@ -14,6 +14,8 @@ export function getFileEntityNoun(type: FileEntityIdObject["type"]): string {
             return "task collection";
         case "Channel":
             return "channel";
+        case "Chat":
+            return "chat";
         case "Post":
             return "post";
         default:
@@ -37,6 +39,8 @@ export function getFileEntityStartOfSentenceNoun(type: FileEntityIdObject["type"
             return "Task collection";
         case "Channel":
             return "Channel";
+        case "Chat":
+            return "Chat";
         case "Post":
             return "Post";
         default:

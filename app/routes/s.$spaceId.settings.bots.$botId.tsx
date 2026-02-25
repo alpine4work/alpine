@@ -508,7 +508,7 @@ function SpaceBotSettingsStringProperty({
                 alignItems="flex-start"
                 justifyContent="space-between"
             >
-                <Box style={{minWidth: 0}}>
+                <Box minWidth="flex-fit">
                     <label
                         htmlFor={inputId}
                         className={sprinkles({

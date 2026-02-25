@@ -181,6 +181,11 @@ const spacingWithNegatives = {
 };
 
 const responsiveProperties = defineProperties({
+    // TODO(calebmer): We could probably save a good chunk of CSS bundle size by
+    // removing these conditions and using `platform` checks in React code instead.
+    // We added these conditions in the past because we didn't have a reliable
+    // `usePlatform()` hook in React code. Now, the CSS break points and
+    // `usePlatform()` hook are in sync so we don't need this.
     conditions: {
         default: {},
         mobile: {selector: `${mobilePlatformSelector} &`},
@@ -268,7 +273,14 @@ const responsiveProperties = defineProperties({
             "safe-area-inset-left": "var(--safe-area-inset-left, 0px)",
             "safe-area-inset-right": "var(--safe-area-inset-right, 0px)",
         },
-        minWidth: {...spacingWithPercentages, none: "none"},
+        minWidth: {
+            ...spacingWithPercentages,
+            none: "none",
+            // Same as `minWidth="0"` but with a more descriptive name to make it clear it's
+            // a workaround for:
+            // https://stackoverflow.com/a/66689926/1568890
+            "flex-fit": "0",
+        },
         maxWidth: {...spacingWithPercentages, none: "none"},
         height: {
             ...spacingWithPercentages,

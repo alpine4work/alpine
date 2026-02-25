@@ -122,6 +122,11 @@ const SearchEntityIndexAccessPolicyType = OpensearchIndexObjectType.new({
                     ),
             })
             .nullable(),
+
+        // TODO(calebmer): Ideally this would be `hasGrantUrl`. The search index only
+        // concerns itself with "can you read this" so we don't need to include the
+        // level. If we migrate `defaultGrantType` to something simpler we should
+        // migrate this too.
         urlGrantLevel: new OpensearchIndexByteType({isFilterable: true})
             .nullable()
             .transform<SearchEntityIndexUrlGrantType | null>({

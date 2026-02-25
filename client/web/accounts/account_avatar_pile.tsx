@@ -17,6 +17,7 @@ import {backgroundColorVar, spinAnimationClassName, sprinkles} from "~/client/we
 import {addRemLengths, negateRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
@@ -30,13 +31,13 @@ export function AccountAvatarPile({
 }: {
     size?: AccountAvatarPileSize;
     topPreviewAccount?: "First" | "Last";
-    previewAccounts: ReadonlyArray<AccountModel | AccountModelData>;
+    previewAccounts: ReadonlyArray<AccountModel | AccountModelData | null>;
     accountCount?: number;
     getAllAccounts?: (limit: number) => MaybePromise<ReadonlyArray<AccountModel>>;
     lastAvatar?: ReactNode;
 }) {
     const previewAccountIds = useMemo(
-        () => new Set(previewAccounts.map(account => account.id)),
+        () => new Set(filterMapIterable(previewAccounts, account => account?.id)),
         [previewAccounts],
     );
 
@@ -50,45 +51,85 @@ export function AccountAvatarPile({
 
     return (
         <Box
+            // NOTE(calebmer): We use `<span>`s for all our elements because when rendering
+            // a pile in a `<p>` tag (for a chat room mention) HTML doesn't parse `<div>`s
+            // inside of `<p>` tags correctly.
+            //
+            // It's more important `account_avatar_pile_html.ts` uses `<span>`s (since
+            // that's actually used for mentions) we do it here for consistency.
+            as="span"
             display="flex"
+            flexShrink="0"
             position="relative"
             zIndex="0"
             style={{
                 paddingRight: addRemLengths(size, negateRemLength(spacing[avatarOverlapWidth])),
             }}
         >
-            {previewAccounts.map((account, index) => (
-                <Box
-                    key={account.id}
-                    height={size}
-                    width={avatarOverlapWidth}
-                    position="relative"
-                    style={{
-                        zIndex:
-                            // If we're rendering the account count then don't put the first avatar on top
-                            // since we shouldn't occlude the account count.
-                            topPreviewAccount === "First" && !hasLastAvatar
-                                ? previewAccounts.length - index
-                                : 1 + index,
-                    }}
-                >
-                    <AccountAvatar
-                        account={account}
-                        size={size}
-                        backgroundBorderWidth={
-                            previewAccounts.length > 1 || hasLastAvatar ? borderWidth : undefined
-                        }
-                    />
-                </Box>
-            ))}
+            {previewAccounts.map((account, index) => {
+                return (
+                    <Box
+                        key={account ? account.id : "null"}
+                        as="span"
+                        display="block"
+                        height={size}
+                        width={avatarOverlapWidth}
+                        position="relative"
+                        style={{
+                            zIndex:
+                                // If we're rendering the account count then don't put the first avatar on top
+                                // since we shouldn't occlude the account count.
+                                topPreviewAccount === "First" && !hasLastAvatar
+                                    ? previewAccounts.length - index
+                                    : 1 + index,
+                        }}
+                    >
+                        {account ? (
+                            <AccountAvatar
+                                account={account}
+                                size={size}
+                                backgroundBorderWidth={
+                                    previewAccounts.length > 1 || hasLastAvatar
+                                        ? borderWidth
+                                        : undefined
+                                }
+                            />
+                        ) : (
+                            <Box
+                                as="span"
+                                display="block"
+                                height={size}
+                                width={size}
+                                borderRadius="full"
+                                style={{
+                                    boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
+                                }}
+                            >
+                                <Box
+                                    as="span"
+                                    display="block"
+                                    height={size}
+                                    width={size}
+                                    borderRadius="full"
+                                    backgroundColor="grey-10"
+                                />
+                            </Box>
+                        )}
+                    </Box>
+                );
+            })}
             {lastAvatar ? (
                 <Box
+                    as="span"
+                    display="block"
                     height={size}
                     width={avatarOverlapWidth}
                     position="relative"
                     style={{zIndex: 1 + previewAccounts.length}}
                 >
                     <Box
+                        as="span"
+                        display="block"
                         height={size}
                         width={size}
                         borderRadius="full"
@@ -97,12 +138,13 @@ export function AccountAvatarPile({
                         }}
                     >
                         <Box
+                            as="span"
+                            display="flex"
                             height={size}
                             width={size}
                             borderRadius="full"
                             backgroundColor="grey-10"
                             color="grey-70"
-                            display="flex"
                             justifyContent="center"
                             alignItems="center"
                             overflow="hidden"
@@ -115,6 +157,8 @@ export function AccountAvatarPile({
                 getAllAccounts &&
                 accountCount > previewAccounts.length && (
                     <Box
+                        as="span"
+                        display="block"
                         height={size}
                         width={avatarOverlapWidth}
                         position="relative"
@@ -152,6 +196,8 @@ export function AccountAvatarPile({
                             }}
                         >
                             <Box
+                                as="span"
+                                display="block"
                                 height={size}
                                 width={size}
                                 borderRadius="full"
@@ -160,12 +206,13 @@ export function AccountAvatarPile({
                                 }}
                             >
                                 <Box
+                                    as="span"
+                                    display="flex"
                                     height={size}
                                     width={size}
                                     borderRadius="full"
                                     backgroundColor="grey-10"
                                     color="grey-70"
-                                    display="flex"
                                     justifyContent="center"
                                     alignItems="center"
                                     overflow="hidden"

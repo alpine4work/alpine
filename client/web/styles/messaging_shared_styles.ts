@@ -108,6 +108,12 @@ export const messageViewParentAvatarOffsetYRem =
 export const messageViewTimestampDividerHeight = "4";
 export const messageViewTimestampDividerMarginY = "2";
 
+export const messageViewParentLineClamp = 3;
+export const messageViewBigEmojiLineHeight: Spacing = "8";
+export const messageViewParentMarginTop = "2";
+export const messageViewParentMarginBottom = "2";
+export const messageViewFilesFileMaxHeight = "20rem";
+
 // Should be the same size as `messageViewAccountAvatarSize`.
 export const messageInputEditorIconButtonSize = "md";
 

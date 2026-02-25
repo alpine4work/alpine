@@ -7,6 +7,10 @@ import {
     addContentFileChannelEntityPreviewBehavior,
     renderContentFileChannelEntityPreview,
 } from "~/client/web/content/file_entity/internal/content_file_channel_entity_preview.js";
+import {
+    addContentFileChatEntityPreviewBehavior,
+    renderContentFileChatEntityPreview,
+} from "~/client/web/content/file_entity/internal/content_file_chat_entity_preview.js";
 import {renderContentFileDocumentEntityPreview} from "~/client/web/content/file_entity/internal/content_file_document_entity_preview.js";
 import {renderContentFilePostEntityPreview} from "~/client/web/content/file_entity/internal/content_file_post_entity_preview.js";
 import {renderContentFileTaskCollectionEntityPreview} from "~/client/web/content/file_entity/internal/content_file_task_collection_entity_preview.js";
@@ -28,12 +32,14 @@ const contentFileEntityRenderers: ContentFileEntityRenderers = {
     renderPreviewByType: {
         Document: renderContentFileDocumentEntityPreview,
         Channel: renderContentFileChannelEntityPreview,
+        Chat: renderContentFileChatEntityPreview,
         Task: renderContentFileTaskEntityPreview,
         TaskCollection: renderContentFileTaskCollectionEntityPreview,
         Post: renderContentFilePostEntityPreview,
     },
     addPreviewBehaviorByType: {
         Channel: addContentFileChannelEntityPreviewBehavior,
+        Chat: addContentFileChatEntityPreviewBehavior,
         Document: addContentFileContentViewEntityPreviewBehavior,
         Post: addContentFileContentViewEntityPreviewBehavior,
     },

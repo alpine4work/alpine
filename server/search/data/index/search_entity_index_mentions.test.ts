@@ -1,6 +1,7 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -153,6 +154,21 @@ const testCaseByEntityType: Record<
                     });
                 },
                 // TODO: Implement this once channels can be deleted.
+                delete: "Unimplemented",
+                undelete: "Unimplemented",
+            };
+        },
+    },
+    Chat: {
+        create: async ({session, title, access}) => {
+            const chat = await TestChat.createRoom(session, {name: title, access});
+
+            return {
+                id: `Chat:${chat.id}`,
+                access: chat.roomAccess,
+                updateTitle: async title => {
+                    await chat.updateRoomName(session, title);
+                },
                 delete: "Unimplemented",
                 undelete: "Unimplemented",
             };
@@ -3106,3 +3122,51 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
         });
     });
 }
+
+test("can mention direct chat in a private entity", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Alpha"});
+    const session2 = await space.createSession({name: "Bravo"});
+    const session3 = await space.createSession({name: "Charlie"});
+
+    const chat = await TestChat.get(session1, session2, session3);
+    const channel = await TestChannel.create(session1, {access: "Private"});
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const post = await channel.createPost(
+        session1,
+        schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("Mention: "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Chat:${chat.id}`,
+                    }),
+                }),
+                schema.text("."),
+            ]),
+        ]),
+    );
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [expect.stringMatching(/^in .*: Mention: .*, and 1 other\.$/)],
+        },
+    });
+});

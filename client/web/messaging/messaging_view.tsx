@@ -43,6 +43,7 @@ import {useMessagingRealtime} from "~/client/web/messaging/use_messaging_realtim
 import {useScrollToNewMessages} from "~/client/web/messaging/use_scroll_to_new_messages.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     VirtualizedScrollView,
@@ -50,6 +51,11 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
+import {
+    AccessPolicy,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -205,6 +211,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         isMessageCreationDisabled,
         fileAttachmentTarget,
         withAttachFileBeforeCreateMessage,
+        accessPolicy,
         getMessagesFromStart,
         getMessagesFromEnd,
         backfillMessages,
@@ -297,6 +304,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * attached when they're dropped on the message input.
          */
         withAttachFileBeforeCreateMessage?: boolean;
+
+        /**
+         * Renders as read-only if the user doesn't have `Comment` access in this
+         * `AccessPolicy`.
+         */
+        accessPolicy?: AccessPolicy;
 
         /**
          * Load messages from the start of the list. We expect the implementation of
@@ -444,9 +457,20 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 ) {
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
+    const {currentAccount} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
+
+    const isReadOnly = useMemo(
+        () =>
+            accessPolicy !== undefined &&
+            !hasAccessLevel(
+                getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+                "Comment",
+            ),
+        [accessPolicy, currentAccount?.id],
+    );
 
     const [messagesWithoutHeader, setMessages, setMessagesOptimistically] =
         useStateWithOptimisticUpdates(() => {
@@ -554,10 +578,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             setScrollOffset: scrollOffset =>
                 assertExists(viewRef.current).setScrollOffset(scrollOffset),
             focusInput: () => {
-                inputRef.current?.focus();
+                if (isReadOnly) return;
+                assertExists(inputRef.current).focus();
             },
         }),
-        [jumpToMessageRange, inputRef],
+        [jumpToMessageRange, isReadOnly],
     );
 
     useMessagingRealtime({
@@ -585,7 +610,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     useScrollToNewMessages({
         viewRef,
-        inputRef,
+        inputRef: !isReadOnly ? inputRef : null,
         isInputStickyPositioned: true,
         messages: state.messages,
         getItemKey: useCallback(
@@ -679,6 +704,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
+                        isReadOnly,
                     });
                 }
             }
@@ -690,6 +716,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             handleDeleteMessageReaction,
             handleSetMessageReaction,
             handleUpdateMessagesOptimistically,
+            isReadOnly,
             jumpState,
             jumpToMessageRange,
             messageEditing,
@@ -743,56 +770,58 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     onRenderedRangeChange={tryLoadingMoreData}
                     scrollbarInsetTop={scrollbarInsetTop}
                 />
-                <MessageInput
-                    ref={inputRef}
-                    data-testid="MessageInput"
-                    messageNoun={messageNoun}
-                    messages={state.messages}
-                    isMessageCreationDisabled={isMessageCreationDisabled}
-                    onUpdateMessages={setMessages}
-                    createMessage={async input => {
-                        await createMessage({
-                            ...input,
-                            createdTimeZone: getClientInfo().timeZone,
-                            dangerousCurrentlyViewingSearchEntityId:
-                                dangerousCurrentlyViewingSearchEntityId ?? undefined,
-                        });
-                    }}
-                    fileAttachmentTarget={fileAttachmentTarget}
-                    withAttachFileBeforeCreateMessage={withAttachFileBeforeCreateMessage}
-                    messageEditing={messageEditing}
-                    parent={inputParent}
-                    onParentClear={() => setInputParent(null)}
-                    onJumpToMessageRange={jumpToMessageRange}
-                    onDeleteMessage={async messageIndex => {
-                        await deleteMessage({messageIndex});
-                    }}
-                    onShowTypingIndicator={() => {
-                        startTypingInMessageInput({})
-                            // Don't show an error updating typing indicators to the user. We will see an
-                            // error in our logs but the user won't see any weird behavior if the
-                            // request fails.
-                            .catch(error =>
-                                reporter.logErrorWithoutDisplaying(
-                                    "Couldn\u2019t update typing indicator",
-                                    error,
-                                ),
-                            );
-                    }}
-                    onHideTypingIndicator={() => {
-                        stopTypingInMessageInput({})
-                            // Don't show an error updating typing indicators to the user. We will see an
-                            // error in our logs but the user won't see any weird behavior if the
-                            // request fails.
-                            .catch(error =>
-                                reporter.logErrorWithoutDisplaying(
-                                    "Couldn\u2019t update typing indicator",
-                                    error,
-                                ),
-                            );
-                    }}
-                    restoreStateRef={inputRestoreStateRef}
-                />
+                {!isReadOnly && (
+                    <MessageInput
+                        ref={inputRef}
+                        data-testid="MessageInput"
+                        messageNoun={messageNoun}
+                        messages={state.messages}
+                        isMessageCreationDisabled={isMessageCreationDisabled}
+                        onUpdateMessages={setMessages}
+                        createMessage={async input => {
+                            await createMessage({
+                                ...input,
+                                createdTimeZone: getClientInfo().timeZone,
+                                dangerousCurrentlyViewingSearchEntityId:
+                                    dangerousCurrentlyViewingSearchEntityId ?? undefined,
+                            });
+                        }}
+                        fileAttachmentTarget={fileAttachmentTarget}
+                        withAttachFileBeforeCreateMessage={withAttachFileBeforeCreateMessage}
+                        messageEditing={messageEditing}
+                        parent={inputParent}
+                        onParentClear={() => setInputParent(null)}
+                        onJumpToMessageRange={jumpToMessageRange}
+                        onDeleteMessage={async messageIndex => {
+                            await deleteMessage({messageIndex});
+                        }}
+                        onShowTypingIndicator={() => {
+                            startTypingInMessageInput({})
+                                // Don't show an error updating typing indicators to the user. We will see an
+                                // error in our logs but the user won't see any weird behavior if the
+                                // request fails.
+                                .catch(error =>
+                                    reporter.logErrorWithoutDisplaying(
+                                        "Couldn\u2019t update typing indicator",
+                                        error,
+                                    ),
+                                );
+                        }}
+                        onHideTypingIndicator={() => {
+                            stopTypingInMessageInput({})
+                                // Don't show an error updating typing indicators to the user. We will see an
+                                // error in our logs but the user won't see any weird behavior if the
+                                // request fails.
+                                .catch(error =>
+                                    reporter.logErrorWithoutDisplaying(
+                                        "Couldn\u2019t update typing indicator",
+                                        error,
+                                    ),
+                                );
+                        }}
+                        restoreStateRef={inputRestoreStateRef}
+                    />
+                )}
             </div>
         </>
     );

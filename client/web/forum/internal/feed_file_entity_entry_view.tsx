@@ -15,6 +15,7 @@ import {
     postContentViewOuterMarginY,
 } from "~/client/web/styles/forum_shared_styles.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
 import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {
@@ -68,6 +69,13 @@ export function FeedFileEntityEntryView({
                 fileEntity = new FileEntityModel(FileChannelEntityModelSchema, {
                     ...entry.channel,
                     type: "Channel",
+                });
+                break;
+            }
+            case "Chat": {
+                fileEntity = new FileEntityModel(FileChatEntityModelSchema, {
+                    ...entry.chat,
+                    type: "Chat",
                 });
                 break;
             }

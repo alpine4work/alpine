@@ -580,11 +580,12 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     embeddingChunks: [],
                     media: {
                         type: "AccountPile",
-                        accountIds: [
+                        accountCount: 3,
+                        previewAccountIds: expect.arrayContaining([
                             session1.account.id,
                             session2.account.id,
                             session3.account.id,
-                        ].sort(defaultCompareStrings),
+                        ]),
                     },
                     creatorId: null,
                     contributorIds: new Map([
@@ -619,7 +620,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
-                dependencyIds: new Set([`Chat:${chat.id}`]),
+                dependencyIds: new Set([`Chat:${chat.id}:Definition`]),
                 entity: {
                     id: `ChatMessage:${chat.id}-0`,
                     accessPolicy: {

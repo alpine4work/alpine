@@ -74,7 +74,7 @@ export function renderContentFilePostEntityPreview(
 ) {
     const post = unknownFileEntity.deserialize(FilePostEntityModelSchema);
 
-    const {scaledContainerHtml, transformScale, scaledWidthPx, blockMaxWidthPx} =
+    const {scaledContainerHtml, transformScale, scaledWidthPx} =
         setupContentFileEntityPreviewContainer(html, {
             layout,
             platform,
@@ -186,8 +186,10 @@ export function renderContentFilePostEntityPreview(
                 contentStyles.docClassName,
                 contentStyles.narrowRouteLayoutDocClassName,
                 contentStyles.withUserSelectNoneDocClassName,
+                contentStyles.withoutBlockMaxWidthDocClassName,
                 isContentBodyEmpty(post.content.doc) && contentStyles.emptyBodyClassName,
                 sprinkles({
+                    width: "full",
                     paddingTop: postContentViewInnerMarginY,
                 }),
             ),
@@ -206,7 +208,13 @@ export function renderContentFilePostEntityPreview(
             // appropriately scaled block width (important for row of 3 recursive docs use
             // case). Make sure that block width doesn't exceed the max width, though
             // (important for row of 1 recursive docs use case).
-            blockWidth: Math.min(scaledWidthPx, blockMaxWidthPx),
+            //
+            // We don't use `Math.min(scaledWidthPx, blockMaxWidthPx)` like we do in
+            // documents because we turn off max width
+            // (`contentStyles.withoutBlockMaxWidthDocClassName`) so the post extends
+            // end-to-end within the preview. Usually, the file entity preview width
+            // shouldn't be that much more than the block width.
+            blockWidth: scaledWidthPx,
             transformScale: originalTransformScale * transformScale,
             platform,
             spacingScale,

@@ -50,6 +50,7 @@ export type SearchEntityDependencyId =
     | `Channel:${ChannelId}:Preview`
     | `Post:${PostId}:Title`
     | `Chat:${ChatId}`
+    | `Chat:${ChatId}:Definition`
     | `Task:${TaskId}:Authorization`
     | `Task:${TaskId}:Title`
     | `TaskCollection:${TaskCollectionId}:Authorization`

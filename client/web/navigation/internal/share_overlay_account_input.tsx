@@ -94,6 +94,8 @@ function ShareOverlayAccountInput(
             minAccessLevel?: AccessLevel;
             onAccessLevelChange: (accessLevel: AccessLevel) => void;
             isAltKeyDown: boolean;
+            withoutEditAccessLevel?: boolean;
+            withHiddenCommentAccessLevel?: boolean;
         };
     },
     ref: Ref<ShareOverlayAccountInputRef>,
@@ -657,7 +659,8 @@ function ShareOverlayAccountInput(
                             }
 
                             if (
-                                (accessLevel.isAltKeyDown &&
+                                (!accessLevel.withoutEditAccessLevel &&
+                                    accessLevel.isAltKeyDown &&
                                     hasAccessLevel("Edit", minAccessLevel)) ||
                                 // We need to show the edit access level without holding alt when
                                 // `minAccessLevel` is `Edit` otherwise there will be no access level selector
@@ -671,7 +674,12 @@ function ShareOverlayAccountInput(
                                 });
                             }
 
-                            if (hasAccessLevel("Comment", minAccessLevel)) {
+                            if (
+                                hasAccessLevel("Comment", minAccessLevel) &&
+                                (!accessLevel.withHiddenCommentAccessLevel ||
+                                    accessLevel.isAltKeyDown ||
+                                    accessLevel.accessLevel === "Comment")
+                            ) {
                                 actions.push({
                                     isSelected: accessLevel.accessLevel === "Comment",
                                     label: accessLevel.accessLevelText.Comment,

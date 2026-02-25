@@ -103,6 +103,14 @@ export function selectChatForAccounts(
             })(),
         ]);
 
-        return {selectedChat, suggestedChats};
+        return {
+            selectedChat,
+            // Make sure we only return direct chats. Just in case due to race conditions
+            // we ended up loading some room chats. We shouldn't have loaded room chats
+            // because room chats don't have chat account items (which is what this
+            // function searches) but due to race condition we may have seen a chat account
+            // item for a room chat.
+            suggestedChats: suggestedChats.filter(chat => chat.definition.type === "Direct"),
+        };
     });
 }

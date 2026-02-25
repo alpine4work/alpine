@@ -136,7 +136,26 @@ export class InboxChatEntryModel
             spaceId: Schema.id<SpaceId>(),
             accountId: Schema.id<AccountId>(),
             chatId: Schema.id<ChatId>(),
-            chatAccountCount: Schema.integer,
+            definition: Schema.union({
+                Direct: Schema.object({
+                    type: Schema.value("Direct"),
+                    accountCount: Schema.integer,
+                }),
+                Room: Schema.booleanUnion(
+                    "isPrivate",
+                    Schema.object({
+                        type: Schema.value("Room"),
+                        isPrivate: Schema.value(true),
+                    }),
+                    Schema.object({
+                        type: Schema.value("Room"),
+                        isPrivate: Schema.value(false),
+                        name: Schema.string,
+                    }),
+                ),
+            })
+                .wrapOriginalPropertyInUnionVariant("Direct", "accountCount", {})
+                .originalPropertyKey("chatAccountCount"),
             loudNotificationCount: Schema.integer.min(0),
             isArchived: Schema.boolean,
             latestMessage: Schema.object({

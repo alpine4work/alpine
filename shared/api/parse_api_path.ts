@@ -66,6 +66,7 @@ const apiMentionTargetTypes = new Set<string>(
         cast<Record<ApiMentionTarget["type"], true>>({
             Account: true,
             Channel: true,
+            Chat: true,
             Document: true,
             Post: true,
             Task: true,
@@ -575,7 +576,6 @@ export function getApiMentionTargetPathIfExists(path: ApiPath): ApiMentionTarget
         case "TaskComments": {
             return `/tasks/${pathObject.id}`;
         }
-        case "Chat":
         case "ChatMessage":
         case "ChatMessages": {
             return null;

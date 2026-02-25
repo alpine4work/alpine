@@ -30,6 +30,8 @@ export function ShareButton({
     inherited,
     onAccessPolicyChange: onAccessPolicyChangeWithoutValidations,
     isReadOnly: isReadOnlyProp,
+    withoutEditAccessLevel,
+    withHiddenCommentAccessLevel,
     onCopyLink,
 }: {
     entityNoun: string;
@@ -47,6 +49,8 @@ export function ShareButton({
         accessPolicy: AccessPolicy,
     ) => MaybePromise<void>;
     isReadOnly?: boolean;
+    withoutEditAccessLevel?: boolean;
+    withHiddenCommentAccessLevel?: boolean;
     onCopyLink: () => MaybePromise<void>;
 }) {
     const {currentAccount, space} = useSpaceContext();
@@ -90,6 +94,8 @@ export function ShareButton({
                             onAccessPolicyChange={changeAccessPolicy}
                             isVisible={isVisible}
                             isReadOnly={isReadOnly}
+                            withoutEditAccessLevel={withoutEditAccessLevel}
+                            withHiddenCommentAccessLevel={withHiddenCommentAccessLevel}
                             onCopyLink={onCopyLink}
                             onCloseWithoutAnimation={onCloseWithoutAnimation}
                         />

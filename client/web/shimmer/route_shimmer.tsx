@@ -202,6 +202,7 @@ const shimmerOptionsByRouteId: Record<
     },
     "routes/s.$spaceId.chat.$chatId.messages.$index.reactions": {component: ReactionsRouteShimmer},
     "routes/s.$spaceId.chat.new": {component: NewChatRouteShimmer},
+    "routes/s.$spaceId.chat.room.new": {component: RoomChatCreatorRouteShimmer},
     "routes/s.$spaceId.chat.with.$accountId": {component: ChatRouteShimmer},
     "routes/s.$spaceId.create._index": {component: CreateRouteShimmer},
     "routes/s.$spaceId.create.more": {
@@ -901,14 +902,14 @@ function ChannelCreatorRouteShimmer() {
                 </Box>
                 <Box paddingTop={channelCreatorMarginTop} paddingX={screenPaddingX}>
                     <TextShimmer fontSize="75" width="10" ragRight="2" />
-                    <Spacer space="1" />
+                    <Spacer space="1.5" />
                     <Box height="9" className={textInputClassName}></Box>
                     <Spacer space={channelCreatorFieldHelpMarginTop} />
                     <TextShimmer fontSize="50" width="full" ragRight="6" />
                     <TextShimmer fontSize="50" width="24" />
                     <Spacer space={channelCreatorGap} />
                     <TextShimmer fontSize="75" width="16" />
-                    <Spacer space="1" />
+                    <Spacer space="1.5" />
                     <Box
                         className={textInputClassName}
                         style={{
@@ -1023,7 +1024,11 @@ function ChatRouteShimmer({withInboxBanner}: {withInboxBanner: boolean}) {
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <Box flexShrink="0" paddingTop="safe-area-inset">
-                <Box position="relative" height={navigationBarHeight}>
+                <Box
+                    position="relative"
+                    height={navigationBarHeight}
+                    style={{boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5-translucent"]}`}}
+                >
                     {platform === "mobile" && (
                         <Box
                             position="absolute"
@@ -1107,6 +1112,72 @@ function NewChatRouteShimmer() {
                 </Box>
             </Box>
             <MessagingViewShimmer withTopAlignedMessages={false} messages="few" />
+        </Box>
+    );
+}
+
+function RoomChatCreatorRouteShimmer() {
+    const platform = usePlatform();
+
+    return (
+        <Box display="flex" flexDirection="column" alignItems="center">
+            <Box
+                flexShrink="0"
+                paddingTop="safe-area-inset"
+                width="full"
+                maxWidth={peekNarrowLayoutWidth}
+            >
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    position="relative"
+                    height={navigationBarHeight}
+                    paddingX={platform === "mobile" ? navigationBarMobileGap : screenPaddingX}
+                >
+                    {platform === "mobile" && <MobileBackButton />}
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        justifyContent="center"
+                        alignItems={platform !== "mobile" ? "flex-start" : "center"}
+                        width="full"
+                        height="full"
+                    >
+                        <TextShimmer
+                            fontSize={
+                                platform !== "mobile"
+                                    ? channelCreatorNavigationBarDesktopTitleFontSize
+                                    : "100"
+                            }
+                            width={platform !== "mobile" ? "32" : "24"}
+                        />
+                    </Box>
+                    <Box display="flex" justifyContent="flex-end" width="7">
+                        <Box
+                            className={pulseAnimationClassName}
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            backgroundColor="grey-10"
+                            paddingX="3"
+                            height="7"
+                            borderRadius="1"
+                        >
+                            <Box opacity="0" fontSize="100">
+                                Create
+                            </Box>
+                        </Box>
+                    </Box>
+                </Box>
+                <Box paddingTop={channelCreatorMarginTop} paddingX={screenPaddingX}>
+                    <TextShimmer fontSize="75" width="10" ragRight="2" />
+                    <Spacer space="1.5" />
+                    <Box height="9" className={textInputClassName}></Box>
+                    <Spacer space={channelCreatorFieldHelpMarginTop} />
+                    <TextShimmer fontSize="50" width="full" ragRight="6" />
+                    <TextShimmer fontSize="50" width="48" />
+                </Box>
+            </Box>
         </Box>
     );
 }

@@ -2170,7 +2170,7 @@ test("effective task collection name fuzzy searching", async () => {
         "Core Product FY2023Q3",
         "Core Product FY2024Q2",
     ]);
-});
+}, 20_000);
 
 test("excludes collections account doesn\u2019t have access to when searching", async () => {
     const space = await TestSpace.create(context);

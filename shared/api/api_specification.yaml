@@ -63,6 +63,33 @@ paths:
                                     account:
                                         $ref: "#/components/schemas/AccountWithoutSpace"
 
+    /accounts/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [mention]
+                                additionalProperties: false
+                                properties:
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/AccountMentionTarget"
+                                            title:
+                                                type: string
+
     /spaces/{id}:
         parameters:
             - name: id
@@ -200,6 +227,35 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     chat:
                                         $ref: "#/components/schemas/Chat"
+
+    /chats/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/ChatMentionTarget"
+                                            title:
+                                                type: string
 
     # TODO(calebmer, #public-api): Add a `-markdown` variant endpoint for all
     # endpoints that deal with content. This variant should return a string for
@@ -398,7 +454,14 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
-                                        $ref: "#/components/schemas/SearchMention_Response"
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/DocumentMentionTarget"
+                                            title:
+                                                type: string
 
     /documents/{id}/threads/{threadId}:
         parameters:
@@ -627,7 +690,14 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
-                                        $ref: "#/components/schemas/SearchMention_Response"
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/ChannelMentionTarget"
+                                            title:
+                                                type: string
 
     /posts:
         post:
@@ -690,7 +760,7 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
-                                        $ref: "#/components/schemas/SearchMention_Response"
+                                        $ref: "#/components/schemas/Mention"
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -901,7 +971,14 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
-                                        $ref: "#/components/schemas/SearchMention_Response"
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/TaskMentionTarget"
+                                            title:
+                                                type: string
 
     /tasks/{id}/messages/{index}:
         parameters:
@@ -1074,7 +1151,14 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
-                                        $ref: "#/components/schemas/SearchMention_Response"
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                                            title:
+                                                type: string
 
     /task-collections/{id}/tasks:
         parameters:
@@ -1437,6 +1521,16 @@ components:
                 id:
                     $ref: "#/components/schemas/ChannelId"
 
+        ChatMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
+
         DocumentMentionTarget:
             type: object
             required: [type, id]
@@ -1493,6 +1587,7 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/AccountMentionTarget"
                 - $ref: "#/components/schemas/ChannelMentionTarget"
+                - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
@@ -1502,51 +1597,11 @@ components:
                 mapping:
                     Account: "#/components/schemas/AccountMentionTarget"
                     Channel: "#/components/schemas/ChannelMentionTarget"
+                    Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
-
-        SearchMention:
-            type: object
-            required: [target]
-            additionalProperties: false
-            properties:
-                target:
-                    $ref: "#/components/schemas/SearchMentionTarget"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `SearchMention_Response` (which will always have a title).
-                title:
-                    type: string
-
-        SearchMention_Response:
-            type: object
-            required: [target, title]
-            additionalProperties: false
-            properties:
-                target:
-                    $ref: "#/components/schemas/SearchMentionTarget"
-                title:
-                    type: string
-                    minLength: 1
-
-        SearchMentionTarget:
-            oneOf:
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/ChannelMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Channel: "#/components/schemas/ChannelMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
 
         # =========================================================================== #
         #                                   Content                                   #
@@ -1922,6 +1977,32 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentInlineElementMark"
 
+        # Simpler mention type that's compatible with `ContentMentionInlineElement` but
+        # without extra element properties like `type` and `marks`.
+        Mention:
+            type: object
+            required: [target]
+            additionalProperties: false
+            properties:
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
+
+        Mention_Response:
+            type: object
+            required: [target, title]
+            additionalProperties: false
+            properties:
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                title:
+                    type: string
+
         ContentInlineElementMark:
             oneOf:
                 - $ref: "#/components/schemas/ContentInlineElementBoldMark"
@@ -2120,10 +2201,22 @@ components:
                                           const: InvitePending
 
         Chat:
+            oneOf:
+                - $ref: "#/components/schemas/DirectChat"
+                - $ref: "#/components/schemas/RoomChat"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Direct: "#/components/schemas/DirectChat"
+                    Room: "#/components/schemas/RoomChat"
+
+        DirectChat:
             type: object
-            required: [id, members]
+            required: [type, id, members]
             additionalProperties: false
             properties:
+                type:
+                    const: Direct
                 id:
                     $ref: "#/components/schemas/ChatId"
                 members:
@@ -2135,6 +2228,18 @@ components:
                         properties:
                             account:
                                 $ref: "#/components/schemas/Account"
+
+        RoomChat:
+            type: object
+            required: [type, id, name]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Room
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
 
         Document:
             type: object
@@ -2621,7 +2726,7 @@ components:
                 wasMentioned:
                     type: boolean
                 viewingTarget:
-                    $ref: "#/components/schemas/SearchMentionTarget"
+                    $ref: "#/components/schemas/MentionTarget"
                 parent:
                     $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
 

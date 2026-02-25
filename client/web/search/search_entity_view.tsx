@@ -251,6 +251,7 @@ export function SearchEntityView({
                             {!showTitle && (
                                 <SearchEntityViewTitlePrefix
                                     icon={typeDisplay.icon}
+                                    type={typeDisplay.type}
                                     media={entityData.media}
                                     // An entity is only considered to be deleted if there's no title and there's
                                     // no body. In this context we're rendering things like chat messages which

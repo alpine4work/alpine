@@ -1,4 +1,5 @@
 import {Step} from "prosemirror-transform";
+import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
 import {
     completeChatMessageStream,
     deleteChatMessage,
@@ -9,7 +10,12 @@ import {
     setChatMessageReaction,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_messaging.js";
+import {convertDirectChatToRoomChat} from "~/server/chat/data/convert_direct_chat_to_room_chat.js";
+import {createRoomChat} from "~/server/chat/data/create_room_chat.js";
+import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
+import {updateRoomChatAccessPolicy} from "~/server/chat/data/update_room_chat_access_policy.js";
+import {updateRoomChatName} from "~/server/chat/data/update_room_chat_name.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {TestMessageRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
@@ -24,7 +30,9 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -34,6 +42,8 @@ import {
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
+
+let testRoomChatCount = 1;
 
 export class TestChat extends TestMessageRoomBase {
     public readonly context: TestContext;
@@ -92,12 +102,87 @@ export class TestChat extends TestMessageRoomBase {
         return new TestChat(session.context, session.space, chatId, accounts);
     }
 
+    public static async createRoom(
+        session: TestSpaceSession,
+        {
+            name = `Test Chat ${testRoomChatCount++}`,
+            access,
+        }: {
+            name?: string;
+            access?: "Public" | "Private" | AccessPolicy;
+        } = {},
+    ) {
+        let accessPolicy: AccessPolicy;
+        if (access === "Public" || access === undefined) {
+            accessPolicy = {
+                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: {level: "Manage", generation: 1},
+                urlGrant: null,
+            };
+        } else if (access === "Private") {
+            accessPolicy = {
+                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: null,
+                urlGrant: null,
+            };
+        } else {
+            accessPolicy = access;
+        }
+
+        const {id} = await createRoomChat(session.action(), {
+            spaceId: session.space.id,
+            name,
+            accessPolicy,
+        });
+
+        return new TestChat(session.context, session.space, id, []);
+    }
+
     protected override _getRoomKey() {
         return this.id;
     }
 
     public override getBotScope(): BotTokenPayloadScope {
         return {type: "Chat", chatId: this.id};
+    }
+
+    public async convertToRoom(
+        session: TestSpaceSession,
+        name: string = `Test Chat ${testRoomChatCount++}`,
+    ) {
+        await convertDirectChatToRoomChat(session.action(), {
+            chatId: this.id,
+            name,
+        });
+    }
+
+    public readonly roomAccess = new TestAccessPolicy({
+        get: async () => {
+            const {definition} = await getChatDefinition(
+                this.context.systemAction(this.space.id),
+                this.id,
+            );
+
+            if (definition.type !== "Room") {
+                throw new FailedPreconditionError("Can only read a room chat\u2019s access policy");
+            }
+
+            return definition.accessPolicy;
+        },
+        set: async (session, accessPolicy) => {
+            await updateRoomChatAccessPolicy(session.action(), {
+                chatId: this.id,
+                accessPolicy,
+                notification: null,
+            });
+        },
+    });
+
+    public async updateRoomName(session: TestSpaceSession, name: string) {
+        await updateRoomChatName(session.action(), {
+            chatId: this.id,
+            name,
+        });
     }
 
     public override _getMessage(context: TestSessionActionContext, messageIndex: number) {

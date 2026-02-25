@@ -12,6 +12,7 @@ ts_project(
     ],
     tests = {
         "evaluate_access_policy_test": {"size": "medium"},
+        "evaluate_access_policy_for_account_test": {"size": "medium"},
     },
     visibility = ["//server:__subpackages__"],
     deps = [

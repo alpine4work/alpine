@@ -9,6 +9,7 @@ import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
@@ -65,7 +66,13 @@ export function getChatItemIfExistsForAuthorization(
             return null;
         }
 
-        return {attributesItem, accountItems};
+        return {
+            attributesItem,
+            // `Room` chats shouldn't have account items, only `Direct` chats. However, due
+            // to race condition or some error edge cases we may have account items in the
+            // database for `Room` chats. Ignore the account items in this case.
+            accountItems: attributesItem.definition.type === "Direct" ? accountItems : emptyArray,
+        };
     });
 }
 

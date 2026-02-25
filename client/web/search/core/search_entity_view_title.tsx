@@ -23,7 +23,7 @@ import {countGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {deletedSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
-import {isSearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
+import {SearchEntityType, isSearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
 import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 
 export function SearchEntityViewTitle({
@@ -75,6 +75,7 @@ export function SearchEntityViewTitle({
         >
             <SearchEntityViewTitlePrefix
                 icon={typeDisplay.icon}
+                type={typeDisplay.type}
                 media={entityData.media}
                 isDeleted={entityData.title === null}
             />
@@ -91,10 +92,12 @@ export function SearchEntityViewTitle({
 
 export function SearchEntityViewTitlePrefix({
     icon,
+    type,
     media,
     isDeleted,
 }: {
     icon: ReactNode;
+    type: SearchEntityType;
     media: SearchEntityMediaModel | null;
     isDeleted: boolean;
 }) {
@@ -137,34 +140,66 @@ export function SearchEntityViewTitlePrefix({
                     <Trash size={spacing["4"]} />
                 </Box>
             ) : media !== null ? (
-                <SearchEntityViewMedia media={media} />
+                <SearchEntityViewMedia type={type} media={media} />
             ) : null}
         </>
     );
 }
 
-function SearchEntityViewMedia({media}: {media: SearchEntityMediaModel}) {
+function SearchEntityViewMedia({
+    type,
+    media,
+}: {
+    type: SearchEntityType;
+    media: SearchEntityMediaModel;
+}) {
     const spacingScale = useSpacingScale();
 
     switch (media.type) {
         case "Account": {
-            return (
-                <Box
-                    display="inline-flex"
-                    alignItems="center"
-                    marginLeft="0.5"
-                    marginRight="1.5"
-                    style={{
-                        height: searchEntityViewTitleLineHeightPx[spacingScale],
-                        verticalAlign: "top",
-                    }}
-                >
-                    <AccountAvatar account={media.account} size="5" />
-                </Box>
-            );
+            if (type !== "Chat") {
+                return (
+                    <Box
+                        display="inline-flex"
+                        alignItems="center"
+                        marginLeft="0.5"
+                        marginRight="1.5"
+                        style={{
+                            height: searchEntityViewTitleLineHeightPx[spacingScale],
+                            verticalAlign: "top",
+                        }}
+                    >
+                        <AccountAvatar account={media.account} size="5" />
+                    </Box>
+                );
+            } else {
+                // Render a grey circle for chats that don't have an `AccountPile` media. We
+                // want to communicate it's a multi-person chat so we don't want to render one
+                // account. This case should happen rarely. Just `RoomChat`s that only a single
+                // person has messaged so far.
+                return (
+                    <Box
+                        display="inline-flex"
+                        alignItems="center"
+                        marginLeft="0.5"
+                        marginRight="1.5"
+                        style={{
+                            height: searchEntityViewTitleLineHeightPx[spacingScale],
+                            verticalAlign: "top",
+                        }}
+                    >
+                        <AccountAvatarPile
+                            size="5"
+                            previewAccounts={[null, media.account]}
+                            accountCount={1}
+                            getAllAccounts={() => [media.account]}
+                        />
+                    </Box>
+                );
+            }
         }
         case "AccountPile": {
-            assert(media.previewAccounts.length >= 1);
+            assert(media.previewAccounts.length >= 2);
 
             return (
                 <Box
@@ -177,16 +212,12 @@ function SearchEntityViewMedia({media}: {media: SearchEntityMediaModel}) {
                         verticalAlign: "top",
                     }}
                 >
-                    {media.previewAccounts.length === 1 ? (
-                        <AccountAvatar account={media.previewAccounts[0]!} size="5" />
-                    ) : (
-                        <AccountAvatarPile
-                            size="5"
-                            previewAccounts={media.previewAccounts.slice(0, 2)}
-                            accountCount={media.previewAccounts.length}
-                            getAllAccounts={() => media.previewAccounts}
-                        />
-                    )}
+                    <AccountAvatarPile
+                        size="5"
+                        previewAccounts={media.previewAccounts.slice(0, 2)}
+                        accountCount={media.previewAccounts.length}
+                        getAllAccounts={() => media.previewAccounts}
+                    />
                 </Box>
             );
         }

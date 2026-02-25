@@ -103,6 +103,8 @@ function ShareOverlay(
         onAccessPolicyChange,
         isVisible,
         isReadOnly,
+        withoutEditAccessLevel,
+        withHiddenCommentAccessLevel,
         onCopyLink,
         onCloseWithoutAnimation,
     }: {
@@ -121,6 +123,8 @@ function ShareOverlay(
         ) => MaybePromise<void>;
         isVisible: boolean;
         isReadOnly: boolean;
+        withoutEditAccessLevel?: boolean;
+        withHiddenCommentAccessLevel?: boolean;
         onCopyLink: () => MaybePromise<void>;
         onCloseWithoutAnimation: () => void;
     },
@@ -254,6 +258,8 @@ function ShareOverlay(
                                     accessLevel: accountGrantInputAccessLevel,
                                     onAccessLevelChange: setAccountGrantInputAccessLevel,
                                     isAltKeyDown,
+                                    withoutEditAccessLevel,
+                                    withHiddenCommentAccessLevel,
                                 }}
                             />
                             {accountGrantInputSelectedAccounts.length === 0 && (
@@ -334,6 +340,8 @@ function ShareOverlay(
                                     paddingX="5"
                                     // At max, show seven account grants and two thirds of an eighth account.
                                     maxHeight={accountGrantsScrollViewMaxHeight}
+                                    withoutEditAccessLevel={withoutEditAccessLevel}
+                                    withHiddenCommentAccessLevel={withHiddenCommentAccessLevel}
                                 />
                             )}
                             <Box paddingX="5">
@@ -354,6 +362,8 @@ function ShareOverlay(
                                     onAccessPolicyChange={onAccessPolicyChange}
                                     isReadOnly={isReadOnly}
                                     isAltKeyDown={isAltKeyDown}
+                                    withoutEditAccessLevel={withoutEditAccessLevel}
+                                    withHiddenCommentAccessLevel={withHiddenCommentAccessLevel}
                                 />
                                 <Spacer space="3" />
                                 <ShareOverlayUrlGrant
@@ -432,6 +442,8 @@ export function ShareOverlayAccountGrantsScrollView({
     accountById,
     isReadOnly,
     isAltKeyDown,
+    withoutEditAccessLevel,
+    withHiddenCommentAccessLevel,
     paddingX,
     height,
     maxHeight,
@@ -446,6 +458,8 @@ export function ShareOverlayAccountGrantsScrollView({
     accountById: ReadonlyMap<AccountId, AccountModel>;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
+    withoutEditAccessLevel?: boolean;
+    withHiddenCommentAccessLevel?: boolean;
     paddingX?: Spacing;
     height?: Spacing | "full";
     maxHeight?: RemLength;
@@ -469,6 +483,8 @@ export function ShareOverlayAccountGrantsScrollView({
                     accountById={accountById}
                     isReadOnly={isReadOnly}
                     isAltKeyDown={isAltKeyDown}
+                    withoutEditAccessLevel={withoutEditAccessLevel}
+                    withHiddenCommentAccessLevel={withHiddenCommentAccessLevel}
                 />
             </Box>
         </Box>
@@ -483,6 +499,8 @@ export function ShareOverlayAccountGrants({
     accountById,
     isReadOnly,
     isAltKeyDown,
+    withoutEditAccessLevel = false,
+    withHiddenCommentAccessLevel,
 }: {
     accessLevelText: Record<AccessLevel, string>;
     accountGrantById: AccessPolicy["accountGrantById"];
@@ -494,6 +512,8 @@ export function ShareOverlayAccountGrants({
     accountById: ReadonlyMap<AccountId, AccountModel>;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
+    withoutEditAccessLevel?: boolean;
+    withHiddenCommentAccessLevel?: boolean;
 }) {
     const accountRegistry = useAccountRegistry();
 
@@ -637,6 +657,8 @@ export function ShareOverlayAccountGrants({
                         onAccessPolicyChange={onAccessPolicyChange}
                         isReadOnly={isReadOnly}
                         isAltKeyDown={isAltKeyDown}
+                        withoutEditAccessLevel={withoutEditAccessLevel}
+                        withHiddenCommentAccessLevel={withHiddenCommentAccessLevel}
                     />
                 );
             })}
@@ -655,6 +677,8 @@ function ShareOverlayAccountGrant({
     onAccessPolicyChange,
     isReadOnly,
     isAltKeyDown,
+    withoutEditAccessLevel,
+    withHiddenCommentAccessLevel,
 }: {
     accessLevelText: Record<AccessLevel, string>;
     accountId: AccountId;
@@ -667,6 +691,8 @@ function ShareOverlayAccountGrant({
     onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
+    withoutEditAccessLevel: boolean;
+    withHiddenCommentAccessLevel?: boolean;
 }) {
     const effectiveAccessLevel = assertExists(
         maxAccessLevel(accountGrant?.level ?? null, inherited?.accountGrant.level ?? null),
@@ -746,7 +772,7 @@ function ShareOverlayAccountGrant({
                                     });
                                 },
                             },
-                            ...(isAltKeyDown
+                            ...(!withoutEditAccessLevel && isAltKeyDown
                                 ? [
                                       cast<MenuAction>({
                                           isSelected: effectiveAccessLevel === "Edit",
@@ -779,30 +805,41 @@ function ShareOverlayAccountGrant({
                                       }),
                                   ]
                                 : emptyArray),
-                            {
-                                isSelected: effectiveAccessLevel === "Comment",
-                                label: accessLevelText.Comment,
-                                pressErrorTitle: "Couldn\u2019t change access",
-                                onPress: () => {
-                                    if (effectiveAccessLevel === "Comment") return;
+                            ...(!withHiddenCommentAccessLevel ||
+                            isAltKeyDown ||
+                            effectiveAccessLevel === "Comment"
+                                ? [
+                                      cast<MenuAction>({
+                                          isSelected: effectiveAccessLevel === "Comment",
+                                          label: accessLevelText.Comment,
+                                          pressErrorTitle: "Couldn\u2019t change access",
+                                          onPress: () => {
+                                              if (effectiveAccessLevel === "Comment") return;
 
-                                    // If there's an inherited access policy you can't change the access level to
-                                    // something lower than the inherited access level.
-                                    if (
-                                        inherited?.accountGrant &&
-                                        hasAccessLevel(inherited.accountGrant.level, "Comment")
-                                    ) {
-                                        setShowCanNotSetInheritedAccountGrantLevelDialog("Comment");
-                                        return {withoutClose: true};
-                                    }
+                                              // If there's an inherited access policy you can't change the access level to
+                                              // something lower than the inherited access level.
+                                              if (
+                                                  inherited?.accountGrant &&
+                                                  hasAccessLevel(
+                                                      inherited.accountGrant.level,
+                                                      "Comment",
+                                                  )
+                                              ) {
+                                                  setShowCanNotSetInheritedAccountGrantLevelDialog(
+                                                      "Comment",
+                                                  );
+                                                  return {withoutClose: true};
+                                              }
 
-                                    return onAccessPolicyChange({
-                                        type: "SetAccountGrantLevel",
-                                        accountId,
-                                        level: "Comment",
-                                    });
-                                },
-                            },
+                                              return onAccessPolicyChange({
+                                                  type: "SetAccountGrantLevel",
+                                                  accountId,
+                                                  level: "Comment",
+                                              });
+                                          },
+                                      }),
+                                  ]
+                                : emptyArray),
                             {
                                 isSelected: effectiveAccessLevel === "View",
                                 label: accessLevelText.View,
@@ -893,6 +930,8 @@ export function ShareOverlayDefaultGrant({
     onAccessPolicyChange,
     isReadOnly,
     isAltKeyDown,
+    withoutEditAccessLevel,
+    withHiddenCommentAccessLevel,
 }: {
     entityNoun: string;
     accessLevelText: Record<AccessLevel, string>;
@@ -904,6 +943,8 @@ export function ShareOverlayDefaultGrant({
     onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
+    withoutEditAccessLevel?: boolean;
+    withHiddenCommentAccessLevel?: boolean;
 }) {
     const {space} = useSpaceContext();
 
@@ -974,7 +1015,8 @@ export function ShareOverlayDefaultGrant({
                                     }
                                 },
                             },
-                            ...(isAltKeyDown || effectiveAccessLevel === "Edit"
+                            ...((!withoutEditAccessLevel && isAltKeyDown) ||
+                            effectiveAccessLevel === "Edit"
                                 ? [
                                       cast<MenuAction>({
                                           isSelected: effectiveAccessLevel === "Edit",
@@ -1013,36 +1055,47 @@ export function ShareOverlayDefaultGrant({
                                       }),
                                   ]
                                 : emptyArray),
-                            {
-                                isSelected: effectiveAccessLevel === "Comment",
-                                label: accessLevelText.Comment,
-                                pressErrorTitle: "Couldn\u2019t change access",
-                                onPress: () => {
-                                    if (effectiveAccessLevel === "Comment") return;
+                            ...(!withHiddenCommentAccessLevel ||
+                            isAltKeyDown ||
+                            effectiveAccessLevel === "Comment"
+                                ? [
+                                      cast<MenuAction>({
+                                          isSelected: effectiveAccessLevel === "Comment",
+                                          label: accessLevelText.Comment,
+                                          pressErrorTitle: "Couldn\u2019t change access",
+                                          onPress: () => {
+                                              if (effectiveAccessLevel === "Comment") return;
 
-                                    // If there's an inherited access policy you can't change the access level to
-                                    // something lower than the inherited access level.
-                                    if (
-                                        inherited?.defaultGrant &&
-                                        hasAccessLevel(inherited.defaultGrant.level, "Comment")
-                                    ) {
-                                        setShowCanNotSetInheritedDefaultGrantLevelDialog("Comment");
-                                        return {withoutClose: true};
-                                    }
+                                              // If there's an inherited access policy you can't change the access level to
+                                              // something lower than the inherited access level.
+                                              if (
+                                                  inherited?.defaultGrant &&
+                                                  hasAccessLevel(
+                                                      inherited.defaultGrant.level,
+                                                      "Comment",
+                                                  )
+                                              ) {
+                                                  setShowCanNotSetInheritedDefaultGrantLevelDialog(
+                                                      "Comment",
+                                                  );
+                                                  return {withoutClose: true};
+                                              }
 
-                                    if (defaultGrant) {
-                                        return onAccessPolicyChange({
-                                            type: "SetDefaultGrantLevel",
-                                            level: "Comment",
-                                        });
-                                    } else {
-                                        return onAccessPolicyChange({
-                                            type: "AddDefaultGrant",
-                                            defaultGrant: {level: "Comment"},
-                                        });
-                                    }
-                                },
-                            },
+                                              if (defaultGrant) {
+                                                  return onAccessPolicyChange({
+                                                      type: "SetDefaultGrantLevel",
+                                                      level: "Comment",
+                                                  });
+                                              } else {
+                                                  return onAccessPolicyChange({
+                                                      type: "AddDefaultGrant",
+                                                      defaultGrant: {level: "Comment"},
+                                                  });
+                                              }
+                                          },
+                                      }),
+                                  ]
+                                : emptyArray),
                             {
                                 isSelected: effectiveAccessLevel === "View",
                                 label: accessLevelText.View,

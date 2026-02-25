@@ -119,6 +119,10 @@ export class TaskCollectionModel {
         return tickTaskCollectionModelData(this.rawData, clock);
     }
 
+    public getSpaceId() {
+        return this.rawData.spaceId;
+    }
+
     public getCreatedTime() {
         return this.rawData.createdTime;
     }

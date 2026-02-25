@@ -4,15 +4,12 @@ export type ApiMessageRoomTarget = ApiSpecification.components["schemas"]["Messa
 
 export type ApiMentionTarget = ApiSpecification.components["schemas"]["MentionTarget"];
 
-export type ApiSearchMention = ApiSpecification.components["schemas"]["SearchMention"];
-
-export type ApiSearchMentionResponse =
-    ApiSpecification.components["schemas"]["SearchMention_Response"];
-
-export type ApiSearchMentionTarget = ApiSpecification.components["schemas"]["SearchMentionTarget"];
-
 export type ApiMentionTargetResponse =
     ApiSpecification.components["schemas"]["MentionTarget_Response"];
+
+export type ApiMention = ApiSpecification.components["schemas"]["Mention"];
+
+export type ApiMentionResponse = ApiSpecification.components["schemas"]["Mention_Response"];
 
 export type ApiContent = ApiSpecification.components["schemas"]["Content"];
 

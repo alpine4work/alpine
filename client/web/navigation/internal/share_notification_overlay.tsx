@@ -11,6 +11,7 @@ import {
 import {FocusScope} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {Spacer} from "~/client/web/design/spacer.js";
 import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/web/navigation/internal/get_default_share_overlay_account_input_access_level.js";
 import {ShareOverlayAccountBody} from "~/client/web/navigation/internal/share_overlay_account_body.js";
 import {
@@ -173,6 +174,7 @@ function ShareNotificationOverlay(
                             }
                         />
                     </Box>
+                    <Spacer space="2" />
                     <Box paddingX="5">
                         <ShareOverlayAccountBody
                             willAlwaysNotifyPeople={true}

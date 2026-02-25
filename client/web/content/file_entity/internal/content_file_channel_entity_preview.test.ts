@@ -39,6 +39,7 @@ function createBasicChannelEntityModel({
     id,
     name,
     description = "Channel description",
+    isPrivate = false,
     isSubscribed = false,
     contributorCount = 0,
     topContributors = [],
@@ -46,6 +47,7 @@ function createBasicChannelEntityModel({
     id: ChannelId;
     name: string;
     description?: string | null;
+    isPrivate?: boolean;
     isSubscribed?: boolean;
     contributorCount?: number;
     topContributors?: Array<AccountModel>;
@@ -66,6 +68,7 @@ function createBasicChannelEntityModel({
         id,
         createdTime: new Date("2025-01-01T00:00:00Z"),
         name,
+        isPrivate,
         description: {
             doc,
             references: emptyDocumentContentReferences,
@@ -161,6 +164,15 @@ describe("renderContentFileChannelEntityPreview - HTML Snapshots", () => {
                     id: channelId,
                     name: "Empty Description Channel",
                     description: null,
+                }),
+        },
+        {
+            name: "private-channel",
+            createEntity: () =>
+                createBasicChannelEntityModel({
+                    id: channelId,
+                    name: "Private Channel",
+                    isPrivate: true,
                 }),
         },
     ] as const;

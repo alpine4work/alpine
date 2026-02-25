@@ -15,7 +15,8 @@ export const SearchEntityAccountMediaModelSchema = Schema.object({
 export const SearchEntityAccountPileMediaModelSchema = Schema.object({
     type: Schema.value("AccountPile"),
     previewAccounts: Schema.array(AccountModel.schema).minLength(1),
-    accountCount: Schema.integer,
+    // If `null` then we have an unknown number of total accounts.
+    accountCount: Schema.integer.nullable(),
 });
 
 export const SearchEntityTaskCollectionColorMediaModelSchema = Schema.object({

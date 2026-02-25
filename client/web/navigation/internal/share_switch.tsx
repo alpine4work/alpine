@@ -1,19 +1,20 @@
 import {useState} from "react";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {useReporter} from "~/client/web/design/reporter.js";
+import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {ShareSwitchBase} from "~/client/web/navigation/share_switch_base.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {AccessPolicy, AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
-import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
+import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export function ShareSwitch({
     entityNoun,
-    accessPolicy,
+    accessPolicy: accessPolicyFromProps,
     inherited,
     onAccessPolicyChange: onAccessPolicyChangeFromProps,
     isReadOnly,
@@ -28,8 +29,20 @@ export function ShareSwitch({
     isReadOnly: boolean;
 }) {
     const reporter = useReporter();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+
+    const [
+        accessPolicy,
+        setAccessPolicy,
+        setAccessPolicyOptimistically,
+        accessPolicyWithoutOptimisticUpdates,
+    ] = useStateWithOptimisticUpdates(accessPolicyFromProps);
+
+    // Make sure the base access policy in state is always the value from our
+    // props.
+    if (accessPolicyWithoutOptimisticUpdates !== accessPolicyFromProps)
+        setAccessPolicy(() => accessPolicyFromProps);
 
     const [
         showDeleteDefaultGrantOrUrlGrantConfirmationDialog,
@@ -49,10 +62,16 @@ export function ShareSwitch({
     //
     // TODO(calebmer): We should probably perform an optimistic update since
     // pressing the switch and then it doesn't move for a beat will feel weird.
-    const onAccessPolicyChange = (accessPolicy: AccessPolicyAction) => {
-        const promise = onAccessPolicyChangeFromProps(accessPolicy);
+    const onAccessPolicyChange = (action: AccessPolicyAction) => {
+        if (!currentAccount) return;
+
+        const promise = onAccessPolicyChangeFromProps(action);
 
         if (!promise) return;
+
+        setAccessPolicyOptimistically(promise, accessPolicy =>
+            reduceAccessPolicy(currentAccount.id, accessPolicy, action),
+        );
 
         addGlobalLoadingIndicator(promise, {type: "Saving"});
 
@@ -76,7 +95,7 @@ export function ShareSwitch({
             <ShareSwitchBase
                 entityNoun={entityNoun}
                 icon={icon}
-                isInert={isReadOnly}
+                isInert={isReadOnly || !currentAccount}
                 onPress={() => {
                     if (inherited?.accessPolicy.urlGrant || inherited?.accessPolicy.defaultGrant) {
                         // We can't delete inherited default grants or URL grants since they're not set
@@ -122,7 +141,7 @@ export function ShareSwitch({
                     title={`Make this ${entityNoun} private?`}
                     description={`${
                         accessPolicy.urlGrant ? `Anyone with the link` : `Everyone in ${space.name}`
-                    } will no longer be able to access the ${entityNoun}.`}
+                    } won\u2019t longer be able to access the ${entityNoun}.`}
                     primaryButtonLabel="Confirm"
                     onPrimaryButtonPress={() => {
                         if (!accessPolicy.defaultGrant && !accessPolicy.urlGrant) {

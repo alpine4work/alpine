@@ -27,6 +27,7 @@ ts_project(
         "//client/web/context",
         "//client/web/design",
         "//client/web/helpers",
+        "//client/web/icons",
         "//client/web/inbox",
         "//client/web/reactions",
         "//client/web/remix",

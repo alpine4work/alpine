@@ -634,7 +634,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ...(message.payload.files.length > 0
                         ? {
                               fileIds: message.payload.files.map(file =>
-                                  file.type === "FileEntity" ? file.fileEntityId : file.file.id,
+                                  file.type === "Null"
+                                      ? file.fileId
+                                      : file.type === "FileEntity"
+                                        ? file.fileEntityId
+                                        : file.file.id,
                               ),
                           }
                         : {}),
@@ -10738,7 +10742,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         },
                     }),
                 ).rejects.toThrow(
-                    /^(Bot actor doesn\u2019t have access to chat|Actor doesn\u2019t have `Comment` access level)$/,
+                    /^(Bot actor doesn\u2019t have access to chat|Actor doesn\u2019t have `(Comment|Edit)` access level)$/,
                 );
 
                 expect(
@@ -11667,7 +11671,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message1.index,
                     }),
                 ).rejects.toThrow(
-                    /^(Bot actor doesn\u2019t have access to chat|Actor doesn\u2019t have `Comment` access level)$/,
+                    /^(Bot actor doesn\u2019t have access to chat|Actor doesn\u2019t have `(Comment|Edit)` access level)$/,
                 );
 
                 expect(
@@ -15430,7 +15434,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         reaction: "GenericLike",
                     }),
                 ).rejects.toThrow(
-                    /^(Account doesn\u2019t have access to chat|Actor doesn\u2019t have `Comment` access level)$/,
+                    /^(Account doesn\u2019t have access to chat|Actor doesn\u2019t have `(Comment|Edit)` access level)$/,
                 );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(

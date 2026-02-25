@@ -5254,7 +5254,7 @@ test("searching mentions supports prefix matching", async () => {
     );
 });
 
-test("searching mentions excludes accounts and chats even if keywords match", async () => {
+test("searching mentions excludes accounts and includes chats when keywords match", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "foo"});
     const session2 = await space.createSession({name: "bar"});
@@ -5276,6 +5276,19 @@ test("searching mentions excludes accounts and chats even if keywords match", as
         }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
     ).toEqual(
         [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Chat:${chat.id}`,
+                    title: expect.stringMatching(/^(bar and qux|qux and bar)$/),
+                    titleVersion: null,
+                    media: {
+                        type: "AccountPile",
+                        previewAccounts: expect.any(Array),
+                        accountCount: 3,
+                    },
+                }),
+            },
             {
                 score: expect.any(Number),
                 model: new SearchEntityModel({
@@ -5313,7 +5326,7 @@ test("searching mentions excludes accounts and chats even if keywords match", as
                     media: {
                         type: "AccountPile",
                         previewAccounts: expect.any(Array),
-                        accountCount: 2,
+                        accountCount: 3,
                     },
                 }),
                 bodyTextSnippet: [],
@@ -5343,6 +5356,37 @@ test("searching mentions excludes accounts and chats even if keywords match", as
             }),
         ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
     );
+});
+
+test("searching mentions demotes direct chats below room chats", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Priority Actor"});
+    const session2 = await space.createSession({name: "Priority One"});
+    const session3 = await space.createSession({name: "Priority Two"});
+
+    const directChat = await TestChat.get(session1, session2, session3);
+    await directChat.sendMessage(session1, "direct chat message");
+
+    const room1Chat = await TestChat.createRoom(session1, {name: "Priority Room"});
+    await room1Chat.sendMessage(session2, "room chat message");
+
+    const room2Chat = await TestChat.createRoom(session1, {name: "Proirity Room"});
+    await room2Chat.sendMessage(session2, "room chat message");
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const results = await searchMentionByKeywords(session1.action(), {
+        spaceId: space.id,
+        queryText: "priority other",
+        limit: 10,
+    });
+
+    expect(results.map(result => result.model.id)).toEqual([
+        `Chat:${room1Chat.id}`,
+        `Chat:${room2Chat.id}`,
+        `Chat:${directChat.id}`,
+    ]);
 });
 
 test("searching mentions has effective name fuzzy searching", async () => {

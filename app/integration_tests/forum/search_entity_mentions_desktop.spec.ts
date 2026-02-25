@@ -1,6 +1,7 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {getSearchEntityIndexesForTest} from "~/server/search/data/index/search_entity_index.js";
@@ -77,6 +78,26 @@ const testCaseByEntityType: Record<
                     await page.getByTestId("PeekStackOverlay").getByText(oldTitle).dblclick();
                     await page.getByPlaceholder(oldTitle).fill(newTitle);
                     await page.getByPlaceholder(oldTitle).press("Enter");
+                },
+            };
+        },
+    },
+    Chat: {
+        create: async ({session, title, access}) => {
+            const chat = await TestChat.createRoom(session, {name: title, access});
+
+            return {
+                id: `Chat:${chat.id}`,
+                updateTitle: async (page, {oldTitle, newTitle}) => {
+                    await page.getByTestId("ChatViewTopBar").getByLabel("More").click();
+                    await page.getByRole("menuitem", {name: "Edit name"}).click();
+
+                    const roomNameInput = page
+                        .getByTestId("ChatViewTopBar")
+                        .getByPlaceholder(oldTitle);
+
+                    await roomNameInput.fill(newTitle);
+                    await roomNameInput.press("Enter");
                 },
             };
         },

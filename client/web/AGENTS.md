@@ -69,6 +69,8 @@ to these helpers must be strings.
   values, allows negative spacing values like `-4`)
 - `width`, `minWidth`, `maxWidth`, `height`, `minHeight`, `maxHeight` (spacing values or percentages
   like `1/2`, `2/3`, supports denominators of `n/2`, `n/3`, `n/4`, `n/5`, `n/6`, and `n/12`)
+    - `minWidth="flex-fit"` is the same as `minWidth="0"` and explicitly documents we're overriding
+      `min-width: auto` for a flex item to make sure it doesn't overflow its container.
 - `borderRadius`, `borderTopLeftRadius`, `borderTopRightRadius`, `borderBottomLeftRadius`,
   `borderBottomRightRadius` (spacing values)
 - `border`, `borderTop`, `borderBottom`, `borderLeft`, `borderRight`, `borderX`, `borderY` (any
@@ -243,9 +245,29 @@ and implemented in `server/rpc`.
 You need an `AppContext` object to call an RPC on the client which you can get via `useContext()`.
 RPCs ultimately call `fetch()` to send an HTTP request to `AppService`.
 
+`client/web/rpc/use_lazy_load_rpc.ts` is useful for calling RPCs within a component. When using this
+hook, two components making the same call always share data and the data is refreshed when the user
+leaves the page then comes back. It has a similar design to the [`useSwr()`](https://swr.vercel.app)
+library.
+
 ## Best practices
 
 A collection of best practices to consider while writing frontend code in our codebase.
+
+### Useful helpers
+
+- `client/web/helpers`:
+    - `use_state_with_optimistic_updates.ts`: Optimistically update local state with automatic
+      rollback on promise rejection.
+    - `use_error_state.ts`: Returns a function that when called `throw`s an error from the component
+      to show our page error handler.
+    - `use_local_storage.ts`: Manages some piece of local storage state. Re-renders components that
+      depend on the state when it changes.
+- `client/web/helpers/lifecycle`:
+    - `use_event.ts`: Function who's referential identity never changes and can reference the
+      current value of props. (Similar to `useEffectEvent()`.)
+    - `use_state_without_dependencies.ts`: Local state that reinitializes if anything in a
+      dependency array changes. Useful for state that's partially derived from props.
 
 ### Always assume `useEffect()`s execute on every render
 
@@ -316,3 +338,27 @@ run.
 Don’t use `event.stopPropagation()` unless you are handling a `keydown` event. This way we make sure
 parent event handlers always run. For example, if a parent is tracking hover states and you stop
 propagation on a `mouseleave` even the parent may think it’s forever hovered.
+
+### Call `setValue()` (from `useState()`) in render to derive state from props
+
+Calling `setValue()` in a React component's render function causes the component to locally
+re-render without painting the previous render to the DOM. It's very useful for deriving state from
+props. For example, the correct implementation of a `usePrevious()` hook should call `setValue()` in
+the render function (instead of `useEffect()`):
+
+```ts
+function usePrevious<Value>(value: Value): Value {
+    const [[previousValue, currentValue], setPreviousValueState] = useState([value, value]);
+
+    if (value !== currentValue) {
+        setPreviousValueState([currentValue, value]);
+        return currentValue;
+    }
+
+    return previousValue;
+}
+```
+
+Instead of reaching for `useEffect()` to derive state from props, instead call `setValue()` in the
+render function. Only `useEffect()` if there's some side effect you must perform that can't be done
+in React render.

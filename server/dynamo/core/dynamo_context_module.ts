@@ -167,6 +167,8 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
                 // if we read the item using a cache then we'll keep re-reading the cached item
                 // instead of reading a new item. Causing us to retry until
                 // `retryWithExponentialBackoff()` reaches its retry limit.
+                //
+                // (The `IndexSearchEntity` job retry loop does something very similar.)
                 return this._context.with(
                     {
                         dynamo: dynamoContextModule,

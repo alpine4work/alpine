@@ -8,6 +8,7 @@ import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.
 import {isId} from "~/shared/id/id.js";
 import {
     ChannelId,
+    ChatId,
     DocumentId,
     FileId,
     PostId,
@@ -26,6 +27,7 @@ export type FileEntityId =
     | `Task:${TaskId}`
     | `TaskCollection:${TaskCollectionId}`
     | `Channel:${ChannelId}`
+    | `Chat:${ChatId}`
     | `Post:${PostId}`;
 
 export const FileEntityIdSchema = Schema.string as Schema<FileEntityId>;
@@ -49,6 +51,7 @@ export type FileEntityIdObject =
     | {readonly type: "Task"; readonly taskId: TaskId}
     | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId}
     | {readonly type: "Channel"; readonly channelId: ChannelId}
+    | {readonly type: "Chat"; readonly chatId: ChatId}
     | {readonly type: "Post"; readonly postId: PostId};
 
 /**
@@ -67,6 +70,8 @@ export function parseFileEntityId(id: FileEntityId): FileEntityIdObject {
             return {type: "TaskCollection", collectionId: idPayloadParts[0] as TaskCollectionId};
         case "Channel":
             return {type: "Channel", channelId: idPayloadParts[0] as ChannelId};
+        case "Chat":
+            return {type: "Chat", chatId: idPayloadParts[0] as ChatId};
         case "Post":
             return {type: "Post", postId: idPayloadParts[0] as PostId};
         default:
@@ -87,6 +92,7 @@ const fileEntityIdTestMap: GetFileEntityIdTestMapType<FileEntityId> = {
     Task: isId,
     TaskCollection: isId,
     Channel: isId,
+    Chat: isId,
     Post: isId,
 };
 
@@ -138,6 +144,8 @@ export function printFileEntityIdIntoPath(spaceId: SpaceId, id: FileEntityId): s
             return `/s/${spaceId}/tasks/collections/${idObject.collectionId}`;
         case "Channel":
             return `/s/${spaceId}/channels/${idObject.channelId}`;
+        case "Chat":
+            return `/s/${spaceId}/chat/${idObject.chatId}`;
         case "Post":
             return `/s/${spaceId}/posts/${idObject.postId}`;
         default:

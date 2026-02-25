@@ -47,6 +47,22 @@ export function runIndexPostAndChannelSearchEntitiesMigration(
 }
 
 /**
+ * Just index chat and chat message search entities. Same as
+ * `runIndexEverySearchEntityMigration()` but with only those search entity
+ * types.
+ */
+export function runIndexChatAndChatMessageSearchEntitiesMigration(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    options: {segmentIndex: number; totalSegmentCount: number},
+) {
+    return runIndexSearchEntityMigrationModules(
+        context,
+        [chatAndChatMessageSearchEntityMigrationModule],
+        options,
+    );
+}
+
+/**
  * Just index task and task collection search entities. Same as
  * `runIndexEverySearchEntityMigration()` but with only those search entity
  * types.
@@ -195,6 +211,42 @@ const channelAndPostSearchEntityMigrationModule = createDynamoScanMigrationModul
     },
 );
 
+const chatAndChatMessageSearchEntityMigrationModule = createDynamoScanMigrationModule(
+    "chats and chat messages",
+    expensiveScanEveryChatAndChatMessageForMigration,
+    async (context, item) => {
+        switch (item.type) {
+            case "Chat": {
+                context.jobs.send({
+                    type: "IndexSearchEntity",
+                    spaceId: item.spaceId,
+                    update: {
+                        type: "Chat",
+                        chatId: item.chatId,
+                        updatedTraits: {type: "None"},
+                    },
+                });
+                break;
+            }
+            case "ChatMessage": {
+                context.jobs.send({
+                    type: "IndexSearchEntity",
+                    spaceId: await item.getSpaceId(),
+                    update: {
+                        type: "ChatMessage",
+                        chatId: item.chatId,
+                        messageIndex: item.messageIndex,
+                        updatedTraits: {type: "None"},
+                    },
+                });
+                break;
+            }
+            default:
+                throw exhaustive(item);
+        }
+    },
+);
+
 const taskAndTaskCollectionSearchEntityMigrationModule = createDynamoScanMigrationModule(
     "tasks and task collections",
     expensiveScanEveryTaskAndTaskCollectionForMigration,
@@ -299,40 +351,6 @@ const allMigrationModules: Array<MigrationModule> = [
             });
         },
     ),
-    createDynamoScanMigrationModule(
-        "chats and chat messages",
-        expensiveScanEveryChatAndChatMessageForMigration,
-        async (context, item) => {
-            switch (item.type) {
-                case "Chat": {
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId: item.spaceId,
-                        update: {
-                            type: "Chat",
-                            chatId: item.chatId,
-                            updatedTraits: {type: "None"},
-                        },
-                    });
-                    break;
-                }
-                case "ChatMessage": {
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId: await item.getSpaceId(),
-                        update: {
-                            type: "ChatMessage",
-                            chatId: item.chatId,
-                            messageIndex: item.messageIndex,
-                            updatedTraits: {type: "None"},
-                        },
-                    });
-                    break;
-                }
-                default:
-                    throw exhaustive(item);
-            }
-        },
-    ),
+    chatAndChatMessageSearchEntityMigrationModule,
     taskAndTaskCollectionSearchEntityMigrationModule,
 ];

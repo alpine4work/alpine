@@ -1,0 +1,1971 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`desktop direct-chat-with-big-emoji-and-merge 1`] = `
+"<div>
+  <div
+    class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+  >
+    <div
+      style="
+        transform: scale(0.8571428571428571);
+        transform-origin: 0 0;
+        width: 331.33333333333337px;
+        min-width: 100%;
+        height: 444px;
+      "
+      class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH"
+    >
+      <div
+        class="sprinkles_position_relative__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_5_default__HASH sprinkles_backgroundColor_grey-0_default__HASH"
+        style="padding: 21px 0; height: 73.5px"
+      >
+        <div
+          style="
+            position: absolute;
+            bottom: -1px;
+            left: -21px;
+            right: -21px;
+            height: 1px;
+            background-color: var(--grey-5-translucent__HASH);
+          "
+        ></div>
+        <div
+          class="sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_2_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+        >
+          <span
+            class="sprinkles_display_flex_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+            style="padding-right: 0.25rem"
+          >
+            <span
+              class="sprinkles_display_block_default__HASH sprinkles_height_6_default__HASH sprinkles_width_5_default__HASH sprinkles_position_relative__HASH"
+              style="z-index: 1"
+            >
+              <span
+                class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                style="width: 1.5rem; height: 1.5rem"
+              >
+                <span
+                  class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                  style="
+                    width: 1.5rem;
+                    height: 1.5rem;
+                    background-color: #d4c0fb;
+                  "
+                >
+                  <span
+                    class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                    style="transform: scale(0.25); transform-origin: top left"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
+                    >
+                      <img
+                        class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                        draggable="false"
+                        alt="Olive yeti who’s happy"
+                        src="data:image/svg+xml,SVG"
+                      />
+                    </span>
+                  </span>
+                </span>
+              </span>
+            </span>
+          </span>
+          <div
+            class="sprinkles_marginTop_0_default__HASH sprinkles_marginBottom_0_default__HASH sprinkles_fontStyle_truncate-semi-bold__HASH sprinkles_fontSize_200_default__HASH"
+          >
+            Casey
+          </div>
+        </div>
+      </div>
+      <div
+        class="sprinkles_marginLeft_-5_default__HASH sprinkles_marginRight_-5_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_overflow_hidden__HASH sprinkles_flexGrow_1_default__HASH"
+      >
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexGrow_1_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-end_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_2_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #d4c0fb;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Olive yeti who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Casey Miller
+                  </div>
+                </div>
+                <div
+                  class="content_docClassName__HASH content_messageDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withoutBlockMaxWidthDocClassName__HASH"
+                >
+                  <p class="content_paragraph">Can we sync after lunch?</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-start_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+          style="height: 33px"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              ></div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_fontSize_600_default__HASH"
+                  style="line-height: 2rem"
+                >
+                  <span style="font-family: CyEmoji">😀</span>
+                  <span style="font-family: CyEmoji">😀</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`desktop private-room-chat-with-parent-and-deleted-message 1`] = `
+"<div>
+  <div
+    class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+  >
+    <div
+      style="
+        transform: scale(0.8571428571428571);
+        transform-origin: 0 0;
+        width: 331.33333333333337px;
+        min-width: 100%;
+        height: 444px;
+      "
+      class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH"
+    >
+      <div
+        class="sprinkles_position_relative__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_5_default__HASH sprinkles_backgroundColor_grey-0_default__HASH"
+        style="padding: 21px 0; height: 73.5px"
+      >
+        <div
+          style="
+            position: absolute;
+            bottom: -1px;
+            left: -21px;
+            right: -21px;
+            height: 1px;
+            background-color: var(--grey-5-translucent__HASH);
+          "
+        ></div>
+        <div
+          class="sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_2_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            version="1.1"
+            class="sprinkles_flexShrink_0_default__HASH"
+            viewBox="0 0 256 256"
+            fill="currentColor"
+            style="width: 1rem; height: 1rem"
+          >
+            <path
+              d="M208,80h-32v-28c0-26.4673-21.5322-48-48-48s-48,21.5327-48,48v28h-32c-8.8365,0-16,7.1635-16,16v112c0,8.8365,7.1635,16,16,16h160c8.8365,0,16-7.1635,16-16v-112c0-8.8365-7.1635-16-16-16ZM128,168c-8.8365,0-16-7.1635-16-16s7.1635-16,16-16,16,7.1635,16,16-7.1635,16-16,16ZM152,80h-48v-28c0-13.2339,10.7661-24,24-24s24,10.7661,24,24v28Z"
+            />
+          </svg>
+          <h1
+            class="sprinkles_marginTop_0_default__HASH sprinkles_marginBottom_0_default__HASH sprinkles_fontStyle_truncate-bold__HASH sprinkles_fontSize_400_default__HASH"
+          >
+            Design Review
+          </h1>
+        </div>
+        <div
+          class="content_fileEntityPreviewSubscribeButtonClassName__HASH"
+          style="display: none"
+          data-subscribed="true"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="content_fileEntityPreviewSubscribeButtonBellIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <path
+              d="M225.29,165.93C216.61,151,212,129.57,212,104a84,84,0,0,0-168,0c0,25.58-4.59,47-13.27,61.93A20.08,20.08,0,0,0,30.66,186,19.77,19.77,0,0,0,48,196H84.18a44,44,0,0,0,87.64,0H208a19.77,19.77,0,0,0,17.31-10A20.08,20.08,0,0,0,225.29,165.93ZM128,212a20,20,0,0,1-19.6-16h39.2A20,20,0,0,1,128,212ZM54.66,172C63.51,154,68,131.14,68,104a60,60,0,0,1,120,0c0,27.13,4.48,50,13.33,68Z"
+            ></path></svg
+          ><svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="content_fileEntityPreviewSubscribeButtonBellRingingIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <path
+              d="M224,71.1a8,8,0,0,1-10.78-3.42,94.13,94.13,0,0,0-33.46-36.91,8,8,0,1,1,8.54-13.54,111.46,111.46,0,0,1,39.12,43.09A8,8,0,0,1,224,71.1ZM35.71,72a8,8,0,0,0,7.1-4.32A94.13,94.13,0,0,1,76.27,30.77a8,8,0,1,0-8.54-13.54A111.46,111.46,0,0,0,28.61,60.32,8,8,0,0,0,35.71,72Zm186.1,103.94A16,16,0,0,1,208,200H167.2a40,40,0,0,1-78.4,0H48a16,16,0,0,1-13.79-24.06C43.22,160.39,48,138.28,48,112a80,80,0,0,1,160,0C208,138.27,212.78,160.38,221.81,175.94ZM150.62,200H105.38a24,24,0,0,0,45.24,0ZM208,184c-10.64-18.27-16-42.49-16-72a64,64,0,0,0-128,0c0,29.52-5.38,53.74-16,72Z"
+            ></path></svg
+          ><svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="animation_spinAnimationClassName__HASH content_fileEntityPreviewSubscribeButtonSpinnerGapIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <rect width="256" height="256" fill="none" />
+            <line
+              x1="128"
+              y1="32"
+              x2="128"
+              y2="64"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="224"
+              y1="128"
+              x2="192"
+              y2="128"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="195.88"
+              y1="195.88"
+              x2="173.25"
+              y2="173.25"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="128"
+              y1="224"
+              x2="128"
+              y2="192"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="60.12"
+              y1="195.88"
+              x2="82.75"
+              y2="173.25"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="32"
+              y1="128"
+              x2="64"
+              y2="128"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="60.12"
+              y1="60.12"
+              x2="82.75"
+              y2="82.75"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+          </svg>
+        </div>
+      </div>
+      <div
+        class="sprinkles_marginLeft_-5_default__HASH sprinkles_marginRight_-5_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_overflow_hidden__HASH sprinkles_flexGrow_1_default__HASH"
+      >
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexGrow_1_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-end_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_10__HASH sprinkles_display_inline-flex_default__HASH sprinkles_gap_1.5_default__HASH sprinkles_marginTop_2_default__HASH sprinkles_marginBottom_2_default__HASH sprinkles_maxWidth_full_default__HASH"
+              style="margin-left: 1.75rem"
+            >
+              <div
+                class="sprinkles_pointerEvents_none__HASH sprinkles_position_absolute__HASH sprinkles_borderLeftWidth_thick_default__HASH sprinkles_borderTopWidth_thick_default__HASH sprinkles_borderTopLeftRadius_2.5_default__HASH"
+                style="
+                  border-left-color: var(--grey-5-translucent__HASH);
+                  border-top-color: var(--grey-5-translucent__HASH);
+                  border-style: solid;
+                  top: calc(0.5rem - 1px);
+                  bottom: calc(-0.5rem - 14.5px);
+                  left: calc(-1rem - 1px);
+                  width: calc(1rem - 2px);
+                "
+              ></div>
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_height_0_default__HASH"
+                style="top: -0.125rem"
+              >
+                <span
+                  class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                  style="width: 1.25rem; height: 1.25rem"
+                >
+                  <span
+                    class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                    style="
+                      width: 1.25rem;
+                      height: 1.25rem;
+                      background-color: #a9edf3;
+                    "
+                  >
+                    <span
+                      class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                      style="
+                        transform: scale(0.20833333);
+                        transform-origin: top left;
+                      "
+                      aria-hidden="true"
+                    >
+                      <span
+                        class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+                      >
+                        <img
+                          class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                          draggable="false"
+                          alt="Green tree who’s happy"
+                          src="data:image/svg+xml,SVG"
+                        />
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              </div>
+              <div
+                class="sprinkles_overflow_hidden__HASH sprinkles_color_grey-80_default__HASH sprinkles_fontSize_75_default__HASH sprinkles_fontStyle_normal__HASH"
+                style="
+                  min-height: 21px;
+                  line-height: 21px;
+                  font-feature-settings: &quot;calt&quot; on;
+                  display: -webkit-box;
+                  -webkit-line-clamp: 3;
+                  line-clamp: 3;
+                  -webkit-box-orient: vertical;
+                  text-overflow: ellipsis;
+                "
+              >
+                Taylor: We should update the milestone plan before review.
+              </div>
+            </div>
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #d4c0fb;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Olive yeti who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Casey Miller
+                  </div>
+                </div>
+                <div
+                  class="content_docClassName__HASH content_messageDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withoutBlockMaxWidthDocClassName__HASH"
+                >
+                  <p class="content_paragraph">
+                    Replying to that now with some edits.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-start_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+          style="height: 33px"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #a9edf3;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Green tree who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Taylor Johnson
+                  </div>
+                </div>
+                <div
+                  class="sprinkles_display_inline_default__HASH sprinkles_color_grey-60_default__HASH sprinkles_fontSize_100_default__HASH"
+                  style="line-height: 24px"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor"
+                    viewBox="0 0 256 256"
+                    style="
+                      width: 1rem;
+                      height: 1rem;
+                      display: inline;
+                      vertical-align: top;
+                      position: relative;
+                      top: 0.1875rem;
+                    "
+                  >
+                    <path
+                      d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"
+                    />
+                  </svg>
+                  Deleted message
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`desktop room-chat-with-parent-and-deleted-message 1`] = `
+"<div>
+  <div
+    class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+  >
+    <div
+      style="
+        transform: scale(0.8571428571428571);
+        transform-origin: 0 0;
+        width: 331.33333333333337px;
+        min-width: 100%;
+        height: 444px;
+      "
+      class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH"
+    >
+      <div
+        class="sprinkles_position_relative__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_5_default__HASH sprinkles_backgroundColor_grey-0_default__HASH"
+        style="padding: 21px 0; height: 73.5px"
+      >
+        <div
+          style="
+            position: absolute;
+            bottom: -1px;
+            left: -21px;
+            right: -21px;
+            height: 1px;
+            background-color: var(--grey-5-translucent__HASH);
+          "
+        ></div>
+        <div
+          class="sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_2_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+        >
+          <h1
+            class="sprinkles_marginTop_0_default__HASH sprinkles_marginBottom_0_default__HASH sprinkles_fontStyle_truncate-bold__HASH sprinkles_fontSize_400_default__HASH"
+          >
+            Design Review
+          </h1>
+        </div>
+        <div
+          class="content_fileEntityPreviewSubscribeButtonClassName__HASH"
+          style="display: none"
+          data-subscribed="true"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="content_fileEntityPreviewSubscribeButtonBellIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <path
+              d="M225.29,165.93C216.61,151,212,129.57,212,104a84,84,0,0,0-168,0c0,25.58-4.59,47-13.27,61.93A20.08,20.08,0,0,0,30.66,186,19.77,19.77,0,0,0,48,196H84.18a44,44,0,0,0,87.64,0H208a19.77,19.77,0,0,0,17.31-10A20.08,20.08,0,0,0,225.29,165.93ZM128,212a20,20,0,0,1-19.6-16h39.2A20,20,0,0,1,128,212ZM54.66,172C63.51,154,68,131.14,68,104a60,60,0,0,1,120,0c0,27.13,4.48,50,13.33,68Z"
+            ></path></svg
+          ><svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="content_fileEntityPreviewSubscribeButtonBellRingingIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <path
+              d="M224,71.1a8,8,0,0,1-10.78-3.42,94.13,94.13,0,0,0-33.46-36.91,8,8,0,1,1,8.54-13.54,111.46,111.46,0,0,1,39.12,43.09A8,8,0,0,1,224,71.1ZM35.71,72a8,8,0,0,0,7.1-4.32A94.13,94.13,0,0,1,76.27,30.77a8,8,0,1,0-8.54-13.54A111.46,111.46,0,0,0,28.61,60.32,8,8,0,0,0,35.71,72Zm186.1,103.94A16,16,0,0,1,208,200H167.2a40,40,0,0,1-78.4,0H48a16,16,0,0,1-13.79-24.06C43.22,160.39,48,138.28,48,112a80,80,0,0,1,160,0C208,138.27,212.78,160.38,221.81,175.94ZM150.62,200H105.38a24,24,0,0,0,45.24,0ZM208,184c-10.64-18.27-16-42.49-16-72a64,64,0,0,0-128,0c0,29.52-5.38,53.74-16,72Z"
+            ></path></svg
+          ><svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="animation_spinAnimationClassName__HASH content_fileEntityPreviewSubscribeButtonSpinnerGapIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <rect width="256" height="256" fill="none" />
+            <line
+              x1="128"
+              y1="32"
+              x2="128"
+              y2="64"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="224"
+              y1="128"
+              x2="192"
+              y2="128"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="195.88"
+              y1="195.88"
+              x2="173.25"
+              y2="173.25"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="128"
+              y1="224"
+              x2="128"
+              y2="192"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="60.12"
+              y1="195.88"
+              x2="82.75"
+              y2="173.25"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="32"
+              y1="128"
+              x2="64"
+              y2="128"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="60.12"
+              y1="60.12"
+              x2="82.75"
+              y2="82.75"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+          </svg>
+        </div>
+      </div>
+      <div
+        class="sprinkles_marginLeft_-5_default__HASH sprinkles_marginRight_-5_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_overflow_hidden__HASH sprinkles_flexGrow_1_default__HASH"
+      >
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexGrow_1_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-end_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_10__HASH sprinkles_display_inline-flex_default__HASH sprinkles_gap_1.5_default__HASH sprinkles_marginTop_2_default__HASH sprinkles_marginBottom_2_default__HASH sprinkles_maxWidth_full_default__HASH"
+              style="margin-left: 1.75rem"
+            >
+              <div
+                class="sprinkles_pointerEvents_none__HASH sprinkles_position_absolute__HASH sprinkles_borderLeftWidth_thick_default__HASH sprinkles_borderTopWidth_thick_default__HASH sprinkles_borderTopLeftRadius_2.5_default__HASH"
+                style="
+                  border-left-color: var(--grey-5-translucent__HASH);
+                  border-top-color: var(--grey-5-translucent__HASH);
+                  border-style: solid;
+                  top: calc(0.5rem - 1px);
+                  bottom: calc(-0.5rem - 14.5px);
+                  left: calc(-1rem - 1px);
+                  width: calc(1rem - 2px);
+                "
+              ></div>
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_height_0_default__HASH"
+                style="top: -0.125rem"
+              >
+                <span
+                  class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                  style="width: 1.25rem; height: 1.25rem"
+                >
+                  <span
+                    class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                    style="
+                      width: 1.25rem;
+                      height: 1.25rem;
+                      background-color: #a9edf3;
+                    "
+                  >
+                    <span
+                      class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                      style="
+                        transform: scale(0.20833333);
+                        transform-origin: top left;
+                      "
+                      aria-hidden="true"
+                    >
+                      <span
+                        class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+                      >
+                        <img
+                          class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                          draggable="false"
+                          alt="Green tree who’s happy"
+                          src="data:image/svg+xml,SVG"
+                        />
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              </div>
+              <div
+                class="sprinkles_overflow_hidden__HASH sprinkles_color_grey-80_default__HASH sprinkles_fontSize_75_default__HASH sprinkles_fontStyle_normal__HASH"
+                style="
+                  min-height: 21px;
+                  line-height: 21px;
+                  font-feature-settings: &quot;calt&quot; on;
+                  display: -webkit-box;
+                  -webkit-line-clamp: 3;
+                  line-clamp: 3;
+                  -webkit-box-orient: vertical;
+                  text-overflow: ellipsis;
+                "
+              >
+                Taylor: We should update the milestone plan before review.
+              </div>
+            </div>
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #d4c0fb;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Olive yeti who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Casey Miller
+                  </div>
+                </div>
+                <div
+                  class="content_docClassName__HASH content_messageDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withoutBlockMaxWidthDocClassName__HASH"
+                >
+                  <p class="content_paragraph">
+                    Replying to that now with some edits.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-start_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+          style="height: 33px"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #a9edf3;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Green tree who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Taylor Johnson
+                  </div>
+                </div>
+                <div
+                  class="sprinkles_display_inline_default__HASH sprinkles_color_grey-60_default__HASH sprinkles_fontSize_100_default__HASH"
+                  style="line-height: 24px"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor"
+                    viewBox="0 0 256 256"
+                    style="
+                      width: 1rem;
+                      height: 1rem;
+                      display: inline;
+                      vertical-align: top;
+                      position: relative;
+                      top: 0.1875rem;
+                    "
+                  >
+                    <path
+                      d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"
+                    />
+                  </svg>
+                  Deleted message
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`mobile direct-chat-with-big-emoji-and-merge 1`] = `
+"<div>
+  <div
+    class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+  >
+    <div
+      style="
+        transform: scale(0.8571428571428571);
+        transform-origin: 0 0;
+        width: 331.33333333333337px;
+        min-width: 100%;
+        height: 444px;
+      "
+      class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH"
+    >
+      <div
+        class="sprinkles_position_relative__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_5_default__HASH sprinkles_backgroundColor_grey-0_default__HASH"
+        style="padding: 21px 0; height: 73.5px"
+      >
+        <div
+          style="
+            position: absolute;
+            bottom: -1px;
+            left: -21px;
+            right: -21px;
+            height: 1px;
+            background-color: var(--grey-5-translucent__HASH);
+          "
+        ></div>
+        <div
+          class="sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_2_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+        >
+          <span
+            class="sprinkles_display_flex_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+            style="padding-right: 0.25rem"
+          >
+            <span
+              class="sprinkles_display_block_default__HASH sprinkles_height_6_default__HASH sprinkles_width_5_default__HASH sprinkles_position_relative__HASH"
+              style="z-index: 1"
+            >
+              <span
+                class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                style="width: 1.5rem; height: 1.5rem"
+              >
+                <span
+                  class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                  style="
+                    width: 1.5rem;
+                    height: 1.5rem;
+                    background-color: #d4c0fb;
+                  "
+                >
+                  <span
+                    class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                    style="transform: scale(0.25); transform-origin: top left"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
+                    >
+                      <img
+                        class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                        draggable="false"
+                        alt="Olive yeti who’s happy"
+                        src="data:image/svg+xml,SVG"
+                      />
+                    </span>
+                  </span>
+                </span>
+              </span>
+            </span>
+          </span>
+          <div
+            class="sprinkles_marginTop_0_default__HASH sprinkles_marginBottom_0_default__HASH sprinkles_fontStyle_truncate-semi-bold__HASH sprinkles_fontSize_200_default__HASH"
+          >
+            Casey
+          </div>
+        </div>
+      </div>
+      <div
+        class="sprinkles_marginLeft_-3_default__HASH sprinkles_marginRight_-3_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_overflow_hidden__HASH sprinkles_flexGrow_1_default__HASH"
+      >
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexGrow_1_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-end_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_2_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #d4c0fb;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Olive yeti who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Casey Miller
+                  </div>
+                </div>
+                <div
+                  class="content_docClassName__HASH content_messageDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withoutBlockMaxWidthDocClassName__HASH"
+                >
+                  <p class="content_paragraph">Can we sync after lunch?</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-start_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+          style="height: 33px"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              ></div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_fontSize_600_default__HASH"
+                  style="line-height: 2rem"
+                >
+                  <span style="font-family: CyEmoji">😀</span>
+                  <span style="font-family: CyEmoji">😀</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`mobile private-room-chat-with-parent-and-deleted-message 1`] = `
+"<div>
+  <div
+    class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+  >
+    <div
+      style="
+        transform: scale(0.8571428571428571);
+        transform-origin: 0 0;
+        width: 331.33333333333337px;
+        min-width: 100%;
+        height: 444px;
+      "
+      class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH"
+    >
+      <div
+        class="sprinkles_position_relative__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_5_default__HASH sprinkles_backgroundColor_grey-0_default__HASH"
+        style="padding: 21px 0; height: 73.5px"
+      >
+        <div
+          style="
+            position: absolute;
+            bottom: -1px;
+            left: -21px;
+            right: -21px;
+            height: 1px;
+            background-color: var(--grey-5-translucent__HASH);
+          "
+        ></div>
+        <div
+          class="sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_2_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            version="1.1"
+            class="sprinkles_flexShrink_0_default__HASH"
+            viewBox="0 0 256 256"
+            fill="currentColor"
+            style="width: 1rem; height: 1rem"
+          >
+            <path
+              d="M208,80h-32v-28c0-26.4673-21.5322-48-48-48s-48,21.5327-48,48v28h-32c-8.8365,0-16,7.1635-16,16v112c0,8.8365,7.1635,16,16,16h160c8.8365,0,16-7.1635,16-16v-112c0-8.8365-7.1635-16-16-16ZM128,168c-8.8365,0-16-7.1635-16-16s7.1635-16,16-16,16,7.1635,16,16-7.1635,16-16,16ZM152,80h-48v-28c0-13.2339,10.7661-24,24-24s24,10.7661,24,24v28Z"
+            />
+          </svg>
+          <h1
+            class="sprinkles_marginTop_0_default__HASH sprinkles_marginBottom_0_default__HASH sprinkles_fontStyle_truncate-bold__HASH sprinkles_fontSize_400_default__HASH"
+          >
+            Design Review
+          </h1>
+        </div>
+        <div
+          class="content_fileEntityPreviewSubscribeButtonClassName__HASH"
+          style="display: none"
+          data-subscribed="true"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="content_fileEntityPreviewSubscribeButtonBellIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <path
+              d="M225.29,165.93C216.61,151,212,129.57,212,104a84,84,0,0,0-168,0c0,25.58-4.59,47-13.27,61.93A20.08,20.08,0,0,0,30.66,186,19.77,19.77,0,0,0,48,196H84.18a44,44,0,0,0,87.64,0H208a19.77,19.77,0,0,0,17.31-10A20.08,20.08,0,0,0,225.29,165.93ZM128,212a20,20,0,0,1-19.6-16h39.2A20,20,0,0,1,128,212ZM54.66,172C63.51,154,68,131.14,68,104a60,60,0,0,1,120,0c0,27.13,4.48,50,13.33,68Z"
+            ></path></svg
+          ><svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="content_fileEntityPreviewSubscribeButtonBellRingingIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <path
+              d="M224,71.1a8,8,0,0,1-10.78-3.42,94.13,94.13,0,0,0-33.46-36.91,8,8,0,1,1,8.54-13.54,111.46,111.46,0,0,1,39.12,43.09A8,8,0,0,1,224,71.1ZM35.71,72a8,8,0,0,0,7.1-4.32A94.13,94.13,0,0,1,76.27,30.77a8,8,0,1,0-8.54-13.54A111.46,111.46,0,0,0,28.61,60.32,8,8,0,0,0,35.71,72Zm186.1,103.94A16,16,0,0,1,208,200H167.2a40,40,0,0,1-78.4,0H48a16,16,0,0,1-13.79-24.06C43.22,160.39,48,138.28,48,112a80,80,0,0,1,160,0C208,138.27,212.78,160.38,221.81,175.94ZM150.62,200H105.38a24,24,0,0,0,45.24,0ZM208,184c-10.64-18.27-16-42.49-16-72a64,64,0,0,0-128,0c0,29.52-5.38,53.74-16,72Z"
+            ></path></svg
+          ><svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="animation_spinAnimationClassName__HASH content_fileEntityPreviewSubscribeButtonSpinnerGapIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <rect width="256" height="256" fill="none" />
+            <line
+              x1="128"
+              y1="32"
+              x2="128"
+              y2="64"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="224"
+              y1="128"
+              x2="192"
+              y2="128"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="195.88"
+              y1="195.88"
+              x2="173.25"
+              y2="173.25"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="128"
+              y1="224"
+              x2="128"
+              y2="192"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="60.12"
+              y1="195.88"
+              x2="82.75"
+              y2="173.25"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="32"
+              y1="128"
+              x2="64"
+              y2="128"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="60.12"
+              y1="60.12"
+              x2="82.75"
+              y2="82.75"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+          </svg>
+        </div>
+      </div>
+      <div
+        class="sprinkles_marginLeft_-3_default__HASH sprinkles_marginRight_-3_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_overflow_hidden__HASH sprinkles_flexGrow_1_default__HASH"
+      >
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexGrow_1_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-end_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_10__HASH sprinkles_display_inline-flex_default__HASH sprinkles_gap_1.5_default__HASH sprinkles_marginTop_2_default__HASH sprinkles_marginBottom_2_default__HASH sprinkles_maxWidth_full_default__HASH"
+              style="margin-left: 1.75rem"
+            >
+              <div
+                class="sprinkles_pointerEvents_none__HASH sprinkles_position_absolute__HASH sprinkles_borderLeftWidth_thick_default__HASH sprinkles_borderTopWidth_thick_default__HASH sprinkles_borderTopLeftRadius_2.5_default__HASH"
+                style="
+                  border-left-color: var(--grey-5-translucent__HASH);
+                  border-top-color: var(--grey-5-translucent__HASH);
+                  border-style: solid;
+                  top: calc(0.5rem - 1px);
+                  bottom: calc(-0.5rem - 14.5px);
+                  left: calc(-1rem - 1px);
+                  width: calc(1rem - 2px);
+                "
+              ></div>
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_height_0_default__HASH"
+                style="top: -0.125rem"
+              >
+                <span
+                  class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                  style="width: 1.25rem; height: 1.25rem"
+                >
+                  <span
+                    class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                    style="
+                      width: 1.25rem;
+                      height: 1.25rem;
+                      background-color: #a9edf3;
+                    "
+                  >
+                    <span
+                      class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                      style="
+                        transform: scale(0.20833333);
+                        transform-origin: top left;
+                      "
+                      aria-hidden="true"
+                    >
+                      <span
+                        class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+                      >
+                        <img
+                          class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                          draggable="false"
+                          alt="Green tree who’s happy"
+                          src="data:image/svg+xml,SVG"
+                        />
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              </div>
+              <div
+                class="sprinkles_overflow_hidden__HASH sprinkles_color_grey-80_default__HASH sprinkles_fontSize_75_default__HASH sprinkles_fontStyle_normal__HASH"
+                style="
+                  min-height: 21px;
+                  line-height: 21px;
+                  font-feature-settings: &quot;calt&quot; on;
+                  display: -webkit-box;
+                  -webkit-line-clamp: 3;
+                  line-clamp: 3;
+                  -webkit-box-orient: vertical;
+                  text-overflow: ellipsis;
+                "
+              >
+                Taylor: We should update the milestone plan before review.
+              </div>
+            </div>
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #d4c0fb;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Olive yeti who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Casey Miller
+                  </div>
+                </div>
+                <div
+                  class="content_docClassName__HASH content_messageDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withoutBlockMaxWidthDocClassName__HASH"
+                >
+                  <p class="content_paragraph">
+                    Replying to that now with some edits.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-start_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+          style="height: 33px"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #a9edf3;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Green tree who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Taylor Johnson
+                  </div>
+                </div>
+                <div
+                  class="sprinkles_display_inline_default__HASH sprinkles_color_grey-60_default__HASH sprinkles_fontSize_100_default__HASH"
+                  style="line-height: 24px"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor"
+                    viewBox="0 0 256 256"
+                    style="
+                      width: 1rem;
+                      height: 1rem;
+                      display: inline;
+                      vertical-align: top;
+                      position: relative;
+                      top: 0.1875rem;
+                    "
+                  >
+                    <path
+                      d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"
+                    />
+                  </svg>
+                  Deleted message
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`mobile room-chat-with-parent-and-deleted-message 1`] = `
+"<div>
+  <div
+    class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+  >
+    <div
+      style="
+        transform: scale(0.8571428571428571);
+        transform-origin: 0 0;
+        width: 331.33333333333337px;
+        min-width: 100%;
+        height: 444px;
+      "
+      class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH"
+    >
+      <div
+        class="sprinkles_position_relative__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_5_default__HASH sprinkles_backgroundColor_grey-0_default__HASH"
+        style="padding: 21px 0; height: 73.5px"
+      >
+        <div
+          style="
+            position: absolute;
+            bottom: -1px;
+            left: -21px;
+            right: -21px;
+            height: 1px;
+            background-color: var(--grey-5-translucent__HASH);
+          "
+        ></div>
+        <div
+          class="sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_2_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+        >
+          <h1
+            class="sprinkles_marginTop_0_default__HASH sprinkles_marginBottom_0_default__HASH sprinkles_fontStyle_truncate-bold__HASH sprinkles_fontSize_400_default__HASH"
+          >
+            Design Review
+          </h1>
+        </div>
+        <div
+          class="content_fileEntityPreviewSubscribeButtonClassName__HASH"
+          style="display: none"
+          data-subscribed="true"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="content_fileEntityPreviewSubscribeButtonBellIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <path
+              d="M225.29,165.93C216.61,151,212,129.57,212,104a84,84,0,0,0-168,0c0,25.58-4.59,47-13.27,61.93A20.08,20.08,0,0,0,30.66,186,19.77,19.77,0,0,0,48,196H84.18a44,44,0,0,0,87.64,0H208a19.77,19.77,0,0,0,17.31-10A20.08,20.08,0,0,0,225.29,165.93ZM128,212a20,20,0,0,1-19.6-16h39.2A20,20,0,0,1,128,212ZM54.66,172C63.51,154,68,131.14,68,104a60,60,0,0,1,120,0c0,27.13,4.48,50,13.33,68Z"
+            ></path></svg
+          ><svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="content_fileEntityPreviewSubscribeButtonBellRingingIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <path
+              d="M224,71.1a8,8,0,0,1-10.78-3.42,94.13,94.13,0,0,0-33.46-36.91,8,8,0,1,1,8.54-13.54,111.46,111.46,0,0,1,39.12,43.09A8,8,0,0,1,224,71.1ZM35.71,72a8,8,0,0,0,7.1-4.32A94.13,94.13,0,0,1,76.27,30.77a8,8,0,1,0-8.54-13.54A111.46,111.46,0,0,0,28.61,60.32,8,8,0,0,0,35.71,72Zm186.1,103.94A16,16,0,0,1,208,200H167.2a40,40,0,0,1-78.4,0H48a16,16,0,0,1-13.79-24.06C43.22,160.39,48,138.28,48,112a80,80,0,0,1,160,0C208,138.27,212.78,160.38,221.81,175.94ZM150.62,200H105.38a24,24,0,0,0,45.24,0ZM208,184c-10.64-18.27-16-42.49-16-72a64,64,0,0,0-128,0c0,29.52-5.38,53.74-16,72Z"
+            ></path></svg
+          ><svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="animation_spinAnimationClassName__HASH content_fileEntityPreviewSubscribeButtonSpinnerGapIconClassName__HASH"
+            viewBox="0 0 256 256"
+          >
+            <rect width="256" height="256" fill="none" />
+            <line
+              x1="128"
+              y1="32"
+              x2="128"
+              y2="64"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="224"
+              y1="128"
+              x2="192"
+              y2="128"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="195.88"
+              y1="195.88"
+              x2="173.25"
+              y2="173.25"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="128"
+              y1="224"
+              x2="128"
+              y2="192"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="60.12"
+              y1="195.88"
+              x2="82.75"
+              y2="173.25"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="32"
+              y1="128"
+              x2="64"
+              y2="128"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+            <line
+              x1="60.12"
+              y1="60.12"
+              x2="82.75"
+              y2="82.75"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="16"
+            />
+          </svg>
+        </div>
+      </div>
+      <div
+        class="sprinkles_marginLeft_-3_default__HASH sprinkles_marginRight_-3_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_overflow_hidden__HASH sprinkles_flexGrow_1_default__HASH"
+      >
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexGrow_1_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-end_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_10__HASH sprinkles_display_inline-flex_default__HASH sprinkles_gap_1.5_default__HASH sprinkles_marginTop_2_default__HASH sprinkles_marginBottom_2_default__HASH sprinkles_maxWidth_full_default__HASH"
+              style="margin-left: 1.75rem"
+            >
+              <div
+                class="sprinkles_pointerEvents_none__HASH sprinkles_position_absolute__HASH sprinkles_borderLeftWidth_thick_default__HASH sprinkles_borderTopWidth_thick_default__HASH sprinkles_borderTopLeftRadius_2.5_default__HASH"
+                style="
+                  border-left-color: var(--grey-5-translucent__HASH);
+                  border-top-color: var(--grey-5-translucent__HASH);
+                  border-style: solid;
+                  top: calc(0.5rem - 1px);
+                  bottom: calc(-0.5rem - 14.5px);
+                  left: calc(-1rem - 1px);
+                  width: calc(1rem - 2px);
+                "
+              ></div>
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_height_0_default__HASH"
+                style="top: -0.125rem"
+              >
+                <span
+                  class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                  style="width: 1.25rem; height: 1.25rem"
+                >
+                  <span
+                    class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                    style="
+                      width: 1.25rem;
+                      height: 1.25rem;
+                      background-color: #a9edf3;
+                    "
+                  >
+                    <span
+                      class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                      style="
+                        transform: scale(0.20833333);
+                        transform-origin: top left;
+                      "
+                      aria-hidden="true"
+                    >
+                      <span
+                        class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+                      >
+                        <img
+                          class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                          draggable="false"
+                          alt="Green tree who’s happy"
+                          src="data:image/svg+xml,SVG"
+                        />
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              </div>
+              <div
+                class="sprinkles_overflow_hidden__HASH sprinkles_color_grey-80_default__HASH sprinkles_fontSize_75_default__HASH sprinkles_fontStyle_normal__HASH"
+                style="
+                  min-height: 21px;
+                  line-height: 21px;
+                  font-feature-settings: &quot;calt&quot; on;
+                  display: -webkit-box;
+                  -webkit-line-clamp: 3;
+                  line-clamp: 3;
+                  -webkit-box-orient: vertical;
+                  text-overflow: ellipsis;
+                "
+              >
+                Taylor: We should update the milestone plan before review.
+              </div>
+            </div>
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #d4c0fb;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Olive yeti who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Casey Miller
+                  </div>
+                </div>
+                <div
+                  class="content_docClassName__HASH content_messageDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withoutBlockMaxWidthDocClassName__HASH"
+                >
+                  <p class="content_paragraph">
+                    Replying to that now with some edits.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="sprinkles_width_full_default__HASH sprinkles_minHeight_0_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_justifyContent_flex-start_default__HASH sprinkles_alignItems_flex-start_default__HASH"
+          style="height: 33px"
+        >
+          <div
+            class="sprinkles_paddingLeft_3_mobile__HASH sprinkles_paddingLeft_5_desktop__HASH sprinkles_paddingRight_3_mobile__HASH sprinkles_paddingRight_5_desktop__HASH sprinkles_marginLeft_auto_default__HASH sprinkles_marginRight_auto_default__HASH sprinkles_position_relative__HASH sprinkles_width_full_default__HASH sprinkles_maxWidth_160_default__HASH sprinkles_paddingBottom_4_default__HASH"
+          >
+            <div
+              class="sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_display_flex_default__HASH sprinkles_gap_2_default__HASH"
+            >
+              <div
+                class="sprinkles_flexShrink_0_default__HASH sprinkles_width_6_default__HASH"
+              >
+                <div
+                  class="sprinkles_position_relative__HASH"
+                  style="top: 16.5px"
+                >
+                  <span
+                    class="sprinkles_display_block_default__HASH sprinkles_flexShrink_0_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH"
+                    style="width: 1.5rem; height: 1.5rem"
+                  >
+                    <span
+                      class="sprinkles_borderTopLeftRadius_full_default__HASH sprinkles_borderTopRightRadius_full_default__HASH sprinkles_borderBottomLeftRadius_full_default__HASH sprinkles_borderBottomRightRadius_full_default__HASH sprinkles_display_block_default__HASH sprinkles_position_relative__HASH sprinkles_zIndex_0__HASH sprinkles_overflow_hidden__HASH"
+                      style="
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        background-color: #a9edf3;
+                      "
+                    >
+                      <span
+                        class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+                        style="
+                          transform: scale(0.25);
+                          transform-origin: top left;
+                        "
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+                        >
+                          <img
+                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                            draggable="false"
+                            alt="Green tree who’s happy"
+                            src="data:image/svg+xml,SVG"
+                          />
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                class="sprinkles_flexGrow_1_default__HASH sprinkles_minWidth_flex-fit_default__HASH"
+              >
+                <div
+                  class="sprinkles_maxWidth_full_default__HASH sprinkles_height_4_default__HASH sprinkles_display_flex_default__HASH sprinkles_alignItems_center_default__HASH"
+                >
+                  <div
+                    class="sprinkles_fontSize_50_default__HASH sprinkles_fontStyle_truncate__HASH sprinkles_color_grey-60_default__HASH"
+                    style="line-height: 1rem"
+                  >
+                    Taylor Johnson
+                  </div>
+                </div>
+                <div
+                  class="sprinkles_display_inline_default__HASH sprinkles_color_grey-60_default__HASH sprinkles_fontSize_100_default__HASH"
+                  style="line-height: 24px"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor"
+                    viewBox="0 0 256 256"
+                    style="
+                      width: 1rem;
+                      height: 1rem;
+                      display: inline;
+                      vertical-align: top;
+                      position: relative;
+                      top: 0.1875rem;
+                    "
+                  >
+                    <path
+                      d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"
+                    />
+                  </svg>
+                  Deleted message
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+"
+`;

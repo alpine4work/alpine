@@ -289,6 +289,7 @@ function FeedCreateSectionButton({
                 aria-label={label}
                 position="relative"
                 zIndex="0"
+                minWidth="flex-fit"
                 paddingX={routeLayout !== "narrow" ? "3" : undefined}
                 paddingY={feedCreateSectionButtonPaddingY}
                 borderRadius="1"
@@ -300,10 +301,6 @@ function FeedCreateSectionButton({
                 style={{
                     flexBasis: 0,
                     height: feedCreateSectionButtonHeight[routeLayout],
-                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                    // have `min-width: auto` which extends with content.
-                    // https://stackoverflow.com/a/66689926/1568890
-                    minWidth: 0,
                 }}
             >
                 {isPressed && (

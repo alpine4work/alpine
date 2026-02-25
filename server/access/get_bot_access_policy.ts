@@ -63,26 +63,7 @@ export async function getBotAccessPolicy(
             };
         }
         case "Chat": {
-            const accountIds = await context.chatInjection.getChatAccountIdsForBotScope(
-                scope.chatId,
-                options,
-            );
-
-            // Only accounts that are members of the chat have access to the chat. Create
-            // an access policy that describes access as private to the chat's members. The
-            // `AccessLevel` we pick doesn't really matter. There's nothing to edit at a
-            // chat level right now (in the future we may let you create named chats and so
-            // some people would be able to edit the chat name and others wouldn't).
-            //
-            // It's fine if bots are in this map. Even though normally you can't add bots
-            // to an access policy. We'll filter out bots in `evaluateAccessPolicy()`.
-            return {
-                accountGrantById: new Map(
-                    accountIds.map(accountId => [accountId, {level: "Edit"}]),
-                ),
-                defaultGrant: null,
-                urlGrant: null,
-            };
+            return context.chatInjection.getChatAccessPolicyForBotScope(scope.chatId, options);
         }
         case "Document": {
             return context.documentsInjection.getDocumentAccessPolicyForBotScope(

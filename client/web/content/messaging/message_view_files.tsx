@@ -38,6 +38,7 @@ import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hou
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {messageViewFilesFileMaxHeight} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
@@ -109,7 +110,7 @@ export function MessageViewFiles({
                 const html = new HtmlFragmentGenerator();
                 const fileRows: Array<{
                     files: Array<MessageContentPayloadModelFile>;
-                    fileDatas: Array<FileModelRegistryData | FileEntityId>;
+                    fileDatas: Array<FileModelRegistryData | FileEntityId | null>;
                     fileLayouts: Array<ContentFileLayout>;
                 }> = [];
                 let nextFileRow: Array<MessageContentPayloadModelFile> = [];
@@ -130,6 +131,7 @@ export function MessageViewFiles({
 
                 function pushNextFileRow(files: Array<MessageContentPayloadModelFile>) {
                     const fileDatas = files.map(file => {
+                        if (file.type === "Null") return null;
                         if (file.type === "FileEntity") return file.fileEntityId;
                         return get(fileRegistry.getFileStore(file));
                     });
@@ -141,7 +143,7 @@ export function MessageViewFiles({
                         spacingScale,
                         // Smaller max height than we have for content file row nodes so tall images
                         // don't take up too much of the screen.
-                        maxHeight: "20rem",
+                        maxHeight: messageViewFilesFileMaxHeight,
                     });
 
                     fileRows.push({files, fileDatas, fileLayouts});
@@ -176,7 +178,7 @@ export function MessageViewFiles({
 
                     for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
                         const file = files[fileIndex]!;
-                        const fileData = fileDatas[fileIndex]!;
+                        const fileData = fileDatas[fileIndex];
                         const fileLayout = fileLayouts[fileIndex]!;
 
                         let fileHtml: HtmlElementGenerator;
@@ -209,10 +211,14 @@ export function MessageViewFiles({
                                 },
                             });
                         } else {
+                            assert(file.type !== "FileEntity");
+
                             fileHtml = renderContentFilePreview({
                                 spaceId: space.id,
-                                node: nodeByFileId.getOrSetDefault(fileData.id),
-                                file: fileData,
+                                node: nodeByFileId.getOrSetDefault(
+                                    file.type === "Null" ? file.fileId : file.file.id,
+                                ),
+                                file: fileData ?? undefined,
                                 layout: fileLayout,
                                 blockWidth,
                                 transformScale: 1,
@@ -293,7 +299,7 @@ export function MessageViewFiles({
 
             for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
                 const file = files[fileIndex]!;
-                const fileData = fileDatas[fileIndex]!;
+                const fileData = fileDatas[fileIndex];
 
                 const fileElement = assertExists(
                     containerElement.childNodes[fileRowIndex]?.childNodes[fileIndex],
@@ -317,7 +323,7 @@ export function MessageViewFiles({
                     cleanups.push(
                         addContentFilePreviewBehavior(() => context, fileElement, {
                             spaceId: space.id,
-                            file: fileData,
+                            file: fileData ?? undefined,
                             attachmentTarget,
                             rootNavigate,
                             getReporter: () => reporter,
@@ -355,11 +361,11 @@ export function MessageViewFiles({
             const clipboardFileRows: Array<Node> = [];
 
             for (let fileRowIndex = 0; fileRowIndex < fileRows.length; fileRowIndex++) {
-                const {files, fileDatas} = fileRows[fileRowIndex]!;
+                const {files} = fileRows[fileRowIndex]!;
                 const clipboardFileRow: Array<Node> = [];
 
                 for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
-                    const file = fileDatas[fileIndex]!;
+                    const file = files[fileIndex]!;
 
                     const fileElement = assertExists(
                         containerElement.childNodes[fileRowIndex]?.childNodes[fileIndex],
@@ -374,7 +380,11 @@ export function MessageViewFiles({
                         clipboardFileRow.push(
                             clipboardSchema.node("file", {
                                 fileId: cast<FileId | FileEntityId>(
-                                    typeof file === "string" ? file : file.id,
+                                    file.type === "Null"
+                                        ? file.fileId
+                                        : file.type === "FileEntity"
+                                          ? file.fileEntityId
+                                          : file.file.id,
                                 ),
                             }),
                         );
@@ -400,7 +410,9 @@ export function MessageViewFiles({
                 for (let fileIndex = 0; fileIndex < fileRow.files.length; fileIndex++) {
                     const file = fileRow.files[fileIndex]!;
 
-                    if (file.type === "FileEntity") {
+                    if (file.type === "Null") {
+                        // noop
+                    } else if (file.type === "FileEntity") {
                         fileEntityById.set(file.fileEntityId, file.fileEntityResult);
                     } else {
                         fileById.set(file.file.id, file);

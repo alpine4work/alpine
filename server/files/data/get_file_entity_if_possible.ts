@@ -1,8 +1,10 @@
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
 import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
+import {getFileChatEntityModelIfPossible} from "~/server/files/data/get_file_chat_entity_model_if_possible.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
 import {getFileTaskEntityModelIfPossible} from "~/server/files/data/get_file_task_entity_model_if_possible.js";
+import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -100,6 +102,13 @@ export async function getFileEntityIfPossible(
             return mapResult(
                 result,
                 model => new FileEntityModel(FileChannelEntityModelSchema, model),
+            );
+        }
+        case "Chat": {
+            const result = await getFileChatEntityModelIfPossible(context, entityIdObject.chatId);
+            return mapResult(
+                result,
+                model => new FileEntityModel(FileChatEntityModelSchema, model),
             );
         }
         case "Post": {

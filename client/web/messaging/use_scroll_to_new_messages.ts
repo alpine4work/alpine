@@ -20,7 +20,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     getItemKey,
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef | null>;
-    inputRef: RefObject<MessageInputRef | null>;
+    inputRef: RefObject<MessageInputRef | null> | null;
     isInputStickyPositioned: boolean;
     messages: MessageList<Message> | null;
     getItemKey: Memo<(item: MessageListItem<Message>) => Key>;
@@ -95,7 +95,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             if (firstNewItemIndex >= itemCount) return;
 
             const view = assertExists(viewRef.current);
-            const input = assertExists(inputRef.current);
+            const input = inputRef ? assertExists(inputRef.current) : null;
 
             const firstNewItem = messages.getItem(firstNewItemIndex);
             const firstNewItemKey = getItemKey(firstNewItem);
@@ -112,7 +112,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             const lastNewItemPosition = view.getPositionByIndex(lastNewItemViewIndex);
 
             const viewRect = view.getElement().getBoundingClientRect();
-            const inputRect = input.getBoundingClientRect();
+            const inputRect = input?.getBoundingClientRect();
 
             const newItemsOffset = firstNewItemPosition.offset;
 
@@ -126,12 +126,14 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 // TODO(calebmer): Sticky positioned inputs will commonly be above
                 // `viewRect.bottom` based on their scroll position. I think we'll need
                 // different handling for sticky positioned inputs on mobile.
-                (!isInputStickyPositioned ? Math.max(0, viewRect.bottom - inputRect.top) : 0);
+                (!isInputStickyPositioned && inputRect
+                    ? Math.max(0, viewRect.bottom - inputRect.top)
+                    : 0);
 
             const actualNewItemsTop =
                 viewRect.top + (firstNewItemPosition.offset - view.getScrollOffset());
 
-            const idealNewItemsTop = inputRect.top - newItemsHeight;
+            const idealNewItemsTop = (inputRect?.top ?? viewRect.bottom) - newItemsHeight;
 
             let scrollDelta = actualNewItemsTop - idealNewItemsTop;
 

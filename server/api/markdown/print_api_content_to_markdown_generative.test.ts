@@ -46,6 +46,7 @@ import {Id, encodeId, generateId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
+    ChatId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -77,6 +78,7 @@ function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
 const ApiMentionTargetArbitrary = createUnionArbitrary<ApiMentionTarget>({
     Account: createIdArbitrary<AccountId>().map(id => ({type: "Account", id})),
     Channel: createIdArbitrary<ChannelId>().map(id => ({type: "Channel", id})),
+    Chat: createIdArbitrary<ChatId>().map(id => ({type: "Chat", id})),
     Document: createIdArbitrary<DocumentId>().map(id => ({type: "Document", id})),
     Post: createIdArbitrary<PostId>().map(id => ({type: "Post", id})),
     Task: createIdArbitrary<TaskId>().map(id => ({type: "Task", id})),

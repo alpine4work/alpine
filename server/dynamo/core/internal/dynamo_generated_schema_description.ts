@@ -1718,6 +1718,219 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "definition": {
+                                        "valueSchema": {
+                                            "type": "Union",
+                                            "typeKey": "type",
+                                            "variantSchemaByTypeValue": {
+                                                "Direct": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Direct"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "Room": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Room"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "name": {
+                                                            "valueSchema": {
+                                                                "type": "String"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "accessPolicy": {
+                                                            "valueSchema": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "accountGrantById": {
+                                                                        "valueSchema": {
+                                                                            "type": "Map",
+                                                                            "keySchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "valueSchema": {
+                                                                                "type": "Union",
+                                                                                "typeKey": "level",
+                                                                                "variantSchemaByTypeValue": {
+                                                                                    "Manage": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "level": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Value",
+                                                                                                    "value": "Manage"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "generation": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Integer"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "Edit": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "level": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Value",
+                                                                                                    "value": "Edit"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "Comment": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "level": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Value",
+                                                                                                    "value": "Comment"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "View": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "level": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Value",
+                                                                                                    "value": "View"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "defaultGrant": {
+                                                                        "valueSchema": {
+                                                                            "type": "Nullable",
+                                                                            "schema": {
+                                                                                "type": "Union",
+                                                                                "typeKey": "level",
+                                                                                "variantSchemaByTypeValue": {
+                                                                                    "Manage": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "level": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Value",
+                                                                                                    "value": "Manage"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "generation": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Integer"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "Edit": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "level": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Value",
+                                                                                                    "value": "Edit"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "Comment": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "level": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Value",
+                                                                                                    "value": "Comment"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "View": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "level": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Value",
+                                                                                                    "value": "View"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "urlGrant": {
+                                                                        "valueSchema": {
+                                                                            "type": "Nullable",
+                                                                            "schema": {
+                                                                                "type": "Object",
+                                                                                "propertySchemaByKey": {
+                                                                                    "level": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Value",
+                                                                                            "value": "View"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "optional": true
+                                                                    }
+                                                                },
+                                                                "referenceId": "4cf12cf0"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "creatorId": {
+                                                            "valueSchema": {
+                                                                "type": "Id"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "hasAddedFeedCandidateEntry": {
+                                                            "valueSchema": {
+                                                                "type": "Boolean"
+                                                            },
+                                                            "optional": true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "accountIdsForOneOnOne": {
                                         "valueSchema": {
                                             "type": "Nullable",
@@ -1734,17 +1947,35 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Object",
                                             "propertySchemaByKey": {
-                                                "nextMessageIndex": {
-                                                    "valueSchema": {
-                                                        "type": "Integer"
-                                                    },
-                                                    "optional": false
-                                                },
                                                 "messageCount": {
                                                     "valueSchema": {
                                                         "type": "Integer"
                                                     },
                                                     "optional": false
+                                                },
+                                                "messageCountByAuthorId": {
+                                                    "valueSchema": {
+                                                        "type": "Map",
+                                                        "keySchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                },
+                                                "mentionCountByAccountId": {
+                                                    "valueSchema": {
+                                                        "type": "Map",
+                                                        "keySchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        }
+                                                    },
+                                                    "optional": true
                                                 }
                                             }
                                         },
@@ -1786,6 +2017,33 @@ export const dynamoGeneratedSchemaDescription: {
                                     "chatAccountCount": {
                                         "valueSchema": {
                                             "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "Subscription": {
+                            "id": 5,
+                            "orderKey": "a1V",
+                            "sortKeyAttributeByKey": {
+                                "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "isSubscribed": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
                                         },
                                         "optional": false
                                     },
@@ -2543,6 +2801,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "Task",
                                                                                         "TaskCollection",
                                                                                         "Channel",
+                                                                                        "Chat",
                                                                                         "Post"
                                                                                     ]
                                                                                 },
@@ -3318,163 +3577,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "propertySchemaByKey": {
                                                                 "accessPolicy": {
                                                                     "valueSchema": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "accountGrantById": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Map",
-                                                                                    "keySchema": {
-                                                                                        "type": "Id"
-                                                                                    },
-                                                                                    "valueSchema": {
-                                                                                        "type": "Union",
-                                                                                        "typeKey": "level",
-                                                                                        "variantSchemaByTypeValue": {
-                                                                                            "Manage": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "level": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "Manage"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "generation": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Integer"
-                                                                                                        },
-                                                                                                        "optional": true
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "Edit": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "level": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "Edit"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "Comment": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "level": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "Comment"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "View": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "level": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "View"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "defaultGrant": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Union",
-                                                                                        "typeKey": "level",
-                                                                                        "variantSchemaByTypeValue": {
-                                                                                            "Manage": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "level": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "Manage"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "generation": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Integer"
-                                                                                                        },
-                                                                                                        "optional": true
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "Edit": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "level": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "Edit"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "Comment": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "level": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "Comment"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "View": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "level": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "View"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "urlGrant": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "level": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Value",
-                                                                                                    "value": "View"
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        },
-                                                                        "referenceId": "9be54877"
+                                                                        "type": "Reference",
+                                                                        "reuseReferenceId": "4cf12cf0"
                                                                     },
                                                                     "optional": true
                                                                 },
@@ -4418,7 +4522,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "accessPolicy": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "9be54877"
+                                            "reuseReferenceId": "4cf12cf0"
                                         },
                                         "optional": true
                                     },
@@ -4872,7 +4976,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "value": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "9be54877"
+                                                                                        "reuseReferenceId": "4cf12cf0"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -6927,6 +7031,52 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "optional": false
                                                         },
                                                         "channelId": {
+                                                            "valueSchema": {
+                                                                "type": "Id"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "sharedTime": {
+                                                            "valueSchema": {
+                                                                "type": "Date"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "sharerId": {
+                                                            "valueSchema": {
+                                                                "type": "Id"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "creatorId": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Id"
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "event": {
+                                                            "valueSchema": {
+                                                                "type": "Reference",
+                                                                "reuseReferenceId": "651b7b0d"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "RoomChat": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "RoomChat"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "chatId": {
                                                             "valueSchema": {
                                                                 "type": "Id"
                                                             },
@@ -9235,7 +9385,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "accessPolicy": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "9be54877"
+                                            "reuseReferenceId": "4cf12cf0"
                                         },
                                         "optional": true
                                     },
@@ -13063,7 +13213,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "9be54877"
+                                                                                        "reuseReferenceId": "4cf12cf0"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -13154,7 +13304,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "9be54877"
+                                                                                        "reuseReferenceId": "4cf12cf0"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -13247,7 +13397,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "9be54877"
+                                                                                        "reuseReferenceId": "4cf12cf0"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -13615,7 +13765,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "value": {
                                                     "valueSchema": {
                                                         "type": "Reference",
-                                                        "reuseReferenceId": "9be54877"
+                                                        "reuseReferenceId": "4cf12cf0"
                                                     },
                                                     "optional": false
                                                 },

@@ -56,6 +56,8 @@ export async function getFileChannelEntityModelIfPossible(
             id: channelId,
             createdTime: channel.model.createdTime,
             name: channel.model.name,
+            isPrivate:
+                !channel.model.accessPolicy.defaultGrant && !channel.model.accessPolicy.urlGrant,
             description: channel.model.description,
             isSubscribed,
             contributorCount: channelContributors?.contributorCount ?? 0,

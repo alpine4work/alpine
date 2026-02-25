@@ -176,6 +176,15 @@ function createAgentLinkForApiMentionPath(
                 },
             });
         }
+        case "Chat": {
+            return createAgentLink(storage, {
+                type: "Chat",
+                chat: {
+                    id: mentionElement.target.id,
+                    name: mentionElement.title,
+                },
+            });
+        }
         case "Document": {
             return createAgentLink(storage, {
                 type: "Document",

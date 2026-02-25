@@ -1,3 +1,4 @@
+import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FeedEntryEvent, FeedEntryEventSchema} from "~/shared/feed/feed_entry_schema.js";
@@ -102,10 +103,26 @@ export class FeedChannelEntryModel extends Model(
     }
 }
 
+export class FeedChatEntryModel extends Model(
+    Schema.object({
+        sharer: AccountModel.schema,
+        sharedTime: Schema.date,
+        event: FeedEntryEventSchema,
+        chat: FileChatEntityModelSchema.omit(["type"]),
+    }),
+) {
+    public readonly type = "Chat";
+
+    public getId(): FileEntityId {
+        return `Chat:${this.chat.id}`;
+    }
+}
+
 export const FeedEntryModelSchema = createModelUnionSchema({
     Welcome: FeedWelcomeEntryModel,
     Post: FeedPostEntryModel,
     Document: FeedDocumentEntryModel,
     TaskCollection: FeedTaskCollectionEntryModel,
     Channel: FeedChannelEntryModel,
+    Chat: FeedChatEntryModel,
 });

@@ -21,7 +21,6 @@ import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
 import {math} from "micromark-extension-math";
 import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/normalize_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/api_content_code_block_language_definition.js";
-import {ApiMentionTargetPath, parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -39,6 +38,7 @@ import {
     ApiContentTableBlockElement,
     ApiContentTableBlockElementCell,
     ApiContentTableBlockElementCellBlockElement,
+    ApiMentionTarget,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -56,6 +56,7 @@ import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
+    ChatId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -1631,12 +1632,12 @@ function* parseApiContentInlineElementFromMarkdown(
                 // Noop
             }
 
-            const mentionTargetPath =
+            const mentionTarget =
                 url !== undefined && options.spaceId !== null
-                    ? parseApiMentionPathIfPossible(options.spaceId, url)
+                    ? parseApiMentionTargetIfPossible(options.spaceId, url)
                     : null;
 
-            if (mentionTargetPath === null) {
+            if (mentionTarget === null) {
                 markStack.push({type: "Link", url: content.url});
 
                 yield* parseApiContentInlineElementsFromMarkdown(
@@ -1649,12 +1650,12 @@ function* parseApiContentInlineElementFromMarkdown(
                 markStack.pop();
             } else {
                 const isAccountShortName =
-                    mentionTargetPath.startsWith("/accounts/") &&
+                    mentionTarget.type === "Account" &&
                     url?.searchParams.get("mention") === "short";
 
                 yield {
                     type: "Mention",
-                    target: parseApiMentionTarget(mentionTargetPath),
+                    target: mentionTarget,
                     isAccountShortName: isAccountShortName || undefined,
                     marks: markStack.getMarks(),
                 };
@@ -2041,7 +2042,7 @@ function* parseApiContentInlineElementFromMarkdown(
     }
 }
 
-function parseApiMentionPathIfPossible(spaceId: SpaceId, url: URL): ApiMentionTargetPath | null {
+function parseApiMentionTargetIfPossible(spaceId: SpaceId, url: URL): ApiMentionTarget | null {
     const isMentionUrl =
         url?.protocol === "https:" &&
         url.host === "alpine.inc" &&
@@ -2061,31 +2062,37 @@ function parseApiMentionPathIfPossible(spaceId: SpaceId, url: URL): ApiMentionTa
         switch (pathSegment1) {
             case "accounts": {
                 if (isId<AccountId>(pathSegment2)) {
-                    return `/accounts/${pathSegment2}`;
+                    return {type: "Account", id: pathSegment2};
                 }
                 break;
             }
             case "channels": {
                 if (isId<ChannelId>(pathSegment2)) {
-                    return `/channels/${pathSegment2}`;
+                    return {type: "Channel", id: pathSegment2};
+                }
+                break;
+            }
+            case "chats": {
+                if (isId<ChatId>(pathSegment2)) {
+                    return {type: "Chat", id: pathSegment2};
                 }
                 break;
             }
             case "documents": {
                 if (isId<DocumentId>(pathSegment2)) {
-                    return `/documents/${pathSegment2}`;
+                    return {type: "Document", id: pathSegment2};
                 }
                 break;
             }
             case "posts": {
                 if (isId<PostId>(pathSegment2)) {
-                    return `/posts/${pathSegment2}`;
+                    return {type: "Post", id: pathSegment2};
                 }
                 break;
             }
             case "tasks": {
                 if (isId<TaskId>(pathSegment2)) {
-                    return `/tasks/${pathSegment2}`;
+                    return {type: "Task", id: pathSegment2};
                 }
                 break;
             }
@@ -2096,7 +2103,7 @@ function parseApiMentionPathIfPossible(spaceId: SpaceId, url: URL): ApiMentionTa
             pathSegments[1] === "collections" &&
             isId<TaskCollectionId>(pathSegments[2]!)
         ) {
-            return `/task-collections/${pathSegments[2]}`;
+            return {type: "TaskCollection", id: pathSegments[2]};
         }
     }
 

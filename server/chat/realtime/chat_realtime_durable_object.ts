@@ -1,5 +1,8 @@
 import {authorizeChatAccessForDurableObject} from "~/server/chat/realtime/authorize_chat_access_for_durable_object.js";
-import {ChatRealtimeConnection} from "~/server/chat/realtime/chat_realtime_connection.js";
+import {
+    ChatRealtimeConnection,
+    ChatRealtimeConnectionEventStub,
+} from "~/server/chat/realtime/chat_realtime_connection.js";
 import {
     WorkerActionContext,
     WorkerSessionActionContext,
@@ -10,7 +13,6 @@ import {
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -41,7 +43,7 @@ class ChatRealtimeDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof ChatRealtimeProtocol,
-        MessagingRealtimeEventStub,
+        ChatRealtimeConnectionEventStub,
         ChatRealtimeConnection
     >;
 
@@ -88,7 +90,7 @@ class ChatRealtimeDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof ChatRealtimeProtocol,
-            MessagingRealtimeEventStub,
+            ChatRealtimeConnectionEventStub,
             ChatRealtimeConnection
         >(
             this._processContext,

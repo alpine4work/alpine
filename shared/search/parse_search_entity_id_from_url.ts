@@ -2,6 +2,7 @@ import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
+    ChatId,
     DocumentId,
     PostId,
     SpaceId,
@@ -80,6 +81,13 @@ export function parseSearchEntityIdFromUrl(
         const channelMatch = url.pathname.match(/^\/s\/([^/]+)\/channels\/([^/]+)\/?$/);
         if (channelMatch && channelMatch[1] === spaceId && isId<ChannelId>(channelMatch[2]!)) {
             return `Channel:${channelMatch[2]}`;
+        }
+    }
+
+    {
+        const chatMatch = url.pathname.match(/^\/s\/([^/]+)\/chat\/([^/]+)\/?$/);
+        if (chatMatch && chatMatch[1] === spaceId && isId<ChatId>(chatMatch[2]!)) {
+            return `Chat:${chatMatch[2]}`;
         }
     }
 

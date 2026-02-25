@@ -324,6 +324,7 @@ assertEqualTypes<
 export type SearchMentionEntityId =
     | `Document:${DocumentId}`
     | `Channel:${ChannelId}`
+    | `Chat:${ChatId}`
     | `Task:${TaskId}`
     | `TaskCollection:${TaskCollectionId}`
     | `Post:${PostId}`;
@@ -341,8 +342,7 @@ export const SearchMentionEntityIdSchema = SearchEntityIdSchema.transform<Search
 assertAssignableTypes<SearchMentionEntityId, SearchEntityId>();
 assertEqualTypes<
     SearchMentionEntityId,
-    | Exclude<SearchAffinityEntityId, `Account:${AccountId}` | `Chat:${ChatId}` | "TaskPersonal">
-    | `Post:${PostId}`
+    Exclude<SearchAffinityEntityId, `Account:${AccountId}` | "TaskPersonal"> | `Post:${PostId}`
 >();
 
 /**
@@ -508,6 +508,7 @@ type GetSearchMentionEntityIdTestMapType<Id extends string> = MergeObjectInterse
 const searchMentionEntityIdTestMap: GetSearchMentionEntityIdTestMapType<SearchMentionEntityId> = {
     Document: true,
     Channel: true,
+    Chat: true,
     Task: true,
     TaskCollection: true,
     Post: true,

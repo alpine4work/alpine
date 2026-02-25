@@ -10,6 +10,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export type ModalWithButtonsRef = {
+    pressPrimaryButton(): void;
     focusPrimaryButton(): void;
     focusCancelButton(): void;
 };
@@ -74,13 +75,17 @@ function ModalWithButtons(
     ref: Ref<ModalWithButtonsRef>,
 ) {
     const reporter = useReporter();
-    const primaryButtonRef = useRef<HTMLButtonElement>(null);
+    const primaryButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
     const cancelButtonRef = useRef<HTMLButtonElement>(null);
     const [isPrimaryButtonPending, setIsPrimaryButtonPending] = useState(false);
 
     useImperativeHandle(
         ref,
         () => ({
+            pressPrimaryButton: () => {
+                const primaryButtonElement = assertExists(primaryButtonRef.current);
+                primaryButtonElement.press();
+            },
             focusPrimaryButton: () => {
                 const primaryButtonElement = assertExists(primaryButtonRef.current);
                 primaryButtonElement.focus();

@@ -200,16 +200,7 @@ export function ContentFileViewerModalMobile({
                             >
                                 <X />
                             </IconButton>
-                            <Box
-                                display="flex"
-                                gap="1.5"
-                                style={{
-                                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                    // have `min-width: auto` which extends with content.
-                                    // https://stackoverflow.com/a/66689926/1568890
-                                    minWidth: 0,
-                                }}
-                            >
+                            <Box display="flex" gap="1.5" minWidth="flex-fit">
                                 {withProcessingIndicator && <Spacer space="4" />}
                                 <Box
                                     fontStyle="truncate"

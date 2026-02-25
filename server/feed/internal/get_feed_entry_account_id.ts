@@ -16,6 +16,7 @@ export function getFeedEntryAccountId(entry: FeedEntry): AccountId | null {
         case "Document":
         case "TaskCollection":
         case "Channel":
+        case "RoomChat":
             return entry.sharerId;
         default:
             throw exhaustive(entry);

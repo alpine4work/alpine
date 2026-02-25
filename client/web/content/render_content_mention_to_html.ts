@@ -1,8 +1,10 @@
 import classNames from "classnames";
 import {renderAccountAvatar} from "~/client/web/accounts/account_avatar_html.js";
+import {renderAccountAvatarPile} from "~/client/web/accounts/account_avatar_pile_html.js";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {renderTaskDisplayStatusCircle} from "~/client/web/design/task_display_status_circle_html.js";
 import {channelBrandIconSvg} from "~/client/web/icons/brand/channel_brand_icon_svg.js";
+import {chatBrandIconSvg} from "~/client/web/icons/brand/chat_brand_icon_svg.js";
 import {documentBrandIconSvg} from "~/client/web/icons/brand/document_brand_icon_svg.js";
 import {postBrandIconSvg} from "~/client/web/icons/brand/post_brand_icon_svg.js";
 import {taskBrandIconSvg} from "~/client/web/icons/brand/task_brand_icon_svg.js";
@@ -22,6 +24,7 @@ import {truncateContentMentionText} from "~/shared/content/truncate_content_ment
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {Spacing, addRemLengths} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     HtmlElementGenerator,
@@ -124,6 +127,10 @@ export function renderContentMentionToHtml(
                     entityIconWidth = "wide";
                     entityIconSvg = channelBrandIconSvg;
                     break;
+                case "Chat":
+                    entityIconWidth = "normal";
+                    entityIconSvg = chatBrandIconSvg;
+                    break;
                 case "Task":
                     entityIconWidth = "wide";
                     entityIconSvg = taskBrandIconSvg;
@@ -222,17 +229,35 @@ export function renderContentMentionToHtml(
             case "Account": {
                 const accountData = get(accountRegistry.getAccountStore(media.account));
 
-                html.appendChild(
-                    renderContentMentionIcon({
-                        width: "wide",
-                        withScaling: true,
-                        children: renderAccountAvatar({
-                            accountData,
-                            size: contentStyles.mentionIconWithScalingSize,
-                            spacingScale,
+                if (mention.type !== "SearchEntity" || !mention.entityId.startsWith("Chat:")) {
+                    html.appendChild(
+                        renderContentMentionIcon({
+                            width: "wide",
+                            withScaling: true,
+                            children: renderAccountAvatar({
+                                spacingScale,
+                                accountData,
+                                size: contentStyles.mentionIconWithScalingSize,
+                            }),
                         }),
-                    }),
-                );
+                    );
+                } else {
+                    // Render a grey circle for chats that don't have an `AccountPile` media. We
+                    // want to communicate it's a multi-person chat so we don't want to render one
+                    // account. This case should happen rarely. Just `RoomChat`s that only a single
+                    // person has messaged so far.
+                    html.appendChild(
+                        renderContentMentionIcon({
+                            width: "extra-wide",
+                            withScaling: true,
+                            children: renderAccountAvatarPile({
+                                spacingScale,
+                                previewAccounts: [null, accountData],
+                                size: contentStyles.mentionIconWithScalingSize,
+                            }),
+                        }),
+                    );
+                }
 
                 // Post titles are of the form "in ${channelName}: ". We rely on the client to
                 // add the account name to the post mention title.
@@ -242,7 +267,26 @@ export function renderContentMentionToHtml(
                 break;
             }
             case "AccountPile": {
-                // Unimplemented...
+                assert(media.previewAccounts.length >= 2);
+
+                const accountData1 = get(
+                    accountRegistry.getAccountStore(media.previewAccounts[0]!),
+                );
+                const accountData2 = get(
+                    accountRegistry.getAccountStore(media.previewAccounts[1]!),
+                );
+
+                html.appendChild(
+                    renderContentMentionIcon({
+                        width: "extra-wide",
+                        withScaling: true,
+                        children: renderAccountAvatarPile({
+                            spacingScale,
+                            previewAccounts: [accountData1, accountData2],
+                            size: contentStyles.mentionIconWithScalingSize,
+                        }),
+                    }),
+                );
                 break;
             }
             case "TaskCollectionColor": {
@@ -347,7 +391,7 @@ function renderContentMentionIcon({
     withScaling,
     children: childrenHtml,
 }: {
-    width: "narrow" | "normal" | "wide";
+    width: "narrow" | "normal" | "wide" | "extra-wide";
     withScaling?: boolean;
     children: HtmlGenerator;
 }) {
@@ -390,6 +434,11 @@ function renderContentMentionIcon({
             case "wide": {
                 spaceHtml.appendChild(new HtmlTextGenerator("\u00A0\u00A0"));
                 iconContainerHtml.appendChild(new HtmlTextGenerator("\u00A0"));
+                break;
+            }
+            case "extra-wide": {
+                spaceHtml.appendChild(new HtmlTextGenerator("\u00A0\u00A0\u00A0\u00A0"));
+                iconContainerHtml.appendChild(new HtmlTextGenerator("\u202F"));
                 break;
             }
             default:

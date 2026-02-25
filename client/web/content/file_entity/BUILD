@@ -29,6 +29,7 @@ ts_project(
         "//client/web/documents",
         "//client/web/forum",
         "//client/web/helpers",
+        "//client/web/messaging",
         "//client/web/search/core",
         "//client/web/spaces",
         "//client/web/styles",

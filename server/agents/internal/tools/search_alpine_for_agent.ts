@@ -229,8 +229,10 @@ async function getOrderedListItemForSearchEntityResult(
         case "Chat": {
             const chatLink = await createAgentLink(transaction, {
                 type: "Chat",
-                chatId: result.id,
-                name: result.title,
+                chat: {
+                    id: result.id,
+                    name: result.title,
+                },
             });
 
             return createListItemWithSnippet(chatLink, result);

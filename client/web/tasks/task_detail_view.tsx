@@ -2735,7 +2735,7 @@ function TaskDetailViewParentBreadcrumbs({
                 }
 
                 parentNodes.push(
-                    <Box key={parentTaskEntry.task.id} flexShrink="1" style={{minWidth: 0}}>
+                    <Box key={parentTaskEntry.task.id} flexShrink="1" minWidth="flex-fit">
                         <Button
                             variant="quieter"
                             height="5"

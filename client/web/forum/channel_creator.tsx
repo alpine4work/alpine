@@ -1,5 +1,4 @@
-import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react";
-import {usePress} from "react-aria";
+import {useCallback, useEffect, useId, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/web/content/content_editor.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/web/content/get_content_editor_scroll_anchor_position.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
@@ -19,7 +18,7 @@ import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/web/design/u
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
-import {ShareSwitchBase} from "~/client/web/navigation/share_switch_base.js";
+import {ShareSwitchCreatorInput} from "~/client/web/navigation/share_switch_creator_input.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
@@ -39,7 +38,7 @@ import {
     channelCreatorNavigationBarDesktopTitleFontSize,
 } from "~/client/web/styles/forum_shared_styles.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
-import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
@@ -339,109 +338,13 @@ export function ChannelCreator({
                                 links.
                             </Box>
                         </Box>
-                        <Box>
-                            <label
-                                id={descriptionLabelId}
-                                className={sprinkles({
-                                    // `display: block; width: fit-content` is important here! As `inline-block`
-                                    // there's some weird additional vertical space underneath the label.
-                                    display: "block",
-                                    width: "fit-content",
-                                    maxWidth: "full",
-                                    fontSize: "75",
-                                    fontStyle: "semi-bold",
-                                    paddingBottom: "1.5",
-                                })}
-                            >
-                                Share
-                            </label>
-                            <Box display="flex" flexDirection="column" gap="2">
-                                <ChannelCreatorShareItem
-                                    isSelected={isPublic}
-                                    onPress={() => setIsPublic(true)}
-                                    switchIcon="Buildings"
-                                    title="Public"
-                                    subtitle={
-                                        <>
-                                            Everyone in{" "}
-                                            <span
-                                                className={sprinkles({
-                                                    color: "grey-60",
-                                                    fontStyle: "semi-bold",
-                                                })}
-                                            >
-                                                {space.name}
-                                            </span>
-                                        </>
-                                    }
-                                />
-                                <ChannelCreatorShareItem
-                                    isSelected={!isPublic}
-                                    onPress={() => setIsPublic(false)}
-                                    switchIcon="Lock"
-                                    title="Private"
-                                    subtitle="Only specific people"
-                                />
-                            </Box>
-                        </Box>
+                        <ShareSwitchCreatorInput
+                            isPublic={isPublic}
+                            onIsPublicChange={setIsPublic}
+                        />
                     </Box>
                 </Box>
             </OverlayScopeContextProvider>
-        </Box>
-    );
-}
-
-function ChannelCreatorShareItem({
-    switchIcon,
-    isSelected,
-    onPress,
-    title,
-    subtitle,
-}: {
-    switchIcon: "Lock" | "Buildings";
-    isSelected: boolean;
-    onPress: () => void;
-    title: string;
-    subtitle: ReactNode;
-}) {
-    const {isPressed, pressProps} = usePress({onPress});
-
-    return (
-        <Box
-            {...pressProps}
-            position="relative"
-            zIndex="0"
-            flexGrow="1"
-            padding="4"
-            borderRadius="2"
-            display="flex"
-            alignItems="center"
-            gap="4"
-            boxShadow="elevation-5-with-grey-10-border"
-            backgroundColor={isPressed ? "grey-5" : undefined}
-        >
-            <ShareSwitchBase isInert={true} entityNoun="channel" icon={switchIcon} />
-            <Box flexGrow="1" display="flex" alignItems="baseline" gap="1.5">
-                <Box fontStyle="truncate" fontSize="75">
-                    {title}
-                </Box>
-                <Box fontStyle="truncate" fontSize="50" color="grey-50">
-                    {subtitle}
-                </Box>
-            </Box>
-            <Box
-                flexShrink="0"
-                width="3"
-                height="3"
-                borderRadius="full"
-                border={!isSelected ? "grey-20" : undefined}
-                style={{
-                    backgroundColor: isSelected ? colorSchemeVars["grey-90"] : undefined,
-                    boxShadow: isSelected
-                        ? `inset 0 0 0 1px ${colorSchemeVars["grey-90"]}, inset 0 0 0 3px ${backgroundColorVar}`
-                        : undefined,
-                }}
-            />
         </Box>
     );
 }

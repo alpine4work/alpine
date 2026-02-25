@@ -544,6 +544,13 @@ describe("parseApiMentionTarget", () => {
         });
     });
 
+    test("parses chat path", () => {
+        expect(parseApiMentionTarget(`/chats/${chatId}`)).toEqual({
+            type: "Chat",
+            id: chatId,
+        });
+    });
+
     test("parses document path", () => {
         expect(parseApiMentionTarget(`/documents/${documentId}`)).toEqual({
             type: "Document",
@@ -586,6 +593,10 @@ describe("printApiMentionPath", () => {
         );
     });
 
+    test("prints chat path", () => {
+        expect(printApiMentionTarget({type: "Chat", id: chatId})).toEqual(`/chats/${chatId}`);
+    });
+
     test("prints document path", () => {
         expect(printApiMentionTarget({type: "Document", id: documentId})).toEqual(
             `/documents/${documentId}`,
@@ -611,13 +622,6 @@ describe("printApiMentionPath", () => {
 });
 
 describe("parseApiContentNonMentionableElementTargetPath", () => {
-    test("parses chat path", () => {
-        expect(parseApiNotMentionTarget(`/chats/${chatId}`)).toEqual({
-            type: "Chat",
-            id: chatId,
-        });
-    });
-
     test("parses chat messages list path", () => {
         expect(parseApiNotMentionTarget(`/chats/${chatId}/messages`)).toEqual({
             type: "ChatMessages",
@@ -643,6 +647,7 @@ describe("isApiMentionTargetPath", () => {
     test("returns true for mentionable paths", () => {
         expect(isApiMentionTargetPath(`/accounts/${accountId}`)).toEqual(true);
         expect(isApiMentionTargetPath(`/channels/${channelId}`)).toEqual(true);
+        expect(isApiMentionTargetPath(`/chats/${chatId}`)).toEqual(true);
         expect(isApiMentionTargetPath(`/documents/${documentId}`)).toEqual(true);
         expect(isApiMentionTargetPath(`/posts/${postId}`)).toEqual(true);
         expect(isApiMentionTargetPath(`/tasks/${taskId}`)).toEqual(true);
@@ -650,7 +655,6 @@ describe("isApiMentionTargetPath", () => {
     });
 
     test("returns false for non-mentionable paths", () => {
-        expect(isApiMentionTargetPath(`/chats/${chatId}`)).toEqual(false);
         expect(isApiMentionTargetPath(`/chats/${chatId}/messages`)).toEqual(false);
         expect(isApiMentionTargetPath(`/chats/${chatId}/messages/0`)).toEqual(false);
         expect(
@@ -677,6 +681,7 @@ describe("getApiMentionTargetPathIfExists", () => {
         expect(getApiMentionTargetPathIfExists(`/channels/${channelId}`)).toEqual(
             `/channels/${channelId}`,
         );
+        expect(getApiMentionTargetPathIfExists(`/chats/${chatId}`)).toEqual(`/chats/${chatId}`);
         expect(getApiMentionTargetPathIfExists(`/documents/${documentId}`)).toEqual(
             `/documents/${documentId}`,
         );
@@ -723,8 +728,7 @@ describe("getApiMentionTargetPathIfExists", () => {
         );
     });
 
-    test("returns null for chat paths", () => {
-        expect(getApiMentionTargetPathIfExists(`/chats/${chatId}`)).toEqual(null);
+    test("returns null for chat message paths", () => {
         expect(getApiMentionTargetPathIfExists(`/chats/${chatId}/messages`)).toEqual(null);
         expect(getApiMentionTargetPathIfExists(`/chats/${chatId}/messages/0`)).toEqual(null);
     });

@@ -4,8 +4,8 @@ import {Link, PhrasingContent} from "mdast";
 import OpenAi from "openai";
 import {
     createApiClient,
+    getApiMention,
     getApiMessagesFromStart,
-    getApiSearchMention,
 } from "~/server/agents/api/api_client.js";
 import {
     AgentContext,
@@ -80,8 +80,8 @@ import {
 } from "~/shared/api/parse_api_path.js";
 import {
     ApiContentBlockElement,
+    ApiMentionResponse,
     ApiMessageRoomTarget,
-    ApiSearchMentionResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
@@ -1374,18 +1374,14 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
 
     const currentlyViewingTargetState = conversation.getState().currentlyViewingTarget;
 
-    let newViewingTarget: ApiSearchMentionResponse | null = null;
+    let newViewingTarget: ApiMentionResponse | null = null;
 
     // If the user is looking at a new entity, load the entity mention from the API.
     if (
         request.event.viewingTarget &&
         !isDeepEqual(request.event.viewingTarget, currentlyViewingTargetState?.target)
     ) {
-        const {data} = await getApiSearchMention(
-            tracer,
-            request.apiClient,
-            request.event.viewingTarget,
-        );
+        const {data} = await getApiMention(tracer, request.apiClient, request.event.viewingTarget);
         newViewingTarget = data.mention;
     }
 
@@ -1508,9 +1504,27 @@ export async function injectCurrentlyViewedEntityIntoContextIfNeededForTest(
 /**
  * Converts an `ApiCurrentlyViewedEntity` into options for `createAgentLink`.
  */
-function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAgentLinkOptions {
+function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLinkOptions {
     switch (entity.target.type) {
-        case "Document":
+        case "Account": {
+            return {
+                type: "Account",
+                account: {
+                    id: entity.target.id,
+                    name: entity.title,
+                },
+            };
+        }
+        case "Chat": {
+            return {
+                type: "Chat",
+                chat: {
+                    id: entity.target.id,
+                    name: entity.title,
+                },
+            };
+        }
+        case "Document": {
             return {
                 type: "Document",
                 document: {
@@ -1518,7 +1532,8 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     title: entity.title,
                 },
             };
-        case "Task":
+        }
+        case "Task": {
             return {
                 type: "Task",
                 task: {
@@ -1527,7 +1542,8 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     status: entity.target.status,
                 },
             };
-        case "Post":
+        }
+        case "Post": {
             return {
                 type: "Post",
                 post: {
@@ -1535,7 +1551,8 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     contentPreview: entity.title,
                 },
             };
-        case "Channel":
+        }
+        case "Channel": {
             return {
                 type: "Channel",
                 channel: {
@@ -1543,7 +1560,8 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     name: entity.title,
                 },
             };
-        case "TaskCollection":
+        }
+        case "TaskCollection": {
             return {
                 type: "TaskCollection",
                 taskCollection: {
@@ -1551,6 +1569,7 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     name: entity.title,
                 },
             };
+        }
         default:
             throw exhaustive(entity.target);
     }

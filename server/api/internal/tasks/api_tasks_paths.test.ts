@@ -443,9 +443,7 @@ describe("/tasks/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching(
-                        "You aren’t allowed to access this task. Ask someone with access to share it with you.",
-                    ),
+                    message: expect.stringMatching("You aren’t allowed to access this task."),
                 }),
             },
         });
@@ -650,7 +648,7 @@ describe("/task-collections/{id}/mention", () => {
             body: {
                 error: expect.objectContaining({
                     message: expect.stringMatching(
-                        "You aren’t allowed to access this task collection. Ask someone with access to share it with you.",
+                        "You aren’t allowed to access this task collection.",
                     ),
                 }),
             },

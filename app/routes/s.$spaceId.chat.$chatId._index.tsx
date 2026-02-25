@@ -1,11 +1,12 @@
 import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {
     deserializeChatIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
 import {ChatView} from "~/client/web/chat/chat_view.js";
+import {getChatOrAccountSearchAffinityEntityId} from "~/client/web/chat/get_chat_or_account_search_affinity_entity_id.js";
 import {Box} from "~/client/web/design/box.js";
 import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
@@ -14,7 +15,10 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
+import {createRoomChat} from "~/server/chat/data/create_room_chat.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/get_chat_and_initial_messages.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -36,6 +40,7 @@ import {
 const LoaderSchema = Schema.object({
     checkpoint: ServerSynchronizationCheckpointSchema,
     chat: ChatModel.schema(),
+    initialIsSubscribed: Schema.boolean.nullable(),
     initialMessages: Schema.array(ChatMessageModel.schema()),
     initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
@@ -43,7 +48,7 @@ const LoaderSchema = Schema.object({
 });
 
 export async function loader({context: unauthenticatedContext, request, params}: LoaderArgs) {
-    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const context = await unauthenticatedContext.actor.authenticate();
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
     const chatId = deserializeChatIdForLoader(params.chatId ?? null);
 
@@ -55,48 +60,104 @@ export async function loader({context: unauthenticatedContext, request, params}:
     // include any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
-    const [{chat, initialMessages, initialOtherReferencedMessages}, inboxEntry, isFavorite] =
-        await runAllPromises([
-            getChatAndInitialMessages(context.actor.authorizeSession(), {
+    const createSearchParam = url.searchParams.get("create");
+
+    let createdChat: ChatModel | null = null;
+
+    if (createSearchParam !== null) {
+        try {
+            const sessionContext = context.actor.authorizeSession();
+
+            const chat = await createRoomChat(sessionContext, {
+                spaceId,
                 chatId,
-                messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-                // Immediately resolve `chatPromiseResolver` once the chat is loaded. This
-                // function may take longer to return as it loads messages from the chat.
-                onChat: chatPromiseResolver.resolve,
-            }).then(
-                result => {
-                    chatPromiseResolver.resolve(result.chat);
-                    return result;
+                name: createSearchParam,
+                accessPolicy: {
+                    accountGrantById: new Map([
+                        [sessionContext.actor.getAccountId(), {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: !url.searchParams.has("private")
+                        ? {level: "Manage", generation: 1}
+                        : null,
+                    urlGrant: null,
                 },
-                error => {
-                    chatPromiseResolver.reject(error);
-                    throw error;
-                },
-            ),
-            url.searchParams.get("inbox") === "show"
-                ? getInboxEntry(context, {
-                      spaceId,
-                      key: {type: "Chat", chatId},
-                  })
-                : null,
-            chatPromiseResolver.promise.then(chat =>
-                isSearchFavoriteEntity(context, {
-                    spaceId,
-                    entityId:
-                        chat.accounts.length === 2
-                            ? `Account:${
-                                  chat.accounts.filter(
-                                      account => account.id !== context.actor.getAccountId(),
-                                  )[0]!.id
-                              }`
-                            : `Chat:${chat.id}`,
-                }),
-            ),
-        ]);
+            });
+
+            createdChat = await chat.get();
+        } catch (error) {
+            if (!isDynamoConditionCheckError(error)) {
+                throw error;
+            }
+
+            // If there was an issue creating our chat, it might be because the
+            // chat already exists. Attempt to authorize, if that fails we
+            // believe the issue was actually with chat creation.
+            //
+            // This check makes this `GET` endpoint idempotent. You can hit the endpoint
+            // multiple times and if our chat is already created we'll noop.
+            try {
+                await authorizeChatAccess(context, chatId, "View", {consistency: "Strong"});
+            } catch {
+                throw error;
+            }
+        }
+    }
+
+    const [
+        {chat, initialIsSubscribed, initialMessages, initialOtherReferencedMessages},
+        inboxEntry,
+        isFavorite,
+    ] = await runAllPromises([
+        createdChat
+            ? (() => {
+                  chatPromiseResolver.resolve(createdChat);
+
+                  return {
+                      chat: createdChat,
+                      initialIsSubscribed: true,
+                      initialMessages: [],
+                      initialOtherReferencedMessages: [],
+                  };
+              })()
+            : getChatAndInitialMessages(context, {
+                  chatId,
+                  messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+                  // Immediately resolve `chatPromiseResolver` once the chat is loaded. This
+                  // function may take longer to return as it loads messages from the chat.
+                  onChat: chatPromiseResolver.resolve,
+              }).then(
+                  result => {
+                      chatPromiseResolver.resolve(result.chat);
+                      return result;
+                  },
+                  error => {
+                      chatPromiseResolver.reject(error);
+                      throw error;
+                  },
+              ),
+
+        url.searchParams.get("inbox") === "show"
+            ? getInboxEntry(context.actor.authorizeSession(), {
+                  spaceId,
+                  key: {type: "Chat", chatId},
+              })
+            : null,
+
+        chatPromiseResolver.promise.then(chat =>
+            isSearchFavoriteEntity(context, {
+                spaceId,
+                entityId: getChatOrAccountSearchAffinityEntityId(
+                    "getAccountId" in context.actor ? context.actor.getAccountId() : undefined,
+                    chat,
+                ),
+            }),
+        ),
+    ]);
 
     return jsonWithSchema(LoaderSchema, {
         checkpoint,
         chat,
+        initialIsSubscribed,
         initialMessages,
         initialOtherReferencedMessages,
         inboxEntry,
@@ -116,14 +177,24 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     nextUrl.searchParams.delete("focus");
     currentUrl.searchParams.delete("focus");
 
+    // Used to create a chat room:
+    nextUrl.searchParams.delete("create");
+    currentUrl.searchParams.delete("create");
+    nextUrl.searchParams.delete("private");
+    currentUrl.searchParams.delete("private");
+
     return nextUrl.toString() !== currentUrl.toString();
 };
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentData}) => {
+    if (chat.definition.type === "Room") {
+        return [{title: chat.definition.name}];
+    }
+
     const spaceRouteData = getParentData("routes/s.$spaceId", SpaceRouteLoaderSchema);
 
-    assert(chat.accounts.length > 0);
-    const otherChatAccounts = chat.accounts.filter(
+    assert(chat.definition.accounts.length > 0);
+    const otherChatAccounts = chat.definition.accounts.filter(
         account =>
             spaceRouteData?.type !== "WithAccess" ||
             account.id !== spaceRouteData?.currentAccount.id,
@@ -149,7 +220,8 @@ export default function ChatRoute() {
     const [searchParams, setSearchParams] = useSearchParams();
     const {
         checkpoint,
-        chat,
+        chat: chatFromLoader,
+        initialIsSubscribed,
         initialMessages,
         initialOtherReferencedMessages,
         inboxEntry,
@@ -158,19 +230,40 @@ export default function ChatRoute() {
 
     const {currentAccount} = useSpaceContext();
 
+    const [chat, setChat] = useState(chatFromLoader);
+
+    if (chat.id !== chatFromLoader.id || chat.version < chatFromLoader.version) {
+        setChat(chatFromLoader);
+    }
+
+    const handleUpdateChat = useCallback((newChat: ChatModel) => {
+        setChat(oldChat => {
+            // Don't allow child components to change the `ChatId` we're rendering.
+            if (newChat.id !== oldChat.id) return oldChat;
+
+            // Only use `newChat` if it has a higher version.
+            if (oldChat.version >= newChat.version) return oldChat;
+
+            return newChat;
+        });
+    }, []);
+
     const messageIndexString = searchParams.get("message");
     const messageIndex = messageIndexString ? parseInt(messageIndexString, 10) : null;
 
     const focusSearchParam = searchParams.get("focus");
     const [initiallyFocus] = useState(focusSearchParam !== null);
 
-    const hasSearchParamToDelete = searchParams.has("focus");
+    const hasSearchParamToDelete =
+        searchParams.has("focus") || searchParams.has("create") || searchParams.has("private");
     useEffect(() => {
         if (hasSearchParamToDelete) {
             setSearchParams(
                 oldSearchParams => {
                     const newSearchParams = new URLSearchParams(oldSearchParams);
                     newSearchParams.delete("focus");
+                    newSearchParams.delete("create");
+                    newSearchParams.delete("private");
                     return newSearchParams;
                 },
                 {replace: true},
@@ -185,9 +278,7 @@ export default function ChatRoute() {
     // By accruing points to the account we allow chat conversations to affect
     // account selector type-ahead affinity rankings.
     useSearchAffinityViewEntityInteraction(
-        currentAccount && chat.accounts.length === 2
-            ? `Account:${chat.accounts.filter(account => account.id !== currentAccount.id)[0]!.id}`
-            : `Chat:${chat.id}`,
+        getChatOrAccountSearchAffinityEntityId(currentAccount?.id, chat),
     );
 
     const node = (
@@ -197,6 +288,8 @@ export default function ChatRoute() {
                 key={chat.id}
                 withInboxBanner={!!inboxEntry}
                 chat={chat}
+                onUpdateChat={handleUpdateChat}
+                initialIsSubscribed={initialIsSubscribed}
                 initialCheckpoint={checkpoint}
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}

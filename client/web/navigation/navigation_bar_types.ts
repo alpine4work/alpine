@@ -43,6 +43,8 @@ export type NavigationBarShareButtonProps = {
         accessPolicy: AccessPolicy,
     ) => MaybePromise<void>;
     readonly isReadOnly?: boolean;
+    readonly withoutEditAccessLevel?: boolean;
+    readonly withHiddenCommentAccessLevel?: boolean;
     readonly onCopyLink: () => MaybePromise<void>;
 };
 

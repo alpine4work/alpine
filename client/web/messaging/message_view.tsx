@@ -55,6 +55,8 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/web/messaging/format_message_view_timestamp_divider_date.js";
+import {getMessageTextForBigEmojiMessage} from "~/client/web/messaging/internal/get_message_text_for_big_emoji_message.js";
+import {getMessageViewMarginBottom} from "~/client/web/messaging/internal/get_message_view_margin_bottom.js";
 import {MessageDeleteConfirmationDialog} from "~/client/web/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageStreamView} from "~/client/web/messaging/internal/message_stream_view.js";
 import {
@@ -63,7 +65,6 @@ import {
 } from "~/client/web/messaging/internal/message_view_editor.js";
 import {MessageViewMenuStateUpdatedTime} from "~/client/web/messaging/internal/message_view_menu_state_updated_time.js";
 import {messageViewReactionContextMenuAction} from "~/client/web/messaging/internal/message_view_reaction_context_menu_action.js";
-import {shouldDisplayTextAsBigEmojiMessage} from "~/client/web/messaging/internal/should_display_text_as_big_emoji_message.js";
 import {shouldMergeMessages} from "~/client/web/messaging/internal/should_merge_messages.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
@@ -101,15 +102,18 @@ import {
     messageViewAccountNameFontSize,
     messageViewAccountNameHeight,
     messageViewAvatarOffsetYPx,
+    messageViewBigEmojiLineHeight,
     messageViewMarginLeft,
-    messageViewMarginY,
     messageViewNotMergedOutlineMinHeightPx,
     messageViewOutlineBorderRadius,
     messageViewOutlineMargin,
     messageViewParentAccountAvatarSize,
     messageViewParentAvatarOffsetYRem,
     messageViewParentFontSize,
+    messageViewParentLineClamp,
     messageViewParentLineHeightPx,
+    messageViewParentMarginBottom,
+    messageViewParentMarginTop,
     messageViewRailGap,
     messageViewTimestampDividerHeight,
     messageViewTimestampDividerMarginY,
@@ -129,7 +133,6 @@ import {linkClassName} from "~/shared/design/core/constant_class_names.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {
     RemLength,
-    Spacing,
     addRemLengths,
     parseRemLength,
     screenPaddingX,
@@ -273,51 +276,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [isFirstMessage, message, nextMessage, previousMessage, roomDisplayedCreatedTime]);
 
     const marginBottom = useMemo(() => {
-        let marginBottom: Spacing;
-
-        if (isLastMessage) {
-            marginBottom = messageViewMarginY;
-        } else if (!shouldMergeWithNextMessage) {
-            marginBottom = messageViewMarginY;
-        } else if (
-            message.payload.type !== "Content" ||
-            message.payload.content.doc.childCount === 0 ||
-            nextMessage?.payload.type !== "Content" ||
-            nextMessage.payload.content.doc.childCount === 0
-        ) {
-            marginBottom = contentStyles.paragraphMargin;
-        } else {
-            const isNextMessageContentEmpty = isContentEmpty(nextMessage.payload.content.doc);
-
-            if (
-                message.payload.files.length > 0 &&
-                isNextMessageContentEmpty &&
-                nextMessage.payload.files.length > 0
-            ) {
-                marginBottom = contentStyles.fileRowGapWidth;
-            } else if (
-                message.payload.content.doc.lastChild!.type.name === "divider" ||
-                nextMessage.payload.content.doc.firstChild!.type.name === "divider"
-            ) {
-                marginBottom = contentStyles.messageDividerMargin;
-            } else if (
-                hasStandaloneMarginByContentBlockNodeTypeName[
-                    message.payload.content.doc.lastChild!.type.name
-                ] ||
-                hasStandaloneMarginByContentBlockNodeTypeName[
-                    nextMessage.payload.content.doc.firstChild!.type.name
-                ] ||
-                message.payload.files.length > 0 ||
-                (isNextMessageContentEmpty && nextMessage.payload.files.length > 0)
-            ) {
-                marginBottom = contentStyles.standaloneBlockMargin;
-            } else {
-                marginBottom = contentStyles.paragraphMargin;
-            }
-        }
-
-        return marginBottom;
-    }, [isLastMessage, message.payload, nextMessage, shouldMergeWithNextMessage]);
+        return getMessageViewMarginBottom({
+            isLastMessage,
+            message,
+            nextMessage,
+            shouldMergeWithNextMessage,
+        });
+    }, [isLastMessage, message, nextMessage, shouldMergeWithNextMessage]);
 
     const parent = useMemo((): MessageContentPayloadParentWithMessages<RoomKey, Message> | null => {
         if (message.payload.type !== "Content" || !message.payload.parent) return null;
@@ -416,25 +381,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
     const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
-    const messageTextForBigEmojiMessage = useMemo(() => {
-        if (message.payload.type !== "Content") return null;
-
-        if (
-            message.payload.content.doc.marks.length === 0 &&
-            message.payload.content.doc.childCount === 1 &&
-            message.payload.content.doc.firstChild!.type.name === "paragraph" &&
-            message.payload.content.doc.firstChild!.marks.length === 0 &&
-            message.payload.content.doc.firstChild!.childCount === 1 &&
-            message.payload.content.doc.firstChild!.firstChild!.type.name === "text" &&
-            message.payload.content.doc.firstChild!.firstChild!.marks.length === 0
-        ) {
-            const text = message.payload.content.doc.firstChild!.firstChild!.text!;
-            if (shouldDisplayTextAsBigEmojiMessage(text)) {
-                return text;
-            }
-        }
-        return null;
-    }, [message.payload]);
+    const messageTextForBigEmojiMessage = useMemo(
+        () => getMessageTextForBigEmojiMessage(message),
+        [message],
+    );
 
     const events = useEvents({
         getClipboardSerializerAuthorPrefix: () => {
@@ -1093,7 +1043,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         style={{
                             // Use a line height with a round pixel value on all spacing scales so
                             // `<MessageView>` elements don't end up needing subpixel rendering.
-                            lineHeight: spacing["8"],
+                            lineHeight: spacing[messageViewBigEmojiLineHeight],
                         }}
                     >
                         {children}
@@ -1531,12 +1481,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         ? "MessageViewContent"
                                         : undefined
                                 }
-                                className={sprinkles({flexGrow: "1"})}
+                                className={sprinkles({flexGrow: "1", minWidth: "flex-fit"})}
                                 style={{
-                                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                    // have `min-width: auto` which extends with content.
-                                    // https://stackoverflow.com/a/66689926/1568890
-                                    minWidth: 0,
                                     ...(isMessageHighlightedFromContextMenu
                                         ? assignInlineVars({
                                               [backgroundColorVar]: colorSchemeVars["grey-5"],
@@ -1660,7 +1606,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 // If this is the last message and the message is from a user other than our
                                                 // own then we want to render the party even if there are no reactions so you
                                                 // can leave a quick reaction.
-                                                (isLastMessage &&
+                                                (!isReadOnly &&
+                                                    isLastMessage &&
                                                     message.author.id !== currentAccountId)) && (
                                                 <div className={sprinkles({marginTop: "2"})}>
                                                     <ContentViewReactionParty
@@ -1858,8 +1805,6 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
         }, [accountRegistry, fileRegistry, messageNoun, parent, searchEntityRegistry]),
     );
 
-    const marginTop = "2";
-    const marginBottom = "2";
     const accountAvatarSizeRem = parseRemLength(messageViewAccountAvatarSize);
     const parentMessageOffsetRem = parseRemLength(messageViewRailGap) / 2;
     const parentMessageAccountAvatarSizeRem = parseRemLength(messageViewParentAccountAvatarSize);
@@ -1928,8 +1873,8 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                     // full width when we have a short message.
                     display: "inline-flex",
                     gap: "1.5",
-                    marginTop,
-                    marginBottom,
+                    marginTop: messageViewParentMarginTop,
+                    marginBottom: messageViewParentMarginBottom,
                     // We don't use a pointer cursor for buttons in our product because buttons
                     // they clearly appear clickable. We call this a strong affordance. A reply
                     // preview is clickable and gives some affordance (different color) but it's a
@@ -1964,11 +1909,13 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         borderTopColor: colorSchemeVars["grey-5-translucent"],
                         borderStyle: "solid",
 
+                        // Remember this code is copied here and in `message_view_html.ts`. If you
+                        // update one you probably need to update the other as well.
                         top: `calc(${
                             messageViewParentAvatarOffsetYRem +
                             parentMessageAccountAvatarSizeRem / 2
                         }rem - 1px)`,
-                        bottom: `calc(-${spacing[marginBottom]} - ${
+                        bottom: `calc(-${spacing[messageViewParentMarginBottom]} - ${
                             messageViewAvatarOffsetYPx[spacingScale] - 2
                         }px)`,
                         left: `calc(-${
@@ -2008,8 +1955,8 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         // except IE.
                         // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
                         display: "-webkit-box",
-                        WebkitLineClamp: 3,
-                        lineClamp: 3,
+                        WebkitLineClamp: messageViewParentLineClamp,
+                        lineClamp: messageViewParentLineClamp,
                         WebkitBoxOrient: "vertical",
                         textOverflow: "ellipsis",
                     }}

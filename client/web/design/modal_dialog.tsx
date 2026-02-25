@@ -1,16 +1,17 @@
-import {useEffect, useId, useRef} from "react";
+import {useEffect, useId, useRef, useState} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {ErrorDisplayMessageRenderer} from "~/client/web/design/error_display_message_renderer.js";
 import {ModalDialogProps} from "~/client/web/design/modal_dialog_props.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/web/design/modal_with_buttons.js";
 import {useReporter} from "~/client/web/design/reporter.js";
+import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {RemLength, parseRemLength} from "~/shared/design/core/spacing.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {ErrorBase, InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -48,6 +49,8 @@ function ModalDialog({
     title,
     description,
     "data-ownedby": dataOwnedBy,
+    withTextInput,
+    textInputPlaceholder,
     primaryButtonLabel,
     isPrimaryButtonDisabled,
     primaryButtonPressErrorTitle,
@@ -67,6 +70,7 @@ function ModalDialog({
 
     const descriptionId = useId();
     const modalRef = useRef<ModalWithButtonsRef>(null);
+    const textInputRef = useRef<HTMLInputElement>(null);
 
     // Focus the specified button.
     const hasInitiallyMountedRef = useRef(false);
@@ -76,18 +80,27 @@ function ModalDialog({
 
         const modal = assertExists(modalRef.current);
         switch (initiallyFocus) {
-            case "Primary":
-                modal.focusPrimaryButton();
+            case "Primary": {
+                if (withTextInput) {
+                    assertExists(textInputRef.current).focus();
+                } else {
+                    modal.focusPrimaryButton();
+                }
                 break;
-            case "Cancel":
+            }
+            case "Cancel": {
                 modal.focusCancelButton();
                 break;
+            }
             default:
                 throw exhaustive(initiallyFocus);
         }
-    }, [initiallyFocus]);
+    }, [initiallyFocus, withTextInput]);
 
     const titleId = useId();
+
+    const [textInputValue, setTextInputValue] = useState("");
+    const trimmedTextInputValue = textInputValue.trim();
 
     return (
         <ModalWithButtons
@@ -97,9 +110,11 @@ function ModalDialog({
             data-ownedby={dataOwnedBy}
             onClose={onClose}
             primaryButtonLabel={primaryButtonLabel}
-            isPrimaryButtonDisabled={isPrimaryButtonDisabled}
+            isPrimaryButtonDisabled={
+                isPrimaryButtonDisabled || (withTextInput && trimmedTextInputValue.length === 0)
+            }
             primaryButtonPressErrorTitle={primaryButtonPressErrorTitle}
-            onPrimaryButtonPress={onPrimaryButtonPress}
+            onPrimaryButtonPress={() => onPrimaryButtonPress?.(trimmedTextInputValue)}
             cancelButtonLabel={cancelButtonLabel}
             cancelButtonPressErrorTitle={cancelButtonPressErrorTitle}
             onCancelButtonPress={onCancelButtonPress}
@@ -129,7 +144,7 @@ function ModalDialog({
                     id={descriptionId}
                     paddingX="7"
                     paddingTop="2.5"
-                    paddingBottom="9"
+                    paddingBottom={withTextInput ? "4" : "9"}
                     fontSize="75"
                     style={{lineHeight: 1.5}}
                 >
@@ -143,6 +158,19 @@ function ModalDialog({
                         />
                     )}
                 </Box>
+                {withTextInput && (
+                    <Box paddingX="7" paddingBottom="9">
+                        <TextInputWithoutLabel
+                            ref={textInputRef}
+                            aria-labelledby={titleId}
+                            aria-describedby={descriptionId}
+                            placeholder={textInputPlaceholder}
+                            value={textInputValue}
+                            onChange={setTextInputValue}
+                            onEnter={() => assertExists(modalRef.current).pressPrimaryButton()}
+                        />
+                    </Box>
+                )}
             </Box>
         </ModalWithButtons>
     );
@@ -151,6 +179,7 @@ function ModalDialog({
 function ModalDialogNativeMobile({
     title,
     description,
+    withTextInput,
     primaryButtonLabel,
     isPrimaryButtonDisabled,
     primaryButtonPressErrorTitle,
@@ -163,6 +192,15 @@ function ModalDialogNativeMobile({
 }: ModalDialogProps) {
     const context = useAppContext();
     const reporter = useReporter();
+
+    // The native mobile app is deprecated so we'll likely never implement this
+    // (eventually this code will be deleted). However, in theory this property
+    // makes sense for `<ModalDialog>` which has a constrained, opinionated,
+    // interface since the iOS dialog we opened for this component
+    // (`UIAlertController`) has the option to add a text input.
+    if (withTextInput) {
+        throw new UnimplementedError("Text input not implemented for native modal dialog");
+    }
 
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
@@ -214,7 +252,7 @@ function ModalDialogNativeMobile({
             primaryButtonLabel,
             isPrimaryButtonDisabled,
             onPrimaryButtonPress: () => {
-                const promise = onPrimaryButtonPress?.();
+                const promise = onPrimaryButtonPress?.("");
 
                 // We can't show a pending indicator in our native mobile modal dialog so
                 // close immediately.

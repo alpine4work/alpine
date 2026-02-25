@@ -1169,6 +1169,8 @@ export function printApiMentionPathToMentionLinkUrl(
         }
         case "Channel":
             return `https://alpine.inc/s/${spaceId}/channels/${target.id}?mention`;
+        case "Chat":
+            return `https://alpine.inc/s/${spaceId}/chats/${target.id}?mention`;
         case "Document":
             return `https://alpine.inc/s/${spaceId}/documents/${target.id}?mention`;
         case "Post":
@@ -1187,7 +1189,6 @@ export function printAppUrlFromApiNotMentionPath(
     {spaceId}: {spaceId: SpaceId},
 ): string {
     switch (targetPathObject.type) {
-        case "Chat":
         case "ChatMessages":
             return `https://alpine.inc/s/${spaceId}/chats/${targetPathObject.id}`;
         case "ChatMessage":

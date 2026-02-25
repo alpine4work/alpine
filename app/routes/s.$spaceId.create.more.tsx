@@ -1,6 +1,7 @@
 import {Box} from "~/client/web/design/box.js";
 import {MobileSettingsRow} from "~/client/web/design/mobile_settings_row.js";
 import {ChannelBrandIcon} from "~/client/web/icons/brand/channel_brand_icon.js";
+import {ChatBrandIcon} from "~/client/web/icons/brand/chat_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/web/icons/brand/task_collection_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/web/icons/brand/task_query_brand_icon.js";
 import {SpaceRouteScrollView} from "~/client/web/navigation/space_route_scroll_view.js";
@@ -57,6 +58,14 @@ export default function CreateMoreRoute() {
                     pressErrorTitle="Couldn&#x2019;t create task view"
                     onPress={async () => {
                         await rootNavigate(`/s/${space.id}/tasks/view`);
+                    }}
+                />
+                <MobileSettingsRow
+                    icon={<ChatBrandIcon />}
+                    label="Chat room"
+                    pressErrorTitle="Couldn&#x2019;t create chat room"
+                    onPress={async () => {
+                        await rootNavigate(`/s/${space.id}/chat/room/new`);
                     }}
                 />
             </Box>

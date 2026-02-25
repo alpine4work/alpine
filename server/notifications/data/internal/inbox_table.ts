@@ -1,5 +1,5 @@
 import {Node} from "prosemirror-model";
-import {authorizeChatAccessForAccount} from "~/server/chat/data/authorize_chat_access.js";
+import {authorizeChatAccessForAccountIfPossible} from "~/server/chat/data/authorize_chat_access.js";
 import {getChatMessagePayload} from "~/server/chat/data/chat_messaging.js";
 import {
     getContentReferencesForNode,
@@ -795,17 +795,26 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             ChatEntry: {
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
-                        const [author, {chatAccountCount}, otherChatAccount, contentTextSnippet] =
-                            await runAllPromises([
-                                getAccount(context, item.spaceId, item.latestMessage.authorId),
-                                authorizeChatAccessForAccount(
-                                    context,
-                                    item.chatId,
-                                    item.latestMessage.authorId,
-                                ),
-                                item.otherAccountId
-                                    ? getAccount(context, item.spaceId, item.otherAccountId)
-                                    : null,
+                        const [
+                            author,
+                            authorizationResult,
+                            otherChatAccount,
+                            contentTextSnippetResult,
+                        ] = await runAllPromises([
+                            getAccount(context, item.spaceId, item.latestMessage.authorId),
+                            authorizeChatAccessForAccountIfPossible(
+                                context,
+                                item.chatId,
+                                item.accountId,
+                                "View",
+                            ),
+                            item.otherAccountId
+                                ? getAccount(context, item.spaceId, item.otherAccountId)
+                                : null,
+
+                            // Don't throw if actor lost access to chat (which we check earlier with
+                            // `authorizeChatAccessForAccountIfPossible()`).
+                            captureResultPromise(
                                 getChatMessagePayload(context, {
                                     chatId: item.chatId,
                                     messageIndex: item.latestMessage.index,
@@ -817,19 +826,41 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                         "message",
                                     ),
                                 ),
-                            ]);
+                            ),
+                        ]);
 
                         return new InboxChatEntryModel({
                             spaceId: item.spaceId,
                             accountId: item.accountId,
                             chatId: item.chatId,
-                            chatAccountCount,
+                            definition: authorizationResult.ok
+                                ? authorizationResult.value.definition.type !== "Room"
+                                    ? authorizationResult.value.definition
+                                    : {
+                                          type: "Room",
+                                          isPrivate: false,
+                                          name: authorizationResult.value.definition.name,
+                                      }
+                                : // We assume if chat authorization fails then we're dealing with a chat room.
+                                  // Only chat rooms can change who has access at the moment.
+                                  {type: "Room", isPrivate: true},
                             loudNotificationCount: item.loudNotificationCount,
                             isArchived: item.isArchived,
                             latestMessage: {
                                 author,
                                 createdTime: item.latestMessage.createdTime,
-                                contentTextSnippet,
+                                contentTextSnippet: authorizationResult.ok
+                                    ? // If the actor lost access to the chat room then don't show them the latest
+                                      // message snippet. They may have already seen this content in a push
+                                      // notification so it's not necessarily a permissions violation to show it
+                                      // again but a user removing another user's access from a chat room would
+                                      // probably expect the content to be hidden.
+                                      //
+                                      // We continue returning the author, created time, and whether the last comment
+                                      // was a mention because the user has already theoretically seen these things
+                                      // (via push notification) and otherwise the notification loses all structure.
+                                      unwrapResult(contentTextSnippetResult)
+                                    : "",
                                 isStickyMention: item.latestMessage.isStickyMention,
                                 clerical: item.latestMessage.clerical,
                             },

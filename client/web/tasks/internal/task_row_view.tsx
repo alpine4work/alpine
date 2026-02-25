@@ -268,14 +268,8 @@ const placeholderStatusButtonClassName = {
 const titleCellContainerClassName = sprinkles({
     position: "relative",
     flexGrow: "1",
+    minWidth: "flex-fit",
 });
-
-const titleCellContainerStyle = {
-    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-    // have `min-width: auto` which extends with content.
-    // https://stackoverflow.com/a/66689926/1568890
-    minWidth: 0,
-};
 
 const titleCellClassName = sprinkles({
     position: "absolute",
@@ -1731,7 +1725,6 @@ function TaskRowView(
             <div
                 data-testid={process.env.NODE_ENV !== "production" ? "TaskRowTitleCell" : undefined}
                 className={titleCellContainerClassName}
-                style={titleCellContainerStyle}
                 onKeyDown={event => handleCellKeyDown("Title", event)}
                 onKeyDownCapture={event => handleCellKeyDownCapture("Title", event)}
             >

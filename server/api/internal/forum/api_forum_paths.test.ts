@@ -163,9 +163,7 @@ describe("/channels/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching(
-                        "You aren’t allowed to access this channel. Ask someone with access to share it with you.",
-                    ),
+                    message: expect.stringMatching("You aren’t allowed to access this channel."),
                 }),
             },
         });
@@ -295,7 +293,7 @@ test("can\u2019t read post information for non-existent post", async () => {
 describe("/posts/{id}/mention", () => {
     test("can read post mention", async () => {
         const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Post Author", role: "Admin"});
+        const session = await space.createSession({name: "Bob", role: "Admin"});
 
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
@@ -320,7 +318,7 @@ describe("/posts/{id}/mention", () => {
                         type: "Post",
                         id: post.id,
                     },
-                    title: "in Test Channel: This is post content for mention",
+                    title: "Bob in Test Channel: This is post content for mention",
                 },
             },
         });
@@ -362,7 +360,7 @@ describe("/posts/{id}/mention", () => {
 
     test("can read post mention with post scope", async () => {
         const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Post Author", role: "Admin"});
+        const session = await space.createSession({name: "Bob", role: "Admin"});
 
         const bot = await TestBot.createAndInstantiate(session);
         const channel = await TestChannel.create(session, {
@@ -386,7 +384,7 @@ describe("/posts/{id}/mention", () => {
                         type: "Post",
                         id: post.id,
                     },
-                    title: "in Scoped Channel: Scoped post content",
+                    title: "Bob in Scoped Channel: Scoped post content",
                 },
             },
         });

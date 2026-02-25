@@ -7,6 +7,7 @@ import {
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
+import {getApiMentionTitleWithStrongConsistency} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
     completeChatMessageStream,
@@ -17,7 +18,8 @@ import {
     putChatMessageStreamPart,
     sendChatMessage,
 } from "~/server/chat/data/chat_messaging.js";
-import {getChatAccountIds} from "~/server/chat/data/get_chat_account_ids.js";
+import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
+import {ApiChat} from "~/shared/api/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -25,6 +27,7 @@ import {
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
@@ -33,25 +36,62 @@ import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> = {
     "/chats/{id}": {
         get: async (context, {pathParameters}) => {
-            const chatAccountIds = await getChatAccountIds(context, pathParameters.id, {
+            const chatDefinition = await getChatDefinition(context, pathParameters.id, {
                 consistency: "StrongWithinCache",
             });
+            const chat: ApiChat =
+                chatDefinition.definition.type === "Direct"
+                    ? {
+                          type: "Direct",
+                          id: pathParameters.id,
+                          members: await runAllPromises(
+                              mapIterable(
+                                  chatDefinition.definition.accountIds,
+                                  async accountId => ({
+                                      account: await getApiAccount(
+                                          context,
+                                          chatDefinition.spaceId,
+                                          accountId,
+                                          {consistency: "StrongWithinCache"},
+                                      ),
+                                  }),
+                              ),
+                          ),
+                      }
+                    : {
+                          type: "Room",
+                          id: pathParameters.id,
+                          name: chatDefinition.definition.name,
+                      };
 
             return {
                 content: {
-                    spaceId: chatAccountIds.spaceId,
-                    chat: {
-                        id: pathParameters.id,
-                        members: await runAllPromises(
-                            chatAccountIds.accountIds.map(async accountId => ({
-                                account: await getApiAccount(
-                                    context,
-                                    chatAccountIds.spaceId,
-                                    accountId,
-                                    {consistency: "StrongWithinCache"},
-                                ),
-                            })),
-                        ),
+                    spaceId: chatDefinition.spaceId,
+                    chat,
+                },
+            };
+        },
+    },
+
+    "/chats/{id}/mention": {
+        get: async (context, {pathParameters}) => {
+            const spaceId = context.actor.getSpaceId();
+
+            const {title} = await getApiMentionTitleWithStrongConsistency(
+                context,
+                spaceId,
+                `Chat:${pathParameters.id}`,
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    mention: {
+                        target: {
+                            type: "Chat",
+                            id: pathParameters.id,
+                        },
+                        title,
                     },
                 },
             };

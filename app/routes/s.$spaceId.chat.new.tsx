@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {
     ShouldRevalidateFunction,
     useLocation,
@@ -7,9 +7,14 @@ import {
 } from "react-router-dom";
 import {
     deserializeAccountIdForLoader,
+    deserializeChatIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {ChatAccountPicker} from "~/client/web/chat/chat_account_picker.js";
+import {
+    ChatAccountPicker,
+    ChatAccountPickerSelectionState,
+} from "~/client/web/chat/chat_account_picker.js";
+import {getChatOrAccountSearchAffinityEntityId} from "~/client/web/chat/get_chat_or_account_search_affinity_entity_id.js";
 import {NewChatMessagingView} from "~/client/web/chat/new_chat_messaging_view.js";
 import {Box} from "~/client/web/design/box.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
@@ -27,15 +32,18 @@ import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {getChatAndInitialMessages} from "~/server/chat/data/get_chat_and_initial_messages.js";
 import {selectChatForAccounts} from "~/server/chat/data/select_chat_for_accounts.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -63,6 +71,9 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
     const url = new URL(request.url);
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
+    const chatSearchParam = url.searchParams.get("chat");
+    const selectedRoomChatId = chatSearchParam ? deserializeChatIdForLoader(chatSearchParam) : null;
+
     const selectedAccountIds = (url.searchParams.get("accounts")?.split(" ") ?? []).map(accountId =>
         deserializeAccountIdForLoader(accountId),
     );
@@ -70,6 +81,39 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
     // Generate checkpoint before we start loading data. So when we backfill we
     // include any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
+
+    if (selectedRoomChatId) {
+        const {chat, initialMessages, initialOtherReferencedMessages} =
+            await getChatAndInitialMessages(context, {
+                chatId: selectedRoomChatId,
+                messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+            });
+
+        if (chat.definition.type !== "Room") {
+            throw new FailedPreconditionError("Expected `chat` search param to be a room chat");
+        }
+
+        return jsonWithSchema(
+            LoaderSchema,
+            {
+                checkpoint,
+                selectedAccounts: [],
+                selectedChat: {
+                    chat,
+                    initialMessages,
+                    initialOtherReferencedMessages,
+                },
+                suggestedChats: [],
+            },
+            {
+                propagateEventData: {
+                    context: {
+                        chatId: selectedRoomChatId,
+                    },
+                },
+            },
+        );
+    }
 
     const [selectedAccounts, selectedChatResult] = await runAllPromises([
         runAllPromises(
@@ -122,6 +166,29 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 export default function NewChatRoute() {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
+    const [selectedChat, setSelectedChat] = useState(loaderData.selectedChat);
+
+    if (
+        selectedChat?.chat.id !== loaderData.selectedChat?.chat.id ||
+        (selectedChat &&
+            loaderData.selectedChat &&
+            selectedChat.chat.version < loaderData.selectedChat.chat.version)
+    ) {
+        setSelectedChat(loaderData.selectedChat);
+    }
+
+    const handleUpdateSelectedChat = useCallback((newChat: ChatModel) => {
+        setSelectedChat(oldSelectedChat => {
+            // Don't allow child components to change the `ChatId` we're rendering.
+            if (!oldSelectedChat || newChat.id !== oldSelectedChat.chat.id) return oldSelectedChat;
+
+            // Only use `newChat` if it has a higher version.
+            if (oldSelectedChat.chat.version >= newChat.version) return oldSelectedChat;
+
+            return {...oldSelectedChat, chat: newChat};
+        });
+    }, []);
+
     const platform = usePlatform();
     const {currentAccount} = useSpaceContext();
 
@@ -150,23 +217,52 @@ export default function NewChatRoute() {
     // Having state here allows us to optimistically update selected accounts. Then
     // when we get a new result back from Remix (due to route transition), that
     // always wins.
-    const [selectedAccounts, setSelectedAccounts] = useStateWithDependencies(
-        ([selectedAccounts]) => selectedAccounts,
-        [loaderData.selectedAccounts],
+    const [selectionState, setSelectionState] = useStateWithDependencies(
+        ([loaderData]): ChatAccountPickerSelectionState => {
+            if (loaderData.selectedChat?.chat.definition.type !== "Room") {
+                return {type: "Accounts", accounts: loaderData.selectedAccounts};
+            } else {
+                const {
+                    id,
+                    definition: {name},
+                } = loaderData.selectedChat.chat;
+
+                return {type: "RoomChat", id, name};
+            }
+        },
+        [loaderData],
     );
 
     useEffect(() => {
         const newSearchParams = new URLSearchParams(searchParams);
-        if (selectedAccounts.length === 0) {
-            newSearchParams.delete("accounts");
-        } else {
-            newSearchParams.set("accounts", selectedAccounts.map(account => account.id).join(" "));
+
+        switch (selectionState.type) {
+            case "RoomChat": {
+                newSearchParams.delete("accounts");
+                newSearchParams.set("chat", selectionState.id);
+                break;
+            }
+            case "Accounts": {
+                newSearchParams.delete("chat");
+
+                if (selectionState.accounts.length === 0) {
+                    newSearchParams.delete("accounts");
+                } else {
+                    newSearchParams.set(
+                        "accounts",
+                        selectionState.accounts.map(account => account.id).join(" "),
+                    );
+                }
+                break;
+            }
+            default:
+                throw exhaustive(selectionState);
         }
 
         if (searchParams.toString() !== newSearchParams.toString()) {
             setSearchParams(newSearchParams, {replace: true});
         }
-    }, [location.key, searchParams, selectedAccounts, setSearchParams]);
+    }, [location.key, searchParams, selectionState, setSearchParams]);
 
     const navigation = useNavigation();
 
@@ -183,13 +279,10 @@ export default function NewChatRoute() {
     // account selector type-ahead affinity rankings.
     useSearchAffinityViewEntityInteraction(
         loaderData.selectedChat
-            ? currentAccount && loaderData.selectedChat.chat.accounts.length === 2
-                ? `Account:${
-                      loaderData.selectedChat.chat.accounts.filter(
-                          account => account.id !== currentAccount.id,
-                      )[0]!.id
-                  }`
-                : `Chat:${loaderData.selectedChat.chat.id}`
+            ? getChatOrAccountSearchAffinityEntityId(
+                  currentAccount?.id,
+                  loaderData.selectedChat?.chat,
+              )
             : null,
     );
 
@@ -298,13 +391,41 @@ export default function NewChatRoute() {
                     }
                 >
                     <ChatAccountPicker
-                        selectedAccounts={selectedAccounts}
-                        onUpdateSelectedAccounts={setSelectedAccounts}
+                        loaderSelectedChatId={loaderData.selectedChat?.chat.id ?? null}
+                        selectionState={selectionState}
+                        onUpdateSelectedAccounts={update => {
+                            setSelectionState(selectionState => {
+                                const newAccounts = update(
+                                    selectionState.type === "Accounts"
+                                        ? selectionState.accounts
+                                        : emptyArray,
+                                );
+
+                                // Optimization: Noop if accounts didn't change.
+                                if (
+                                    selectionState.type === "Accounts" &&
+                                    selectionState.accounts === newAccounts
+                                ) {
+                                    return selectionState;
+                                }
+
+                                return {type: "Accounts", accounts: newAccounts};
+                            });
+                        }}
+                        onSelectRoomChat={roomChat => {
+                            setSelectionState(
+                                roomChat
+                                    ? {type: "RoomChat", id: roomChat.id, name: roomChat.name}
+                                    : {type: "Accounts", accounts: []},
+                            );
+                        }}
                         shouldShowPendingSpinner={shouldShowAccountPickerPendingSpinner}
                         suggestedChats={
                             // If we change to no selected accounts, don't wait for the loader to
                             // re-execute to clear suggested chats.
-                            selectedAccounts.length > 0 ? loaderData.suggestedChats : emptyArray
+                            selectionState.type === "Accounts" && selectionState.accounts.length > 0
+                                ? loaderData.suggestedChats
+                                : emptyArray
                         }
                         shouldInitiallyFocus={initiallyFocus === "ChatAccountPicker"}
                         focusMessageInput={() => {
@@ -317,6 +438,7 @@ export default function NewChatRoute() {
                 ref={messagingViewRef}
                 initialCheckpoint={loaderData.checkpoint}
                 selectedChat={loaderData.selectedChat}
+                onUpdateSelectedChat={handleUpdateSelectedChat}
             />
         </Box>
     );

@@ -2,15 +2,19 @@ import {Page, expect, test} from "@playwright/test";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {sendChatMessage} from "~/server/chat/data/chat_messaging.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {getDocumentContent} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 
 const {context, services} = createTestServices();
@@ -321,6 +325,108 @@ test("channel file entity", async ({page, context: browserContext}) => {
     await expect(page.getByText("quxbuz")).toBeVisible();
     await expect(page.getByText("Couldn\u2019t find channel")).toBeHidden();
     await expect(page.getByText("Private channel")).toBeHidden();
+});
+
+test("chat file entity can load initial messages", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chat = await TestChat.createRoom(session1, {
+        name: "Chat Preview Room",
+        access: "Public",
+    });
+
+    for (let index = 0; index < 14; index++) {
+        await chat.sendMessage(
+            session1,
+            `chat preview message ${index.toString().padStart(2, "0")}`,
+        );
+    }
+
+    await chat.roomAccess.grant(session1, session2, "View");
+
+    const documentTitle = "chat host";
+    const document = await TestDocument.create(session1, {title: documentTitle});
+    const replaceStart = documentTitle.length + 2;
+    const replaceEnd = replaceStart + 2;
+    await document.update(session1, [
+        new ReplaceStep(
+            replaceStart,
+            replaceEnd,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Chat:${chat.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session1);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: documentTitle})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "Chat Preview Room"})).toHaveCount(1);
+    await expect(page.getByText("chat preview message 00")).toHaveCount(0);
+    await expect(page.getByText("chat preview message 01")).toHaveCount(0);
+    await expect(page.getByText("chat preview message 02")).toHaveCount(0);
+    await expect(page.getByText("chat preview message 03")).toHaveCount(1);
+    await expect(page.getByText("chat preview message 10")).toHaveCount(1);
+    await expect(page.getByText("chat preview message 13")).toHaveCount(1);
+});
+
+test("can render recursive room chat file entity with a single self-referencing message", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const chat = await TestChat.createRoom(session, {
+        name: "Recursive Chat Room",
+        access: "Public",
+    });
+
+    const recursiveChatFileEntityId: FileEntityId = `Chat:${chat.id}`;
+    await sendChatMessage(session.action(), {
+        chatId: chat.id,
+        parent: null,
+        content: createSimpleMessageContent(""),
+        fileIds: [recursiveChatFileEntityId],
+        createdTimeZone: defaultTimeZone,
+    });
+
+    const documentTitle = "recursive chat host";
+    const document = await TestDocument.create(session, {title: documentTitle});
+    const replaceStart = documentTitle.length + 2;
+    const replaceEnd = replaceStart + 2;
+    await document.update(session, [
+        new ReplaceStep(
+            replaceStart,
+            replaceEnd,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Chat:${chat.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: documentTitle})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "Recursive Chat Room"})).toHaveCount(3);
+    await expect(page.getByText("Couldn\u2019t preview chat")).toHaveCount(0);
+    await expect(page.getByText("Couldn\u2019t find chat")).toHaveCount(0);
+    await expect(page.getByText("Private chat")).toHaveCount(0);
 });
 
 test("can render recursive file entity with 1 entity in row", async ({

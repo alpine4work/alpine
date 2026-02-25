@@ -1,10 +1,27 @@
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
 import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+
+export type ChatModelDefinition = SchemaType<typeof ChatModelDefinitionSchema>;
+
+export const ChatModelDefinitionSchema = Schema.union({
+    Direct: Schema.object({
+        type: Schema.value("Direct"),
+        accounts: Schema.array(AccountModel.schema),
+    }),
+    Room: Schema.object({
+        type: Schema.value("Room"),
+        name: LabelStringSchema,
+        accessPolicy: AccessPolicySchema,
+        previewAccounts: Schema.array(AccountModel.schema).minLength(1).maxLength(2),
+    }),
+});
 
 /**
  * A chat history between some accounts in a space.
@@ -12,10 +29,15 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export class ChatModel extends Model(
     Schema.object({
         id: Schema.id<ChatId>(),
+        version: Schema.integer,
         spaceId: Schema.id<SpaceId>(),
         createdTime: Schema.date,
+        definition: ChatModelDefinitionSchema.wrapOriginalPropertyInUnionVariant(
+            "Direct",
+            "accounts",
+            {},
+        ).originalPropertyKey("accounts"),
         messageCount: Schema.integer,
-        accounts: Schema.array(AccountModel.schema),
     }),
 ) {}
 

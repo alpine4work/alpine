@@ -131,8 +131,9 @@ export function createContentEditorFileNodeViewConstructor({
         const handleContextMenuAddFileEntityAction = (event: MouseEvent) => {
             const fileId: FileId | FileEntityId | null = node.attrs.fileId;
 
-            if (!hasAccessLevel(getAccessLevel(), "Edit") || !fileId || !isFileEntityId(fileId))
+            if (!hasAccessLevel(getAccessLevel(), "Edit") || !fileId || !isFileEntityId(fileId)) {
                 return;
+            }
 
             const entityNoun = getFileEntityNoun(parseFileEntityId(fileId).type);
 

@@ -5,7 +5,10 @@ import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
-import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
+import {
+    getApiMentionTitleWithStrongConsistency,
+    intoApiContentWithReferences,
+} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
     FileDocumentAuthorizer,
@@ -20,7 +23,6 @@ import {
     pingDocumentCommentStream,
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
-import {getSearchEntityMentionWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -138,7 +140,8 @@ export const apiDocumentsPaths: Pick<
     "/documents/{id}/mention": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
-            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+
+            const {title} = await getApiMentionTitleWithStrongConsistency(
                 context,
                 spaceId,
                 `Document:${pathParameters.id}`,
@@ -152,7 +155,7 @@ export const apiDocumentsPaths: Pick<
                             type: "Document",
                             id: pathParameters.id,
                         },
-                        title: searchEntity.title,
+                        title,
                     },
                 },
             };

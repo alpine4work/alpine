@@ -10,6 +10,7 @@ import {FeedTable, feedEntryBlockMaxEntryCount} from "~/server/feed/internal/fee
 import {rankFeedEntries} from "~/server/feed/internal/rank_feed_entries.js";
 import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
 import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
+import {getFileChatEntityModelIfPossible} from "~/server/files/data/get_file_chat_entity_model_if_possible.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
 import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
@@ -22,6 +23,7 @@ import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
 import {
     FeedChannelEntryModel,
+    FeedChatEntryModel,
     FeedDocumentEntryModel,
     FeedEntryModel,
     FeedPostEntryModel,
@@ -623,12 +625,13 @@ async function updateFeedEntries(
     const mergedCandidateEntries: Array<FeedEntry> = [];
 
     const getCreatorIdForEntry = (
-        entry: FeedEntry & {type: "Document" | "TaskCollection" | "Channel"},
+        entry: FeedEntry & {type: "Document" | "TaskCollection" | "Channel" | "RoomChat"},
     ): AccountId | null => {
         switch (entry.type) {
             case "Document":
                 return entry.creator.id ?? null;
             case "Channel":
+            case "RoomChat":
             case "TaskCollection":
                 return entry.creatorId ?? null;
             default:
@@ -908,6 +911,9 @@ async function authorizeFeedEntryIfPossible(
         case "Channel": {
             return context.forumInjection.authorizeChannelAccessIfPossible(entry.channelId, "View");
         }
+        case "RoomChat": {
+            return context.chatInjection.authorizeChatAccessIfPossible(entry.chatId, "View");
+        }
         default:
             throw exhaustive(entry);
     }
@@ -985,6 +991,23 @@ async function createFeedEntryModelIfPossible(
                         sharedTime: entry.sharedTime,
                         event: entry.event,
                         channel,
+                    }),
+            );
+        }
+        case "RoomChat": {
+            const [sharer, result] = await runAllPromises([
+                getAccount(context, spaceId, entry.sharerId),
+                getFileChatEntityModelIfPossible(context, entry.chatId),
+            ]);
+
+            return mapResult(
+                result,
+                chat =>
+                    new FeedChatEntryModel({
+                        sharer,
+                        sharedTime: entry.sharedTime,
+                        event: entry.event,
+                        chat,
                     }),
             );
         }

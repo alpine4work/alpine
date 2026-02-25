@@ -1,9 +1,11 @@
 import {
+    ChatDefinitionForAuthorization,
     authorizeChatAccessAndReturnItemIfPossible,
-    authorizeChatAccessForAccountAndReturnItemsIfPossible,
+    authorizeChatAccessForAccountAndReturnItemIfPossible,
 } from "~/server/chat/data/internal/authorize_chat_access_and_return_item.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
@@ -19,9 +21,12 @@ import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 export async function authorizeChatAccess(
     context: ServerActionContext,
     chatId: ChatId,
+    expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId}> {
-    return unwrapResult(await authorizeChatAccessIfPossible(context, chatId, options));
+    return unwrapResult(
+        await authorizeChatAccessIfPossible(context, chatId, expectedAccessLevel, options),
+    );
 }
 
 /**
@@ -34,9 +39,15 @@ export async function authorizeChatAccess(
 export async function authorizeChatAccessIfPossible(
     context: ServerActionContext,
     chatId: ChatId,
+    expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<{spaceId: SpaceId}, ErrorBase>> {
-    const result = await authorizeChatAccessAndReturnItemIfPossible(context, chatId, options);
+    const result = await authorizeChatAccessAndReturnItemIfPossible(
+        context,
+        chatId,
+        expectedAccessLevel,
+        options,
+    );
     return mapResult(result, ({spaceId}) => ({spaceId}));
 }
 
@@ -53,10 +64,20 @@ export async function authorizeChatAccessForAccount(
     context: ServerActionContext,
     chatId: ChatId,
     accountId: AccountId,
+    expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<{spaceId: SpaceId; chatAccountCount: number}> {
+): Promise<{
+    spaceId: SpaceId;
+    definition: ChatDefinitionForAuthorization;
+}> {
     return unwrapResult(
-        await authorizeChatAccessForAccountIfPossible(context, chatId, accountId, options),
+        await authorizeChatAccessForAccountIfPossible(
+            context,
+            chatId,
+            accountId,
+            expectedAccessLevel,
+            options,
+        ),
     );
 }
 
@@ -73,19 +94,18 @@ export async function authorizeChatAccessForAccountIfPossible(
     context: ServerActionContext,
     chatId: ChatId,
     accountId: AccountId,
+    expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<Result<{spaceId: SpaceId; chatAccountCount: number}, ErrorBase>> {
-    const result = await authorizeChatAccessForAccountAndReturnItemsIfPossible(
+): Promise<Result<{spaceId: SpaceId; definition: ChatDefinitionForAuthorization}, ErrorBase>> {
+    const result = await authorizeChatAccessForAccountAndReturnItemIfPossible(
         context,
         chatId,
         accountId,
+        expectedAccessLevel,
         options,
     );
-    return mapResult(
-        result,
-        ({chatAttributesItem: {spaceId}, chatAccountItem: {chatAccountCount}}) => ({
-            spaceId,
-            chatAccountCount,
-        }),
-    );
+    return mapResult(result, ({attributesItem: {spaceId}, definition}) => ({
+        spaceId,
+        definition,
+    }));
 }

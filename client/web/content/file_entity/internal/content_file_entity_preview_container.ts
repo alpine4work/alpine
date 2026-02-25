@@ -32,6 +32,7 @@ export interface ContentFileEntityPreviewContainerResult {
     blockMaxWidthPx: number;
     isSmallerThanHalfOfBlockMaxWidth: boolean;
     isSmallerThanThirdOfBlockMaxWidth: boolean;
+    containerPaddingPx: number;
 }
 
 export function setupContentFileEntityPreviewContainer(
@@ -81,8 +82,8 @@ export function setupContentFileEntityPreviewContainer(
         classNames(containerHtml.getAttribute("class"), containerPaddingClass),
     );
 
-    const paddingPx = parseRemLength(containerPadding) * remPx;
-    const scaledWidthPx = (layout.width - paddingPx * 2) / transformScale;
+    const containerPaddingPx = parseRemLength(containerPadding) * remPx;
+    const scaledWidthPx = (layout.width - containerPaddingPx * 2) / transformScale;
 
     const scaledContainerHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
     {
@@ -97,7 +98,7 @@ export function setupContentFileEntityPreviewContainer(
         const transform = config.calculateScaledContainerTransformStyle
             ? config.calculateScaledContainerTransformStyle({
                   transformScale,
-                  paddingPx,
+                  paddingPx: containerPaddingPx,
                   scaledWidthPx,
                   blockMaxWidthPx,
               })
@@ -124,5 +125,6 @@ export function setupContentFileEntityPreviewContainer(
         blockMaxWidthPx,
         isSmallerThanHalfOfBlockMaxWidth,
         isSmallerThanThirdOfBlockMaxWidth,
+        containerPaddingPx,
     };
 }

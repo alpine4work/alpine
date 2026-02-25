@@ -9,6 +9,7 @@ import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useGlobalContext} from "~/client/web/helpers/global_context.js";
 import {useInitialAppRenderId} from "~/client/web/helpers/lifecycle/initial_app_render.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
@@ -17,6 +18,8 @@ import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
 import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {updateSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -52,7 +55,10 @@ import {
     parseSearchAffinityEntityId,
     parseSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 
 export function FeedViewSideBar({
     height,
@@ -66,6 +72,7 @@ export function FeedViewSideBar({
     const spacingScale = useSpacingScale();
     const rpcCache = useGlobalContext(RpcCacheContext);
     const {space} = useSpaceContext();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const [randomSeed] = useState(() =>
         initialAppRenderId ? `${initialAppRenderId}-FeedViewSideBar` : generateId(),
@@ -119,62 +126,86 @@ export function FeedViewSideBar({
         estimatedAvailableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
     );
 
-    const peopleResults = [];
-    const suggestedResults = [];
+    const {peopleResults, suggestedResults} = useStore(
+        useMemo(() => {
+            return computeStore(get => {
+                const peopleResults = [];
+                const suggestedResults = [];
 
-    if (output) {
-        for (const result of sliceIterable(
-            output.results,
-            0,
-            estimatedVisibleResultCount - favoriteResults.length,
-        )) {
-            if (isSearchAffinityResultChatOrAccount(result)) {
-                peopleResults.push(result);
-            } else {
-                suggestedResults.push(result);
-            }
-        }
-    }
-
-    // We could have up to three section headers.
-    const availableHeight =
-        availableHeightWithoutSectionHeaders -
-        (hasFavorites ? sectionHeaderHeight : 0) -
-        (peopleResults.length > 0 ? sectionHeaderHeight : 0) -
-        (suggestedResults.length > 0 ? sectionHeaderHeight : 0);
-
-    const visibleResultCount = Math.floor(
-        availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
-    );
-
-    const visibleResultCountWithoutFavorites = Math.floor(
-        visibleResultCount - favoriteResults.length,
-    );
-
-    // Remove the result with the lowest score from the "People" and "Suggested"
-    // sections (not the "Favorites" section) until we have `visibleResultCount`
-    // items in total.
-    if (visibleResultCountWithoutFavorites > 0) {
-        while (
-            peopleResults.length + suggestedResults.length >
-            visibleResultCountWithoutFavorites
-        ) {
-            if (peopleResults.length === 0) {
-                suggestedResults.pop();
-            } else if (suggestedResults.length === 0) {
-                peopleResults.pop();
-            } else {
-                const lastPeopleResult = peopleResults[peopleResults.length - 1]!;
-                const lastSuggestedResult = suggestedResults[suggestedResults.length - 1]!;
-
-                if (lastPeopleResult.score < lastSuggestedResult.score) {
-                    peopleResults.pop();
-                } else {
-                    suggestedResults.pop();
+                if (output) {
+                    for (const result of sliceIterable(
+                        output.results,
+                        0,
+                        estimatedVisibleResultCount - favoriteResults.length,
+                    )) {
+                        if (
+                            isSearchAffinityResultDirectChatOrAccount(
+                                get,
+                                searchEntityRegistry,
+                                result,
+                            )
+                        ) {
+                            peopleResults.push(result);
+                        } else {
+                            suggestedResults.push(result);
+                        }
+                    }
                 }
-            }
-        }
-    }
+
+                // We could have up to three section headers.
+                const availableHeight =
+                    availableHeightWithoutSectionHeaders -
+                    (hasFavorites ? sectionHeaderHeight : 0) -
+                    (peopleResults.length > 0 ? sectionHeaderHeight : 0) -
+                    (suggestedResults.length > 0 ? sectionHeaderHeight : 0);
+
+                const visibleResultCount = Math.floor(
+                    availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
+                );
+
+                const visibleResultCountWithoutFavorites = Math.floor(
+                    visibleResultCount - favoriteResults.length,
+                );
+
+                // Remove the result with the lowest score from the "People" and "Suggested"
+                // sections (not the "Favorites" section) until we have `visibleResultCount`
+                // items in total.
+                if (visibleResultCountWithoutFavorites > 0) {
+                    while (
+                        peopleResults.length + suggestedResults.length >
+                        visibleResultCountWithoutFavorites
+                    ) {
+                        if (peopleResults.length === 0) {
+                            suggestedResults.pop();
+                        } else if (suggestedResults.length === 0) {
+                            peopleResults.pop();
+                        } else {
+                            const lastPeopleResult = peopleResults[peopleResults.length - 1]!;
+                            const lastSuggestedResult =
+                                suggestedResults[suggestedResults.length - 1]!;
+
+                            if (lastPeopleResult.score < lastSuggestedResult.score) {
+                                peopleResults.pop();
+                            } else {
+                                suggestedResults.pop();
+                            }
+                        }
+                    }
+                }
+
+                return {peopleResults, suggestedResults};
+            });
+        }, [
+            availableHeightWithoutSectionHeaders,
+            estimatedVisibleResultCount,
+            favoriteResults.length,
+            hasFavorites,
+            output,
+            searchEntityRegistry,
+            sectionHeaderHeight,
+            spacingScale,
+        ]),
+    );
 
     return (
         <Box pointerEvents="auto" width="full" paddingLeft={feedViewSideBarPaddingLeft}>
@@ -188,12 +219,7 @@ export function FeedViewSideBar({
                 <Box
                     fontStyle="truncate-bold"
                     fontSize={feedViewSideBarSpaceNameFontSize}
-                    style={{
-                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                        // have `min-width: auto` which extends with content.
-                        // https://stackoverflow.com/a/66689926/1568890
-                        minWidth: 0,
-                    }}
+                    minWidth="flex-fit"
                 >
                     {space.name}
                 </Box>
@@ -514,12 +540,29 @@ function FeedViewFavoritesHeaderSeeMoreButton() {
     );
 }
 
-function isSearchAffinityResultChatOrAccount(result: SearchAffinityEntityResultModel): boolean {
+function isSearchAffinityResultDirectChatOrAccount(
+    get: <Value>(store: Store<Value>) => Value,
+    searchEntityRegistry: SearchEntityRegistry,
+    result: SearchAffinityEntityResultModel,
+): boolean {
     if (!isSearchDynamicEntityId(result.id)) return false;
 
     const {type: entityType} = parseSearchDynamicEntityId(result.id);
 
-    return entityType === "Chat" || entityType === "Account";
+    if (entityType === "Account") return true;
+
+    if (entityType === "Chat" && result.model instanceof SearchEntityModel) {
+        const entity = get(searchEntityRegistry.getEntityStore(result.model));
+
+        // HACK: Room chats have a null `accountCount` whereas direct chats have an
+        // integer `accountCount`. So check `accountCount === null` to tell if this is
+        // a room chat.
+        if (entity.media?.type === "AccountPile" && entity.media.accountCount !== null) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function shouldOpenSearchAffinityResultInPeek(result: SearchAffinityEntityResultModel): boolean {

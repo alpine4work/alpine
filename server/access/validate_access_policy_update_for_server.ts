@@ -28,7 +28,7 @@ export async function validateAccessPolicyUpdateForServer(
 ) {
     if (context.actor.type === "Bot" && oldAccessPolicy !== null) {
         // NOTE(ifitzsimmons, #ai): There's no system limitation that prevents bots from
-        // updating access policies – we simply just haven't built this capability yet.
+        // updating access policies we simply just haven't built this capability yet.
         // As of writing (2026-01-29) bots cannot update content (aside from stream parts
         // in a message).
         throw new PermissionDeniedError("Bots can’t update access policies");

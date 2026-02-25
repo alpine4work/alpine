@@ -8,6 +8,7 @@ import {OverlayTriggerButtonRef} from "~/client/web/design/overlay_trigger_butto
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {ChannelBrandIcon} from "~/client/web/icons/brand/channel_brand_icon.js";
 import {ChatBrandBigIcon} from "~/client/web/icons/brand/chat_brand_big_icon.js";
+import {ChatBrandIcon} from "~/client/web/icons/brand/chat_brand_icon.js";
 import {DocumentBrandBigIcon} from "~/client/web/icons/brand/document_brand_big_icon.js";
 import {PostBrandBigIcon} from "~/client/web/icons/brand/post_brand_big_icon.js";
 import {TaskBrandBigIcon} from "~/client/web/icons/brand/task_brand_big_icon.js";
@@ -182,6 +183,16 @@ export function SpaceLayoutSideBarCreateButton() {
                                     onPress: async () => {
                                         await peekStackContext.push(
                                             `/s/${space.id}/channels/new?focus=name`,
+                                        );
+                                    },
+                                },
+                                {
+                                    label: "Chat room",
+                                    icon: <ChatBrandIcon />,
+                                    pressErrorTitle: "Couldn\u2019t create chat room",
+                                    onPress: async () => {
+                                        await peekStackContext.push(
+                                            `/s/${space.id}/chat/room/new?focus=name`,
                                         );
                                     },
                                 },

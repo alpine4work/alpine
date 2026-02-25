@@ -1,4 +1,5 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -434,6 +435,190 @@ test("private channels don\u2019t add feed candidates until made public", async 
             entry: {
                 type: "Channel",
                 channelId: channel1.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+});
+
+test("public room chats add a feed candidate", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: session.account.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    const room = await TestChat.createRoom(session, {name: "Public Room"});
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: session.account.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+});
+
+test("public room chats don’t add another feed candidate when reshared", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const room = await TestChat.createRoom(session, {
+        name: "Public Room",
+        access: "Public",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+
+    await room.roomAccess.revokeDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+
+    await room.roomAccess.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+});
+
+test("private room chats add an account feed candidate", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: session.account.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    const room = await TestChat.createRoom(session, {
+        name: "Private Room",
+        access: "Private",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: session.account.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+});
+
+test("private room chats add a feed candidate once when shared", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const room = await TestChat.createRoom(session, {
+        name: "Private Room",
+        access: "Private",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+
+    await room.roomAccess.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+
+    await room.roomAccess.revokeDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    await room.roomAccess.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
                 sharerId: session.account.id,
                 sharedTime: expect.any(Date),
                 creatorId: session.account.id,

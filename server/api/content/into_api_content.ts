@@ -486,6 +486,13 @@ function intoApiContentInlineElement(
                         };
                         break;
                     }
+                    case "Chat": {
+                        target = {
+                            type: "Chat",
+                            id: entityIdObject.chatId,
+                        };
+                        break;
+                    }
                     case "Task": {
                         target = {
                             type: "Task",

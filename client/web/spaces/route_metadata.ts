@@ -37,6 +37,9 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.chat.new": {
         errorTitle: "Couldn\u2019t create chat",
     },
+    "routes/s.$spaceId.chat.room.new": {
+        errorTitle: "Couldn\u2019t create chat",
+    },
     "routes/s.$spaceId.chat.with.$accountId": {
         errorTitle: "Couldn\u2019t open chat",
     },

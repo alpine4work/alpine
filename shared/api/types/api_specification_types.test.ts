@@ -4,13 +4,13 @@ import {
     ApiContentTextInlineElement,
     ApiCreateDocumentRequestBody,
     ApiGetDocumentResponse,
+    ApiMention,
+    ApiMentionResponse,
     ApiMentionTarget,
     ApiMentionTargetResponse,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
     ApiMessageStreamToolCallPartCreateCallTarget,
-    ApiSearchMention,
-    ApiSearchMentionTarget,
     ApiSearchResult,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
@@ -25,12 +25,16 @@ test("Create tool call target is assignable to ApiMentionTarget", () => {
     assertAssignableTypes<ApiMessageStreamToolCallPartCreateCallTarget, ApiMentionTarget>();
 });
 
-test("Search mention are assignable to `ApiContentMentionInlineElement`", () => {
-    assertAssignableTypes<ApiSearchMention, Omit<ApiContentMentionInlineElement, "type">>();
+test("`ApiContentMentionInlineElement` is assignable to `ApiMention`", () => {
+    assertAssignableTypes<ApiContentMentionInlineElement, ApiMention>();
 });
 
-test("Search mention targets are assignable to `ApiMentionTarget`", () => {
-    assertAssignableTypes<ApiSearchMentionTarget, ApiMentionTarget>();
+test("`/mention` paths are assignable to `ApiMentionResponse`", () => {
+    type Left = ApiSpecification.paths[{
+        [Key in keyof ApiSpecification.paths]: Key extends `${string}/mention` ? Key : never;
+    }[keyof ApiSpecification.paths]]["get"]["responses"]["200"]["content"]["application/json"]["mention"];
+
+    assertAssignableTypes<Left, ApiMentionResponse>();
 });
 
 test("all mention targets are assignable to `ApiTarget`", () => {

@@ -3,6 +3,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     AccountId,
     ChannelId,
+    ChatId,
     DocumentId,
     PostId,
     TaskCollectionId,
@@ -93,6 +94,22 @@ export const FeedEntrySchema = Schema.union({
         creatorId: Schema.id<AccountId>().nullable(),
         event: FeedEntryEventSchema,
     }),
+
+    /**
+     * We add a feed entry for chat rooms when they're created (if they're public) or
+     * when they're shared with the space (if they're private).
+     *
+     * The feed entry says either "X created a chat room" or "X shared a chat room"
+     * depending on the event that created the feed entry.
+     */
+    RoomChat: Schema.object({
+        type: Schema.value("RoomChat"),
+        chatId: Schema.id<ChatId>(),
+        sharedTime: Schema.date,
+        sharerId: Schema.id<AccountId>(),
+        creatorId: Schema.id<AccountId>().nullable(),
+        event: FeedEntryEventSchema,
+    }),
 });
 
 export function getFeedEntryTime(entry: FeedEntry): Date {
@@ -102,6 +119,7 @@ export function getFeedEntryTime(entry: FeedEntry): Date {
         case "Post":
             return entry.createdTime;
         case "Channel":
+        case "RoomChat":
         case "Document":
         case "TaskCollection":
             return entry.sharedTime;

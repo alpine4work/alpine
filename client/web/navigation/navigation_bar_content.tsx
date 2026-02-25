@@ -327,6 +327,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                 <Box
                     flexGrow="1"
                     flexShrink="1"
+                    minWidth="flex-fit"
                     height={navigationBarHeight}
                     paddingX={isMobile ? navigationBarMobileGap : undefined}
                     paddingLeft={
@@ -342,10 +343,6 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     gap="3"
                     style={{
                         maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
-                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                        // have `min-width: auto` which extends with content.
-                        // https://stackoverflow.com/a/66689926/1568890
-                        minWidth: 0,
                     }}
                 >
                     {!isMobile && desktopControls && <Box>{desktopControls}</Box>}
@@ -459,6 +456,12 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                                 onAccessPolicyChange={
                                                     shareButton.onAccessPolicyChange
                                                 }
+                                                withoutEditAccessLevel={
+                                                    shareButton.withoutEditAccessLevel
+                                                }
+                                                withHiddenCommentAccessLevel={
+                                                    shareButton.withHiddenCommentAccessLevel
+                                                }
                                                 onCopyLink={shareButton.onCopyLink}
                                             />
                                         </Box>
@@ -517,7 +520,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     );
 });
 
-function NavigationBarContentMoreButton({
+export function NavigationBarContentMoreButton({
     menuActions,
     menuOffset,
     extraBottom,
@@ -598,6 +601,10 @@ function NavigationBarContentMoreButton({
                                 onAccessPolicyChange={shareState.changeAccessPolicy}
                                 isVisible={isVisible}
                                 isReadOnly={shareState.isReadOnly}
+                                withoutEditAccessLevel={shareButton.withoutEditAccessLevel}
+                                withHiddenCommentAccessLevel={
+                                    shareButton.withHiddenCommentAccessLevel
+                                }
                                 onCopyLink={shareButton.onCopyLink}
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                             />
@@ -700,6 +707,10 @@ function NavigationBarContentMoreButton({
                                 inherited={shareButton.inherited}
                                 onAccessPolicyChange={shareState.changeAccessPolicy}
                                 isReadOnly={shareState.isReadOnly}
+                                withoutEditAccessLevel={shareButton.withoutEditAccessLevel}
+                                withHiddenCommentAccessLevel={
+                                    shareButton.withHiddenCommentAccessLevel
+                                }
                                 onCloseWithAnimation={onCloseWithAnimation}
                             />
                         </>

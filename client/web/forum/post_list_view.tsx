@@ -1180,15 +1180,9 @@ function PostListView(
                                     className={sprinkles({
                                         position: "relative",
                                         width: "full",
+                                        minWidth: "flex-fit",
                                         maxWidth: contentStyles.contentMaxWidth,
                                     })}
-                                    style={{
-                                        flex: postViewFlex,
-                                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                        // have `min-width: auto` which extends with content.
-                                        // https://stackoverflow.com/a/66689926/1568890
-                                        minWidth: 0,
-                                    }}
                                 >
                                     {((withSafeAreaInsetTop && index === 0) ||
                                         (hasHeader && index === 1)) &&
@@ -1450,14 +1444,11 @@ function PostListView(
                                         position: "relative",
                                         zIndex: "0",
                                         width: "full",
+                                        minWidth: "flex-fit",
                                         maxWidth: contentStyles.contentMaxWidth,
                                     })}
                                     style={{
                                         flex: postViewFlex,
-                                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                        // have `min-width: auto` which extends with content.
-                                        // https://stackoverflow.com/a/66689926/1568890
-                                        minWidth: 0,
                                     }}
                                 >
                                     {item.postCommentIndex === 0 && (
@@ -1684,16 +1675,13 @@ function PostListView(
                                                 position: "relative",
                                                 zIndex: "0",
                                                 width: "full",
+                                                minWidth: "flex-fit",
                                                 maxWidth: contentStyles.contentMaxWidth,
                                                 pointerEvents: "auto",
                                                 backgroundColor: "grey-0",
                                             })}
                                             style={{
                                                 flex: postViewFlex,
-                                                // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                                // have `min-width: auto` which extends with content.
-                                                // https://stackoverflow.com/a/66689926/1568890
-                                                minWidth: 0,
                                             }}
                                         >
                                             {inputNode}

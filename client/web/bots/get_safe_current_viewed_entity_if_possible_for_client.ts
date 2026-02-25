@@ -23,14 +23,17 @@ export function getSafeCurrentlyViewedEntityIfPossibleForClient(
     if (currentlyViewedSearchEntityId === null || chat === undefined) return null;
 
     // Currently viewed entity is only allowed in 1:1 chats with a bot.
-    if (chat.accounts.length !== 2) return null;
+    if (chat.definition.type !== "Direct") return null;
 
-    const currentAccountInChat = chat.accounts.find(
+    const {accounts} = chat.definition;
+    if (accounts.length !== 2) return null;
+
+    const currentAccountInChat = accounts.find(
         account => account.id === context.currentAccount?.id,
     );
     assert(currentAccountInChat !== undefined);
 
-    const otherAccount = chat.accounts.find(account => account.id !== currentAccountInChat.id);
+    const otherAccount = accounts.find(account => account.id !== currentAccountInChat.id);
     assert(otherAccount !== undefined);
 
     return otherAccount.botId ? currentlyViewedSearchEntityId : null;

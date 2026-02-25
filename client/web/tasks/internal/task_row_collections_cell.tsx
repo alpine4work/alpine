@@ -99,6 +99,7 @@ const collectionChipContainerClassName = sprinkles({
     marginY: "-0.5",
     marginLeft: "-0.5",
     cursor: "default",
+    minWidth: "flex-fit",
 });
 
 const extraCollectionsWidth = "4";
@@ -358,10 +359,6 @@ function TaskRowCollectionsCell(
                                 key={collection.id}
                                 className={collectionChipContainerClassName}
                                 style={{
-                                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                    // have `min-width: auto` which extends with content.
-                                    // https://stackoverflow.com/a/66689926/1568890
-                                    minWidth: 0,
                                     // We want short collection names like "Bugs" to be visible even if the
                                     // other preview collection name is very long. Constrain collection chip width
                                     // and set a relative shrink that shrinks longer collection names more than

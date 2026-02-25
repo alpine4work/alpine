@@ -10,7 +10,7 @@ import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {AccountId, PostId} from "~/shared/id/types/id_types.js";
+import {AccountId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // Designed for `server/search/data/index/internal/get_search_entity.ts`.
 export async function getPostContentAndChannelPreview(
@@ -18,6 +18,7 @@ export async function getPostContentAndChannelPreview(
     postId: PostId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{
+    spaceId: SpaceId;
     version: number;
     createdTime: Date;
     authorId: AccountId;
@@ -36,6 +37,7 @@ export async function getPostContentAndChannelPreviewIfExists(
     postId: PostId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{
+    spaceId: SpaceId;
     version: number;
     createdTime: Date;
     authorId: AccountId;
@@ -55,6 +57,7 @@ export async function getPostContentAndChannelPreviewIfPossible(
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<Result<
     {
+        spaceId: SpaceId;
         version: number;
         createdTime: Date;
         authorId: AccountId;
@@ -78,6 +81,7 @@ export async function getPostContentAndChannelPreviewIfPossible(
     return {
         ok: true,
         value: {
+            spaceId: postItem.spaceId,
             version: postItem.updateLockVersion ?? 0,
             createdTime: postItem.createdTime,
             authorId: postItem.authorId,

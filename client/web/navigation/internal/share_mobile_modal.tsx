@@ -38,6 +38,8 @@ export function ShareMobileModal({
     inherited,
     onAccessPolicyChange,
     isReadOnly,
+    withoutEditAccessLevel,
+    withHiddenCommentAccessLevel,
     onCloseWithAnimation,
 }: {
     entityNoun: string;
@@ -52,6 +54,8 @@ export function ShareMobileModal({
         notification?: ShareNotification | null,
     ) => MaybePromise<void>;
     isReadOnly: boolean;
+    withoutEditAccessLevel?: boolean;
+    withHiddenCommentAccessLevel?: boolean;
     onCloseWithAnimation: () => void;
 }) {
     const {space} = useSpaceContext();
@@ -130,6 +134,8 @@ export function ShareMobileModal({
                                     accessLevel: accountGrantInputAccessLevel,
                                     onAccessLevelChange: setAccountGrantInputAccessLevel,
                                     isAltKeyDown: false,
+                                    withoutEditAccessLevel,
+                                    withHiddenCommentAccessLevel,
                                 }}
                             />
                             {accountGrantInputSelectedAccounts.length === 0 && (
@@ -216,6 +222,8 @@ export function ShareMobileModal({
                             isAltKeyDown={false}
                             height="full"
                             paddingX="3"
+                            withoutEditAccessLevel={withoutEditAccessLevel}
+                            withHiddenCommentAccessLevel={withHiddenCommentAccessLevel}
                         />
                     </Box>
                     <Box flexShrink="0" paddingX={screenPaddingX}>
@@ -236,6 +244,8 @@ export function ShareMobileModal({
                             onAccessPolicyChange={onAccessPolicyChange}
                             isReadOnly={isReadOnly}
                             isAltKeyDown={false}
+                            withoutEditAccessLevel={withoutEditAccessLevel}
+                            withHiddenCommentAccessLevel={withHiddenCommentAccessLevel}
                         />
                         <Spacer space="3" />
                         <ShareOverlayUrlGrant

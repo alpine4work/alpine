@@ -1,5 +1,5 @@
-import {Link as LinkIcon, Lock} from "phosphor-react";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {Link as LinkIcon} from "phosphor-react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {MenuAction} from "~/client/web/design/menu.js";
@@ -21,6 +21,7 @@ import {PostListView} from "~/client/web/forum/post_list_view.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
+import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
@@ -43,6 +44,7 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeQueryResult,
@@ -250,26 +252,22 @@ export function ChannelView({
         await writeTextToClipboard(url.toString());
     };
 
+    const lastPointerDownTimeRef = useRef<number | null>(null);
+
     const navigationBar = useNavigationBar({
         withoutDisappearingTitle: true,
         title: (
-            <Box display="flex" alignItems="center" gap="1.5">
-                {platform !== "mobile" &&
-                    !channel.accessPolicy.defaultGrant &&
-                    !channel.accessPolicy.urlGrant && (
-                        // We add a lock icon to private channels because unlike other entities we don't
-                        // show the share switch in the navigation bar. Since knowing whether a channel
-                        // is public or private is important context, we include a lock to make sure you
-                        // know the channel is private before posting.
-                        //
-                        // We don't show the lock on mobile since none of our entities have logic to
-                        // show their share state on mobile without opening the more menu.
-                        <Lock
-                            className={sprinkles({flexShrink: "0"})}
-                            size={spacing["4"]}
-                            weight="fill"
-                        />
-                    )}
+            <Box display="flex" alignItems="center" gap={platform === "mobile" ? "1.5" : "2"}>
+                {!channel.accessPolicy.defaultGrant && !channel.accessPolicy.urlGrant && (
+                    // We add a lock icon to private channels because unlike other entities we don't
+                    // show the share switch in the navigation bar. Since knowing whether a channel
+                    // is public or private is important context, we include a lock to make sure you
+                    // know the channel is private before posting.
+                    <LockBoldFillIcon
+                        className={sprinkles({flexShrink: "0"})}
+                        size={spacing[platform === "mobile" ? "3" : "4"]}
+                    />
+                )}
                 {isEditingNameInline ? (
                     <ChannelViewNameEditor
                         initialName={channel.name}
@@ -289,13 +287,25 @@ export function ChannelView({
                     />
                 ) : (
                     <Box
-                        onDoubleClick={event => {
-                            if (!hasAccessLevel(accessLevel, "Manage")) return;
+                        onPointerDown={event => {
+                            const currentTime = Date.now();
+                            const lastPointerDownTime = lastPointerDownTimeRef.current;
+                            lastPointerDownTimeRef.current = currentTime;
 
-                            // Disable selection from double click.
-                            event.preventDefault();
+                            if (lastPointerDownTime === null) return;
 
-                            if (platform !== "mobile") {
+                            if (currentTime - lastPointerDownTime > doubleClickDelayMs) return;
+
+                            if (hasAccessLevel(accessLevel, "Manage") && platform !== "mobile") {
+                                // Disable selection from double click.
+                                //
+                                // We implement double click with `onPointerDown` instead of `onDoubleClick`
+                                // because `onDoubleClick` fires one pointer up but the browser performs text
+                                // selection on double click pointer down. So there's a small visual glitch
+                                // where you can see the browser selection after double click before pointer up
+                                // when you use `onDoubleClick`,
+                                event.preventDefault();
+
                                 setIsEditingNameInline(true);
                             }
                         }}
@@ -315,7 +325,6 @@ export function ChannelView({
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
         // Don't render the subscribe button if the account doesn't have space access.
-        // They won't be allowed to see the names of accounts in the share dialog.
         desktopAdditionalActions: currentAccount ? (
             <ChannelViewSubscribeButton
                 channelId={channelId}

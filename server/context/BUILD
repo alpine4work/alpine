@@ -18,6 +18,7 @@ ts_project(
         "//server/opensearch",
         "//server/tokens",
         "//shared/accounts",
+        "//shared/chat",
         "//shared/context",
         "//shared/documents",
         "//shared/dynamo",

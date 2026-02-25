@@ -1,5 +1,5 @@
 import {MessageContentWithReferencesSchema} from "~/shared/content/message_content_schema.js";
-import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {FileEntityIdSchema, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -160,6 +160,17 @@ export const MessageContentPayloadModelFileSchema = Schema.union({
         fileEntityId: FileEntityIdSchema,
         fileEntityResult: FileEntityModelResultSchema,
     }),
+    // If we couldn't load the file entity for some reason, we'll use this `Null`
+    // variant. The only reason we'd return this variant as of 2026-02-24 is we
+    // exceed the file entity depth recursion limit.
+    //
+    // Conceptually, this is the same as a `file` node being present in
+    // `DocumentContent` with a `fileId` that doesn't exist in
+    // `DocumentContentReference`'s `fileById`.
+    Null: Schema.object({
+        type: Schema.value("Null"),
+        fileId: FileIdOrFileEntityIdSchema,
+    }),
 });
 
 const MessageContentPayloadModelSchema = Schema.object({
@@ -248,6 +259,8 @@ export function areMessagePayloadModelsEqual(
                             return file.file.id;
                         case "FileEntity":
                             return file.fileEntityId;
+                        case "Null":
+                            return file.fileId;
                         default:
                             throw exhaustive(file);
                     }
@@ -259,6 +272,8 @@ export function areMessagePayloadModelsEqual(
                             return file.file.id;
                         case "FileEntity":
                             return file.fileEntityId;
+                        case "Null":
+                            return file.fileId;
                         default:
                             throw exhaustive(file);
                     }
@@ -308,6 +323,8 @@ export function fromMessagePayloadModel(payload: MessagePayloadModel): MessagePa
                             return file.file.id;
                         case "FileEntity":
                             return file.fileEntityId;
+                        case "Null":
+                            return file.fileId;
                         default:
                             throw exhaustive(file);
                     }

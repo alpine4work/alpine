@@ -29,8 +29,10 @@ import {
 } from "~/server/forum/data/post_messaging.js";
 import {sendChannelShareNotification} from "~/server/forum/data/send_channel_share_notification.js";
 import {setPostReaction} from "~/server/forum/data/set_post_reaction.js";
-import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
-import {unsubscribeFromChannel} from "~/server/forum/data/unsubscribe_from_channel.js";
+import {
+    subscribeToChannel,
+    unsubscribeFromChannel,
+} from "~/server/forum/data/subscribe_to_channel.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
 import {updateChannelDescription} from "~/server/forum/data/update_channel_description.js";
 import {updateChannelName} from "~/server/forum/data/update_channel_name.js";

@@ -10,10 +10,11 @@ import {
 import {
     ApiContent,
     ApiErrorResponseBody,
+    ApiMentionResponse,
+    ApiMentionTarget,
     ApiMessageContentPayloadParent,
     ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
-    ApiSearchMentionTarget,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -570,12 +571,17 @@ export function pingApiMessageStream(
     }
 }
 
-export function getApiSearchMention(
+export function getApiMention(
     tracer: TracerBase,
     apiClient: ApiClient,
-    target: ApiSearchMentionTarget,
-) {
+    target: ApiMentionTarget,
+): Promise<{data: {mention: ApiMentionResponse}}> {
     switch (target.type) {
+        case "Account": {
+            return apiClient.get(tracer, "/accounts/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        }
         case "Document": {
             return apiClient.get(tracer, "/documents/{id}/mention", {
                 params: {path: {id: target.id}},
@@ -583,6 +589,11 @@ export function getApiSearchMention(
         }
         case "Channel": {
             return apiClient.get(tracer, "/channels/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        }
+        case "Chat": {
+            return apiClient.get(tracer, "/chats/{id}/mention", {
                 params: {path: {id: target.id}},
             });
         }

@@ -9,6 +9,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {defaultTaskQueryViewName} from "~/client/web/styles/tasks_shared_styles.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export type TaskQueryViewDesktopHeaderNameRef = {
@@ -41,6 +42,8 @@ function TaskQueryViewDesktopHeaderName(
     const inputWithAutoGrowingWidthSafeSpacerElement =
         useInputWithAutoGrowingWidthSafeSpacerElement();
 
+    const lastPointerDownTimeRef = useRef<number | null>(null);
+
     return (
         <Box overflow="hidden" marginLeft="-1">
             {!isEditingName ? (
@@ -55,8 +58,22 @@ function TaskQueryViewDesktopHeaderName(
                         // eslint-disable-next-line cyberworlds/string-quotes
                         fontFeatureSettings: '"calt" on',
                     }}
-                    onDoubleClick={event => {
+                    onPointerDown={event => {
+                        const currentTime = Date.now();
+                        const lastPointerDownTime = lastPointerDownTimeRef.current;
+                        lastPointerDownTimeRef.current = currentTime;
+
+                        if (lastPointerDownTime === null) return;
+
+                        if (currentTime - lastPointerDownTime > doubleClickDelayMs) return;
+
                         // Disable selection from double click.
+                        //
+                        // We implement double click with `onPointerDown` instead of `onDoubleClick`
+                        // because `onDoubleClick` fires one pointer up but the browser performs text
+                        // selection on double click pointer down. So there's a small visual glitch
+                        // where you can see the browser selection after double click before pointer up
+                        // when you use `onDoubleClick`,
                         event.preventDefault();
 
                         setIsEditingName(true);

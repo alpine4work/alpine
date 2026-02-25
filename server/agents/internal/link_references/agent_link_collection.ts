@@ -62,8 +62,10 @@ export type CreateAgentLinkOptions =
       }
     | {
           type: "Chat";
-          chatId: ChatId;
-          name: string;
+          chat: {
+              id: ChatId;
+              name: string;
+          };
       }
     | {
           type: "ChatMessage";
@@ -145,8 +147,8 @@ export async function createAgentLink(
         case "Chat": {
             return actuallyPutAgentLink(storage, {
                 type: "ChatMessages",
-                chatId: options.chatId,
-                label: options.name,
+                chatId: options.chat.id,
+                label: options.chat.name,
                 rootMessage: null,
                 ...getMessagesListPageInfo(0),
                 tokenLimitForPage: agentMessageFirstPageTokenLimit,

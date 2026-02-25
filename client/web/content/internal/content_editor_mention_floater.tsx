@@ -168,7 +168,9 @@ export function ContentEditorMentionFloater({
     // Track which search entity is pending when inserting a file entity preview.
     const [pendingEntityId, setPendingEntityId] = useState<SearchMentionEntityId | null>(null);
 
-    const tryToSaveSearchEntityMentionAsFileEntity = (insertFileEntityId: FileEntityId) => {
+    const tryToSaveSearchEntityMentionAsFileEntity = (
+        insertFileEntityId: FileEntityId & SearchMentionEntityId,
+    ) => {
         const view = assertExists(viewRef.current);
         const schema = view.state.schema;
 
@@ -377,7 +379,7 @@ export function ContentEditorMentionFloater({
             // 2. Schema supports file nodes
             // 3. Range is in an empty paragraph (paragraph only contains `@` + search text)
             // 4. Paragraph is directly in doc or tableCell (not nested in other blocks)
-            const insertFileEntityId: FileEntityId | null = (() => {
+            const insertFileEntityId: (FileEntityId & SearchMentionEntityId) | null = (() => {
                 if (!isFileEntityId(entityData.id)) return null;
 
                 const $from = view.state.doc.resolve(range.from);
@@ -1309,6 +1311,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
             <Box display="flex" alignItems="flex-start" width="full">
                 <SearchEntityViewTitlePrefix
                     icon={typeDisplay.icon}
+                    type={typeDisplay.type}
                     media={entityData.media}
                     isDeleted={entityData.title === null}
                 />

@@ -1513,29 +1513,36 @@ export const fileImagePreviewPlaceholderClassName = style({
     },
 });
 
-export const fileChannelEntityPreviewSubscribeButtonBellIconClassName = style({
+export const fileEntityPreviewSubscribeButtonBellIconClassName = style({
+    flexShrink: 0,
     width: spacing["3"],
     height: spacing["3"],
 });
 
-export const fileChannelEntityPreviewSubscribeButtonBellRingingIconClassName = style({
+export const fileEntityPreviewSubscribeButtonBellRingingIconClassName = style({
     display: "none",
+    flexShrink: 0,
     width: spacing["3"],
     height: spacing["3"],
 });
 
-export const fileChannelEntityPreviewSubscribeButtonSpinnerGapIconClassName = style({
+export const fileEntityPreviewSubscribeButtonSpinnerGapIconClassName = style({
     display: "none",
+    flexShrink: 0,
     width: spacing["3"],
     height: spacing["3"],
 });
 
-export const fileChannelEntityPreviewSubscribeButtonClassName = style({
+const fileEntityPreviewSubscribeButtonHeightSpacing = "7";
+export {fileEntityPreviewSubscribeButtonHeightSpacing as fileEntityPreviewSubscribeButtonHeight};
+
+export const fileEntityPreviewSubscribeButtonClassName = style({
+    flexShrink: 0,
     position: "relative",
     zIndex: "0",
     overflow: "hidden",
     width: "fit-content",
-    height: spacing["7"],
+    height: spacing[fileEntityPreviewSubscribeButtonHeightSpacing],
     paddingLeft: spacing["2.5"],
     paddingRight: spacing["2.5"],
     display: "flex",
@@ -1563,49 +1570,48 @@ export const fileChannelEntityPreviewSubscribeButtonClassName = style({
     },
 });
 
-const fileChannelEntityPreviewSubscribeButtonSubscribedSelector = `${fileChannelEntityPreviewSubscribeButtonClassName}:is([data-subscribed=true], [data-subscribed-override=true]):not([data-subscribed-override=false])`;
+const fileEntityPreviewSubscribeButtonSubscribedSelector = `${fileEntityPreviewSubscribeButtonClassName}:is([data-subscribed=true], [data-subscribed-override=true]):not([data-subscribed-override=false])`;
 
-globalStyle(fileChannelEntityPreviewSubscribeButtonSubscribedSelector, {
+globalStyle(fileEntityPreviewSubscribeButtonSubscribedSelector, {
     backgroundColor: colorSchemeVars["grey-5"],
     color: colorSchemeVars["grey-40"],
     fill: colorSchemeVars["grey-40"],
     fontWeight: 400,
 });
 
-globalStyle(`${fileChannelEntityPreviewSubscribeButtonSubscribedSelector}::after`, {
+globalStyle(`${fileEntityPreviewSubscribeButtonSubscribedSelector}::after`, {
     content: '"Subscribed"',
 });
 
 // Make sure we override the unsubscribed `darkColorSchemeSelector` selector
 // that changes background color.
-globalStyle(
-    `${darkColorSchemeSelector} ${fileChannelEntityPreviewSubscribeButtonSubscribedSelector}`,
-    {backgroundColor: colorSchemeVars["grey-5"]},
-);
+globalStyle(`${darkColorSchemeSelector} ${fileEntityPreviewSubscribeButtonSubscribedSelector}`, {
+    backgroundColor: colorSchemeVars["grey-5"],
+});
 
 globalStyle(
-    `${fileChannelEntityPreviewSubscribeButtonSubscribedSelector}:not([data-loading-indicator]) ${fileChannelEntityPreviewSubscribeButtonBellIconClassName}`,
+    `${fileEntityPreviewSubscribeButtonSubscribedSelector}:not([data-loading-indicator]) ${fileEntityPreviewSubscribeButtonBellIconClassName}`,
     {display: "none"},
 );
 
 globalStyle(
-    `${fileChannelEntityPreviewSubscribeButtonSubscribedSelector}:not([data-loading-indicator]) ${fileChannelEntityPreviewSubscribeButtonBellRingingIconClassName}`,
+    `${fileEntityPreviewSubscribeButtonSubscribedSelector}:not([data-loading-indicator]) ${fileEntityPreviewSubscribeButtonBellRingingIconClassName}`,
     {display: "block"},
 );
 
 globalStyle(
-    `${fileChannelEntityPreviewSubscribeButtonClassName}[data-loading-indicator] ${fileChannelEntityPreviewSubscribeButtonBellIconClassName}`,
+    `${fileEntityPreviewSubscribeButtonClassName}[data-loading-indicator] ${fileEntityPreviewSubscribeButtonBellIconClassName}`,
     {display: "none"},
 );
 
 globalStyle(
-    `${fileChannelEntityPreviewSubscribeButtonClassName}[data-loading-indicator] ${fileChannelEntityPreviewSubscribeButtonSpinnerGapIconClassName}`,
+    `${fileEntityPreviewSubscribeButtonClassName}[data-loading-indicator] ${fileEntityPreviewSubscribeButtonSpinnerGapIconClassName}`,
     {display: "block"},
 );
 
-export const fileChannelEntityPreviewSubscribeButtonPressedClassName = style({
+export const fileEntityPreviewSubscribeButtonPressedClassName = style({
     selectors: {
-        [`${fileChannelEntityPreviewSubscribeButtonClassName}&::before`]: {
+        [`${fileEntityPreviewSubscribeButtonClassName}&::before`]: {
             content: '""',
             position: "absolute",
             inset: "0",

@@ -55,6 +55,7 @@ export async function isOneOnOneChat(
     // If this is a 1:1 chat between the agent and another user, then the agent
     // will always respond.
     return (
+        chat.type === "Direct" &&
         chat.members.length === 2 &&
         chat.members.some(member => member.account.id === request.botAccountId)
     );

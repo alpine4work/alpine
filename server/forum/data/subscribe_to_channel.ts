@@ -45,3 +45,37 @@ export async function subscribeToChannel(
         },
     );
 }
+
+/**
+ * Unsubscribes the session actor from the channel. They'll no longer see new
+ * posts appear in their inbox.
+ */
+export async function unsubscribeFromChannel(
+    context: ServerSessionActionContext,
+    channelId: ChannelId,
+) {
+    const accountId = context.actor.getAccountId();
+    const {spaceId} = await authorizeChannelAccess(context, channelId, "View");
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots aren't allowed to subscribe to channels.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
+
+    await ForumTable.updateItem(
+        context,
+        {
+            partitionType: "Channel",
+            sortRangeType: "Subscription",
+            channelId,
+            accountId,
+        },
+        item => {
+            if (!item) return item;
+
+            return null;
+        },
+    );
+}

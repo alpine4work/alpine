@@ -13,6 +13,7 @@ export const FileChannelEntityModelSchema = FileEntityModel.implement({
     id: Schema.id<ChannelId>(),
     createdTime: Schema.date,
     name: LabelStringSchema,
+    isPrivate: Schema.boolean,
     description: MessageContentWithReferencesSchema,
     isSubscribed: Schema.boolean,
     contributorCount: Schema.integer,

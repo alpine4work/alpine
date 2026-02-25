@@ -7,6 +7,8 @@ export function getApiMentionTargetNoun(
     switch (type) {
         case "Channel":
             return "channel";
+        case "Chat":
+            return "chat";
         case "Document":
             return "document";
         case "Post":

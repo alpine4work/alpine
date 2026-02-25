@@ -1,6 +1,5 @@
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -114,7 +113,6 @@ export const searchChannelsByKeywords = defineRpc({
             Schema.object({
                 channel: ChannelPreviewModel.schema(),
                 descriptionTextSnippet: Schema.string,
-                accessPolicy: AccessPolicySchema,
             }),
         ),
     },
@@ -132,10 +130,23 @@ export const searchChannelsByAffinity = defineRpc({
             Schema.object({
                 channel: ChannelPreviewModel.schema(),
                 descriptionTextSnippet: Schema.string,
-                accessPolicy: AccessPolicySchema,
                 origin: Schema.enum(["Account", "Space"]),
             }),
         ),
+    },
+});
+
+export const searchRoomChatsByKeywords = defineRpc({
+    name: "searchRoomChatsByKeywords",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        queryText: Schema.string,
+        limit: Schema.integer,
+        contributorIds: Schema.set(Schema.id<AccountId>()),
+    },
+    output: {
+        results: Schema.array(SearchEntityModel.schema),
     },
 });
 

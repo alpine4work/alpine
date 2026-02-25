@@ -5,6 +5,7 @@ import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/f
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {
+    getApiMentionTitleWithStrongConsistency,
     intoApiContentWithReferencesAndReturnReferences,
     intoApiMessageContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
@@ -23,7 +24,6 @@ import {
     pingPostCommentStream,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
-import {getSearchEntityMentionWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -71,7 +71,8 @@ export const apiForumPaths: Pick<
     "/channels/{id}/mention": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
-            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+
+            const {title} = await getApiMentionTitleWithStrongConsistency(
                 context,
                 spaceId,
                 `Channel:${pathParameters.id}`,
@@ -85,7 +86,7 @@ export const apiForumPaths: Pick<
                             type: "Channel",
                             id: pathParameters.id,
                         },
-                        title: searchEntity.title,
+                        title,
                     },
                 },
             };
@@ -204,7 +205,8 @@ export const apiForumPaths: Pick<
     "/posts/{id}/mention": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
-            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+
+            const {title} = await getApiMentionTitleWithStrongConsistency(
                 context,
                 spaceId,
                 `Post:${pathParameters.id}`,
@@ -218,7 +220,7 @@ export const apiForumPaths: Pick<
                             type: "Post",
                             id: pathParameters.id,
                         },
-                        title: searchEntity.title,
+                        title,
                     },
                 },
             };

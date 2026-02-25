@@ -32,25 +32,44 @@ export async function evaluateAccessPolicy(
     expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<boolean> {
-    // If there's a `urlGrant` then everyone has access at this level. Even when
-    // `accountId` is null or `accountId` does not have space access.
-    if (
-        accessPolicy.urlGrant !== null &&
-        hasAccessLevel(accessPolicy.urlGrant.level, expectedAccessLevel)
-    ) {
-        return true;
-    }
-
     switch (context.actor.type) {
         // Anonymous users ONLY get access through `urlGrant`.
-        case "Anonymous":
+        case "Anonymous": {
+            // If there's a `urlGrant` then everyone has access at this level. Even when
+            // `accountId` is null or `accountId` does not have space access.
+            if (
+                accessPolicy.urlGrant !== null &&
+                hasAccessLevel(accessPolicy.urlGrant.level, expectedAccessLevel)
+            ) {
+                return true;
+            }
+
             return false;
+        }
 
         case "System": {
+            // If there's a `urlGrant` then everyone has access at this level. Even when
+            // `accountId` is null or `accountId` does not have space access.
+            if (
+                accessPolicy.urlGrant !== null &&
+                hasAccessLevel(accessPolicy.urlGrant.level, expectedAccessLevel)
+            ) {
+                return true;
+            }
+
             return spaceId === context.actor.getSpaceId();
         }
         case "Session":
         case "ImpersonatedAccount": {
+            // If there's a `urlGrant` then everyone has access at this level. Even when
+            // `accountId` is null or `accountId` does not have space access.
+            if (
+                accessPolicy.urlGrant !== null &&
+                hasAccessLevel(accessPolicy.urlGrant.level, expectedAccessLevel)
+            ) {
+                return true;
+            }
+
             if (
                 context.actor.type === "ImpersonatedAccount" &&
                 spaceId !== context.actor.getSpaceId()
@@ -58,59 +77,24 @@ export async function evaluateAccessPolicy(
                 return false;
             }
 
-            // Do we grant access to everyone in the space?
-            if (
-                accessPolicy.defaultGrant !== null &&
-                hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
-            ) {
-                // If this account is not a space member they can't have access.
-                //
-                // Even if an account was previously a member, was removed, but is still listed
-                // in the `AccessPolicy` they can't access. An account can only access the
-                // resource if they're an active space member.
-                //
-                // Optimization: Only run if there's a `defaultGrant`. Otherwise we can return
-                // false without making a database call.
-                if (
-                    !(await isAccountMemberOfSpaceWithoutAuthorization(
-                        context,
-                        spaceId,
-                        context.actor.getAccountId(),
-                    ))
-                ) {
-                    return false;
-                }
-
-                return true;
-            }
-
-            // Do we grant access to this account?
-            const accountGrant = accessPolicy.accountGrantById.get(context.actor.getAccountId());
-            if (accountGrant && hasAccessLevel(accountGrant.level, expectedAccessLevel)) {
-                // If this account is not a space member they can't have access.
-                //
-                // Even if an account was previously a member, was removed, but is still listed
-                // in the `AccessPolicy` they can't access. An account can only access the
-                // resource if they're an active space member.
-                //
-                // Optimization: Only run if there's an `accountGrant` for our actor. Otherwise
-                // we can return false without making a database call.
-                if (
-                    !(await isAccountMemberOfSpaceWithoutAuthorization(
-                        context,
-                        spaceId,
-                        context.actor.getAccountId(),
-                    ))
-                ) {
-                    return false;
-                }
-
-                return true;
-            }
-
-            return false;
+            return evaluateAccessPolicyForAccount(
+                context,
+                spaceId,
+                context.actor.getAccountId(),
+                accessPolicy,
+                expectedAccessLevel,
+            );
         }
         case "Bot": {
+            // If there's a `urlGrant` then everyone has access at this level. Even when
+            // `accountId` is null or `accountId` does not have space access.
+            if (
+                accessPolicy.urlGrant !== null &&
+                hasAccessLevel(accessPolicy.urlGrant.level, expectedAccessLevel)
+            ) {
+                return true;
+            }
+
             // If this account is not a space member they can't have access.
             //
             // Even if an account was previously a member, was removed, but is still listed
@@ -217,4 +201,61 @@ export async function evaluateAccessPolicy(
         default:
             throw exhaustive(context.actor);
     }
+}
+
+export async function evaluateAccessPolicyForAccount(
+    context: ServerMinimalActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    accessPolicy: AccessPolicyWithoutGenerations,
+    expectedAccessLevel: AccessLevel,
+): Promise<boolean> {
+    // If there's a `urlGrant` then everyone has access at this level. Even when
+    // `accountId` is null or `accountId` does not have space access.
+    if (
+        accessPolicy.urlGrant !== null &&
+        hasAccessLevel(accessPolicy.urlGrant.level, expectedAccessLevel)
+    ) {
+        return true;
+    }
+
+    // Do we grant access to everyone in the space?
+    if (
+        accessPolicy.defaultGrant !== null &&
+        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+    ) {
+        // If this account is not a space member they can't have access.
+        //
+        // Even if an account was previously a member, was removed, but is still listed
+        // in the `AccessPolicy` they can't access. An account can only access the
+        // resource if they're an active space member.
+        //
+        // Optimization: Only run if there's a `defaultGrant`. Otherwise we can return
+        // false without making a database call.
+        if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    // Do we grant access to this account?
+    const accountGrant = accessPolicy.accountGrantById.get(accountId);
+    if (accountGrant && hasAccessLevel(accountGrant.level, expectedAccessLevel)) {
+        // If this account is not a space member they can't have access.
+        //
+        // Even if an account was previously a member, was removed, but is still listed
+        // in the `AccessPolicy` they can't access. An account can only access the
+        // resource if they're an active space member.
+        //
+        // Optimization: Only run if there's an `accountGrant` for our actor. Otherwise
+        // we can return false without making a database call.
+        if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    return false;
 }

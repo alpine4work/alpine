@@ -9,6 +9,7 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.chat.$chatId._index"
     | "routes/s.$spaceId.chat.$chatId.messages.$index.reactions"
     | "routes/s.$spaceId.chat.new"
+    | "routes/s.$spaceId.chat.room.new"
     | "routes/s.$spaceId.chat.with.$accountId"
     | "routes/s.$spaceId.create._index"
     | "routes/s.$spaceId.create.more"

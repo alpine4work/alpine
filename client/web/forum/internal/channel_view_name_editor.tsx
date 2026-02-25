@@ -57,15 +57,7 @@ export function ChannelViewNameEditor({
 
     return (
         <>
-            <Box
-                marginLeft="-1"
-                style={{
-                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                    // have `min-width: auto` which extends with content.
-                    // https://stackoverflow.com/a/66689926/1568890
-                    minWidth: 0,
-                }}
-            >
+            <Box minWidth="flex-fit" marginLeft="-1">
                 <Box display="flex" alignItems="center" gap="2" maxWidth="full" height="9">
                     <FocusRing offset="border" isVisibleFromAnyFocus={true}>
                         <InputWithAutoGrowingWidth
