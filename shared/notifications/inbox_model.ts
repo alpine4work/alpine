@@ -79,6 +79,8 @@ export const InboxEntryKeySchema = Schema.union({
 export function getInboxEntryKeyPath(
     spaceId: SpaceId,
     key: InboxEntryKey,
+    // Keeping this parameter for now. We may use it in the future.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     routeLayout: RouteLayout,
 ): string {
     switch (key.type) {
@@ -93,11 +95,7 @@ export function getInboxEntryKeyPath(
         case "DocumentNewCommentThreads":
             return `/s/${spaceId}/notifications/document-comment-threads/${key.documentId}-${key.bucketGeneration}?inbox=show`;
         case "Task": {
-            if (routeLayout === "wide") {
-                return `/s/${spaceId}/tasks/${key.taskId}?inbox=show&comments=show`;
-            } else {
-                return `/s/${spaceId}/tasks/${key.taskId}/comments?inbox=show`;
-            }
+            return `/s/${spaceId}/tasks/${key.taskId}?inbox=show`;
         }
         default:
             throw exhaustive(key);
