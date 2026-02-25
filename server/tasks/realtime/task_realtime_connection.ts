@@ -112,6 +112,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     ) => SafeFloatingPromise<void>;
     private readonly _closeWithError: (context: TaskRealtimeProcessContext, error: unknown) => void;
     private readonly _resetAuthorizationTimer: (context: TaskRealtimeProcessContext) => void;
+    private readonly _resetAuthorizationTimerForEventBuilders =
+        new WeakSet<TaskRealtimeUpdateEventBuilderBase>();
 
     private readonly _querySubscriptionById = new Map<
         TaskRealtimeQuerySubscriptionId,
@@ -255,7 +257,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             ),
         ]);
 
-        // 5. Reauthorize the referenced tasks within a query subscription.
+        // 5. Reauthorize the referenced tasks/collections within a query subscription.
         //
         // This happens after authorizing subscriptions in case we need to unsubscribe
         // any of our subscriptions first.
@@ -1404,6 +1406,29 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             // Task subscriptions are authorized when executed and periodically
             // reauthorized so its safe to send the actions for this task to the client.
             eventBuilder.addActions(this, actions);
+
+            // If the access policy of a subscribed task was updated then immediately
+            // re-run authorization. This authorization run will not effect the current
+            // event we're building but the authorization process will send an event
+            // backfilling data the user now has access to.
+            //
+            // We don't call `authorize()` directly since we want to reset our
+            // authorization timer as well. The next authorization should be in 3 minutes
+            // (or whatever the authorization time interval is currently configured as).
+            if (
+                actions.some(
+                    action =>
+                        action.type === "UpdateTask" &&
+                        action.taskAction.type === "UpdateAccessPolicy",
+                ) &&
+                !this._resetAuthorizationTimerForEventBuilders.has(eventBuilder)
+            ) {
+                // Only call `_resetAuthorizationTimer()` once per `eventBuilder` object. Since
+                // the same `UpdateAccessPolicy` action may be processed multiple times by our
+                // collection.
+                this._resetAuthorizationTimerForEventBuilders.add(eventBuilder);
+                this._resetAuthorizationTimer(context);
+            }
         },
         onTaskUnsubscribe: (eventBuilder, oldTask) => {
             this._onDirectlySubscribedTaskRemove(eventBuilder, oldTask);
@@ -1430,6 +1455,29 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             // reauthorized so its safe to send the actions for this collection to the
             // client.
             eventBuilder.addActions(this, actions);
+
+            // If the access policy of a subscribed collection was updated then immediately
+            // re-run authorization. This authorization run will not effect the current
+            // event we're building but the authorization process will send an event
+            // backfilling data the user now has access to.
+            //
+            // We don't call `authorize()` directly since we want to reset our
+            // authorization timer as well. The next authorization should be in 3 minutes
+            // (or whatever the authorization time interval is currently configured as).
+            if (
+                actions.some(
+                    action =>
+                        action.type === "UpdateCollection" &&
+                        action.collectionAction.type === "UpdateAccessPolicy",
+                ) &&
+                !this._resetAuthorizationTimerForEventBuilders.has(eventBuilder)
+            ) {
+                // Only call `_resetAuthorizationTimer()` once per `eventBuilder` object. Since
+                // the same `UpdateAccessPolicy` action may be processed multiple times by our
+                // collection.
+                this._resetAuthorizationTimerForEventBuilders.add(eventBuilder);
+                this._resetAuthorizationTimer(context);
+            }
         },
         onCollectionUnsubscribe: (eventBuilder, oldCollection) => {
             this._onDirectlySubscribedCollectionRemove(eventBuilder, oldCollection);
@@ -1443,6 +1491,11 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             // Since the query is authorized, all loaded tasks are also authorized.
             // Clients should see all actions on loaded tasks.
             eventBuilder.addActions(this, actions);
+
+            // We don't call `_resetAuthorizationTimer()` on `UpdateAccessPolicy` actions
+            // here because as long as we're authorized to access the query then we're also
+            // authorized to access all loaded tasks in the query. An `UpdateAccessPolicy`
+            // action on a task doesn't change the query authorization state.
         },
         onLoadedTaskRemove: (eventBuilder, oldTask, actions) => {
             this._onDirectlySubscribedTaskRemove(eventBuilder, oldTask);
@@ -1563,6 +1616,29 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     eventBuilder.addActions(this, actions);
                 }),
             );
+
+            // If the access policy of a referenced task was updated then immediately
+            // re-run authorization. This authorization run will not effect the current
+            // event we're building but the authorization process will send an event
+            // backfilling data the user now has access to.
+            //
+            // We don't call `authorize()` directly since we want to reset our
+            // authorization timer as well. The next authorization should be in 3 minutes
+            // (or whatever the authorization time interval is currently configured as).
+            if (
+                actions.some(
+                    action =>
+                        action.type === "UpdateTask" &&
+                        action.taskAction.type === "UpdateAccessPolicy",
+                ) &&
+                !this._resetAuthorizationTimerForEventBuilders.has(eventBuilder)
+            ) {
+                // Only call `_resetAuthorizationTimer()` once per `eventBuilder` object. Since
+                // the same `UpdateAccessPolicy` action may be processed multiple times by our
+                // collection.
+                this._resetAuthorizationTimerForEventBuilders.add(eventBuilder);
+                this._resetAuthorizationTimer(context);
+            }
         },
         onReferencedTaskRemove: (eventBuilder, oldTask) => {
             const referencedTaskState = this._referencedTaskStateById.get(oldTask.id);
@@ -1727,8 +1803,13 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     action =>
                         action.type === "UpdateCollection" &&
                         action.collectionAction.type === "UpdateAccessPolicy",
-                )
+                ) &&
+                !this._resetAuthorizationTimerForEventBuilders.has(eventBuilder)
             ) {
+                // Only call `_resetAuthorizationTimer()` once per `eventBuilder` object. Since
+                // the same `UpdateAccessPolicy` action may be processed multiple times by our
+                // collection.
+                this._resetAuthorizationTimerForEventBuilders.add(eventBuilder);
                 this._resetAuthorizationTimer(context);
             }
         },

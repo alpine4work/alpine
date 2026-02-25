@@ -36,11 +36,8 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {
-    TaskAccess,
-    getTaskCollectionEntryAccess,
-} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {isTaskClientStoreCollectionEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_collection_entry_deleted.js";
 import {
     TaskCollectionViewDesktopHeader,
     TaskCollectionViewDesktopHeaderRef,
@@ -72,12 +69,18 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
@@ -146,43 +149,48 @@ export function TaskCollectionView({
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
 
-    const [accessPolicy, access] = useStore(
-        useMemo((): Store<readonly [AccessPolicy | null, TaskAccess]> => {
+    const accessPolicy = useStore(
+        useMemo((): Store<AccessPolicy> => {
             // If there's no `collectionSubscription` it means we're creating the
             // collection. When the user creates a collection they get the manage access
             // level.
-            if (!collectionSubscription)
-                return new ConstStore([null, {type: "PermissionGranted", level: "Manage"}]);
+            if (!collectionSubscription) {
+                return new ConstStore({
+                    accountGrantById: currentAccount
+                        ? new Map([[currentAccount.id, {level: "Manage", generation: 0}]])
+                        : emptyMap,
+                    defaultGrant: null,
+                    urlGrant: null,
+                });
+            }
 
-            // `Store.many()` should only trigger a re-render if the `AccessPolicy` changes
-            // or `TaskAccess` result changes. Both are memoized.
-            return Store.many([
-                collectionSubscription.collectionEntryStore.map(
-                    collectionEntry => collectionEntry.collection?.getAccessPolicy() ?? null,
-                ),
-                collectionSubscription.collectionEntryStore.map(collectionEntry =>
-                    getTaskCollectionEntryAccess(currentAccount?.id, collectionEntry),
-                ),
-            ]);
-        }, [collectionSubscription, currentAccount?.id]),
+            return collectionSubscription.collectionEntryStore.map(collectionEntry => {
+                if (isTaskClientStoreCollectionEntryDeleted(collectionEntry)) {
+                    throw new PermissionDeniedError(
+                        "Current account lost access to task collection (deleted)",
+                        {displayMessage: taskCollectionDeletedErrorDisplayMessage},
+                    );
+                }
+
+                if (!collectionEntry.collection) {
+                    throw new PermissionDeniedError(
+                        "Current account lost access to task collection (policy updated)",
+                        {
+                            displayMessage:
+                                taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+                        },
+                    );
+                }
+
+                return collectionEntry.collection.getAccessPolicy();
+            });
+        }, [collectionSubscription, currentAccount]),
     );
 
-    if (access.level === null) {
-        if (access.type === "Deleted") {
-            throw new PermissionDeniedError(
-                "Current account lost access to task collection (deleted)",
-                {displayMessage: taskCollectionDeletedErrorDisplayMessage},
-            );
-        } else {
-            throw new PermissionDeniedError(
-                "Current account lost access to task collection (policy updated)",
-                {
-                    displayMessage:
-                        taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
-                },
-            );
-        }
-    }
+    const accessLevel = useMemo(
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
+    );
 
     const [{filters, filterReferences}, actuallySetFiltersState] = useState({
         filters: initialFilters,
@@ -285,7 +293,7 @@ export function TaskCollectionView({
         sorts: normalizedSorts,
     });
 
-    const hasEditAccessLevel = useMemo(() => hasAccessLevel(access.level, "Edit"), [access.level]);
+    const hasEditAccessLevel = useMemo(() => hasAccessLevel(accessLevel, "Edit"), [accessLevel]);
 
     const defaultOrderSentence =
         filters.length > 0
@@ -354,7 +362,7 @@ export function TaskCollectionView({
         ]);
 
         if (collectionSubscription) {
-            if (hasAccessLevel(access.level, "Manage")) {
+            if (hasAccessLevel(accessLevel, "Manage")) {
                 // Even though you can edit the collection name by double clicking and the
                 // color by clicking on the dot, we still include menu items since these
                 // interactions aren't necessarily obvious.
@@ -455,7 +463,7 @@ export function TaskCollectionView({
                     ]);
                 }
 
-                if (hasAccessLevel(access.level, "Manage")) {
+                if (hasAccessLevel(accessLevel, "Manage")) {
                     menuActions.push([
                         {
                             label: "Delete",
@@ -495,7 +503,7 @@ export function TaskCollectionView({
 
         return menuActions;
     }, [
-        access.level,
+        accessLevel,
         affinityManager,
         collectionId,
         collectionSubscription,
@@ -718,7 +726,7 @@ export function TaskCollectionView({
                         }
                         affinityManager={affinityManager}
                         createCollection={createCollection}
-                        accessLevel={access.level}
+                        accessLevel={accessLevel}
                         defaultOrderSentence={defaultOrderSentence}
                         menuActions={menuActions}
                         filters={filters}
@@ -731,7 +739,7 @@ export function TaskCollectionView({
                 ),
             };
         }, [
-            access.level,
+            accessLevel,
             affinityManager,
             collectionId,
             collectionSubscription,
@@ -756,7 +764,7 @@ export function TaskCollectionView({
         withoutDisappearingTitle: true,
         title: (
             <TaskCollectionViewMobileNavigationBarTitle
-                accessLevel={access.level}
+                accessLevel={accessLevel}
                 store={store}
                 collectionId={collectionId}
                 collectionSubscription={collectionSubscription}

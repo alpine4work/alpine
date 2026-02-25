@@ -1,13 +1,16 @@
 import {useId, useMemo, useState} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
+import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     AccessLevel,
     AccessPolicy,
+    AccessPolicyWithoutGenerations,
     compareAccessLevel,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
+    maxAccessLevel,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
@@ -31,6 +34,10 @@ export function useShareState(
         entityNoun: string;
         accessLevelText: Record<AccessLevel, string>;
         accessPolicy: AccessPolicy;
+        inherited?: {
+            accessPolicy: AccessPolicyWithoutGenerations;
+            explanations: InheritedAccessPolicyExplanations;
+        };
         onAccessPolicyChangeWithoutValidations: (
             // The `notification` argument comes first to make it harder for the
             // implementation of this function to ignore the `notification` argument.
@@ -52,20 +59,28 @@ export function useShareState(
     // For example, in documents the `accessPolicy` prop is optimistic. If the
     // persisted `accessPolicy` doesn't have the `Manage` access level then we want
     // the share dialog to be read-only.
-    const isReadOnly = useMemo(
-        () =>
-            props?.isReadOnly ||
-            (props?.accessPolicy
-                ? !hasAccessLevel(
-                      getAccountAccessLevelAssumingSpaceAccess(
-                          props.accessPolicy,
-                          currentAccount?.id,
-                      ),
-                      "Manage",
-                  )
-                : true),
-        [currentAccount?.id, props?.accessPolicy, props?.isReadOnly],
-    );
+    const isReadOnly = useMemo(() => {
+        if (props?.isReadOnly) return true;
+
+        const accessPolicy = props?.accessPolicy;
+        const inheritedAccessPolicy = props?.inherited?.accessPolicy;
+        const currentAccountId = currentAccount?.id;
+        if (!accessPolicy || !currentAccountId) return true;
+
+        const accessLevel = maxAccessLevel(
+            getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccountId),
+            inheritedAccessPolicy
+                ? getAccountAccessLevelAssumingSpaceAccess(inheritedAccessPolicy, currentAccountId)
+                : null,
+        );
+
+        return !hasAccessLevel(accessLevel, "Manage");
+    }, [
+        currentAccount?.id,
+        props?.accessPolicy,
+        props?.inherited?.accessPolicy,
+        props?.isReadOnly,
+    ]);
 
     const [warningDialogState, setWarningDialogState] = useState<{
         readonly title: string;
@@ -195,11 +210,6 @@ export function useShareState(
             let description: string;
 
             switch (validationResult.reason) {
-                // Noop if we get here and the actor doesn't have manage access.
-                case "Can\u2019t update access policy unless actor has manage access": {
-                    return;
-                }
-
                 // It shouldn't be possible for the share overlay component to create one of
                 // these changes. So throw an internal error if we see one of these reasons.
                 case "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation":

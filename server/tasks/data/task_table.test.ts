@@ -21202,6 +21202,207 @@ test("account has access to tasks they create and tasks they\u2019re assigned un
     );
 });
 
+test("account has access to task shared via access policy", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    expect((await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok).toEqual(
+        false,
+    );
+
+    await task.access.grant(session1, session2, "View");
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).resolves.not.toThrow();
+    expect((await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok).toEqual(
+        true,
+    );
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("access policy doesn\u2019t grant access after account removed from space", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+
+    await task.access.grant(session1, session2, "View");
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).resolves.not.toThrow();
+
+    await removeSpaceAccount(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).rejects.toThrow(
+        "Account doesn\u2019t have access to space",
+    );
+
+    expect((await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok).toEqual(
+        false,
+    );
+});
+
+test("access policy grants access even without collection access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.create(session1);
+
+    await task.addCollection(session1, collection);
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await task.access.grant(session1, session2, "View");
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).resolves.not.toThrow();
+
+    await task.access.revoke(session1, session2);
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("access policy revocation doesn\u2019t remove access when collection access remains", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
+
+    const task = await TestTask.create(session1);
+    await task.addCollection(session1, collection);
+
+    await task.access.grant(session1, session2, "View");
+    await task.access.revoke(session1, session2);
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).resolves.not.toThrow();
+    expect((await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok).toEqual(
+        true,
+    );
+});
+
+test("access policy grants access even after assignee is removed", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+
+    await task.updateAssignee(session1, session2);
+    await task.access.grant(session1, session2, "View");
+
+    await task.updateAssignee(session1, null);
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).resolves.not.toThrow();
+    expect((await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok).toEqual(
+        true,
+    );
+});
+
+test("access policy revocation doesn’t remove access when assignee access remains", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+
+    await task.updateAssignee(session1, session2);
+    await task.access.grant(session1, session2, "View");
+    await task.access.revoke(session1, session2);
+
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).resolves.not.toThrow();
+    expect((await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok).toEqual(
+        true,
+    );
+});
+
+test("access policy grants access to child tasks via parent", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const parentTask = await TestTask.create(session1);
+    const childTask = await TestTask.create(session1, {parent: parentTask});
+
+    await parentTask.access.grant(session1, session2, "View");
+
+    await expect(
+        authorizeTaskAccess(session2.action(), childTask.id, "View"),
+    ).resolves.not.toThrow();
+    expect(
+        (await authorizeTaskAccessIfPossible(session2.action(), childTask.id, "View"))?.ok,
+    ).toEqual(true);
+});
+
+test("access policy revocation doesn’t remove access when parent access remains", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const parentTask = await TestTask.create(session1);
+    const childTask = await TestTask.create(session1, {parent: parentTask});
+
+    await parentTask.access.grant(session1, session2, "View");
+    await childTask.access.grant(session1, session2, "View");
+    await childTask.access.revoke(session1, session2);
+
+    await expect(
+        authorizeTaskAccess(session2.action(), childTask.id, "View"),
+    ).resolves.not.toThrow();
+    expect(
+        (await authorizeTaskAccessIfPossible(session2.action(), childTask.id, "View"))?.ok,
+    ).toEqual(true);
+});
+
+test("revoking parent access policy removes access to child task", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const parentTask = await TestTask.create(session2);
+    const childTask = await TestTask.create(session2, {parent: parentTask});
+
+    await parentTask.access.grant(session2, session1, "View");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), childTask.id, "View"),
+    ).resolves.not.toThrow();
+
+    await parentTask.access.revoke(session2, session1);
+
+    await expect(authorizeTaskAccess(session1.action(), childTask.id, "View")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    expect(
+        (await authorizeTaskAccessIfPossible(session1.action(), childTask.id, "View"))?.ok,
+    ).toEqual(false);
+});
+
+test("task creator can remove their own access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+
+    await task.access.grant(session1, session2, "Manage");
+    await task.access.revoke(session1, session1);
+
+    await expect(authorizeTaskAccess(session1.action(), task.id, "View")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(authorizeTaskAccess(session2.action(), task.id, "View")).resolves.not.toThrow();
+});
+
 test("can\u2019t revoke access from a collection manager that invited you", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3a, session3b] = await space.createSessions(4);
@@ -21221,6 +21422,88 @@ test("can\u2019t revoke access from a collection manager that invited you", asyn
     );
 
     await collection.access.revoke(session3a, session3b);
+});
+
+test("can\u2019t revoke access from a task manager that invited you", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+
+    await task.access.grant(session1, session2);
+
+    await expect(task.access.revoke(session2, session1)).rejects.toThrow(
+        "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    );
+});
+
+test("can\u2019t update a task access policy without manage access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const task = await TestTask.create(session1);
+
+    const accessPolicy = await task.access.grant(session1, session2, "Edit");
+    const accountGrantById = new Map(accessPolicy.accountGrantById);
+    accountGrantById.set(session3.account.id, {level: "Edit"});
+
+    const newAccessPolicy: AccessPolicy = {
+        accountGrantById,
+        defaultGrant: accessPolicy.defaultGrant,
+        urlGrant: accessPolicy.urlGrant,
+    };
+
+    await expect(task.access.set(session2, newAccessPolicy)).rejects.toThrow(
+        "Actor doesn\u2019t have `Manage` access level",
+    );
+});
+
+test("can update a task access policy with inherited manage access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const collection = await TestTaskCollection.create(session1);
+    const task = await TestTask.create(session1, {collections: [collection]});
+
+    await collection.access.grant(session1, session2, "Manage");
+
+    const accessPolicy = await task.access.get();
+    const accountGrantById = new Map(accessPolicy.accountGrantById);
+    accountGrantById.set(session3.account.id, {level: "View"});
+
+    const newAccessPolicy: AccessPolicy = {
+        accountGrantById,
+        defaultGrant: accessPolicy.defaultGrant,
+        urlGrant: accessPolicy.urlGrant,
+    };
+
+    await task.access.set(session2, newAccessPolicy);
+
+    expect((await task.access.get()).accountGrantById.get(session3.account.id)?.level).toEqual(
+        "View",
+    );
+});
+
+test("can\u2019t update a task access policy with no manage grants", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+
+    await task.access.grant(session1, session2, "Edit");
+
+    const newAccessPolicy: AccessPolicy = {
+        accountGrantById: new Map([
+            [session1.account.id, {level: "Edit"}],
+            [session2.account.id, {level: "Edit"}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+
+    await expect(task.access.set(session1, newAccessPolicy)).rejects.toThrow(
+        "Can\u2019t update access policy so that no one has manage access",
+    );
 });
 
 test("can only send share notifications when committing an update access policy action", async () => {
@@ -21359,6 +21642,66 @@ test("can only send share notifications when committing an update access policy 
             notification: {
                 accountIds: [session2.account.id, session3.account.id],
                 content: createSimpleMessageContent("foobar3"),
+                createdTimeZone: defaultTimeZone,
+            },
+        },
+    ]);
+});
+
+test("can send share notifications for update task access policy actions", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const task = await TestTask.create(session1);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(jobs.filter(job => job.type === "SendShareNotification")).toEqual([]);
+
+    const time = testTaskClock.now();
+    await commitTaskActionTransaction(
+        session1.action(),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: task.id,
+                taskAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session1.account.id, {level: "Manage", generation: 0}],
+                            [session2.account.id, {level: "Manage", generation: 1}],
+                            [session3.account.id, {level: "Manage", generation: 1}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
+                },
+            },
+        ],
+        {
+            updateAccessPolicyShareNotification: {
+                accountIds: [session2.account.id, session3.account.id],
+                content: createSimpleMessageContent("foobar4"),
+                createdTimeZone: defaultTimeZone,
+            },
+        },
+    );
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(jobs.filter(job => job.type === "SendShareNotification")).toEqual([
+        {
+            type: "SendShareNotification",
+            jobId: expect.any(String),
+            spaceId: space.id,
+            actorAccountId: session1.account.id,
+            entityId: `Task:${task.id}`,
+            notification: {
+                accountIds: [session2.account.id, session3.account.id],
+                content: createSimpleMessageContent("foobar4"),
                 createdTimeZone: defaultTimeZone,
             },
         },
@@ -21551,7 +21894,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
                 task.id,
             ),
         ).toEqual({
-            accountGrantById: new Map([[session.account.id, {level: "Edit"}]]),
+            accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
             defaultGrant: null,
             urlGrant: null,
         });
@@ -21573,7 +21916,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
             ),
         ).toEqual({
             accountGrantById: new Map([
-                [session1.account.id, {level: "Edit"}],
+                [session1.account.id, {level: "Manage"}],
                 [session2.account.id, {level: "Edit"}],
             ]),
             defaultGrant: null,
@@ -22196,8 +22539,8 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
             ),
         ).toEqual({
             accountGrantById: new Map([
-                [session2.account.id, {level: "Edit"}],
-                [session3.account.id, {level: "Edit"}],
+                [session2.account.id, {level: "Manage"}],
+                [session3.account.id, {level: "Manage"}],
             ]),
             defaultGrant: null,
             urlGrant: null,
@@ -22223,7 +22566,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
             ),
         ).toEqual({
             accountGrantById: new Map([
-                [session2.account.id, {level: "Edit"}],
+                [session2.account.id, {level: "Manage"}],
                 [session3.account.id, {level: "Edit"}],
             ]),
             defaultGrant: null,
@@ -22264,10 +22607,10 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
             ),
         ).toEqual({
             accountGrantById: new Map([
-                [session2.account.id, {level: "Edit"}],
-                [session3.account.id, {level: "Edit"}],
-                [session4.account.id, {level: "Edit"}],
-                [session5.account.id, {level: "Edit"}],
+                [session2.account.id, {level: "Manage"}],
+                [session3.account.id, {level: "Manage"}],
+                [session4.account.id, {level: "Manage"}],
+                [session5.account.id, {level: "Manage"}],
             ]),
             defaultGrant: null,
             urlGrant: null,
@@ -22301,7 +22644,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
             ),
         ).toEqual({
             accountGrantById: new Map([
-                [session2.account.id, {level: "Edit"}],
+                [session2.account.id, {level: "Manage"}],
                 [session3.account.id, {level: "Edit"}],
                 [session4.account.id, {level: "Edit"}],
                 [session5.account.id, {level: "Edit"}],
@@ -22432,7 +22775,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
             ),
         ).toEqual({
             accountGrantById: new Map([
-                [session2.account.id, {level: "Edit"}],
+                [session2.account.id, {level: "Manage"}],
                 [session3.account.id, {level: "Edit"}],
             ]),
             defaultGrant: null,
@@ -22470,7 +22813,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
             ),
         ).toEqual({
             accountGrantById: new Map([
-                [session2.account.id, {level: "Edit"}],
+                [session2.account.id, {level: "Manage"}],
                 [session3.account.id, {level: "Edit"}],
                 [session4.account.id, {level: "Edit"}],
                 [session5.account.id, {level: "Edit"}],
@@ -22509,7 +22852,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
             ),
         ).toEqual({
             accountGrantById: new Map([
-                [session2.account.id, {level: "Edit"}],
+                [session2.account.id, {level: "Manage"}],
                 [session3.account.id, {level: "Edit"}],
                 [session4.account.id, {level: "Edit"}],
                 [session5.account.id, {level: "Edit"}],
@@ -22549,7 +22892,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
             ),
         ).toEqual({
             accountGrantById: new Map([
-                [session2.account.id, {level: "Edit"}],
+                [session2.account.id, {level: "Manage"}],
                 [session3.account.id, {level: "Edit"}],
                 [session4.account.id, {level: "Edit"}],
                 [session5.account.id, {level: "Edit"}],

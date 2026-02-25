@@ -1,4 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
@@ -384,6 +385,19 @@ const TaskUpdatePriorityActionSchema = Schema.object({
     priority: TaskPrioritySchema.nullable(),
 });
 
+/**
+ * Updates the access policy of the task.
+ *
+ * Will be rejected by the server if you don't have the `Manage` permission
+ * level on this task.
+ */
+export type TaskUpdateAccessPolicyAction = SchemaType<typeof TaskUpdateAccessPolicyActionSchema>;
+
+const TaskUpdateAccessPolicyActionSchema = Schema.object({
+    type: Schema.value("UpdateAccessPolicy"),
+    accessPolicy: AccessPolicySchema,
+});
+
 function emptyObjectSchema<const Type extends string>(type: Type) {
     return Schema.object({type: Schema.value(type)});
 }
@@ -405,6 +419,7 @@ export const TaskTaskActionUnion = {
     UpdateTitle: TaskUpdateTitleActionSchema,
     UpdateDueDate: TaskUpdateDueDateActionSchema,
     UpdatePriority: TaskUpdatePriorityActionSchema,
+    UpdateAccessPolicy: TaskUpdateAccessPolicyActionSchema,
     // NOTE(calebmer, 2025-03-18): Remnants of the task notepad feature. We ignore
     // these actions at this point but we need minimal handling for backwards
     // compatibility to avoid crashes since we have actions of these types saved in

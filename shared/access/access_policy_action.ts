@@ -63,9 +63,6 @@ export function reduceAccessPolicy(
         accessPolicy,
     );
 
-    // If the actor doesn't have manage access then they can't make changes.
-    if (actorManageGeneration === null) return accessPolicy;
-
     switch (action.type) {
         case "AddAccountGrants": {
             const newAccountGrantById = new Map(accessPolicy.accountGrantById);

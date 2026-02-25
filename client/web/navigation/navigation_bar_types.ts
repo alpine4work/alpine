@@ -1,7 +1,12 @@
 import {Memo, ReactElement, ReactNode, Ref, RefCallback} from "react";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {ScrollbarInsetDynamic} from "~/client/web/design/scrollbar.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    AccessPolicyWithoutGenerations,
+} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {RemLength, Spacing} from "~/shared/design/core/spacing.js";
@@ -27,6 +32,10 @@ export type NavigationBarShareButtonProps = {
     readonly entityId: FileEntityId;
     readonly accessLevelText?: Record<AccessLevel, string>;
     readonly accessPolicy: AccessPolicy;
+    readonly inherited?: {
+        readonly accessPolicy: AccessPolicyWithoutGenerations;
+        readonly explanations: InheritedAccessPolicyExplanations;
+    };
     readonly onAccessPolicyChange: (
         // The `notification` argument comes first to make it harder for the
         // implementation of this function to ignore the `notification` argument.

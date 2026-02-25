@@ -1,3 +1,4 @@
+import {AccessPolicy, AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {
     ContentDuplicationVariableValues,
     applyContentDuplicationVariableValuesToText,
@@ -23,6 +24,7 @@ import {
     TaskParentTaskIdRegister,
     TaskTaskActionUnion,
 } from "~/shared/tasks/actions/task_task_action.js";
+import {createDefaultTaskAccessPolicy} from "~/shared/tasks/create_default_task_access_policy.js";
 import {applyTaskActionToTaskModelData} from "~/shared/tasks/model/apply_task_action_to_task_model_data.js";
 import {applyTaskUpdateAccountNameToTaskModelData} from "~/shared/tasks/model/apply_task_update_account_name_to_task_model_data.js";
 import {mergeTaskModelData} from "~/shared/tasks/model/merge_task_model_data.js";
@@ -52,7 +54,7 @@ import {
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
 
 // TypeScript errors here when new TaskTaskActions are added. If you add a
-// new task action type you should make sure to update `getCloneActions()`.
+// new task action type you should make sure to update `getDuplicateActions()`.
 assertEqualTypes<
     keyof typeof TaskTaskActionUnion,
     | "Create"
@@ -71,6 +73,7 @@ assertEqualTypes<
     | "UpdateTitle"
     | "UpdateDueDate"
     | "UpdatePriority"
+    | "UpdateAccessPolicy"
     | "UpdateNotepadPagePosition"
     | "UpdateAssigneeActivePosition"
 >();
@@ -97,6 +100,7 @@ const TaskModelDataSchema = Schema.object({
     addedClosedChildTaskCount: Schema.integer,
     removedClosedChildTaskCount: Schema.integer,
 
+    accessPolicy: AccessPolicyRegister.schema.nullable().default(null),
     collections: TaskCollectionSet.schema,
     positionByCollectionId: TaskPositionByCollectionIdMap.schema,
 
@@ -181,6 +185,7 @@ export class TaskModel {
             removedClosedChildTaskCount: 0,
             collections: TaskCollectionSet.empty,
             positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+            accessPolicy: null,
             status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
             assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
             assigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
@@ -241,6 +246,10 @@ export class TaskModel {
 
     /**
      * Get the actions required to duplicate this task.
+     *
+     * This function doesn't duplicate the task's access policy. The new task will
+     * have a default access policy where just the creator has access. Duplicated
+     * tasks are private to the duplicator until the duplicator shares them.
      *
      * @param creatorId - The actor who is performing the action.
      * @param actionTime - The time the action was performed.
@@ -545,6 +554,13 @@ export class TaskModel {
         return this.getChildTaskCount() - this.getClosedChildTaskCount();
     }
 
+    public getAccessPolicy(): AccessPolicy {
+        return (
+            this.rawData.accessPolicy?.value ??
+            createDefaultTaskAccessPolicy(this.rawData.creator.accountId)
+        );
+    }
+
     public getCollections() {
         return this.rawData.collections;
     }
@@ -601,6 +617,7 @@ function tickTaskModelData(task: TaskModelData, clock: {tick(time: HybridLogical
     if (task.undeletedTime !== null) clock.tick(task.undeletedTime);
     clock.tick(task.parent.taskId.version);
     clock.tick(task.parent.position.version);
+    if (task.accessPolicy) clock.tick(task.accessPolicy.version);
     task.collections.tick(clock);
     task.positionByCollectionId.tick(clock);
     clock.tick(task.status.version);

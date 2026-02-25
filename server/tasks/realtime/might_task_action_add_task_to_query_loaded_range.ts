@@ -414,6 +414,7 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                     throw exhaustive(action.priority);
             }
         }
+        case "UpdateAccessPolicy":
         case "UpdateNotepadPagePosition":
         case "UpdateAssigneeActivePosition": {
             return false;

@@ -61,7 +61,7 @@ export function ShareNotificationMobileModal({
     );
 
     const defaultAccessLevel = useMemo(
-        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy),
+        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy, null),
         [accessPolicy],
     );
 

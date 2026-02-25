@@ -129,6 +129,66 @@ test("loads a query with three tasks", async () => {
     });
 });
 
+test("access policy updates are indexed for queries", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const task = await TestTask.create(session1);
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    const initialDoc = await task.getIndexDoc();
+    expect(initialDoc.accessPolicy).toBeNull();
+
+    await task.access.grant(session1, session2, "View");
+    await server.wait();
+
+    const updatedDoc = await task.getIndexDoc();
+    expect(updatedDoc.accessPolicy?.value).toEqual({
+        accountGrantById: new Map([
+            [session1.account.id, {level: "Manage", generation: 0}],
+            [session2.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    });
+});
+
+test("loadQueries authorizes tasks shared via access policy", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const server = new TestTaskRealtimeServer(context);
+
+    const task1 = await TestTask.create(session1);
+
+    const loadQueries = async () =>
+        server.action(session2).tasks.loadQueries(space.id, {
+            queries: [],
+            taskIds: [task1.id],
+            collectionIds: [],
+        });
+
+    await expect(loadQueries()).rejects.toThrow(PermissionDeniedError);
+
+    await task1.access.grant(session1, session2, "View");
+    await server.wait();
+
+    const result = await loadQueries();
+    const backfillById = new Map(
+        result.updateEvent.backfillTasks.map(task => [
+            task.type === "Authorized" ? task.task.id : task.taskId,
+            task,
+        ]),
+    );
+
+    expect(backfillById.get(task1.id)?.type).toEqual("Authorized");
+
+    await task1.access.revoke(session1, session2);
+    await server.wait();
+
+    await expect(loadQueries()).rejects.toThrow(PermissionDeniedError);
+});
+
 test("can\u2019t load a query as the wrong space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);

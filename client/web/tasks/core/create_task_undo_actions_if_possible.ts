@@ -722,6 +722,12 @@ function pushTaskUndoAction(
             });
             break;
         }
+        case "UpdateAccessPolicy": {
+            // We don't let you undo (with cmd-z) access policy changes. Similar to how we
+            // don't allow you to undo access policy changes in documents or task
+            // collections with cmd-z.
+            break;
+        }
         case "UpdateNotepadPagePosition":
         case "UpdateAssigneeActivePosition": {
             break;

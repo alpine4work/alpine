@@ -3319,6 +3319,7 @@ function getTaskUndoActionsGridViewTargetIfExists(
             case "UpdateChildrenCounts":
             case "UpdateCollectionPosition":
             case "UpdateAssigneePosition":
+            case "UpdateAccessPolicy":
             case "UpdateNotepadPagePosition":
             case "UpdateAssigneeActivePosition": {
                 column = "Title";

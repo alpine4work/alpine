@@ -75,11 +75,6 @@ const TaskCollectionColorType = createCrdtRegisterOpensearchType(
         .nullable(),
 );
 
-const AccessPolicyType = createCrdtRegisterOpensearchType(
-    AccessPolicyRegister,
-    new OpensearchIndexIgnoredObjectType(AccessPolicySchema),
-);
-
 /**
  * The type of a document in our task collections index. Can be used to execute
  * arbitrary queries against tasks efficiently.
@@ -127,7 +122,11 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
 
         name: TaskCollectionNameType,
         color: TaskCollectionColorType,
-        accessPolicy: AccessPolicyType,
+
+        accessPolicy: createCrdtRegisterOpensearchType(
+            AccessPolicyRegister,
+            new OpensearchIndexIgnoredObjectType(AccessPolicySchema),
+        ),
     },
     computed: {
         fields: {

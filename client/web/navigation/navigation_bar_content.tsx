@@ -455,6 +455,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                                 entityId={shareButton.entityId}
                                                 isReadOnly={shareButton.isReadOnly}
                                                 accessPolicy={shareButton.accessPolicy}
+                                                inherited={shareButton.inherited}
                                                 onAccessPolicyChange={
                                                     shareButton.onAccessPolicyChange
                                                 }
@@ -565,6 +566,7 @@ function NavigationBarContentMoreButton({
                   entityNoun: shareButton.entityNoun,
                   accessLevelText: shareButton.accessLevelText ?? defaultAccessLevelText,
                   accessPolicy: shareButton.accessPolicy,
+                  inherited: shareButton.inherited,
                   onAccessPolicyChangeWithoutValidations: shareButton.onAccessPolicyChange,
                   isReadOnly: shareButton.isReadOnly,
               }
@@ -586,11 +588,13 @@ function NavigationBarContentMoreButton({
                             <ShareOverlay
                                 ref={overlayRef}
                                 id={shareState.modalOwnerId}
+                                entityNoun={shareButton.entityNoun}
                                 entityId={shareButton.entityId}
                                 accessLevelText={
                                     shareButton.accessLevelText ?? defaultAccessLevelText
                                 }
                                 accessPolicy={shareButton.accessPolicy}
+                                inherited={shareButton.inherited}
                                 onAccessPolicyChange={shareState.changeAccessPolicy}
                                 isVisible={isVisible}
                                 isReadOnly={shareState.isReadOnly}
@@ -693,6 +697,7 @@ function NavigationBarContentMoreButton({
                                     shareButton.accessLevelText ?? defaultAccessLevelText
                                 }
                                 accessPolicy={shareButton.accessPolicy}
+                                inherited={shareButton.inherited}
                                 onAccessPolicyChange={shareState.changeAccessPolicy}
                                 isReadOnly={shareState.isReadOnly}
                                 onCloseWithAnimation={onCloseWithAnimation}
@@ -773,9 +778,11 @@ function createShareMenuItem({
         label: "Share",
         icon:
             platform !== "desktop" ? (
-                shareButton.accessPolicy.urlGrant ? (
+                shareButton.accessPolicy.urlGrant ||
+                shareButton.inherited?.accessPolicy.urlGrant ? (
                     <Globe />
-                ) : shareButton.accessPolicy.defaultGrant ? (
+                ) : shareButton.accessPolicy.defaultGrant ||
+                  shareButton.inherited?.accessPolicy.defaultGrant ? (
                     <BuildingsIcon />
                 ) : (
                     <Lock />
@@ -800,6 +807,7 @@ function NavigationBarContentShareMenuItemSwitch({
         entityNoun: shareButton.entityNoun,
         accessLevelText: shareButton.accessLevelText ?? defaultAccessLevelText,
         accessPolicy: shareButton.accessPolicy,
+        inherited: shareButton.inherited,
         onAccessPolicyChangeWithoutValidations: shareButton.onAccessPolicyChange,
     });
 
@@ -811,6 +819,7 @@ function NavigationBarContentShareMenuItemSwitch({
                     isReadOnly={isReadOnly}
                     entityNoun={shareButton.entityNoun}
                     accessPolicy={shareButton.accessPolicy}
+                    inherited={shareButton.inherited}
                     onAccessPolicyChange={changeAccessPolicy}
                 />
             </Box>

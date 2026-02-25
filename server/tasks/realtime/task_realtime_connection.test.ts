@@ -10303,6 +10303,113 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
     ]);
 });
 
+test("will reauthorize an unauthorized referenced task to authorized via access policy", async () => {
+    const space = await TestSpace.create(context);
+    const server = createWebSocketServer(space);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const [task1, task2, parentTask1] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session2),
+    ]);
+
+    await parentTask1.access.grantDefault(session2);
+    await task1.updateParentTask(session1, parentTask1);
+    await parentTask1.access.revokeDefault(session2);
+    await server.wait();
+
+    const connection = await server.connectForTest(session1.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    expect(
+        await testSubscribeToQuery(
+            connection,
+            query(session1, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
+                        },
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {},
+            referencedAccounts: [await session1.get()],
+        },
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await parentTask1.updatePriority(session2, "High");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await parentTask1.access.grant(session2, session1, "View");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
+            referencedAccounts: [await session2.get()],
+        },
+    ]);
+
+    await parentTask1.updatePriority(session2, "Medium");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: parentTask1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Medium",
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+});
+
 test("will reauthorize an unauthorized referenced task to authorized and the new task has an unauthorized collection", async () => {
     const space = await TestSpace.create(context);
     const server = createWebSocketServer(space);
@@ -10749,6 +10856,255 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     await server.wait();
 
     expect(testTakeEvents(connection)).toEqual([]);
+});
+
+test("will reauthorize an authorized referenced task to unauthorized via access policy", async () => {
+    const space = await TestSpace.create(context);
+    const server = createWebSocketServer(space);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const [task1, task2, parentTask1] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session2),
+    ]);
+
+    await parentTask1.access.grantDefault(session2);
+    await task1.updateParentTask(session1, parentTask1);
+    await parentTask1.access.revokeDefault(session2);
+    await parentTask1.access.grant(session2, session1, "View");
+    await server.wait();
+
+    const connection = await server.connectForTest(session1.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    expect(
+        await testSubscribeToQuery(
+            connection,
+            query(session1, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
+                        },
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
+            referencedAccounts: [await session1.get(), await session2.get()],
+        },
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await parentTask1.updatePriority(session2, "High");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: parentTask1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "High",
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+
+    await parentTask1.access.revoke(session2, session1);
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: parentTask1.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: expect.any(Object),
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: {[parentTask1.id]: expectUnauthorizedTask()},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+
+    await parentTask1.updatePriority(session2, "Low");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await parentTask1.updatePriority(session2, "Medium");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+});
+
+test("access policy revocation does not unauthorize referenced task with collection access", async () => {
+    const space = await TestSpace.create(context);
+    const server = createWebSocketServer(space);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const [task1, task2, parentTask1, collection] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session2),
+        createPublicTestTaskCollection(session1),
+    ]);
+
+    await parentTask1.access.grant(session2, session1, "Edit");
+    await task1.updateParentTask(session1, parentTask1);
+    await parentTask1.addCollection(session2, collection);
+    await server.wait();
+
+    const connection = await server.connectForTest(session1.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    expect(
+        await testSubscribeToQuery(
+            connection,
+            query(session1, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
+                        },
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
+            referencedAccounts: [await session1.get(), await session2.get()],
+        },
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await parentTask1.access.revoke(session2, session1);
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: parentTask1.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: expect.any(Object),
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.authorize();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await parentTask1.updatePriority(session2, "Low");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: parentTask1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Low",
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
 });
 
 test("reauthorize will noop if an unauthorized referenced task is still unauthorized", async () => {
@@ -13610,6 +13966,42 @@ test("can\u2019t subscribe to task that you don\u2019t have access to", async ()
     expect(testTakeEvents(connection)).toEqual([]);
 });
 
+test("can subscribe to task shared via access policy without collection access", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const collection = await TestTaskCollection.create(session1);
+    const task1 = await TestTask.create(session1);
+    await task1.addCollection(session1, collection);
+    await task1.access.grant(session1, session2, "View");
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {updateEvent} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: task1.id,
+    });
+
+    expect(updateEvent).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: {[task1.id]: expectAuthorizedTask()},
+        backfillCollections: {},
+        referencedAccounts: [await session1.get()],
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+});
+
 test("will lose access to subscribed task upon reauthorization", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -13711,6 +14103,298 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     await server.wait();
 
     expect(testTakeEvents(connection)).toEqual([]);
+});
+
+test("will lose access to subscribed task upon access policy revocation", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const task1 = await TestTask.create(session1);
+    await task1.access.grant(session1, session2, "View");
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {taskSubscriptionId, updateEvent} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: task1.id,
+    });
+
+    expect(updateEvent).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: {[task1.id]: expectAuthorizedTask()},
+        backfillCollections: {},
+        referencedAccounts: [await session1.get()],
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await task1.updatePriority(session1, "High");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "High",
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.authorize();
+
+    expect(connection.isClosed()).toEqual(false);
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await task1.access.revoke(session1, session2);
+    await server.wait();
+
+    expect(connection.isClosed()).toEqual(false);
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: expect.any(Object),
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+        {
+            type: "TaskSubscriptionError",
+            id: taskSubscriptionId,
+            error: new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
+        },
+    ]);
+
+    await connection.authorize();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await task1.updatePriority(session1, "Medium");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+});
+
+test("access policy revocation doesn\u2019t remove access when collection access remains", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
+
+    const task1 = await TestTask.create(session1);
+    await task1.addCollection(session1, collection);
+    await task1.access.grant(session1, session2, "View");
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {updateEvent} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: task1.id,
+    });
+
+    expect(updateEvent).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: {[task1.id]: expectAuthorizedTask([collection.id])},
+        backfillCollections: {[collection.id]: expectAuthorizedCollection()},
+        referencedAccounts: [await session1.get()],
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await connection.authorize();
+
+    expect(connection.isClosed()).toEqual(false);
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await task1.access.revoke(session1, session2);
+    await server.wait();
+
+    expect(connection.isClosed()).toEqual(false);
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: expect.any(Object),
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+
+    await task1.updatePriority(session1, "Medium");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Medium",
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+});
+
+test("access policy revocation doesn\u2019t remove access when assignee access remains", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const task1 = await TestTask.create(session1);
+    await task1.updateAssignee(session1, session2);
+    await task1.access.grant(session1, session2, "View");
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {updateEvent} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: task1.id,
+    });
+
+    expect(updateEvent).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: {[task1.id]: expectAuthorizedTask()},
+        backfillCollections: {},
+        referencedAccounts: [await session1.get(), await session2.get()],
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await connection.authorize();
+
+    expect(connection.isClosed()).toEqual(false);
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await task1.access.revoke(session1, session2);
+    await server.wait();
+
+    expect(connection.isClosed()).toEqual(false);
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: expect.any(Object),
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+
+    await task1.updatePriority(session1, "Medium");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Medium",
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
 });
 
 test("will lose access to subscribed task upon reauthorization if account removed from space", async () => {
@@ -14276,6 +14960,140 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     ]);
 });
 
+test("can subscribe to task via parent access policy", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const parentTask = await TestTask.create(session1);
+    const childTask = await TestTask.create(session1, {parent: parentTask});
+    await parentTask.access.grant(session1, session2, "View");
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {updateEvent} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: childTask.id,
+    });
+
+    expect(updateEvent).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: {
+            [childTask.id]: expectAuthorizedTask(),
+            [parentTask.id]: expectAuthorizedTask(),
+        },
+        backfillCollections: {},
+        referencedAccounts: [await session1.get()],
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+});
+
+test("access policy revocation doesn\u2019t remove access when parent access remains", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const parentTask = await TestTask.create(session1);
+    const childTask = await TestTask.create(session1, {parent: parentTask});
+    await parentTask.access.grant(session1, session2, "View");
+    await childTask.access.grant(session1, session2, "View");
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {updateEvent} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: childTask.id,
+    });
+
+    expect(updateEvent).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: {
+            [childTask.id]: expectAuthorizedTask(),
+            [parentTask.id]: expectAuthorizedTask(),
+        },
+        backfillCollections: {},
+        referencedAccounts: [await session1.get()],
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await connection.authorize();
+
+    expect(connection.isClosed()).toEqual(false);
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await childTask.access.revoke(session1, session2);
+    await server.wait();
+
+    expect(connection.isClosed()).toEqual(false);
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: childTask.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: expect.any(Object),
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+
+    await childTask.updatePriority(session1, "Medium");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: childTask.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "Medium",
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+});
+
 test("subscribed task will become unauthorized after unsubscribed", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -14585,44 +15403,23 @@ test("will lose access to subscribed collection upon reauthorization", async () 
             backfillCollections: {},
             referencedAccounts: [],
         },
-    ]);
-
-    await collection1.updateName(session1, "Test Test 2");
-    await server.wait();
-
-    expect(testTakeEvents(connection)).toEqual([
-        {
-            type: "Update",
-            originClientId: null,
-            defaultAuthorizationStateVersion: expect.any(Array),
-            actions: [
-                {
-                    type: "UpdateCollection",
-                    time: expect.any(Array),
-                    collectionId: collection1.id,
-                    collectionAction: {
-                        type: "UpdateName",
-                        name: "Test Test 2",
-                    },
-                },
-            ],
-            backfillTasks: {},
-            backfillCollections: {},
-            referencedAccounts: [],
-        },
-    ]);
-
-    expect(connection.isClosed()).toEqual(false);
-    await connection.authorize();
-    expect(connection.isClosed()).toEqual(false);
-
-    expect(testTakeEvents(connection)).toEqual([
         {
             type: "CollectionSubscriptionError",
             id: collectionSubscriptionId,
             error: new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
         },
     ]);
+
+    await collection1.updateName(session1, "Test Test 2");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    expect(connection.isClosed()).toEqual(false);
+    await connection.authorize();
+    expect(connection.isClosed()).toEqual(false);
+
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.updateName(session1, "Test Test 3");
     await server.wait();
@@ -14728,6 +15525,215 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
             actions: [],
             backfillTasks: {},
             backfillCollections: {[collection2.id]: expectUnauthorizedCollection()},
+            referencedAccounts: [],
+        },
+    ]);
+
+    expect(connection.isClosed()).toEqual(false);
+});
+
+test("will lose access to subscribed task with own access policy upon reauthorization", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const task = await TestTask.create(session1);
+    await task.access.grantDefault(session1);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {taskSubscriptionId, updateEvent} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: task.id,
+    });
+
+    expect(updateEvent).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: {[task.id]: expectAuthorizedTask()},
+        backfillCollections: {},
+        referencedAccounts: [await session1.get()],
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await task.typeTitle(session1, "Test Test 1");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate: expect.any(Uint8Array),
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.authorize();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await task.access.revokeDefault(session1);
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: expect.any(Object),
+                    },
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+        {
+            type: "TaskSubscriptionError",
+            id: taskSubscriptionId,
+            error: new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
+        },
+    ]);
+
+    await task.typeTitle(session1, " (update)");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    expect(connection.isClosed()).toEqual(false);
+    await connection.authorize();
+    expect(connection.isClosed()).toEqual(false);
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    await task.typeTitle(session1, " (another change)");
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([]);
+});
+
+test("subscribed task with own access policy will become unauthorized after unsubscribed", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const [otherTask, task] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+    ]);
+
+    await task.access.grantDefault(session2);
+    await otherTask.updateParentTask(session2, task);
+    await otherTask.updateAssignee(session2, session1);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session1.action());
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {taskSubscriptionId, updateEvent: updateEvent1} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: task.id,
+    });
+
+    expect(updateEvent1).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: {[task.id]: expectAuthorizedTask()},
+        backfillCollections: {},
+        referencedAccounts: expect.any(Array),
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {updateEvent: updateEvent2} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: otherTask.id,
+    });
+
+    expect(updateEvent2).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: {[otherTask.id]: expectAuthorizedTask()},
+        backfillCollections: {},
+        referencedAccounts: expect.any(Array),
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    expect(connection.isClosed()).toEqual(false);
+    expect(connection.getCloseError()).toEqual(null);
+
+    await task.access.revokeDefault(session2);
+    await server.wait();
+
+    expect(testTakeEvents(connection)).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task.id,
+                    taskAction: expect.objectContaining({
+                        type: "UpdateAccessPolicy",
+                    }),
+                },
+            ],
+            backfillTasks: {},
+            backfillCollections: {},
+            referencedAccounts: [],
+        },
+        {
+            type: "TaskSubscriptionError",
+            id: taskSubscriptionId,
+            error: new PermissionDeniedError("Actor doesn\u2019t have `View` access level"),
+        },
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: {[task.id]: expectUnauthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -16192,6 +17198,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                             removedChildTaskCount: 0,
                             addedClosedChildTaskCount: 0,
                             removedClosedChildTaskCount: 0,
+                            accessPolicy: null,
                             collections: TaskCollectionSet.empty.apply({
                                 type: "Set",
                                 key: collection.id,
@@ -16310,6 +17317,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                             removedChildTaskCount: 0,
                             addedClosedChildTaskCount: 0,
                             removedClosedChildTaskCount: 0,
+                            accessPolicy: null,
                             collections: TaskCollectionSet.empty.apply({
                                 type: "Set",
                                 key: collection.id,

@@ -57,6 +57,8 @@ async function testLoadTaskRealtimeQueries(
         server,
         spaceId,
         queries,
+        taskIds = [],
+        collectionIds = [],
     }: {
         server: TestTaskRealtimeServer;
         spaceId: SpaceId;
@@ -65,6 +67,8 @@ async function testLoadTaskRealtimeQueries(
             sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
             limit?: number;
         }>;
+        taskIds?: ReadonlyArray<TaskId>;
+        collectionIds?: ReadonlyArray<TaskCollectionId>;
     },
 ) {
     const {
@@ -100,8 +104,8 @@ async function testLoadTaskRealtimeQueries(
                 limit: query?.limit ?? 100,
             };
         }),
-        taskIds: [],
-        collectionIds: [],
+        taskIds,
+        collectionIds,
     });
 
     expect(extraQueries).toEqual([]);
@@ -192,6 +196,50 @@ test("loads no queries", async () => {
             referencedAccounts: [],
         },
     });
+});
+
+test("loads task ids with task access policy and collection access", async () => {
+    const space = await TestSpace.create(context);
+    const [ownerSession, viewerSession] = await runAllPromises([
+        space.createSession({role: "Admin"}),
+        space.createSession(),
+    ]);
+    const server = new TestTaskRealtimeServer(context);
+
+    const task = await TestTask.create(ownerSession);
+
+    await server.wait();
+
+    const loadForViewer = () =>
+        testLoadTaskRealtimeQueries(viewerSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [],
+            taskIds: [task.id],
+        });
+
+    await expect(loadForViewer()).rejects.toThrow(PermissionDeniedError);
+
+    await task.access.grant(ownerSession, viewerSession, "View");
+    await server.wait();
+
+    expect((await loadForViewer()).updateEvent.backfillTasks[task.id]).toEqual(
+        expectAuthorizedTask(),
+    );
+
+    await task.access.revoke(ownerSession, viewerSession);
+
+    await expect(loadForViewer()).rejects.toThrow(PermissionDeniedError);
+
+    const collection = await TestTaskCollection.create(ownerSession, {access: "Private"});
+    await collection.access.grant(ownerSession, viewerSession, "View");
+    await task.addCollection(ownerSession, collection);
+
+    await server.wait();
+
+    expect((await loadForViewer()).updateEvent.backfillTasks[task.id]).toEqual(
+        expectAuthorizedTask([collection.id]),
+    );
 });
 
 test("loads a query", async () => {
@@ -3086,6 +3134,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3208,6 +3257,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3325,6 +3375,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3447,6 +3498,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3569,6 +3621,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3686,6 +3739,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3805,6 +3859,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3907,6 +3962,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -4009,6 +4065,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,

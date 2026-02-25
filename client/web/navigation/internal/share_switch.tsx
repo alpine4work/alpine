@@ -1,11 +1,12 @@
 import {useState} from "react";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {useReporter} from "~/client/web/design/reporter.js";
+import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {ShareSwitchBase} from "~/client/web/navigation/share_switch_base.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessPolicy, AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -13,11 +14,16 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 export function ShareSwitch({
     entityNoun,
     accessPolicy,
+    inherited,
     onAccessPolicyChange: onAccessPolicyChangeFromProps,
     isReadOnly,
 }: {
     entityNoun: string;
     accessPolicy: AccessPolicy;
+    inherited?: {
+        accessPolicy: AccessPolicyWithoutGenerations;
+        explanations: InheritedAccessPolicyExplanations;
+    };
     onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => MaybePromise<void>;
     isReadOnly: boolean;
 }) {
@@ -29,6 +35,14 @@ export function ShareSwitch({
         showDeleteDefaultGrantOrUrlGrantConfirmationDialog,
         setShowDeleteDefaultGrantOrUrlGrantConfirmationDialog,
     ] = useState(false);
+
+    const [
+        showCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog,
+        setShowCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog,
+    ] = useState(false);
+
+    if (showCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog && !inherited)
+        setShowCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog(false);
 
     // Our share switch doesn't have an inline loading indicator so use the
     // global loading indicator.
@@ -51,9 +65,9 @@ export function ShareSwitch({
         ? // Optimistically show the lock icon while the "make entity private" confirmation dialog
           // is open.
           ("Lock" as const)
-        : accessPolicy.urlGrant
+        : accessPolicy.urlGrant || inherited?.accessPolicy.urlGrant
           ? ("Globe" as const)
-          : accessPolicy.defaultGrant
+          : accessPolicy.defaultGrant || inherited?.accessPolicy.defaultGrant
             ? ("Buildings" as const)
             : ("Lock" as const);
 
@@ -64,34 +78,43 @@ export function ShareSwitch({
                 icon={icon}
                 isInert={isReadOnly}
                 onPress={() => {
-                    if (!accessPolicy.defaultGrant && !accessPolicy.urlGrant) {
-                        onAccessPolicyChange({
-                            type: "AddDefaultGrant",
-                            defaultGrant: {level: "Manage"},
-                        });
+                    if (inherited?.accessPolicy.urlGrant || inherited?.accessPolicy.defaultGrant) {
+                        // We can't delete inherited default grants or URL grants since they're not set
+                        // on our current entity but rather some referenced entity (e.g. a task
+                        // collection or parent task). Let the user know this.
+                        setShowCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog(true);
+                        return;
+                    }
 
-                        reporter.showInfoToast(
-                            <>
-                                Shared the {entityNoun} with everyone in{" "}
-                                <span className={sprinkles({fontStyle: "semi-bold"})}>
-                                    {space.name}
-                                </span>
-                            </>,
-                            {
-                                // This message is short, appears a lot, and the user only really needs to read
-                                // it once over the course of their lifetime with the product. Once the user
-                                // learns what this switch does (ideally the first time they press the switch)
-                                // they don't need to read this message again. So use a fast duration even
-                                // though it's not accessible.
-                                durationSeconds: 3,
-                            },
-                        );
-                    } else {
+                    if (accessPolicy.defaultGrant || accessPolicy.urlGrant) {
                         // Ask the user to confirm when pressing the switch to make the entity private.
                         // We want to make it very easy to share the entity but un-sharing the entity
                         // should have a little friction so the user doesn't do it accidentally.
                         setShowDeleteDefaultGrantOrUrlGrantConfirmationDialog(true);
+                        return;
                     }
+
+                    onAccessPolicyChange({
+                        type: "AddDefaultGrant",
+                        defaultGrant: {level: "Manage"},
+                    });
+
+                    reporter.showInfoToast(
+                        <>
+                            Shared the {entityNoun} with everyone in{" "}
+                            <span className={sprinkles({fontStyle: "semi-bold"})}>
+                                {space.name}
+                            </span>
+                        </>,
+                        {
+                            // This message is short, appears a lot, and the user only really needs to read
+                            // it once over the course of their lifetime with the product. Once the user
+                            // learns what this switch does (ideally the first time they press the switch)
+                            // they don't need to read this message again. So use a fast duration even
+                            // though it's not accessible.
+                            durationSeconds: 3,
+                        },
+                    );
                 }}
             />
             {showDeleteDefaultGrantOrUrlGrantConfirmationDialog && (
@@ -114,6 +137,22 @@ export function ShareSwitch({
                         }
                     }}
                     onClose={() => setShowDeleteDefaultGrantOrUrlGrantConfirmationDialog(false)}
+                />
+            )}
+            {showCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog && inherited && (
+                <ModalDialog
+                    title={`Can\u2019t make this ${entityNoun} private`}
+                    description={
+                        icon === "Globe"
+                            ? inherited.explanations.DeleteUrlGrant()
+                            : inherited.explanations.DeleteDefaultGrant()
+                    }
+                    shouldHideCancelButton={true}
+                    primaryButtonLabel="Ok"
+                    onPrimaryButtonPress={() =>
+                        setShowCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog(false)
+                    }
+                    onClose={() => setShowCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog(false)}
                 />
             )}
         </>

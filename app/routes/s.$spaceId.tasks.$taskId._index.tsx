@@ -39,6 +39,7 @@ import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_a
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getTaskNotesContentAndOptionalInitialCommentsIfExists} from "~/server/tasks/data/task_table.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -578,9 +579,11 @@ export default function TaskRoute() {
             {
                 undoManager,
                 affinityManager,
+                updateAccessPolicyShareNotification = null,
             }: {
                 undoManager: TaskClientStoreUndoManager | null;
                 affinityManager: TaskClientStoreSearchAffinityManager;
+                updateAccessPolicyShareNotification?: ShareNotification | null;
             },
         ): {
             finally: (callback: () => void) => void;
@@ -589,6 +592,8 @@ export default function TaskRoute() {
                 return store.commitTaskActionTransaction(context, getActions(), {
                     undoManager,
                     affinityManager,
+                    updateAccessPolicyShareNotification:
+                        updateAccessPolicyShareNotification ?? undefined,
                 });
             }
 
@@ -671,6 +676,8 @@ export default function TaskRoute() {
                         // actions are not explicitly performed by the user so it would be strange to
                         // include them in the undo stack.
                         undoableSlice: {startIndex: undoableSliceStartIndex, endIndex: null},
+                        updateAccessPolicyShareNotification:
+                            updateAccessPolicyShareNotification ?? undefined,
                     });
 
                     return commitPromise;

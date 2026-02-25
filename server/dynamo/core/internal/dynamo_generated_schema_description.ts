@@ -13050,6 +13050,25 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
+                                                                        "UpdateAccessPolicy": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateAccessPolicy"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "accessPolicy": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "9be54877"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
                                                                         "UpdateNotepadPagePosition": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
@@ -13606,7 +13625,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                     },
                                                     "optional": false
                                                 }
-                                            }
+                                            },
+                                            "referenceId": "ea6170f1"
                                         },
                                         "optional": false
                                     },
@@ -13819,6 +13839,16 @@ export const dynamoGeneratedSchemaDescription: {
                                             }
                                         },
                                         "optional": false
+                                    },
+                                    "accessPolicy": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Reference",
+                                                "reuseReferenceId": "ea6170f1"
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "validLeaseId": {
                                         "valueSchema": {

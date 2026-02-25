@@ -19,6 +19,7 @@ import {
     HybridLogicalTimeType,
     SortableHybridLogicalTimeType,
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
+import {AccessPolicyRegister, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     HybridLogicalTime,
@@ -556,6 +557,13 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         removedChildTaskCount: new OpensearchIndexIntegerType(),
         addedClosedChildTaskCount: new OpensearchIndexIntegerType(),
         removedClosedChildTaskCount: new OpensearchIndexIntegerType(),
+
+        accessPolicy: createCrdtRegisterOpensearchType(
+            AccessPolicyRegister,
+            new OpensearchIndexIgnoredObjectType(AccessPolicySchema),
+        )
+            .nullable()
+            .default(null),
 
         collections: TaskIndexCollectionsType,
 

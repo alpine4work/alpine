@@ -58,32 +58,53 @@ export async function evaluateAccessPolicy(
                 return false;
             }
 
-            // If this account is not a space member they can't have access.
-            //
-            // Even if an account was previously a member, was removed, but is still listed
-            // in the `AccessPolicy` they can't access. An account can only access the
-            // resource if they're an active space member.
-            if (
-                !(await isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    spaceId,
-                    context.actor.getAccountId(),
-                ))
-            ) {
-                return false;
-            }
-
             // Do we grant access to everyone in the space?
             if (
                 accessPolicy.defaultGrant !== null &&
                 hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
             ) {
+                // If this account is not a space member they can't have access.
+                //
+                // Even if an account was previously a member, was removed, but is still listed
+                // in the `AccessPolicy` they can't access. An account can only access the
+                // resource if they're an active space member.
+                //
+                // Optimization: Only run if there's a `defaultGrant`. Otherwise we can return
+                // false without making a database call.
+                if (
+                    !(await isAccountMemberOfSpaceWithoutAuthorization(
+                        context,
+                        spaceId,
+                        context.actor.getAccountId(),
+                    ))
+                ) {
+                    return false;
+                }
+
                 return true;
             }
 
             // Do we grant access to this account?
             const accountGrant = accessPolicy.accountGrantById.get(context.actor.getAccountId());
             if (accountGrant && hasAccessLevel(accountGrant.level, expectedAccessLevel)) {
+                // If this account is not a space member they can't have access.
+                //
+                // Even if an account was previously a member, was removed, but is still listed
+                // in the `AccessPolicy` they can't access. An account can only access the
+                // resource if they're an active space member.
+                //
+                // Optimization: Only run if there's an `accountGrant` for our actor. Otherwise
+                // we can return false without making a database call.
+                if (
+                    !(await isAccountMemberOfSpaceWithoutAuthorization(
+                        context,
+                        spaceId,
+                        context.actor.getAccountId(),
+                    ))
+                ) {
+                    return false;
+                }
+
                 return true;
             }
 

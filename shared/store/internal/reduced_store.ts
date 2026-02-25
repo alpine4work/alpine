@@ -17,17 +17,20 @@ import {Store} from "~/shared/store/internal/store.js";
  * time while the component is `subscribe()`d. If `getSnapshot()` is called
  * less frequently the reduce function might not see every base store value.
  */
-export class ReducedStore<BaseValue, Value> extends Store<Value> {
+export class ReducedStore<BaseValue, Value, InitialValue> extends Store<Value> {
     private readonly _store: Store<BaseValue>;
-    private readonly _reduce: (previousValue: Value, currentValue: BaseValue) => Value;
+    private readonly _reduce: (
+        previousValue: Value | InitialValue,
+        currentValue: BaseValue,
+    ) => Value;
     private _hasReduced = false;
     private _baseValue: BaseValue | null = null;
-    private _valueResult: Result<Value>;
+    private _valueResult: Result<Value | InitialValue>;
 
     constructor(
         store: Store<BaseValue>,
-        reduce: (previousValue: Value, currentValue: BaseValue) => Value,
-        initialValue: Value,
+        reduce: (previousValue: Value | InitialValue, currentValue: BaseValue) => Value,
+        initialValue: InitialValue,
     ) {
         super();
         this._store = store;
@@ -58,7 +61,9 @@ export class ReducedStore<BaseValue, Value> extends Store<Value> {
             this._valueResult = captureResult(() => this._reduce(value, baseValue));
         }
 
-        return unwrapResult(this._valueResult);
+        // We never return the `initialValue`. We always call `reduce()` before
+        // returning.
+        return unwrapResult(this._valueResult) as Value;
     };
 
     public addListener(listener: () => void) {

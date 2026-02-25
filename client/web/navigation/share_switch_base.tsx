@@ -9,6 +9,8 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {elevation} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 
+export const shareSwitchWidth = "12";
+
 export function ShareSwitchBase({
     entityNoun,
     icon,
@@ -43,7 +45,7 @@ export function ShareSwitchBase({
                 role="button"
                 aria-label={`Toggle sharing with everyone in ${space.name}`}
                 aria-pressed={icon !== "Lock"}
-                width="12"
+                width={shareSwitchWidth}
                 backgroundColor={
                     {
                         // TODO: If `theme` is green we need a different color for the URL grant. Right

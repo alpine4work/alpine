@@ -55,6 +55,10 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
             task2.removedClosedChildTaskCount,
         ),
 
+        accessPolicy:
+            task1.accessPolicy && task2.accessPolicy
+                ? task1.accessPolicy.merge(task2.accessPolicy)
+                : (task1.accessPolicy ?? task2.accessPolicy),
         collections: task1.collections.merge(task2.collections),
         positionByCollectionId: task1.positionByCollectionId.merge(task2.positionByCollectionId),
 

@@ -3,13 +3,20 @@ import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {OverlayTriggerButton} from "~/client/web/design/overlay_trigger_button.js";
 import {defaultAccessLevelText} from "~/client/web/navigation/access_level_text.js";
+import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {ShareOverlay, ShareOverlayRef} from "~/client/web/navigation/internal/share_overlay.js";
 import {ShareSwitch} from "~/client/web/navigation/internal/share_switch.js";
 import {useShareState} from "~/client/web/navigation/internal/use_share_state.js";
+import {shareSwitchWidth} from "~/client/web/navigation/share_switch_base.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    AccessPolicyWithoutGenerations,
+} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -20,6 +27,7 @@ export function ShareButton({
     entityId,
     accessLevelText = defaultAccessLevelText,
     accessPolicy,
+    inherited,
     onAccessPolicyChange: onAccessPolicyChangeWithoutValidations,
     isReadOnly: isReadOnlyProp,
     onCopyLink,
@@ -28,6 +36,10 @@ export function ShareButton({
     entityId: FileEntityId;
     accessLevelText?: Record<AccessLevel, string>;
     accessPolicy: AccessPolicy;
+    inherited?: {
+        accessPolicy: AccessPolicyWithoutGenerations;
+        explanations: InheritedAccessPolicyExplanations;
+    };
     onAccessPolicyChange: (
         // The `notification` argument comes first to make it harder for the
         // implementation of this function to ignore the `notification` argument.
@@ -49,25 +61,32 @@ export function ShareButton({
         accessLevelText,
         entityNoun,
         accessPolicy,
+        inherited,
         onAccessPolicyChangeWithoutValidations,
         isReadOnly: isReadOnlyProp,
     });
 
+    const gap = "1.5";
+    const overlayMarginX = "3";
+
     return (
-        <Box display="flex" alignItems="center" gap="1.5">
+        <Box display="flex" alignItems="center" gap={gap}>
             {modals}
             <OverlayTriggerButton
                 aria-haspopup="dialog"
-                placement="bottom"
+                placement="bottom-end"
                 offset="3"
+                offsetAlong={addRemLengths(shareSwitchWidth, gap, overlayMarginX)}
                 overlay={({isVisible, onCloseWithoutAnimation}) => (
-                    <Box paddingX="3">
+                    <Box paddingX={overlayMarginX}>
                         <ShareOverlay
                             ref={overlayRef}
                             id={modalOwnerId}
+                            entityNoun={entityNoun}
                             entityId={entityId}
                             accessLevelText={accessLevelText}
                             accessPolicy={accessPolicy}
+                            inherited={inherited}
                             onAccessPolicyChange={changeAccessPolicy}
                             isVisible={isVisible}
                             isReadOnly={isReadOnly}
@@ -121,6 +140,7 @@ export function ShareButton({
             <ShareSwitch
                 entityNoun={entityNoun}
                 accessPolicy={accessPolicy}
+                inherited={inherited}
                 onAccessPolicyChange={changeAccessPolicy}
                 isReadOnly={isReadOnly}
             />

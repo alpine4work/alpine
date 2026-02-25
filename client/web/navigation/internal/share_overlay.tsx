@@ -16,6 +16,7 @@ import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
+import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {Spacer} from "~/client/web/design/spacer.js";
@@ -25,6 +26,7 @@ import {
     noAccessLevelText,
     removeAccessLevelText,
 } from "~/client/web/navigation/access_level_text.js";
+import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/web/navigation/internal/get_default_share_overlay_account_input_access_level.js";
 import {ShareOverlayAccountBody} from "~/client/web/navigation/internal/share_overlay_account_body.js";
 import {
@@ -45,9 +47,14 @@ import {
     AccessLevel,
     AccessPolicy,
     AccessPolicyAccountGrant,
+    AccessPolicyAccountGrantWithoutGeneration,
     AccessPolicyDefaultGrant,
+    AccessPolicyDefaultGrantWithoutGeneration,
     AccessPolicyUrlGrant,
+    AccessPolicyWithoutGenerations,
     allAccessLevels,
+    hasAccessLevel,
+    maxAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
@@ -64,6 +71,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {partitionIterable} from "~/shared/helpers/iterable/partition_iterable.js";
@@ -87,9 +95,11 @@ export {ShareOverlayForwardRef as ShareOverlay};
 function ShareOverlay(
     {
         id,
+        entityNoun,
         entityId,
         accessLevelText,
         accessPolicy,
+        inherited,
         onAccessPolicyChange,
         isVisible,
         isReadOnly,
@@ -97,9 +107,14 @@ function ShareOverlay(
         onCloseWithoutAnimation,
     }: {
         id: string;
+        entityNoun: string;
         entityId: FileEntityId;
         accessLevelText: Record<AccessLevel, string>;
         accessPolicy: AccessPolicy;
+        inherited?: {
+            accessPolicy: AccessPolicyWithoutGenerations;
+            explanations: InheritedAccessPolicyExplanations;
+        };
         onAccessPolicyChange: (
             accessPolicy: AccessPolicyAction,
             notification?: ShareNotification | null,
@@ -118,7 +133,11 @@ function ShareOverlay(
     const accountGrantInputRef = useRef<ShareOverlayAccountInputRef>(null);
 
     const [accountGrantInputAccessLevel, setAccountGrantInputAccessLevel] = useState<AccessLevel>(
-        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy),
+        () =>
+            getDefaultShareOverlyAccountInputAccessLevel(
+                accessPolicy,
+                inherited?.accessPolicy ?? null,
+            ),
     );
 
     const [accountGrantInputSelectedAccounts, setAccountGrantInputSelectedAccounts] =
@@ -127,8 +146,10 @@ function ShareOverlay(
         setAccountGrantInputSelectedAccounts(emptyArray);
 
     const excludeAccountGrantInputAccountId = useCallback(
-        (accountId: AccountId) => accessPolicy.accountGrantById.has(accountId),
-        [accessPolicy.accountGrantById],
+        (accountId: AccountId): boolean =>
+            accessPolicy.accountGrantById.has(accountId) ||
+            !!inherited?.accessPolicy.accountGrantById.has(accountId),
+        [accessPolicy.accountGrantById, inherited?.accessPolicy.accountGrantById],
     );
 
     useImperativeHandle(
@@ -297,6 +318,15 @@ function ShareOverlay(
                                 <ShareOverlayAccountGrantsScrollView
                                     accessLevelText={accessLevelText}
                                     accountGrantById={accessPolicy.accountGrantById}
+                                    inherited={
+                                        inherited
+                                            ? {
+                                                  accountGrantById:
+                                                      inherited.accessPolicy.accountGrantById,
+                                                  explanations: inherited.explanations,
+                                              }
+                                            : null
+                                    }
                                     onAccessPolicyChange={onAccessPolicyChange}
                                     accountById={accountById}
                                     isReadOnly={isReadOnly}
@@ -310,16 +340,34 @@ function ShareOverlay(
                                 <Box height="border" backgroundColor="grey-5" />
                                 <Spacer space="5" />
                                 <ShareOverlayDefaultGrant
+                                    entityNoun={entityNoun}
                                     accessLevelText={accessLevelText}
                                     defaultGrant={accessPolicy.defaultGrant}
+                                    inherited={
+                                        inherited
+                                            ? {
+                                                  defaultGrant: inherited.accessPolicy.defaultGrant,
+                                                  explanations: inherited.explanations,
+                                              }
+                                            : null
+                                    }
                                     onAccessPolicyChange={onAccessPolicyChange}
                                     isReadOnly={isReadOnly}
                                     isAltKeyDown={isAltKeyDown}
                                 />
                                 <Spacer space="3" />
                                 <ShareOverlayUrlGrant
+                                    entityNoun={entityNoun}
                                     accessLevelText={accessLevelText}
                                     urlGrant={accessPolicy.urlGrant}
+                                    inherited={
+                                        inherited
+                                            ? {
+                                                  urlGrant: inherited.accessPolicy.urlGrant,
+                                                  explanations: inherited.explanations,
+                                              }
+                                            : null
+                                    }
                                     onAccessPolicyChange={onAccessPolicyChange}
                                     isReadOnly={isReadOnly}
                                 />
@@ -379,6 +427,7 @@ function ShareOverlay(
 export function ShareOverlayAccountGrantsScrollView({
     accessLevelText,
     accountGrantById,
+    inherited,
     onAccessPolicyChange,
     accountById,
     isReadOnly,
@@ -389,6 +438,10 @@ export function ShareOverlayAccountGrantsScrollView({
 }: {
     accessLevelText: Record<AccessLevel, string>;
     accountGrantById: AccessPolicy["accountGrantById"];
+    inherited: {
+        accountGrantById: AccessPolicyWithoutGenerations["accountGrantById"];
+        explanations: InheritedAccessPolicyExplanations;
+    } | null;
     onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
     accountById: ReadonlyMap<AccountId, AccountModel>;
     isReadOnly: boolean;
@@ -411,6 +464,7 @@ export function ShareOverlayAccountGrantsScrollView({
                 <ShareOverlayAccountGrants
                     accessLevelText={accessLevelText}
                     accountGrantById={accountGrantById}
+                    inherited={inherited}
                     onAccessPolicyChange={onAccessPolicyChange}
                     accountById={accountById}
                     isReadOnly={isReadOnly}
@@ -424,6 +478,7 @@ export function ShareOverlayAccountGrantsScrollView({
 export function ShareOverlayAccountGrants({
     accessLevelText,
     accountGrantById,
+    inherited,
     onAccessPolicyChange,
     accountById,
     isReadOnly,
@@ -431,6 +486,10 @@ export function ShareOverlayAccountGrants({
 }: {
     accessLevelText: Record<AccessLevel, string>;
     accountGrantById: AccessPolicy["accountGrantById"];
+    inherited: {
+        accountGrantById: AccessPolicyWithoutGenerations["accountGrantById"];
+        explanations: InheritedAccessPolicyExplanations;
+    } | null;
     onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
     accountById: ReadonlyMap<AccountId, AccountModel>;
     isReadOnly: boolean;
@@ -451,42 +510,59 @@ export function ShareOverlayAccountGrants({
     // level. So we sort accounts by their initial access level, not their current
     // access level. Which is why we have this state here. This state creates a map
     // of account grants keyed by the initial access policy we saw for the grant.
-    const accountGrantByIdByInitialAccessLevel = useStateWithDependenciesWithoutDispatch<
-        ReadonlyMap<AccessLevel, ReadonlyMap<AccountId, AccessPolicyAccountGrant>>,
+    const accountGrantByIdByInitialEffectiveAccessLevel = useStateWithDependenciesWithoutDispatch<
+        ReadonlyMap<AccessLevel, ReadonlyMap<AccountId, AccessPolicyAccountGrantWithoutGeneration>>,
         [AccessPolicy["accountGrantById"]]
     >(
-        ([accountGrantById], previousAccountGrantByIdByInitialAccessLevel) => {
-            const accountGrantByIdByInitialAccessLevel = new Map<
+        ([accountGrantById], previousAccountGrantByIdByInitialEffectiveAccessLevel) => {
+            const accountGrantByIdByInitialEffectiveAccessLevel = new Map<
                 AccessLevel,
-                Map<AccountId, AccessPolicyAccountGrant>
+                Map<AccountId, AccessPolicyAccountGrantWithoutGeneration>
             >();
 
-            const initialAccessLevelByAccountId = new Map<AccountId, AccessLevel>();
+            const initialEffectiveAccessLevelByAccountId = new Map<AccountId, AccessLevel>();
 
             // Record the initial access level for each account in our previous state.
             for (const [
-                initialAccessLevel,
+                initialEffectiveAccessLevel,
                 accountGrantById,
-            ] of previousAccountGrantByIdByInitialAccessLevel ?? emptyArray) {
+            ] of previousAccountGrantByIdByInitialEffectiveAccessLevel ?? emptyArray) {
                 for (const accountId of accountGrantById.keys()) {
-                    assert(!initialAccessLevelByAccountId.has(accountId));
-                    initialAccessLevelByAccountId.set(accountId, initialAccessLevel);
+                    assert(!initialEffectiveAccessLevelByAccountId.has(accountId));
+                    initialEffectiveAccessLevelByAccountId.set(
+                        accountId,
+                        initialEffectiveAccessLevel,
+                    );
                 }
             }
 
             // Add accounts to our map keyed by the initial access level we saw for the
             // account.
-            for (const [accountId, accountGrant] of accountGrantById) {
-                const initialAccessLevel = initialAccessLevelByAccountId.get(accountId);
+            for (const accountId of concatIterables(
+                accountGrantById.keys(),
+                inherited?.accountGrantById.keys() ?? emptyArray,
+            )) {
+                const accessLevel = assertExists(
+                    maxAccessLevel(
+                        accountGrantById.get(accountId)?.level ?? null,
+                        inherited?.accountGrantById.get(accountId)?.level ?? null,
+                    ),
+                );
+
+                const initialEffectiveAccessLevel = getOrSetDefaultMapValue(
+                    initialEffectiveAccessLevelByAccountId,
+                    accountId,
+                    () => accessLevel,
+                );
 
                 getOrSetDefaultMapValue(
-                    accountGrantByIdByInitialAccessLevel,
-                    initialAccessLevel ?? accountGrant.level,
+                    accountGrantByIdByInitialEffectiveAccessLevel,
+                    initialEffectiveAccessLevel,
                     () => new Map(),
-                ).set(accountId, accountGrant);
+                ).set(accountId, {level: accessLevel});
             }
 
-            return accountGrantByIdByInitialAccessLevel;
+            return accountGrantByIdByInitialEffectiveAccessLevel;
         },
         [accountGrantById],
     );
@@ -498,7 +574,6 @@ export function ShareOverlayAccountGrants({
                     Array.from(
                         flatIterable<{
                             accountId: AccountId;
-                            accountGrant: AccessPolicyAccountGrant;
                             account: AccountModel | null;
                             accountData: AccountModelData | null;
                         }>(
@@ -511,21 +586,21 @@ export function ShareOverlayAccountGrants({
                                     // Create an iterable that goes through each account grant in initial access
                                     // level order. Starting with the `Manage` access level and ending with the
                                     // `View` access level.
-                                    flatIterable(
+                                    flatIterable<AccountId>(
                                         Array.from(
                                             allAccessLevels,
                                             accessLevel =>
-                                                accountGrantByIdByInitialAccessLevel.get(
-                                                    accessLevel,
-                                                ) ?? emptyArray,
+                                                accountGrantByIdByInitialEffectiveAccessLevel
+                                                    .get(accessLevel)
+                                                    ?.keys() ?? emptyArray,
                                         ).reverse(),
                                     ),
-                                    ([accountId, accountGrant]) => {
+                                    accountId => {
                                         const account = accountById.get(accountId) ?? null;
                                         const accountData = account
                                             ? get(accountRegistry.getAccountStore(account))
                                             : null;
-                                        return {accountId, accountGrant, account, accountData};
+                                        return {accountId, account, accountData};
                                     },
                                 ),
                                 ({accountData}) =>
@@ -534,24 +609,37 @@ export function ShareOverlayAccountGrants({
                         ),
                     ),
                 ),
-            [accountById, accountGrantByIdByInitialAccessLevel, accountRegistry],
+            [accountById, accountGrantByIdByInitialEffectiveAccessLevel, accountRegistry],
         ),
     );
 
     return (
         <Box display="flex" flexDirection="column" gap="4">
-            {sortedAccountGrants.map(({accountId, accountGrant, accountData}) => (
-                <ShareOverlayAccountGrant
-                    key={accountId}
-                    accessLevelText={accessLevelText}
-                    accountId={accountId}
-                    accountData={accountData}
-                    accountGrant={accountGrant}
-                    onAccessPolicyChange={onAccessPolicyChange}
-                    isReadOnly={isReadOnly}
-                    isAltKeyDown={isAltKeyDown}
-                />
-            ))}
+            {sortedAccountGrants.map(({accountId, accountData}) => {
+                const accountGrant = accountGrantById.get(accountId);
+                const inheritedAccountGrant = inherited?.accountGrantById.get(accountId);
+
+                return (
+                    <ShareOverlayAccountGrant
+                        key={accountId}
+                        accessLevelText={accessLevelText}
+                        accountId={accountId}
+                        accountData={accountData}
+                        accountGrant={accountGrant ?? null}
+                        inherited={
+                            inheritedAccountGrant
+                                ? {
+                                      accountGrant: inheritedAccountGrant,
+                                      explanations: inherited!.explanations,
+                                  }
+                                : null
+                        }
+                        onAccessPolicyChange={onAccessPolicyChange}
+                        isReadOnly={isReadOnly}
+                        isAltKeyDown={isAltKeyDown}
+                    />
+                );
+            })}
         </Box>
     );
 }
@@ -563,6 +651,7 @@ function ShareOverlayAccountGrant({
     accountId,
     accountData,
     accountGrant,
+    inherited,
     onAccessPolicyChange,
     isReadOnly,
     isAltKeyDown,
@@ -570,11 +659,30 @@ function ShareOverlayAccountGrant({
     accessLevelText: Record<AccessLevel, string>;
     accountId: AccountId;
     accountData: AccountModelData | null;
-    accountGrant: AccessPolicyAccountGrant;
+    accountGrant: AccessPolicyAccountGrantWithoutGeneration | null;
+    inherited: {
+        accountGrant: AccessPolicyAccountGrantWithoutGeneration;
+        explanations: InheritedAccessPolicyExplanations;
+    } | null;
     onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
+    const effectiveAccessLevel = assertExists(
+        maxAccessLevel(accountGrant?.level ?? null, inherited?.accountGrant.level ?? null),
+        "If an account doesn\u2019t have access then it shouldn\u2019t be rendered",
+    );
+
+    const [
+        showCanNotDeleteInheritedAccountGrantDialog,
+        setShowCanNotDeleteInheritedAccountGrantDialog,
+    ] = useState(false);
+
+    const [
+        showCanNotSetInheritedAccountGrantLevelDialog,
+        setShowCanNotSetInheritedAccountGrantLevelDialog,
+    ] = useState<AccessLevel | null>(null);
+
     return (
         <Box
             data-testid={`ShareOverlayAccountGrant:${accountId}`}
@@ -608,17 +716,29 @@ function ShareOverlayAccountGrant({
             )}
             <Box flexGrow="1" />
             {isReadOnly ? (
-                <Box flexShrink="0">{accessLevelText[accountGrant.level]}</Box>
+                <Box flexShrink="0">{accessLevelText[effectiveAccessLevel]}</Box>
             ) : (
                 <MenuButton
                     placement="bottom-end"
                     actions={[
                         [
                             {
-                                isSelected: accountGrant.level === "Manage",
+                                isSelected: effectiveAccessLevel === "Manage",
                                 label: accessLevelText.Manage,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    if (effectiveAccessLevel === "Manage") return;
+
+                                    // If there's an inherited access policy you can't change the access level to
+                                    // something lower than the inherited access level.
+                                    if (
+                                        inherited?.accountGrant &&
+                                        hasAccessLevel(inherited.accountGrant.level, "Manage")
+                                    ) {
+                                        setShowCanNotSetInheritedAccountGrantLevelDialog("Manage");
+                                        return {withoutClose: true};
+                                    }
+
                                     return onAccessPolicyChange({
                                         type: "SetAccountGrantLevel",
                                         accountId,
@@ -629,10 +749,27 @@ function ShareOverlayAccountGrant({
                             ...(isAltKeyDown
                                 ? [
                                       cast<MenuAction>({
-                                          isSelected: accountGrant.level === "Edit",
+                                          isSelected: effectiveAccessLevel === "Edit",
                                           label: accessLevelText.Edit,
                                           pressErrorTitle: "Couldn\u2019t change access",
                                           onPress: () => {
+                                              if (effectiveAccessLevel === "Edit") return;
+
+                                              // If there's an inherited access policy you can't change the access level to
+                                              // something lower than the inherited access level.
+                                              if (
+                                                  inherited?.accountGrant &&
+                                                  hasAccessLevel(
+                                                      inherited.accountGrant.level,
+                                                      "Edit",
+                                                  )
+                                              ) {
+                                                  setShowCanNotSetInheritedAccountGrantLevelDialog(
+                                                      "Edit",
+                                                  );
+                                                  return {withoutClose: true};
+                                              }
+
                                               return onAccessPolicyChange({
                                                   type: "SetAccountGrantLevel",
                                                   accountId,
@@ -643,10 +780,22 @@ function ShareOverlayAccountGrant({
                                   ]
                                 : emptyArray),
                             {
-                                isSelected: accountGrant.level === "Comment",
+                                isSelected: effectiveAccessLevel === "Comment",
                                 label: accessLevelText.Comment,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    if (effectiveAccessLevel === "Comment") return;
+
+                                    // If there's an inherited access policy you can't change the access level to
+                                    // something lower than the inherited access level.
+                                    if (
+                                        inherited?.accountGrant &&
+                                        hasAccessLevel(inherited.accountGrant.level, "Comment")
+                                    ) {
+                                        setShowCanNotSetInheritedAccountGrantLevelDialog("Comment");
+                                        return {withoutClose: true};
+                                    }
+
                                     return onAccessPolicyChange({
                                         type: "SetAccountGrantLevel",
                                         accountId,
@@ -655,10 +804,22 @@ function ShareOverlayAccountGrant({
                                 },
                             },
                             {
-                                isSelected: accountGrant.level === "View",
+                                isSelected: effectiveAccessLevel === "View",
                                 label: accessLevelText.View,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    if (effectiveAccessLevel === "View") return;
+
+                                    // If there's an inherited access policy you can't change the access level to
+                                    // something lower than the inherited access level.
+                                    if (
+                                        inherited?.accountGrant &&
+                                        hasAccessLevel(inherited.accountGrant.level, "View")
+                                    ) {
+                                        setShowCanNotSetInheritedAccountGrantLevelDialog("View");
+                                        return {withoutClose: true};
+                                    }
+
                                     return onAccessPolicyChange({
                                         type: "SetAccountGrantLevel",
                                         accountId,
@@ -672,6 +833,13 @@ function ShareOverlayAccountGrant({
                                 label: removeAccessLevelText,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    // If there's an inherited access policy you can't change the access level to
+                                    // something lower than the inherited access level.
+                                    if (inherited?.accountGrant) {
+                                        setShowCanNotDeleteInheritedAccountGrantDialog(true);
+                                        return {withoutClose: true};
+                                    }
+
                                     return onAccessPolicyChange({
                                         type: "DeleteAccountGrant",
                                         accountId,
@@ -682,28 +850,77 @@ function ShareOverlayAccountGrant({
                     ]}
                 >
                     <Button height="6" paddingX="2" icon={<CaretDown />} iconPlacement="end">
-                        {accessLevelText[accountGrant.level]}
+                        {accessLevelText[effectiveAccessLevel]}
                     </Button>
                 </MenuButton>
+            )}
+            {showCanNotDeleteInheritedAccountGrantDialog && inherited && (
+                <ModalDialog
+                    title="Can&#x2019;t remove this person"
+                    description={inherited.explanations.DeleteAccountGrant(accountId)}
+                    shouldHideCancelButton={true}
+                    primaryButtonLabel="Ok"
+                    onPrimaryButtonPress={() =>
+                        setShowCanNotDeleteInheritedAccountGrantDialog(false)
+                    }
+                    onClose={() => setShowCanNotDeleteInheritedAccountGrantDialog(false)}
+                />
+            )}
+            {showCanNotSetInheritedAccountGrantLevelDialog && inherited && (
+                <ModalDialog
+                    title={`Can\u2019t change this person to \u201C${accessLevelText[showCanNotSetInheritedAccountGrantLevelDialog]}\u201D`}
+                    description={inherited.explanations.SetAccountGrantLevel(
+                        accountId,
+                        showCanNotSetInheritedAccountGrantLevelDialog,
+                    )}
+                    shouldHideCancelButton={true}
+                    primaryButtonLabel="Ok"
+                    onPrimaryButtonPress={() =>
+                        setShowCanNotSetInheritedAccountGrantLevelDialog(null)
+                    }
+                    onClose={() => setShowCanNotSetInheritedAccountGrantLevelDialog(null)}
+                />
             )}
         </Box>
     );
 }
 
 export function ShareOverlayDefaultGrant({
+    entityNoun,
     accessLevelText,
     defaultGrant,
+    inherited,
     onAccessPolicyChange,
     isReadOnly,
     isAltKeyDown,
 }: {
+    entityNoun: string;
     accessLevelText: Record<AccessLevel, string>;
     defaultGrant: AccessPolicyDefaultGrant | null;
+    inherited: {
+        defaultGrant: AccessPolicyDefaultGrantWithoutGeneration | null;
+        explanations: InheritedAccessPolicyExplanations;
+    } | null;
     onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
     const {space} = useSpaceContext();
+
+    const effectiveAccessLevel = maxAccessLevel(
+        defaultGrant?.level ?? null,
+        inherited?.defaultGrant?.level ?? null,
+    );
+
+    const [
+        showCanNotDeleteInheritedDefaultGrantDialog,
+        setShowCanNotDeleteInheritedDefaultGrantDialog,
+    ] = useState(false);
+
+    const [
+        showCanNotSetInheritedDefaultGrantLevelDialog,
+        setShowCanNotSetInheritedDefaultGrantLevelDialog,
+    ] = useState<AccessLevel | null>(null);
 
     return (
         <Box data-testid="ShareOverlayDefaultGrant" display="flex" alignItems="center">
@@ -717,10 +934,10 @@ export function ShareOverlayDefaultGrant({
             </Box>
             <Box flexGrow="1" minWidth="2" />
             {isReadOnly ? (
-                <Box color={defaultGrant === null ? "grey-60" : "grey-100"}>
-                    {defaultGrant === null
+                <Box color={effectiveAccessLevel === null ? "grey-60" : "grey-100"}>
+                    {effectiveAccessLevel === null
                         ? noAccessLevelText
-                        : accessLevelText[defaultGrant.level]}
+                        : accessLevelText[effectiveAccessLevel]}
                 </Box>
             ) : (
                 <MenuButton
@@ -728,10 +945,22 @@ export function ShareOverlayDefaultGrant({
                     actions={[
                         [
                             {
-                                isSelected: defaultGrant?.level === "Manage",
+                                isSelected: effectiveAccessLevel === "Manage",
                                 label: accessLevelText.Manage,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    if (effectiveAccessLevel === "Manage") return;
+
+                                    // If there's an inherited access policy you can't change the access level to
+                                    // something lower than the inherited access level.
+                                    if (
+                                        inherited?.defaultGrant &&
+                                        hasAccessLevel(inherited.defaultGrant.level, "Manage")
+                                    ) {
+                                        setShowCanNotSetInheritedDefaultGrantLevelDialog("Manage");
+                                        return {withoutClose: true};
+                                    }
+
                                     if (defaultGrant) {
                                         return onAccessPolicyChange({
                                             type: "SetDefaultGrantLevel",
@@ -745,13 +974,30 @@ export function ShareOverlayDefaultGrant({
                                     }
                                 },
                             },
-                            ...(isAltKeyDown || defaultGrant?.level === "Edit"
+                            ...(isAltKeyDown || effectiveAccessLevel === "Edit"
                                 ? [
                                       cast<MenuAction>({
-                                          isSelected: defaultGrant?.level === "Edit",
+                                          isSelected: effectiveAccessLevel === "Edit",
                                           label: accessLevelText.Edit,
                                           pressErrorTitle: "Couldn\u2019t change access",
                                           onPress: () => {
+                                              if (effectiveAccessLevel === "Edit") return;
+
+                                              // If there's an inherited access policy you can't change the access level to
+                                              // something lower than the inherited access level.
+                                              if (
+                                                  inherited?.defaultGrant &&
+                                                  hasAccessLevel(
+                                                      inherited.defaultGrant.level,
+                                                      "Edit",
+                                                  )
+                                              ) {
+                                                  setShowCanNotSetInheritedDefaultGrantLevelDialog(
+                                                      "Edit",
+                                                  );
+                                                  return {withoutClose: true};
+                                              }
+
                                               if (defaultGrant) {
                                                   return onAccessPolicyChange({
                                                       type: "SetDefaultGrantLevel",
@@ -768,10 +1014,22 @@ export function ShareOverlayDefaultGrant({
                                   ]
                                 : emptyArray),
                             {
-                                isSelected: defaultGrant?.level === "Comment",
+                                isSelected: effectiveAccessLevel === "Comment",
                                 label: accessLevelText.Comment,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    if (effectiveAccessLevel === "Comment") return;
+
+                                    // If there's an inherited access policy you can't change the access level to
+                                    // something lower than the inherited access level.
+                                    if (
+                                        inherited?.defaultGrant &&
+                                        hasAccessLevel(inherited.defaultGrant.level, "Comment")
+                                    ) {
+                                        setShowCanNotSetInheritedDefaultGrantLevelDialog("Comment");
+                                        return {withoutClose: true};
+                                    }
+
                                     if (defaultGrant) {
                                         return onAccessPolicyChange({
                                             type: "SetDefaultGrantLevel",
@@ -786,10 +1044,22 @@ export function ShareOverlayDefaultGrant({
                                 },
                             },
                             {
-                                isSelected: defaultGrant?.level === "View",
+                                isSelected: effectiveAccessLevel === "View",
                                 label: accessLevelText.View,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    if (effectiveAccessLevel === "View") return;
+
+                                    // If there's an inherited access policy you can't change the access level to
+                                    // something lower than the inherited access level.
+                                    if (
+                                        inherited?.defaultGrant &&
+                                        hasAccessLevel(inherited.defaultGrant.level, "View")
+                                    ) {
+                                        setShowCanNotSetInheritedDefaultGrantLevelDialog("View");
+                                        return {withoutClose: true};
+                                    }
+
                                     if (defaultGrant) {
                                         return onAccessPolicyChange({
                                             type: "SetDefaultGrantLevel",
@@ -806,10 +1076,17 @@ export function ShareOverlayDefaultGrant({
                         ],
                         [
                             {
-                                isSelected: defaultGrant === null,
+                                isSelected: effectiveAccessLevel === null,
                                 label: noAccessLevelText,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    // If there's an inherited access policy you can't change the access level to
+                                    // something lower than the inherited access level.
+                                    if (inherited?.defaultGrant) {
+                                        setShowCanNotDeleteInheritedDefaultGrantDialog(true);
+                                        return {withoutClose: true};
+                                    }
+
                                     return onAccessPolicyChange({
                                         type: "DeleteDefaultGrant",
                                     });
@@ -819,33 +1096,74 @@ export function ShareOverlayDefaultGrant({
                     ]}
                 >
                     <Button
-                        variant={defaultGrant === null ? "quietest" : "quiet"}
+                        variant={effectiveAccessLevel === null ? "quietest" : "quiet"}
                         height="6"
                         paddingX="2"
                         icon={<CaretDown />}
                         iconPlacement="end"
                     >
-                        {defaultGrant === null
+                        {effectiveAccessLevel === null
                             ? noAccessLevelText
-                            : accessLevelText[defaultGrant.level]}
+                            : accessLevelText[effectiveAccessLevel]}
                     </Button>
                 </MenuButton>
+            )}
+            {showCanNotDeleteInheritedDefaultGrantDialog && inherited && (
+                <ModalDialog
+                    title={`Can\u2019t make this ${entityNoun} private`}
+                    description={inherited.explanations.DeleteDefaultGrant()}
+                    shouldHideCancelButton={true}
+                    primaryButtonLabel="Ok"
+                    onPrimaryButtonPress={() =>
+                        setShowCanNotDeleteInheritedDefaultGrantDialog(false)
+                    }
+                    onClose={() => setShowCanNotDeleteInheritedDefaultGrantDialog(false)}
+                />
+            )}
+            {showCanNotSetInheritedDefaultGrantLevelDialog && inherited && (
+                <ModalDialog
+                    title={`Can\u2019t change this ${entityNoun} to \u201C${accessLevelText[showCanNotSetInheritedDefaultGrantLevelDialog]}\u201D`}
+                    description={inherited.explanations.SetDefaultGrantLevel(
+                        showCanNotSetInheritedDefaultGrantLevelDialog,
+                    )}
+                    shouldHideCancelButton={true}
+                    primaryButtonLabel="Ok"
+                    onPrimaryButtonPress={() =>
+                        setShowCanNotSetInheritedDefaultGrantLevelDialog(null)
+                    }
+                    onClose={() => setShowCanNotSetInheritedDefaultGrantLevelDialog(null)}
+                />
             )}
         </Box>
     );
 }
 
 export function ShareOverlayUrlGrant({
+    entityNoun,
     accessLevelText,
     urlGrant,
+    inherited,
     onAccessPolicyChange,
     isReadOnly,
 }: {
+    entityNoun: string;
     accessLevelText: Record<AccessLevel, string>;
     urlGrant: AccessPolicyUrlGrant | null;
+    inherited: {
+        urlGrant: AccessPolicyUrlGrant | null;
+        explanations: InheritedAccessPolicyExplanations;
+    } | null;
     onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
     isReadOnly: boolean;
 }) {
+    const [showCanNotDeleteInheritedUrlGrantDialog, setShowCanNotDeleteInheritedUrlGrantDialog] =
+        useState(false);
+
+    const effectiveAccessLevel = maxAccessLevel(
+        urlGrant?.level ?? null,
+        inherited?.urlGrant?.level ?? null,
+    );
+
     return (
         <Box data-testid="ShareOverlayUrlGrant" display="flex" alignItems="center">
             <Box
@@ -864,17 +1182,21 @@ export function ShareOverlayUrlGrant({
             </Box>
             <Box flexGrow="1" minWidth="2" />
             {isReadOnly ? (
-                <Box color={urlGrant === null ? "grey-60" : "grey-100"}>{noAccessLevelText}</Box>
+                <Box color={effectiveAccessLevel === null ? "grey-60" : "grey-100"}>
+                    {noAccessLevelText}
+                </Box>
             ) : (
                 <MenuButton
                     placement="bottom-end"
                     actions={[
                         [
                             {
-                                isSelected: urlGrant?.level === "View",
+                                isSelected: effectiveAccessLevel === "View",
                                 label: accessLevelText.View,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    if (effectiveAccessLevel === "View") return;
+
                                     if (urlGrant) {
                                         return onAccessPolicyChange({
                                             type: "SetUrlGrantLevel",
@@ -891,10 +1213,17 @@ export function ShareOverlayUrlGrant({
                         ],
                         [
                             {
-                                isSelected: urlGrant === null,
+                                isSelected: effectiveAccessLevel === null,
                                 label: noAccessLevelText,
                                 pressErrorTitle: "Couldn\u2019t change access",
                                 onPress: () => {
+                                    // If there's an inherited access policy you can't change the access level to
+                                    // something lower than the inherited access level.
+                                    if (inherited?.urlGrant) {
+                                        setShowCanNotDeleteInheritedUrlGrantDialog(true);
+                                        return {withoutClose: true};
+                                    }
+
                                     return onAccessPolicyChange({
                                         type: "DeleteUrlGrant",
                                     });
@@ -904,15 +1233,27 @@ export function ShareOverlayUrlGrant({
                     ]}
                 >
                     <Button
-                        variant={urlGrant === null ? "quietest" : "quiet"}
+                        variant={effectiveAccessLevel === null ? "quietest" : "quiet"}
                         height="6"
                         paddingX="2"
                         icon={<CaretDown />}
                         iconPlacement="end"
                     >
-                        {urlGrant === null ? noAccessLevelText : accessLevelText[urlGrant.level]}
+                        {effectiveAccessLevel === null
+                            ? noAccessLevelText
+                            : accessLevelText[effectiveAccessLevel]}
                     </Button>
                 </MenuButton>
+            )}
+            {showCanNotDeleteInheritedUrlGrantDialog && inherited && (
+                <ModalDialog
+                    title={`Can\u2019t make this ${entityNoun} private`}
+                    description={inherited.explanations.DeleteUrlGrant()}
+                    shouldHideCancelButton={true}
+                    primaryButtonLabel="Ok"
+                    onPrimaryButtonPress={() => setShowCanNotDeleteInheritedUrlGrantDialog(false)}
+                    onClose={() => setShowCanNotDeleteInheritedUrlGrantDialog(false)}
+                />
             )}
         </Box>
     );

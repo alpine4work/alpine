@@ -217,6 +217,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         removedChildTaskCount: task.removedChildTaskCount,
         addedClosedChildTaskCount: task.addedClosedChildTaskCount,
         removedClosedChildTaskCount: task.removedClosedChildTaskCount,
+        accessPolicy: task.accessPolicy,
         collections: task.collections.raw.collections,
         positionByCollectionId: task.collections.raw.positionById,
         status: task.status,

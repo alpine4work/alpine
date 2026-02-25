@@ -40,7 +40,7 @@ export function ShareOverlayAccountBody({
     const context = useAppContext();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const buttonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
@@ -48,7 +48,12 @@ export function ShareOverlayAccountBody({
         willNotifyPeople: boolean;
         messageState: ContentEditorState<MessageContentWithReferences>;
     }>(() => ({
-        willNotifyPeople: true,
+        // Notify by default if we have some selected accounts that's not the current
+        // account. The current account can add themselves via a share dialog if the
+        // effective access policy grants them more access then the immediate access
+        // policy.
+        willNotifyPeople:
+            selectedAccounts.length !== 1 || selectedAccounts[0]!.id !== currentAccount?.id,
         messageState: ContentEditorState.create(emptyMessageContentWithReferences),
     }));
 

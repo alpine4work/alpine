@@ -1194,7 +1194,6 @@ test("accounts from same space can see task collection shared with url grant", a
     await expect(page1.getByText("You don\u2019t have access to this space")).toBeHidden();
     await expect(page1.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
 
     await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(
@@ -1239,7 +1238,6 @@ test("accounts from same space can see task collection shared with url grant", a
     }).toPass({timeout: 5000});
 
     await expect(page1.getByRole("button", {name: "Search"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByText("Couldn\u2019t open task")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
@@ -1271,7 +1269,6 @@ test("accounts from same space can see task collection shared with url grant", a
     await expect(page1.getByText("You don\u2019t have access to this space")).toBeHidden();
     await expect(page1.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
 
     await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(

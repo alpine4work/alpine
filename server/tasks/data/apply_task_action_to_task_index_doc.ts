@@ -1,4 +1,5 @@
 import {TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
+import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {
@@ -359,6 +360,21 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
             return {
                 ...task,
                 priority: newPriority,
+            };
+        }
+        case "UpdateAccessPolicy": {
+            const newAccessPolicy = task.accessPolicy
+                ? task.accessPolicy.apply({
+                      value: action.accessPolicy,
+                      version: actionTime,
+                  })
+                : new AccessPolicyRegister(action.accessPolicy, actionTime);
+
+            if (task.accessPolicy === newAccessPolicy) return task;
+
+            return {
+                ...task,
+                accessPolicy: newAccessPolicy,
             };
         }
         case "UpdateNotepadPagePosition":

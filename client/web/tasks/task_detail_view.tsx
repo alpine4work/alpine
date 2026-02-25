@@ -97,14 +97,11 @@ import {
 } from "~/client/web/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/core/task_query_normalized_filters_initial_fields_model.js";
-import {
-    TaskAccess,
-    computeTaskEntryAccess,
-    createTaskEntryAccessStore,
-    getPermissionGrantedTaskAccess,
-} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
+import {createTaskDetailViewInheritedAccessPolicyExplanations} from "~/client/web/tasks/internal/create_task_detail_view_inherited_access_policy_explanations.js";
+import {createTaskEffectiveAccessPolicyStore} from "~/client/web/tasks/internal/create_task_entry_effective_access_policy_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActionsWithoutFullTask} from "~/client/web/tasks/internal/get_task_status_menu_actions.js";
+import {isTaskClientStoreTaskEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_task_entry_deleted.js";
 import {showTaskDeleteConfirmationModalDialog} from "~/client/web/tasks/internal/show_task_delete_confirmation_modal_dialog.js";
 import {
     TaskAssigneeInput,
@@ -139,7 +136,13 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {hasAccessLevel} from "~/shared/access/access_policy.js";
+import {
+    AccessPolicy,
+    AccessPolicyWithoutGenerations,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
     encodeContentDuplicationVariableSchemaForUrl,
     extractContentDuplicationVariableSchema,
@@ -161,6 +164,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
@@ -171,10 +175,12 @@ import {
     getTaskCommentsFromStart,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
-import {ConstStore} from "~/shared/store/const_store.js";
+import {ConstStore, falseStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
+import {createDefaultTaskAccessPolicy} from "~/shared/tasks/create_default_task_access_policy.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
@@ -235,6 +241,7 @@ export function TaskDetailView({
             options: {
                 undoManager: TaskClientStoreUndoManager | null;
                 affinityManager: TaskClientStoreSearchAffinityManager;
+                updateAccessPolicyShareNotification?: ShareNotification | null;
             },
         ) => {
             finally: (callback: () => void) => void;
@@ -248,45 +255,91 @@ export function TaskDetailView({
     const context = useAppContext();
     const {timeZone, isAppleDevice} = useClientInfo();
     const reporter = useReporter();
-    const {
-        space: {id: spaceId},
-        currentAccount,
-    } = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const peekStackContext = usePeekStackContextIfExists();
+
+    const spaceId = space.id;
 
     /* ========================================================================= *\
      *                             Task access check                             *
     \* ========================================================================= */
 
-    const access = useStore(
-        useMemo((): Store<TaskAccess> => {
+    const {effectiveAccessPolicy, inheritedAccessPolicy} = useStore(
+        useMemo((): Store<{
+            effectiveAccessPolicy: AccessPolicyWithoutGenerations;
+            inheritedAccessPolicy: AccessPolicyWithoutGenerations;
+        }> => {
             // If there's no task subscription that's because we're creating the task. The
-            // task creator always has edit access.
-            if (!taskSubscription) return new ConstStore(getPermissionGrantedTaskAccess("Edit"));
+            // task creator always has manage access.
+            if (!taskSubscription) {
+                return new ConstStore({
+                    effectiveAccessPolicy:
+                        createDefaultTaskAccessPolicyForOptionalCurrentAccount(currentAccount),
+                    inheritedAccessPolicy: {
+                        accountGrantById: emptyMap,
+                        defaultGrant: null,
+                        urlGrant: null,
+                    },
+                });
+            }
 
-            return createTaskEntryAccessStore(
-                currentAccount?.id,
+            return createTaskEffectiveAccessPolicyStore(
                 taskSubscription,
                 taskSubscription.taskEntryStore,
             );
-        }, [currentAccount?.id, taskSubscription]),
+        }, [currentAccount, taskSubscription]),
     );
 
-    if (access.level === null) {
-        if (access.type === "Deleted") {
-            throw new PermissionDeniedError("Current account lost access to task (deleted)", {
-                displayMessage: taskDeletedErrorDisplayMessage,
-            });
-        } else {
-            throw new PermissionDeniedError(
-                "Current account lost access to task (policy updated)",
-                {
-                    displayMessage:
-                        taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
-                },
-            );
+    const isDeleted = useStore(
+        useMemo(() => {
+            if (!taskSubscription) return falseStore;
+            return taskSubscription?.taskEntryStore.map(isTaskClientStoreTaskEntryDeleted);
+        }, [taskSubscription]),
+    );
+
+    const accessLevel = useMemo(() => {
+        const accessLevel = getAccountAccessLevelAssumingSpaceAccess(
+            effectiveAccessPolicy,
+            currentAccount?.id,
+        );
+
+        if (accessLevel === null) {
+            if (isDeleted) {
+                throw new PermissionDeniedError("Current account lost access to task (deleted)", {
+                    displayMessage: taskDeletedErrorDisplayMessage,
+                });
+            } else {
+                throw new PermissionDeniedError(
+                    "Current account lost access to task (policy updated)",
+                    {
+                        displayMessage:
+                            taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+                    },
+                );
+            }
         }
-    }
+
+        return accessLevel;
+    }, [currentAccount?.id, effectiveAccessPolicy, isDeleted]);
+
+    // This is the access policy directly added to the task. This is different from
+    // the task's "effective" access which is based on the task's parent tasks and
+    // task collections. `access` determines what the task's effective
+    // permissions are.
+    const immediateAccessPolicy = useStore(
+        useMemo(
+            () =>
+                taskSubscription?.taskEntryStore.map(
+                    taskEntry =>
+                        taskEntry.task?.getAccessPolicy() ??
+                        createDefaultTaskAccessPolicyForOptionalCurrentAccount(currentAccount),
+                ) ??
+                new ConstStore(
+                    createDefaultTaskAccessPolicyForOptionalCurrentAccount(currentAccount),
+                ),
+            [currentAccount, taskSubscription?.taskEntryStore],
+        ),
+    );
 
     /* ========================================================================= *\
      *                        Task detail notes WebSocket                        *
@@ -303,7 +356,7 @@ export function TaskDetailView({
     } = useTaskDetailNotesContentEditorWebSocketClient({
         taskId: possiblyGhostTaskId,
         taskSubscription,
-        accessLevel: access.level,
+        accessLevel,
         initialNotesVersion,
         initialNotesContent,
         affinityManager,
@@ -445,7 +498,7 @@ export function TaskDetailView({
 
     const mainRef = useRef<TaskDetailViewMainRef>(null);
 
-    const hasEditAccessLevel = useMemo(() => hasAccessLevel(access.level, "Edit"), [access.level]);
+    const hasEditAccessLevel = useMemo(() => hasAccessLevel(accessLevel, "Edit"), [accessLevel]);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const childrenGridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -750,7 +803,10 @@ export function TaskDetailView({
      *                                 Comments                                  *
     \* ========================================================================= */
 
-    const hasCommentAccess = useMemo(() => hasAccessLevel(access.level, "Comment"), [access.level]);
+    const hasCommentAccessLevel = useMemo(
+        () => hasAccessLevel(accessLevel, "Comment"),
+        [accessLevel],
+    );
 
     const [comments, setComments, setCommentsOptimistically] = useStateWithOptimisticUpdates(() => {
         return MessageList.new<TaskCommentModel>({
@@ -767,10 +823,10 @@ export function TaskDetailView({
     const setErrorState = useErrorState();
 
     const [isCommentSectionVisible, setIsCommentSectionVisible] =
-        useState<boolean>(hasCommentAccess);
+        useState<boolean>(hasCommentAccessLevel);
 
     // If we lose comment access, immediately hide the comment section.
-    if (isCommentSectionVisible && !hasCommentAccess) setIsCommentSectionVisible(false);
+    if (isCommentSectionVisible && !hasCommentAccessLevel) setIsCommentSectionVisible(false);
 
     const isLoadingInitialCommentsAfterAccessChangeRef = useRef(false);
 
@@ -778,7 +834,7 @@ export function TaskDetailView({
     // comments from the server and set them in our state before we make the
     // comment section visible.
     useEffect(() => {
-        if (!(!isCommentSectionVisible && hasCommentAccess)) {
+        if (!(!isCommentSectionVisible && hasCommentAccessLevel)) {
             isLoadingInitialCommentsAfterAccessChangeRef.current = false;
             return;
         }
@@ -810,7 +866,7 @@ export function TaskDetailView({
             });
     }, [
         context,
-        hasCommentAccess,
+        hasCommentAccessLevel,
         isCommentSectionVisible,
         possiblyGhostTaskId,
         setComments,
@@ -1459,6 +1515,11 @@ export function TaskDetailView({
         reporter,
     ]);
 
+    const hasManageAccessLevel = useMemo(
+        () => hasAccessLevel(accessLevel, "Manage"),
+        [accessLevel],
+    );
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
         getTitleBoundaryElement: useCallback(() => assertExists(titleInputElementRef.current), []),
@@ -1494,6 +1555,64 @@ export function TaskDetailView({
             // Otherwise, use the "my tasks" view as the default back path
             return `/s/${spaceId}/tasks`;
         },
+        // Don't render the share button if the account doesn't have space access. They
+        // won't be allowed to see the names of accounts in the share dialog.
+        shareButton: currentAccount
+            ? {
+                  entityNoun: "task",
+                  entityId: `Task:${possiblyGhostTaskId}`,
+                  accessPolicy: immediateAccessPolicy,
+                  inherited: {
+                      accessPolicy: inheritedAccessPolicy,
+                      explanations: createTaskDetailViewInheritedAccessPolicyExplanations({
+                          space,
+                          taskSubscription,
+                      }),
+                  },
+                  onAccessPolicyChange: (notification, accessPolicy) => {
+                      commitActionTransactionAndCreateIfNeeded(
+                          () => {
+                              const action: TaskActionModel = {
+                                  type: "UpdateTask",
+                                  time: store.clock.now(),
+                                  taskId: possiblyGhostTaskId,
+                                  taskAction: {
+                                      type: "UpdateAccessPolicy",
+                                      accessPolicy,
+                                  },
+                              };
+                              return [action];
+                          },
+                          {
+                              // Don't allow undoing changes to the access policy.
+                              undoManager: null,
+                              affinityManager,
+                              // Include a notification if the user decided to configure one.
+                              updateAccessPolicyShareNotification: notification ?? undefined,
+                          },
+                      );
+                  },
+                  isReadOnly: !hasManageAccessLevel,
+                  onCopyLink: async () => {
+                      // If the user tries to copy the link of a ghost task, then make sure the task
+                      // is created before we write the URL to the clipboard.
+                      if (!taskSubscription) {
+                          await new Promise<void>(resolve =>
+                              commitActionTransactionAndCreateIfNeeded(() => [], {
+                                  undoManager,
+                                  affinityManager,
+                              }).finally(resolve),
+                          );
+                      }
+
+                      const url = new URL(
+                          `/s/${spaceId}/tasks/${possiblyGhostTaskId}`,
+                          window.location.href,
+                      );
+                      await writeTextToClipboard(url.toString());
+                  },
+              }
+            : undefined,
     });
 
     const commentsFileAttachmentTarget = useMemo(
@@ -2566,7 +2685,6 @@ function TaskDetailViewParentBreadcrumbs({
     taskSubscription: TaskClientTaskSubscription | null;
 }) {
     const navigate = useNavigate();
-    const {currentAccount} = useSpaceContext();
 
     const nodeStore = useMemo(() => {
         return computeStore(get => {
@@ -2584,24 +2702,17 @@ function TaskDetailViewParentBreadcrumbs({
                     taskSubscription.getReferencedTaskEntryStore(parent.taskId),
                 );
 
-                const parentAccess = computeTaskEntryAccess(
-                    get,
-                    currentAccount?.id,
-                    taskSubscription,
-                    parentTaskEntry,
-                );
-
                 // Treat deleted parents as if they don't exist.
-                if (parentAccess.type === "Deleted") {
+                if (isTaskClientStoreTaskEntryDeleted(parentTaskEntry)) {
                     loopTask = null;
                     continue;
                 }
 
-                // Null tasks are treated with a `PermissionDenied` access level.
-                if (parentTaskEntry.task === null || parentAccess.type !== "PermissionGranted") {
+                // Null tasks are treated as if they're permission denied errors.
+                if (parentTaskEntry.task === null) {
                     parentNodes.push(
                         <Tooltip
-                            key={parentTaskEntry.task?.id ?? "Private"}
+                            key="Private"
                             content="You don&#x2019;t have access to the task this is a subtask of"
                         >
                             <Box
@@ -2696,7 +2807,7 @@ function TaskDetailViewParentBreadcrumbs({
                 </Box>
             );
         });
-    }, [currentAccount?.id, navigate, task, taskSubscription]);
+    }, [navigate, task, taskSubscription]);
 
     return useStore(nodeStore);
 }
@@ -2805,4 +2916,14 @@ function TaskDetailViewStatusButton({
     }
 
     return node;
+}
+
+function createDefaultTaskAccessPolicyForOptionalCurrentAccount(
+    currentAccount: AccountModel | null,
+): AccessPolicy {
+    if (!currentAccount) {
+        return {accountGrantById: emptyMap, defaultGrant: null, urlGrant: null};
+    }
+
+    return createDefaultTaskAccessPolicy(currentAccount.id);
 }

@@ -68,6 +68,7 @@ function makeRawData({
         removedChildTaskCount: 0,
         addedClosedChildTaskCount: 0,
         removedClosedChildTaskCount: 0,
+        accessPolicy: null,
         collections: TaskCollectionSet.empty,
         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
         status: new TaskStatusWithSortableAccountRegister(status, statusVersion),

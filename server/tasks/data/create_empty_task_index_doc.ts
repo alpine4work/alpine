@@ -49,6 +49,12 @@ export function createEmptyTaskIndexDoc(
                 positionById: TaskPositionByCollectionIdMap.empty,
             },
         },
+        // Empty tasks have an access policy of null for historic reasons. When we
+        // added `accessPolicy` to tasks all existing task index docs default their
+        // `accessPolicy` to null. So the behavior of a task without an
+        // `UpdateAccessPolicy` action is as if the `accessPolicy` never existed in
+        // the first place.
+        accessPolicy: null,
         status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
         assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
         rawAssigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),

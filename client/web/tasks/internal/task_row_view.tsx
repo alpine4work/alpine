@@ -67,11 +67,7 @@ import {
     TaskClientStoreUndoManager,
     TaskClientStoreUpdateTitleActionTransactionBuilder,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {
-    TaskAccess,
-    createTaskEntryAccessStore,
-    getPermissionGrantedTaskAccess,
-} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
+import {createTaskEffectiveAccessLevelStore} from "~/client/web/tasks/internal/create_task_entry_effective_access_policy_store.js";
 import {getTaskStatusMenuActions} from "~/client/web/tasks/internal/get_task_status_menu_actions.js";
 import {TaskCloseConfirmationModalDialog} from "~/client/web/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
@@ -106,7 +102,7 @@ import {renderTaskRowViewDroppableIndentations} from "~/client/web/tasks/interna
 import {TaskStatusButton} from "~/client/web/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskGridViewDraggableData} from "~/client/web/tasks/task_grid_view_dnd_context.js";
-import {hasAccessLevel} from "~/shared/access/access_policy.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {
     RemLength,
     Spacing,
@@ -489,16 +485,16 @@ function TaskRowView(
         });
     }, [capabilities.hasParentTaskTitle, parents.length, query, task]);
 
-    const access = useStore(
-        useMemo(
-            (): Store<TaskAccess> =>
-                query !== null && taskEntryStore !== null
-                    ? createTaskEntryAccessStore(currentAccount?.id, query, taskEntryStore)
-                    : // If this is a ghost task then the current account is the task creator so they
-                      // have edit access.
-                      new ConstStore(getPermissionGrantedTaskAccess("Edit")),
-            [currentAccount?.id, query, taskEntryStore],
-        ),
+    const accessLevel = useStore(
+        useMemo((): Store<AccessLevel | null> => {
+            // If this is a ghost task then the current account is the task creator so they
+            // have edit access.
+            if (query === null || taskEntryStore === null) {
+                return new ConstStore("Manage");
+            }
+
+            return createTaskEffectiveAccessLevelStore(currentAccount?.id, query, taskEntryStore);
+        }, [currentAccount?.id, query, taskEntryStore]),
     );
 
     // The difference between `hasEditAccessLevel` and `capabilities.isReadOnly` is
@@ -519,8 +515,8 @@ function TaskRowView(
     // read-only task which has a child task you can edit (because it's in an
     // editable collection).
     const hasEditAccessLevel = useMemo(
-        () => !capabilities.isReadOnly && hasAccessLevel(access.level, "Edit"),
-        [access.level, capabilities.isReadOnly],
+        () => !capabilities.isReadOnly && hasAccessLevel(accessLevel, "Edit"),
+        [accessLevel, capabilities.isReadOnly],
     );
 
     // If `cursor` is non-null then we expect `task` to also be non-null and

@@ -68,7 +68,7 @@ import {
     TaskClientStoreTaskEntry,
 } from "~/client/web/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/web/tasks/internal/build_task_title_input_keymap_plugin.js";
-import {computeTaskEntryAccess} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
+import {isTaskClientStoreTaskEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_task_entry_deleted.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/web/tasks/internal/task_grid_view_task_key.js";
 import {getTaskQueryManuallySortedDirection} from "~/client/web/tasks/internal/task_grid_view_virtualized_list.js";
@@ -107,7 +107,6 @@ import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_ke
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -351,7 +350,6 @@ function TaskRowTitleInput(
         hasEditAccessLevel,
         maxGridExpandableTaskDepth,
         stateKey,
-        query,
         task,
         placeholder,
         indentation,
@@ -1799,10 +1797,7 @@ function TaskRowTitleInput(
                     }}
                 >
                     {parentPreviewStore && (
-                        <TaskRowTitleParentTaskTitle
-                            query={query}
-                            parentPreviewStore={parentPreviewStore}
-                        />
+                        <TaskRowTitleParentTaskTitle parentPreviewStore={parentPreviewStore} />
                     )}
                     {shouldShowChildTasksButton && (
                         <TaskRowTitleChildTasksButton
@@ -1859,10 +1854,8 @@ function taskTitlePlugin(initialTaskTitle: TaskTitleModel) {
 }
 
 function TaskRowTitleParentTaskTitle({
-    query,
     parentPreviewStore,
 }: {
-    query: TaskClientQuery | null;
     parentPreviewStore: Store<{rootTaskEntry: TaskClientStoreTaskEntry; depth: number}>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
@@ -1881,32 +1874,13 @@ function TaskRowTitleParentTaskTitle({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const {currentAccount} = useSpaceContext();
-
     const parentPreview = useStore(parentPreviewStore);
-
-    const access = useStore(
-        useMemo(
-            () =>
-                computeStore(get =>
-                    computeTaskEntryAccess(
-                        get,
-                        currentAccount?.id,
-                        // If `query` is null then we'll only ever render a ghost task. Ghost tasks
-                        // should never have a parent task.
-                        assertExists(query),
-                        parentPreview.rootTaskEntry,
-                    ),
-                ),
-            [currentAccount?.id, parentPreview.rootTaskEntry, query],
-        ),
-    );
 
     const parentTaskTitle = parentPreview.rootTaskEntry.task?.getTitle();
 
     return useMemo(() => {
         // If the parent task was deleted, don't show the deleted task's title.
-        if (access.type === "Deleted") return null;
+        if (isTaskClientStoreTaskEntryDeleted(parentPreview.rootTaskEntry)) return null;
 
         return (
             <div className={parentTaskTitleClassName}>
@@ -1917,7 +1891,8 @@ function TaskRowTitleParentTaskTitle({
                     </>
                 )}
                 <CaretLeft size={spacing["3"]} className={parentTaskTitleIconClassName} />
-                {access.type !== "PermissionGranted" ? (
+                {parentPreview.rootTaskEntry.task === null ? (
+                    // Null tasks are treated as if they're permission denied errors.
                     <div className={parentTaskTitlePermissionDeniedClassName}>
                         <Lock size={spacing["3"]} className={parentTaskTitleIconClassName} />
                         <div className={parentTaskTitleTextClassName}>Private</div>
@@ -1937,7 +1912,7 @@ function TaskRowTitleParentTaskTitle({
                 )}
             </div>
         );
-    }, [access.type, parentPreview.depth, parentTaskTitle]);
+    }, [parentPreview.depth, parentPreview.rootTaskEntry, parentTaskTitle]);
 }
 
 // Copied from ProseMirror:

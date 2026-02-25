@@ -135,7 +135,7 @@ export class SearchEntityRegistry {
         // old friend data.
         //
         // `reduce()` lets us keep hold onto data we've previously seen.
-        const friendDataStore = friendDatasStore.reduce<SearchEntityModelData | null>(
+        const friendDataStore = friendDatasStore.reduce<SearchEntityModelData | null, null>(
             (friendData, newFriendDatas) => {
                 for (const newFriendData of newFriendDatas) {
                     if (newFriendData === null) continue;

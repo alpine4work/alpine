@@ -110,14 +110,13 @@ export async function prepareTaskForClient(
         removedChildTaskCount: task.removedChildTaskCount,
         addedClosedChildTaskCount: task.addedClosedChildTaskCount,
         removedClosedChildTaskCount: task.removedClosedChildTaskCount,
-
+        accessPolicy: task.accessPolicy,
         collections: filteredCollections,
         positionByCollectionId: TaskPositionByCollectionIdMap.from(
             filterIterable(task.collections.raw.positionById.actualEntries(), ([collectionId]) =>
                 filteredCollections.has(collectionId),
             ),
         ),
-
         status: isSpaceAccessAuthorized
             ? task.status
             : new TaskStatusWithSortableAccountRegister(

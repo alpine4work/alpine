@@ -1,4 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
+import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
@@ -191,6 +192,48 @@ describe("getCloneActions", () => {
             "UpdateParentTaskId",
         );
         expect(parentAction?.taskAction.parentTaskId).toBe(parentId);
+    });
+
+    test("doesn\u2019t copy access policy", () => {
+        const otherManagerId = generateId<AccountId>();
+        const editorId = generateId<AccountId>();
+        const accessPolicy: AccessPolicy = {
+            accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                [accountId, {level: "Manage", generation: 0}],
+                [otherManagerId, {level: "Manage", generation: 2}],
+                [editorId, {level: "Edit"}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 3},
+            urlGrant: {level: "View"},
+        };
+
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy,
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const newCreatorId = generateId<AccountId>();
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: newCreatorId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+
+        expect(
+            actions.some(
+                action =>
+                    action.type === "UpdateTask" && action.taskAction.type === "UpdateAccessPolicy",
+            ),
+        ).toBe(false);
     });
 
     test("copies title", () => {

@@ -38,6 +38,7 @@ export async function prepareTaskActionForClient(
                 case "UpdateDueDate":
                 case "UpdatePriority":
                 case "UpdateAssigneeStatus":
+                case "UpdateAccessPolicy":
                     return action;
                 case "Create": {
                     if (!isSpaceAccessAuthorized) {

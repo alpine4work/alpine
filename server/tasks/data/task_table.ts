@@ -218,6 +218,7 @@ import {
     getTaskActionLabel,
 } from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
+import {createDefaultTaskAccessPolicy} from "~/shared/tasks/create_default_task_access_policy.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
@@ -611,8 +612,10 @@ const TaskTable = DynamoTableSchema.new({
                         spaceId: Schema.id<SpaceId>(),
 
                         /**
-                         * The account who created this task. The creator of a task always has edit
-                         * level permission to the task.
+                         * The account who created this task.
+                         *
+                         * The creator is included in the task's access policy by default, but may
+                         * lose access if removed from the access policy.
                          */
                         creatorId: Schema.id<AccountId>(),
 
@@ -705,6 +708,13 @@ const TaskTable = DynamoTableSchema.new({
                          * The account which was assigned this task.
                          */
                         assigneeId: TaskAssigneeAccountIdRegister.schema,
+
+                        /**
+                         * Who is allowed to access this task and with what permission level.
+                         *
+                         * If null, we default to a policy that only includes the task creator.
+                         */
+                        accessPolicy: AccessPolicyRegister.schema.nullable().default(null),
 
                         /**
                          * Leases are valid as long as the task is unmodified. This is how we keep
@@ -1396,8 +1406,10 @@ export function commitTaskActionTransaction(
             options.updateAccessPolicyShareNotification &&
             !actions.some(
                 action =>
-                    action.type === "UpdateCollection" &&
-                    action.collectionAction.type === "UpdateAccessPolicy",
+                    (action.type === "UpdateCollection" &&
+                        action.collectionAction.type === "UpdateAccessPolicy") ||
+                    (action.type === "UpdateTask" &&
+                        action.taskAction.type === "UpdateAccessPolicy"),
             )
         ) {
             throw new FailedPreconditionError(
@@ -1443,19 +1455,28 @@ export function commitTaskActionTransaction(
         // action in this transaction.
         if (options.updateAccessPolicyShareNotification) {
             for (const action of actions) {
+                let entityId: FileEntityId | null = null;
+
                 if (
-                    action.type !== "UpdateCollection" ||
-                    action.collectionAction.type !== "UpdateAccessPolicy"
+                    action.type === "UpdateCollection" &&
+                    action.collectionAction.type === "UpdateAccessPolicy"
                 ) {
-                    continue;
+                    entityId = `TaskCollection:${action.collectionId}`;
+                } else if (
+                    action.type === "UpdateTask" &&
+                    action.taskAction.type === "UpdateAccessPolicy"
+                ) {
+                    entityId = `Task:${action.taskId}`;
                 }
+
+                if (entityId === null) continue;
 
                 context.jobs.send({
                     type: "SendShareNotification",
                     jobId: generateId(),
                     spaceId,
                     actorAccountId: context.actor.getAccountId(),
-                    entityId: `TaskCollection:${action.collectionId}`,
+                    entityId,
                     notification: options.updateAccessPolicyShareNotification,
                 });
             }
@@ -2507,6 +2528,12 @@ async function actuallyCommitTaskActionTransaction(
                             childTaskIds: new Set(),
                             collections: TaskCollectionSet.empty,
                             assigneeId: new TaskAssigneeAccountIdRegister(null, action.time),
+                            // Empty tasks have an access policy of null for historic reasons. When we
+                            // added `accessPolicy` to tasks all existing task index docs default their
+                            // `accessPolicy` to null. So the behavior of a task without an
+                            // `UpdateAccessPolicy` action is as if the `accessPolicy` never existed in
+                            // the first place.
+                            accessPolicy: null,
                             validLeaseId: null,
                         });
                         break;
@@ -3199,6 +3226,33 @@ async function actuallyCommitTaskActionTransaction(
                             case "UpdatePriority": {
                                 // We don't store priority in essential attributes and action time
                                 // is validated above.
+                                break;
+                            }
+                            case "UpdateAccessPolicy": {
+                                await state.authorizeTaskItemAccess(taskItem, "Manage");
+
+                                const oldAccessPolicy =
+                                    getTaskItemAccessPolicyWithDefault(taskItem);
+
+                                const newAccessPolicy = taskItem.accessPolicy
+                                    ? taskItem.accessPolicy.apply({
+                                          value: taskAction.accessPolicy,
+                                          version: action.time,
+                                      })
+                                    : new AccessPolicyRegister(
+                                          taskAction.accessPolicy,
+                                          action.time,
+                                      );
+
+                                await state.validateAccessPolicyUpdate(
+                                    oldAccessPolicy,
+                                    newAccessPolicy.value,
+                                );
+
+                                state.updateTaskItem({
+                                    ...taskItem,
+                                    accessPolicy: newAccessPolicy,
+                                });
                                 break;
                             }
                             case "UpdateNotepadPagePosition":
@@ -4714,6 +4768,12 @@ async function authorizeTaskItemAccessIfPossible(
     );
 }
 
+function getTaskItemAccessPolicyWithDefault(
+    taskItem: TaskEssentialAttributesItemBase,
+): AccessPolicy {
+    return taskItem.accessPolicy?.value ?? createDefaultTaskAccessPolicy(taskItem.creatorId);
+}
+
 async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
     context: TaskRealtimeActionContext,
     taskItem: TaskEssentialAttributesItemBase,
@@ -4758,33 +4818,30 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
             const actorAccountId =
                 context.actor.type !== "Anonymous" ? context.actor.getPossiblyBotAccountId() : null;
 
-            if (actorAccountId !== null) {
-                // The task creator has edit access level on their own task.
-                if (
-                    actorAccountId === taskItem.creatorId &&
-                    hasAccessLevel("Edit", expectedAccessLevel) &&
-                    (await isAccountMemberOfSpaceWithoutAuthorization(
-                        context,
-                        taskItem.spaceId,
-                        actorAccountId,
-                    ))
-                ) {
-                    return okResult;
-                }
+            if (
+                await evaluateAccessPolicy(
+                    context,
+                    taskItem.spaceId,
+                    getTaskItemAccessPolicyWithDefault(taskItem),
+                    expectedAccessLevel,
+                    options,
+                )
+            ) {
+                return okResult;
+            }
 
-                // The task assignee has edit access level on their own task.
-                if (
-                    taskItem.assigneeId.value &&
-                    actorAccountId === taskItem.assigneeId.value &&
-                    hasAccessLevel("Edit", expectedAccessLevel) &&
-                    (await isAccountMemberOfSpaceWithoutAuthorization(
-                        context,
-                        taskItem.spaceId,
-                        actorAccountId,
-                    ))
-                ) {
-                    return okResult;
-                }
+            if (
+                actorAccountId !== null &&
+                taskItem.assigneeId.value &&
+                actorAccountId === taskItem.assigneeId.value &&
+                hasAccessLevel("Edit", expectedAccessLevel) &&
+                (await isAccountMemberOfSpaceWithoutAuthorization(
+                    context,
+                    taskItem.spaceId,
+                    actorAccountId,
+                ))
+            ) {
+                return okResult;
             }
 
             // An array of `TaskCollectionId`s that authorize access to the task or `null`
@@ -4850,20 +4907,23 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
         case "Bot": {
             // Optimization: Before we go and load the task's full access policy, see if we
             // can authorize task access using just the information immediately available
-            // in the task. The task's creator and assignee.
+            // in the task. The task's access policy and assignee.
             //
             // Useful if a user is in a personal chat and asking their bot to read their
             // personal tasks.
-            const cheapAccessPolicy: AccessPolicyWithoutGenerations = {
-                accountGrantById: new Map([
-                    [taskItem.creatorId, {level: "Edit"}],
-                    ...(taskItem.assigneeId.value
-                        ? [[taskItem.assigneeId.value, {level: "Edit"}] as const]
-                        : []),
-                ]),
-                defaultGrant: null,
-                urlGrant: null,
-            };
+            let cheapAccessPolicy: AccessPolicyWithoutGenerations =
+                getTaskItemAccessPolicyWithDefault(taskItem);
+
+            if (taskItem.assigneeId.value) {
+                const newAccountGrantById = new Map(cheapAccessPolicy.accountGrantById);
+
+                newAccountGrantById.set(taskItem.assigneeId.value, {level: "Edit"});
+
+                cheapAccessPolicy = {
+                    ...cheapAccessPolicy,
+                    accountGrantById: newAccountGrantById,
+                };
+            }
 
             if (
                 await evaluateAccessPolicy(
@@ -4877,17 +4937,18 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                 return okResult;
             }
 
-            const accessPolicy = await getTaskItemAccessPolicyWithoutAuthorization(
-                context,
-                taskItem,
-                options,
-            );
+            const effectiveAccessPolicy =
+                await getTaskItemEffectiveAccessPolicyWithoutAuthorization(
+                    context,
+                    taskItem,
+                    options,
+                );
 
             if (
                 await evaluateAccessPolicy(
                     context,
                     taskItem.spaceId,
-                    accessPolicy,
+                    effectiveAccessPolicy,
                     expectedAccessLevel,
                     options,
                 )
@@ -5096,13 +5157,13 @@ export async function getTaskAccessPolicyForBotScope(
 
     const [, accessPolicy] = await runAllPromises([
         authorizeSpaceAccess(context, taskItem.spaceId),
-        getTaskItemAccessPolicyWithoutAuthorization(context, taskItem, options),
+        getTaskItemEffectiveAccessPolicyWithoutAuthorization(context, taskItem, options),
     ]);
 
     return accessPolicy;
 }
 
-async function getTaskItemAccessPolicyWithoutAuthorization(
+async function getTaskItemEffectiveAccessPolicyWithoutAuthorization(
     context: ServerMinimalActionContext,
     rootTaskItem: TaskEssentialAttributesItemBase,
     options?: {consistency?: DynamoCacheReadConsistency},
@@ -5141,8 +5202,22 @@ async function getTaskItemAccessPolicyWithoutAuthorization(
         }
     }
 
-    const addTaskGrants = async (taskItem: TaskEssentialAttributesItemBase) => {
-        addAccountGrant(taskItem.creatorId, "Edit");
+    function addGrants(accessPolicy: AccessPolicy) {
+        for (const [accountId, accountGrant] of accessPolicy.accountGrantById) {
+            addAccountGrant(accountId, accountGrant.level);
+        }
+
+        if (accessPolicy.defaultGrant) {
+            addDefaultGrant(accessPolicy.defaultGrant.level);
+        }
+
+        if (accessPolicy.urlGrant) {
+            addUrlGrant(accessPolicy.urlGrant.level);
+        }
+    }
+
+    async function addTaskGrants(taskItem: TaskEssentialAttributesItemBase) {
+        addGrants(getTaskItemAccessPolicyWithDefault(taskItem));
 
         if (taskItem.assigneeId.value) {
             addAccountGrant(taskItem.assigneeId.value, "Edit");
@@ -5180,23 +5255,11 @@ async function getTaskItemAccessPolicyWithoutAuthorization(
 
                     if (isTaskCollectionItemDeleted(collectionItem)) return;
 
-                    const accessPolicy = collectionItem.accessPolicy.value;
-
-                    for (const [accountId, accountGrant] of accessPolicy.accountGrantById) {
-                        addAccountGrant(accountId, accountGrant.level);
-                    }
-
-                    if (accessPolicy.defaultGrant) {
-                        addDefaultGrant(accessPolicy.defaultGrant.level);
-                    }
-
-                    if (accessPolicy.urlGrant) {
-                        addUrlGrant(accessPolicy.urlGrant.level);
-                    }
+                    addGrants(collectionItem.accessPolicy.value);
                 }),
             ),
         ]);
-    };
+    }
 
     await addTaskGrants(rootTaskItem);
 
@@ -7626,6 +7689,7 @@ function convertTaskIndexDocToItem(task: TaskIndexDoc): TaskEssentialAttributesI
             task.assignee.value?.assignee.accountId ?? null,
             task.assignee.version,
         ),
+        accessPolicy: task.accessPolicy,
     };
 }
 

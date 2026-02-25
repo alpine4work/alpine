@@ -1,6 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
@@ -53,6 +54,7 @@ import {
 } from "~/shared/messaging/message_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {createDefaultTaskAccessPolicy} from "~/shared/tasks/create_default_task_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
@@ -238,6 +240,26 @@ export class TestTask extends TestCommentRoomBase {
 
         return new TestTask(session.context, session.space, id, time, titleState);
     }
+
+    public readonly access = new TestAccessPolicy({
+        get: async () => {
+            const item = await this.getItem();
+            return item.accessPolicy?.value ?? createDefaultTaskAccessPolicy(item.creatorId);
+        },
+        set: async (session, accessPolicy) => {
+            await commitTaskActionTransaction(session.action(), session.space.id, [
+                {
+                    type: "UpdateTask",
+                    time: testTaskClock.now(),
+                    taskId: this.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy,
+                    },
+                },
+            ]);
+        },
+    });
 
     protected override _getRoomKey() {
         return this.id;

@@ -1,3 +1,4 @@
+import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {
     HybridLogicalTime,
@@ -342,6 +343,21 @@ export function applyTaskActionToTaskModelData(
             return {
                 ...task,
                 priority: newPriority,
+            };
+        }
+        case "UpdateAccessPolicy": {
+            const newAccessPolicy = task.accessPolicy
+                ? task.accessPolicy.apply({
+                      value: action.accessPolicy,
+                      version: actionTime,
+                  })
+                : new AccessPolicyRegister(action.accessPolicy, actionTime);
+
+            if (newAccessPolicy === task.accessPolicy) return task;
+
+            return {
+                ...task,
+                accessPolicy: newAccessPolicy,
             };
         }
         case "UpdateNotepadPagePosition":

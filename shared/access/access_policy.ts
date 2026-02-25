@@ -53,6 +53,8 @@ export function hasAccessLevel(
  * null is considered the lower of the two.
  */
 export function maxAccessLevel(level1: AccessLevel, level2: AccessLevel): AccessLevel;
+export function maxAccessLevel(level1: AccessLevel, level2: AccessLevel | null): AccessLevel;
+export function maxAccessLevel(level1: AccessLevel | null, level2: AccessLevel): AccessLevel;
 export function maxAccessLevel(
     level1: AccessLevel | null,
     level2: AccessLevel | null,
@@ -261,7 +263,7 @@ export type AccessPolicyDefaultGrantWithoutGeneration = DistributiveOmit<
  * if there's no account grant.
  */
 export function getAccountAccessLevelAssumingSpaceAccess(
-    accessPolicy: AccessPolicy,
+    accessPolicy: AccessPolicyWithoutGenerations,
     accountId: AccountId | null | undefined,
 ): AccessLevel | null {
     const accessLevels: Array<AccessLevel> = [];
@@ -293,7 +295,7 @@ export function getAccountAccessLevelAssumingSpaceAccess(
 export function getAccountAccessPolicyManageGeneration(
     accountId: AccountId,
     accessPolicy: AccessPolicy,
-): number | null {
+): number {
     const accountGrant = accessPolicy.accountGrantById.get(accountId);
 
     if (accountGrant?.level === "Manage" && accessPolicy.defaultGrant?.level === "Manage") {
@@ -302,9 +304,28 @@ export function getAccountAccessPolicyManageGeneration(
         return accountGrant.generation;
     } else if (accessPolicy.defaultGrant?.level === "Manage") {
         return accessPolicy.defaultGrant.generation;
-    } else {
-        return null;
     }
+
+    // If the account isn't present in the `AccessPolicy` at a `Manage` access
+    // level then it gets a generation that's one greater than the max generation
+    // of all `Manage` grants.
+    //
+    // Normally, you can only update an access policy if you have manage access
+    // within that access policy. However, for some entities like tasks that have
+    // an effective access policy (which includes permissions from the parent task
+    // and task collections) with greater permissions than the immediate access
+    // policy an account may be modifying the access policy without themselves
+    // being in the access policy.
+
+    let maxGeneration = -1;
+
+    for (const accountGrant of accessPolicy.accountGrantById.values()) {
+        if (accountGrant.level === "Manage" && maxGeneration < accountGrant.generation) {
+            maxGeneration = accountGrant.generation;
+        }
+    }
+
+    return maxGeneration + 1;
 }
 
 export type ValidateAccessPolicyUpdateResult =
@@ -312,7 +333,6 @@ export type ValidateAccessPolicyUpdateResult =
     | {
           ok: false;
           reason:
-              | "Can\u2019t update access policy unless actor has manage access"
               | "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation"
               | "Can\u2019t change account grant manage generation"
               | "Can\u2019t revoke manage access from an account with a manage generation less than our actor"
@@ -325,23 +345,19 @@ export type ValidateAccessPolicyUpdateResult =
  * Validate that an access policy update is allowed for the given actor. This
  * performs critical authorization logic so we must run this on the backend
  * when an access policy is updated to make sure the update is safe.
+ *
+ * IMPORTANT: You must first validate that `actorAccountId` has manage access
+ * to the entity.
  */
 export function validateAccessPolicyUpdate(
     actorAccountId: AccountId,
     oldAccessPolicy: AccessPolicy,
     newAccessPolicy: AccessPolicy,
 ): ValidateAccessPolicyUpdateResult {
-    // Make sure the actor has manage access and record the actor's generation.
     const actorManageGeneration = getAccountAccessPolicyManageGeneration(
         actorAccountId,
         oldAccessPolicy,
     );
-    if (actorManageGeneration === null) {
-        return {
-            ok: false,
-            reason: "Can\u2019t update access policy unless actor has manage access",
-        };
-    }
 
     let hasManageAccessLevelAccountGrant = false;
 

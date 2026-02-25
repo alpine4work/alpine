@@ -279,9 +279,9 @@ export abstract class Store<Value> {
      * time while the component is `subscribe()`d. If `getSnapshot()` is called
      * less frequently the reduce function might not see every base store value.
      */
-    public reduce<NewValue>(
-        reduce: (previousValue: NewValue, currentValue: Value) => NewValue,
-        initialValue: NewValue,
+    public reduce<NewValue, InitialValue>(
+        reduce: (previousValue: NewValue | InitialValue, currentValue: Value) => NewValue,
+        initialValue: InitialValue,
     ): Store<NewValue> {
         return new ReducedStore(this, reduce, initialValue);
     }

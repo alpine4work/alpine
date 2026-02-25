@@ -21,6 +21,7 @@ import {
 } from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
@@ -74,9 +75,11 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
             {
                 undoManager,
                 affinityManager,
+                updateAccessPolicyShareNotification,
             }: {
                 undoManager: TaskClientStoreUndoManager | null;
                 affinityManager: TaskClientStoreSearchAffinityManager;
+                updateAccessPolicyShareNotification?: ShareNotification | null;
             },
         ) => {
             finally: (callback: () => void) => void;
