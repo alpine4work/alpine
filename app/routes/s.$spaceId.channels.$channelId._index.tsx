@@ -1,6 +1,7 @@
 import {useEffect} from "react";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {createHeadMetaForChannel} from "~/app/helpers/create_head_meta.js";
 import {
     deserializeChannelIdForLoader,
     deserializeSpaceIdForLoader,
@@ -72,7 +73,7 @@ const LoaderSchema = Schema.object({
 export const meta = createMetaFunction(LoaderSchema, ({data: {channelResult}}) => {
     const channel = channelResult.items[0]?.model;
     assert(channel instanceof ChannelModel);
-    return [{title: channel.name}];
+    return createHeadMetaForChannel(channel);
 });
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {

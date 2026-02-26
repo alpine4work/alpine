@@ -1,5 +1,6 @@
 import {ShouldRevalidateFunction, useParams, useSearchParams} from "@remix-run/react";
 import {useEffect, useState} from "react";
+import {createHeadMetaForDocument} from "~/app/helpers/create_head_meta.js";
 import {
     deserializeDocumentIdForLoader,
     deserializeSpaceIdForLoader,
@@ -28,7 +29,6 @@ import {
     getSpellCheckIgnoredLints,
 } from "~/server/spell_check/get_spell_check_ignored_lints.js";
 import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
-import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -132,9 +132,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
     });
 }
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => [
-    {title: document?.getTitle() ?? documentFallbackTitle},
-]);
+export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) =>
+    createHeadMetaForDocument(document),
+);
 
 // We don't need to reload when certain search params change.
 export const shouldRevalidate: ShouldRevalidateFunction = ({

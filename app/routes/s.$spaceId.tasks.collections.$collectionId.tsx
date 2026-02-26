@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {createHeadMetaForTaskCollection} from "~/app/helpers/create_head_meta.js";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {Box} from "~/client/web/design/box.js";
@@ -28,6 +29,7 @@ import {
     authorizeTaskCollectionAccess,
     commitTaskActionTransaction,
 } from "~/server/tasks/data/task_table.js";
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {isThemeColor} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -70,6 +72,7 @@ const LoaderSchema = Schema.object({
         Exists: Schema.object({
             type: Schema.value("Exists"),
             initialMetaTitleText: Schema.string,
+            accessPolicy: AccessPolicySchema,
             initialGridViewExpansionState: TaskGridViewExpansionStateSchema,
             initialIsFavorite: Schema.boolean,
         }),
@@ -77,14 +80,16 @@ const LoaderSchema = Schema.object({
     filterReferences: TaskQueryFilterReferencesSchema,
 });
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {collectionState}}) => [
-    {
-        title:
-            collectionState.type === "Exists"
-                ? collectionState.initialMetaTitleText
-                : newTaskCollectionNamePlaceholder,
-    },
-]);
+export const meta = createMetaFunction(LoaderSchema, ({data: {collectionState}}) =>
+    createHeadMetaForTaskCollection(
+        collectionState.type === "Exists"
+            ? {
+                  name: collectionState.initialMetaTitleText,
+                  accessPolicy: collectionState.accessPolicy,
+              }
+            : null,
+    ),
+);
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
     const context = await unauthenticatedContext.actor.authenticate();
@@ -278,6 +283,11 @@ export async function loader({request, params, context: unauthenticatedContext}:
             collectionState: {
                 type: "Exists",
                 initialMetaTitleText: backfillCollection?.collection.getName() ?? "",
+                accessPolicy: backfillCollection?.collection.getAccessPolicy() ?? {
+                    accountGrantById: new Map(),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
                 initialGridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
                 initialIsFavorite: isFavorite,
             },

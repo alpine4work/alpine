@@ -44,6 +44,7 @@ export const appStaticManifestPaths: ReadonlySet<string> = new Set<string>([
     "/icons/post_brand_icon_light.png",
     "/icons/task_brand_icon_dark.png",
     "/icons/task_brand_icon_light.png",
+    "/images/og.jpg",
     "/manifest.json",
     "/notes/file-data-transfer-readme.md",
     "/service-worker.js",

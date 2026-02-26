@@ -1,5 +1,6 @@
 import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {useCallback, useEffect, useState} from "react";
+import {createHeadMetaForChatRoom} from "~/app/helpers/create_head_meta.js";
 import {
     deserializeChatIdForLoader,
     deserializeSpaceIdForLoader,
@@ -188,7 +189,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentData}) => {
     if (chat.definition.type === "Room") {
-        return [{title: chat.definition.name}];
+        return createHeadMetaForChatRoom(chat.definition);
     }
 
     const spaceRouteData = getParentData("routes/s.$spaceId", SpaceRouteLoaderSchema);

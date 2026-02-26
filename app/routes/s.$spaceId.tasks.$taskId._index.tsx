@@ -3,6 +3,7 @@ import {useEffect, useMemo, useState} from "react";
 import {flushSync} from "react-dom";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {createHeadMetaForTask} from "~/app/helpers/create_head_meta.js";
 import {
     deserializeSpaceIdForLoader,
     deserializeTaskIdForLoader,
@@ -91,6 +92,7 @@ import {
 
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,
+    hasUrlGrant: Schema.boolean,
     childrenGridViewExpansionState: TaskGridViewExpansionStateSchema,
     notesVersion: Schema.integer,
     notesContent: TaskNotesContentWithReferencesSchema,
@@ -105,9 +107,16 @@ const LoaderSchema = Schema.object({
     initialFieldsAssignee: AccountModel.schema.nullable(),
 });
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {initialMetaTitleText}}) => [
-    {title: addFallbackToTaskTitle(initialMetaTitleText)},
-]);
+export const meta = createMetaFunction(
+    LoaderSchema,
+    ({data: {initialMetaTitleText, hasUrlGrant, notesContent}}) =>
+        createHeadMetaForTask({
+            title: addFallbackToTaskTitle(initialMetaTitleText),
+            hasUrlGrant,
+            notesDoc: notesContent.doc,
+            notesReferences: notesContent.references,
+        }),
+);
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
     const context = await unauthenticatedContext.actor.authenticate();
@@ -261,6 +270,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
         LoaderSchema,
         {
             initialMetaTitleText: backfillTask?.task.getTitle().getText() ?? "",
+            hasUrlGrant: backfillTask?.task.getAccessPolicy().urlGrant !== null,
             childrenGridViewExpansionState:
                 loadQueriesOutput?.queries[0]?.gridViewExpansionState ?? null,
             notesVersion: task?.notes.version ?? 0,
