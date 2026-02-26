@@ -4,16 +4,18 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import type {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {getInboxEntryKey} from "~/server/notifications/data/internal/get_inbox_entry_key.js";
 import {InboxEntryItem, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
+import {getAllPushNotificationTargetsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_all_push_notification_targets_without_authorization.js";
 import {queuePendingSubtleNotification} from "~/server/notifications/data/internal/push/queue_pending_subtle_notification.js";
 import {sendApnsPushNotification} from "~/server/notifications/data/internal/push/send_apns_push_notification.js";
-import {sendWebPushNotificationToAllSubscriptions} from "~/server/notifications/data/internal/push/send_web_push_notification_to_all_subscriptions.js";
+import {sendNotificationToSlackIntegration} from "~/server/notifications/data/internal/push/send_notification_to_slack_integration.js";
 import {getPushNotificationThreadId} from "~/server/notifications/data/push/get_push_notification_thread_id.js";
-import {getAccountWebPushSubscriptionsForSpace} from "~/server/notifications/data/push/get_web_push_subscriptions_for_space.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {parallelProcessAsyncIterable} from "~/shared/helpers/iterable/parallel_process_async_iterable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getInboxEntryKeyPath} from "~/shared/notifications/inbox_model.js";
 
@@ -25,14 +27,15 @@ export function shouldSendApnsPushNotification() {
 
 /**
  * Send push notifications to registered account devices. Only sends a
- * notification if the new inbox entry is not archived OR loud notification
- * counts changed. If the new inbox entry is archived and loud notification
- * counts changed then we'll send an alert with no content (so we won't call
- * `getAlertContent`). If the new inbox entry is not archived then
- * `getAlertContent` must be provided.
+ * notification if the new inbox entry is not archived or deleted.
+ * Sends loud notifications immediately, otherwise queues a subtle notification
+ * to be batched and sent later to avoid overwhelming the user.
  *
- * This function is idempotent. If you call it multiple times with the same
- * `deduplicationTag` the user will only see one notification on their device.
+ * Web push and Apple push notifications are idempotent and respect the
+ * `deduplicationTag` so the user will only see one notification on their device.
+ *
+ * Unfortunately, Slack notifications are not idempotent and will send multiple notifications
+ * if this function is called multiple times. (TODO(rmtobin, 2026-02-25): Make slack notifications idempotent.)
  */
 export async function sendPushNotificationToAccountTargets(
     context: Context<ServerActionContextModules & PushContextModules>,
@@ -110,7 +113,7 @@ export async function sendPushNotificationToAccountTargets(
             return loudNotificationCounts.reduce((a, b) => a + b, 0);
         };
 
-        const [alertContent, loudNotificationCount, webPushSubscriptions] = await runAllPromises([
+        const [alertContent, loudNotificationCount] = await runAllPromises([
             // We optimistically build alert content even if we don't need it (e.g. since
             // there are no registered devices).
             //
@@ -128,72 +131,97 @@ export async function sendPushNotificationToAccountTargets(
             // notification sending even if sometimes it's a little wasteful to load the
             // notification count when we don't need it.
             loudNotificationCountDifference !== 0 ? getLoudNotificationCount() : null,
-
-            getAccountWebPushSubscriptionsForSpace(context, accountId, newInboxEntryItem.spaceId),
         ]);
 
         // Interrupt the user if the loud notification count increased.
         const isLoud = loudNotificationCountDifference > 0;
 
+        // If the notification is not loud, queue a subtle notification to be batched and sent
+        // later to avoid overwhelming the user.
+        if (!isLoud) {
+            await queuePendingSubtleNotification(context, {
+                accountId,
+                spaceId: newInboxEntryItem.spaceId,
+                notificationEvent,
+                inboxEntry: newInboxEntryItem,
+            });
+            return;
+        }
+
+        const spaceId = newInboxEntryItem.spaceId;
+
+        const title = alertContent.subtitle
+            ? `${alertContent.title} ${alertContent.subtitle}`
+            : alertContent.title;
+
+        const topicId = getPushNotificationThreadId(newInboxEntryItem);
         const entryPath = getInboxEntryKeyPath(
             newInboxEntryItem.spaceId,
             getInboxEntryKey(newInboxEntryItem),
             "narrow",
         );
 
-        if (shouldSendApnsPushNotification()) {
-            await sendApnsPushNotification(context, {
-                accountId,
-                deduplicationTag,
-                newInboxEntryItem,
-                loudNotificationCount,
-                alertContent,
-                isLoud,
-                entryPath,
-            });
-        }
+        const webPushNotificationContent = {
+            title,
+            body: alertContent.body,
+            // `silent` refers to whether this notification will make a noise on delivery.
+            // This is different from native 'silent' push notifications where the notification
+            // is used for updates and not displayed - `silent` web push notifications are always displayed.
+            silent: false,
+            // The tag is used to identify a specific notification. Sending the same notification
+            // with the same tag will replace the previous notification.
+            tag: deduplicationTag,
+            data: {
+                url: `${context.constants.edgeServiceUrl}${entryPath}`,
+            },
+        };
 
-        // Send web push notifications to browsers.
-        // Most browsers require content to be displayed, so if there's no content, there's
-        // no need to send a web push notification. Loud notifications are sent immediately,
-        // otherwise we queue a quiet notification to be sent at a later time.
-        if (webPushSubscriptions.length > 0) {
-            if (!isLoud) {
-                await queuePendingSubtleNotification(context, {
-                    accountId,
-                    spaceId: newInboxEntryItem.spaceId,
-                    notificationEvent,
-                    inboxEntry: newInboxEntryItem,
-                });
-            } else {
-                const title = alertContent.subtitle
-                    ? `${alertContent.title} ${alertContent.subtitle}`
-                    : alertContent.title;
-                await sendWebPushNotificationToAllSubscriptions(context, {
-                    spaceId: newInboxEntryItem.spaceId,
-                    accountId,
-                    subscriptions: webPushSubscriptions,
-                    notificationContent: {
-                        title,
-                        body: alertContent.body,
-                        // `silent` refers to whether this notification will make a noise on delivery.
-                        // This is different from native 'silent' push notifications where the notification
-                        // is used for updates and not displayed - `silent` web push notifications are always displayed.
-                        silent: false,
-                        // The tag is used to identify a specific notification. Sending the same notification
-                        // with the same tag will replace the previous notification.
-                        tag: deduplicationTag,
-                        data: {
-                            url: `${context.constants.edgeServiceUrl}${entryPath}`,
+        const pushNotificationTargets = getAllPushNotificationTargetsWithoutAuthorization(context, {
+            accountId,
+            spaceId,
+        });
+
+        await parallelProcessAsyncIterable(pushNotificationTargets, async target => {
+            switch (target.type) {
+                case "SlackIntegration":
+                    return await sendNotificationToSlackIntegration(context, {
+                        spaceId,
+                        accountId,
+                        workspaceId: target.workspaceId,
+                        alertContent,
+                        entryPath,
+                    });
+                case "WebPushSubscription":
+                    return await context.jobs.sendAndWait({
+                        type: "SendWebPushNotification",
+                        spaceId,
+                        accountId,
+                        browserId: target.browserId,
+                        notificationContent: webPushNotificationContent,
+                        options: {
+                            // Topic is used to group related notifications together on the user's device.
+                            topic: topicId,
+                            urgency: "high",
                         },
-                    },
-                    options: {
-                        // Topic is used to group related notifications together on the user's device.
-                        topic: getPushNotificationThreadId(newInboxEntryItem),
-                        urgency: "high",
-                    },
-                });
+                    });
+                case "AppleDevice":
+                    // We don't currently support sending push notifications to Apple devices,
+                    // though we did at one point and may again in the future.
+                    if (shouldSendApnsPushNotification()) {
+                        await sendApnsPushNotification(context, {
+                            accountId,
+                            deduplicationTag,
+                            newInboxEntryItem,
+                            loudNotificationCount,
+                            alertContent,
+                            isLoud,
+                            entryPath,
+                        });
+                    }
+                    return;
+                default:
+                    exhaustive(target);
             }
-        }
+        });
     });
 }

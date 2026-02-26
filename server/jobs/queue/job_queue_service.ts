@@ -25,6 +25,7 @@ import {
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {
     GithubContextModule,
@@ -46,6 +47,8 @@ import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
 import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
+import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {
     JobQueueServiceProcessContext,
@@ -103,6 +106,9 @@ export const options = {
     apnsCertificatePrivateKey: {type: "string"},
     webPushVapidPublicKey: {type: "string"},
     webPushVapidPrivateKey: {type: "string"},
+    slackClientId: {type: "string"},
+    slackClientSecret: {type: "string"},
+    slackAuthRedirectOrigin: {type: "string"},
     jobQueueArn: {type: "string"},
     schedulerJobQueueRoleArn: {type: "string"},
     githubAppId: {type: "string"},
@@ -176,6 +182,16 @@ export async function run({
     const awsSigner = new AwsRequestSigner(defaultProvider());
     void awsSigner.prefetchState(startupSpan);
 
+    const edgeServiceUrl = assertExists(
+        options.edgeServiceUrl,
+        "`edgeServiceUrl` option is required",
+    );
+
+    const resourceServiceUrl = assertExists(
+        options.resourceServiceUrl,
+        "`resourceServiceUrl` option is required",
+    );
+
     const basicProcessContext = Context.new(
         createServerBasicProcessContextModules({
             tracer,
@@ -225,6 +241,34 @@ export async function run({
         vapidPublicKey: webPushVapidPublicKey,
         vapidPrivateKey: webPushVapidPrivateKey,
     });
+
+    let slackContextModule: SlackContextModuleBase;
+
+    if (process.env.NODE_ENV === "production") {
+        slackContextModule = new SlackContextModule({
+            clientId: assertExists(
+                options.slackClientId,
+                "`slackClientId` option is required in production",
+            ),
+            clientSecret: assertExists(
+                options.slackClientSecret,
+                "`slackClientSecret` option is required in production",
+            ),
+            // We do not currently set a `slackAuthRedirectOrigin` option in production,
+            // so this will default to the edge service URL.
+            authRedirectOrigin: options.slackAuthRedirectOrigin ?? edgeServiceUrl,
+        });
+    } else {
+        if (options.slackClientId && options.slackClientSecret && options.slackAuthRedirectOrigin) {
+            slackContextModule = new SlackContextModule({
+                clientId: options.slackClientId,
+                clientSecret: options.slackClientSecret,
+                authRedirectOrigin: options.slackAuthRedirectOrigin,
+            });
+        } else {
+            slackContextModule = new NoopSlackContextModule();
+        }
+    }
 
     const githubContextModule =
         process.env.NODE_ENV !== "production"
@@ -305,16 +349,6 @@ export async function run({
         );
     };
 
-    const edgeServiceUrl = assertExists(
-        options.edgeServiceUrl,
-        "`edgeServiceUrl` option is required",
-    );
-
-    const resourceServiceUrl = assertExists(
-        options.resourceServiceUrl,
-        "`resourceServiceUrl` option is required",
-    );
-
     const processContext: JobQueueServiceProcessContext = basicProcessContext.clone({
         opensearch: createServiceOpensearchContextModule(awsSigner, options),
         r2: createServiceCloudflareR2ContextModule(options),
@@ -344,6 +378,7 @@ export async function run({
                 : new TraceOnlyEmailContextModule(),
         botWebhook: new BotWebhookContextModule(tokenAgent),
         webPush: webPushContextModule,
+        slack: slackContextModule,
         importer:
             process.env.NODE_ENV === "production"
                 ? new ImporterContextModule({

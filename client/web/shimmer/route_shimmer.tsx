@@ -27,7 +27,8 @@ import {MobileSettingsRowsShimmer} from "~/client/web/shimmer/internal/mobile_se
 import {SpaceBotListSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_bot_list_settings_route_shimmer.js";
 import {SpaceBotSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_bot_settings_route_shimmer.js";
 import {SpaceGeneralSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_general_settings_route_shimmer.js";
-import {SpaceIntegrationListSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_integrations_list_settings_route_shimmer.js";
+import {SpaceIntegrationsSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_integrations_settings_route_shimmer.js";
+import {SpaceSlackIntegrationSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_integrations_slack_route_shimmer.js";
 import {SpaceNotificationsSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_notification_settings_route_shimmer.js";
 import {SpaceNotionImportSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_notion_import_settings_route_shimmer.js";
 import {SpacePeopleSettingsRouteShimmer} from "~/client/web/shimmer/internal/space_people_settings_route_shimmer.js";
@@ -251,15 +252,19 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.settings.bots.$botId": {component: SpaceBotSettingsRouteShimmer},
     "routes/s.$spaceId.settings.general": {component: SpaceGeneralSettingsRouteShimmer},
     "routes/s.$spaceId.settings.integrations._index": {
-        component: SpaceIntegrationListSettingsRouteShimmer,
+        component: SpaceIntegrationsSettingsRouteShimmer,
     },
     "routes/s.$spaceId.settings.integrations.import.notion": {
         component: SpaceNotionImportSettingsRouteShimmer,
+    },
+    "routes/s.$spaceId.settings.integrations.slack": {
+        component: SpaceSlackIntegrationSettingsRouteShimmer,
     },
 
     "routes/s.$spaceId.settings.people": {component: SpacePeopleSettingsRouteShimmer},
     "routes/s.$spaceId.settings.profile": {component: SpaceProfileSettingsRouteShimmer},
     "routes/s.$spaceId.settings.notifications": {component: SpaceNotificationsSettingsRouteShimmer},
+
     "routes/s.$spaceId.tasks._index": {component: TaskPersonalRouteShimmer},
     // TODO: `inboxBannerMaxWidth` for this route.
     "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},
@@ -273,11 +278,12 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.accounts.$accountId": false,
     "routes/s.$spaceId.settings._index": false,
 
+    // This route is only used to handle the OAuth callback from Slack. It doesn't render any UI
+    // and so doesn't need a shimmer.
+    "routes/s.$spaceId.integrations.slack.oauth": false,
+
     // NOTE(rohit): We don't have a design for layout routes.
     "routes/s.$spaceId.settings": false,
-
-    // TODO (#slack-integration) Add a shimmer for the Slack integration settings route.
-    "routes/s.$spaceId.settings.integrations.slack": false,
 
     "routes/s.$spaceId.invite._index": false,
     "routes/s.$spaceId.invite.reject-and-mark-as-spam": false,

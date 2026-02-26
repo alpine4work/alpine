@@ -98,6 +98,29 @@ export const NotificationsTable = DynamoTableSchema.new({
             },
             sortRanges: [
                 /**
+                 * Slack integrations are used to send Slack notifications to the a user's linked
+                 * Slack workspace. There must be an associated `SlackWorkspaceIntegration` and
+                 * `SlackUser` items for the account ID and workspace ID in the `IntegrationsTable`
+                 * for us to send notifications to the user's Slack workspace.
+                 *
+                 * Slack workspaces are per-space, and currently we only support one Slack
+                 * workspace per space. If a Slack workspace or user is removed, this item should be
+                 * deleted.
+                 */
+                {
+                    name: "SlackIntegration",
+                    sortKeyAttributes: {
+                        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+                        workspaceId: DynamoKeyAttributeSchema.labelString<string>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                        lastUpdatedTime: Schema.date,
+                        slackUserId: Schema.string,
+                    }),
+                },
+
+                /**
                  * Web push subscriptions are used to send web push notifications to the user's browser.
                  *
                  * By default, all of an account's spaces will receive push notifications for a given
@@ -127,6 +150,7 @@ export const NotificationsTable = DynamoTableSchema.new({
                         optedOutSpaceIds: Schema.set(Schema.id<SpaceId>()).default(new Set()),
                     }),
                 },
+
                 /**
                  * Apple device tokens are an anonymous identifier for a device + app pair. It
                  * is the address to which we send push notifications. Only one user is signed
@@ -185,6 +209,12 @@ export type InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey = DynamoTa
     "DocumentCommentThreadInNewCommentThreadsEntry"
 >;
 
+export type SlackIntegrationItem = DynamoTableItemType<
+    typeof NotificationsTable,
+    "PushTargets",
+    "SlackIntegration"
+>;
+
 export type WebPushSubscriptionItem = DynamoTableItemType<
     typeof NotificationsTable,
     "PushTargets",
@@ -196,3 +226,5 @@ export type AppleDeviceTokenItem = DynamoTableItemType<
     "PushTargets",
     "AppleDeviceToken"
 >;
+
+export type PushTargetItem = SlackIntegrationItem | WebPushSubscriptionItem | AppleDeviceTokenItem;

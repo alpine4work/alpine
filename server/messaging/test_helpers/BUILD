@@ -10,6 +10,7 @@ ts_project(
         "//server/api/content",
         "//server/bots/test_helpers",
         "//server/files/test_helpers",
+        "//server/integrations",
         "//server/messaging/helpers",
         "//shared/content",
         "//shared/context",

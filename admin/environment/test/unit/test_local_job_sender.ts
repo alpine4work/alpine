@@ -2,6 +2,7 @@ import {TestApnsContextModule} from "~/server/context/apns_context_module_base.j
 import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
@@ -144,6 +145,7 @@ export class TestLocalJobSender implements JobSenderBase {
                             tracer: new TracerContextModule(span),
                             apns: new TestApnsContextModule(),
                             webPush: new TestWebPushContextModule(),
+                            slack: new NoopSlackContextModule(),
                         },
                         async context => {
                             await this._processJob(context, job, jobStartTime, span);

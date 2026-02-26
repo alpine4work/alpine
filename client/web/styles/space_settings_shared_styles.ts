@@ -19,3 +19,5 @@ export const spaceBotSettingsHeadingHeight = "16";
 export const spaceBotSettingsHeadingHeightNameFontSize = "600";
 export const spaceBotSettingsHeadingHeightInstallButtonHeight = "6";
 export const spaceBotSettingsHeadingMarginBottom = "8";
+
+export const spaceIntegrationSettingsHeightConnectButtonHeight = "6";

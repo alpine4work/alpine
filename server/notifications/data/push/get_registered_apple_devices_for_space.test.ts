@@ -137,7 +137,7 @@ test("can get an account\u2019s registered apple devices", async () => {
 
     await expect(
         getRegisteredAppleDevicesForAccount(session1A.action(), session1A.account.id),
-    ).resolves.toEqual([{type: "Apple", deviceToken: deviceToken1A}]);
+    ).resolves.toEqual([{type: "AppleDevice", deviceToken: deviceToken1A}]);
 
     await expect(
         getRegisteredAppleDevicesForAccount(session1B.action(), session1A.account.id),
@@ -153,7 +153,7 @@ test("can get an account\u2019s registered apple devices", async () => {
 
     await expect(
         getRegisteredAppleDevicesForAccount(space1.systemAction(), session1A.account.id),
-    ).resolves.toEqual([{type: "Apple", deviceToken: deviceToken1A}]);
+    ).resolves.toEqual([{type: "AppleDevice", deviceToken: deviceToken1A}]);
 
     await expect(
         getRegisteredAppleDevicesForAccount(space2.systemAction(), session1A.account.id),
@@ -176,9 +176,9 @@ test("can get an account\u2019s registered apple devices", async () => {
         ),
     ).resolves.toEqual(
         [
-            {type: "Apple", deviceToken: deviceToken1B1},
-            {type: "Apple", deviceToken: deviceToken1B2},
-            {type: "Apple", deviceToken: deviceToken1B3},
+            {type: "AppleDevice", deviceToken: deviceToken1B1},
+            {type: "AppleDevice", deviceToken: deviceToken1B2},
+            {type: "AppleDevice", deviceToken: deviceToken1B3},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -209,9 +209,9 @@ test("can get an account\u2019s registered apple devices", async () => {
         ),
     ).resolves.toEqual(
         [
-            {type: "Apple", deviceToken: deviceToken1B1},
-            {type: "Apple", deviceToken: deviceToken1B2},
-            {type: "Apple", deviceToken: deviceToken1B3},
+            {type: "AppleDevice", deviceToken: deviceToken1B1},
+            {type: "AppleDevice", deviceToken: deviceToken1B2},
+            {type: "AppleDevice", deviceToken: deviceToken1B3},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -227,7 +227,7 @@ test("can get an account\u2019s registered apple devices", async () => {
 
     await expect(
         getRegisteredAppleDevicesForAccount(sharedSession.action(), sharedSession.account.id),
-    ).resolves.toEqual([{type: "Apple", deviceToken: sharedDeviceToken}]);
+    ).resolves.toEqual([{type: "AppleDevice", deviceToken: sharedDeviceToken}]);
 
     await expect(
         getRegisteredAppleDevicesForAccount(session1A.action(), sharedSession.account.id),
@@ -243,11 +243,11 @@ test("can get an account\u2019s registered apple devices", async () => {
 
     await expect(
         getRegisteredAppleDevicesForAccount(space1.systemAction(), sharedSession.account.id),
-    ).resolves.toEqual([{type: "Apple", deviceToken: sharedDeviceToken}]);
+    ).resolves.toEqual([{type: "AppleDevice", deviceToken: sharedDeviceToken}]);
 
     await expect(
         getRegisteredAppleDevicesForAccount(space2.systemAction(), sharedSession.account.id),
-    ).resolves.toEqual([{type: "Apple", deviceToken: sharedDeviceToken}]);
+    ).resolves.toEqual([{type: "AppleDevice", deviceToken: sharedDeviceToken}]);
 
     await expect(
         getRegisteredAppleDevicesForAccount(context.anonymousAction(), sharedSession.account.id),

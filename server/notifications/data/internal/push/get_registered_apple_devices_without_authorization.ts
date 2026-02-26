@@ -8,6 +8,7 @@ import {
 import {Context} from "~/shared/context/context.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {AppleDeviceTarget} from "~/shared/notifications/push_notification_target.js";
 
 /**
  * Get all devices registered for the provided `AccountId`. System actors can
@@ -21,8 +22,8 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 export async function getRegisteredAppleDevicesForAccountWithoutAuthorization(
     context: Context<DynamoContextModules & {actor: ActorContextModule}>,
     accountId: AccountId,
-): Promise<ReadonlyArray<AccountDevice>> {
-    return arrayFromAsyncIterable<AppleDeviceTokenItem, AccountDevice>(
+): Promise<ReadonlyArray<AppleDeviceTarget>> {
+    return arrayFromAsyncIterable<AppleDeviceTokenItem, AppleDeviceTarget>(
         NotificationsTable.query(context, {
             partitionKey: {partitionType: "PushTargets", accountId},
             startSortKey: {
@@ -37,14 +38,9 @@ export async function getRegisteredAppleDevicesForAccountWithoutAuthorization(
         }),
         item => {
             return {
-                type: "Apple",
+                type: "AppleDevice",
                 deviceToken: item.deviceToken,
             };
         },
     );
 }
-
-export type AccountDevice = {
-    readonly type: "Apple";
-    readonly deviceToken: Uint8Array;
-};

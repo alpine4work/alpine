@@ -4,9 +4,11 @@ import {archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction} from "
 import {archiveInboxPostCommentsEntryAfterSetPostCommentReaction} from "~/server/notifications/data/archive_inbox_post_comments_entry_after_set_post_comment_reaction.js";
 import {archiveInboxTaskEntryAfterSetTaskCommentReaction} from "~/server/notifications/data/archive_inbox_task_entry_after_set_task_comment_reaction.js";
 import {notifyInboxOfTimeZoneChange} from "~/server/notifications/data/digest/notify_inbox_of_time_zone_change.js";
+import {notifyInboxOfSlackIntegrationChange} from "~/server/notifications/data/push/notify_inbox_of_slack_integration_change.js";
 
 export const notificationsInjection: NotificationsInjection = {
     notifyInboxOfTimeZoneChange,
+    notifyInboxOfSlackIntegrationChange,
     archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction,
     archiveInboxChatEntryAfterSetChatMessageReaction,
     archiveInboxPostCommentsEntryAfterSetPostCommentReaction,

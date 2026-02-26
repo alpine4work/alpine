@@ -8,6 +8,7 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {
     TestAccountActionContext,
@@ -366,6 +367,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
             session.action().clone({
                 apns: new TestApnsContextModule(),
                 webPush: new TestWebPushContextModule(),
+                slack: new NoopSlackContextModule(),
             }),
             {
                 messageIndex: this.index,

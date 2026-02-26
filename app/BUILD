@@ -110,6 +110,7 @@ ts_project(
         "//server/billing",
         "//server/bots",
         "//server/bots/with_spaces",
+        "//server/integrations",
         "//server/chat/data",
         "//server/content",
         "//server/content/context_module",

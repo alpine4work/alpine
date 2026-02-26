@@ -1,9 +1,14 @@
+import {useNavigate} from "@remix-run/react";
+import {CaretRight} from "phosphor-react";
 import {useCallback, useEffect, useRef, useState, useSyncExternalStore} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
+import {Button} from "~/client/web/design/button.js";
+import {Spacer} from "~/client/web/design/spacer.js";
 import {Switch} from "~/client/web/design/switch.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {SlackLogo} from "~/client/web/icons/socials/slack_logo.js";
 import {getOrPromptForBrowserPushNotificationPermission} from "~/client/web/notifications/get_or_prompt_for_browser_push_notification_permission.js";
 import {subscribeToPushNotificationsInBrowser} from "~/client/web/notifications/subscribe_to_push_notifications_in_browser.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
@@ -13,6 +18,7 @@ import {
 } from "~/client/web/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeItem,
     createDynamoGeneralRealtimeItemSchema,
@@ -42,9 +48,11 @@ export async function loader({context, params}: LoaderArgs) {
 
     const browserId = context.loader.getBrowserId();
 
+    const authenticatedContext = await context.actor.authenticate();
+
     const [{inbox}, {optedOut}] = await runAllPromises([
-        getInboxWithStrongReadConsistency(await context.actor.authenticate(), {spaceId}),
-        isOptedOutOfWebPushForSpace(await context.actor.authenticate(), {
+        getInboxWithStrongReadConsistency(authenticatedContext, {spaceId}),
+        isOptedOutOfWebPushForSpace(authenticatedContext, {
             spaceId,
             browserId,
         }),
@@ -87,6 +95,19 @@ export default function SpaceNotificationSettingsRoute() {
                 isOptedOutOfWebPush={isOptedOutOfWebPush}
             />
             <DigestNotificationsSection inbox={inbox} />
+            <Spacer space="2" />
+            <Box
+                display="flex"
+                alignItems="baseline"
+                justifyContent="space-between"
+                paddingBottom="1.5"
+                borderBottom="grey-5"
+            >
+                <Box fontSize="300" fontStyle="bold" userSelect="text">
+                    Integrations
+                </Box>
+            </Box>
+            <SlackNotificationsSection />
         </Box>
     );
 }
@@ -269,5 +290,29 @@ function PushNotificationsSection({
                 </Switch>
             </Box>
         </Box>
+    );
+}
+
+function SlackNotificationsSection() {
+    const {space} = useSpaceContextAndRequireSpaceAccess();
+
+    const navigate = useNavigate();
+
+    return (
+        <Button
+            variant="quiet"
+            paddingX="2"
+            onPress={() => navigate(`/s/${space.id}/settings/integrations/slack`)}
+        >
+            <Box display="flex" flexDirection="row" alignItems="center" gap="2">
+                <Box width="4" height="4" display="flex" borderRadius="full">
+                    <SlackLogo style={{width: "100%", height: "100%"}} />
+                </Box>
+                <Box display="flex" flexDirection="row" gap="0.5" alignItems="center">
+                    <Box fontSize="100">Configure Slack notifications</Box>
+                    <CaretRight size={spacing[4]} />
+                </Box>
+            </Box>
+        </Button>
     );
 }

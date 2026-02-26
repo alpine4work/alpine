@@ -261,6 +261,8 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "webPushVapidPrivateKey",
                 ),
+                SLACK_CLIENT_ID: EcsSecret.fromSecretsManager(secrets, "slackClientId"),
+                SLACK_CLIENT_SECRET: EcsSecret.fromSecretsManager(secrets, "slackClientSecret"),
                 GITHUB_APP_ID: EcsSecret.fromSecretsManager(secrets, "githubAppId"),
                 GITHUB_APP_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secrets,
@@ -330,6 +332,8 @@ export class AwsJobQueueService extends Construct {
                 "--apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY",
                 "--webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY",
                 "--webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY",
+                "--slackClientId=$SLACK_CLIENT_ID",
+                "--slackClientSecret=$SLACK_CLIENT_SECRET",
                 "--githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY",
                 `--importUploadsBucketName=${importUploads.bucketName}`,
             ],

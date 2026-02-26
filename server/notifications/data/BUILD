@@ -39,6 +39,7 @@ ts_project(
         "//server/dynamo/core/general_realtime",
         "//server/forum/data",
         "//server/helpers",
+        "//server/integrations",
         "//server/notifications/core",
         "//server/search/data/table",
         "//server/spaces",

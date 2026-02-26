@@ -198,6 +198,10 @@ const webPushVapidPrivateKeyPath = joinPath(keysDirectoryPath, "web_push_vapid_p
 const stripeSecretKey = env.STRIPE_SECRET_KEY;
 const stripeSigningSecret = env.STRIPE_SIGNING_SECRET;
 
+const slackClientId = env.SLACK_CLIENT_ID;
+const slackClientSecret = env.SLACK_CLIENT_SECRET;
+const slackAuthRedirectOrigin = env.SLACK_AUTH_REDIRECT_ORIGIN;
+
 /**
  * An artifact which our dev process manager keeps up-to-date. There are two
  * kinds of artifacts:
@@ -388,6 +392,9 @@ async function createArtifacts() {
                 `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--stripeSecretKey=${stripeSecretKey || ""}`,
                 `--stripeSigningSecret=${stripeSigningSecret || ""}`,
+                `--slackClientId=${slackClientId}`,
+                `--slackClientSecret=${slackClientSecret}`,
+                `--slackAuthRedirectOrigin=${slackAuthRedirectOrigin}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--agentServiceLocalPort=${agentsDevPort}`,
@@ -544,6 +551,9 @@ async function createArtifacts() {
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
                 `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
                 `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
+                `--slackClientId=${slackClientId}`,
+                `--slackClientSecret=${slackClientSecret}`,
+                `--slackAuthRedirectOrigin=${slackAuthRedirectOrigin}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--kinesisTracerStreamName=${kinesisTracerStreamName}`,

@@ -41,6 +41,7 @@ ts_project(
         "//server/helpers",
         "//server/importer",
         "//server/importer/notion",
+        "//server/integrations",
         "//server/language_models/core",
         "//server/messaging/helpers",
         "//server/notifications/data",

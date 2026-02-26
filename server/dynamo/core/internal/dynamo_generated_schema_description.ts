@@ -10724,6 +10724,175 @@ export const dynamoGeneratedSchemaDescription: {
                 }
             ]
         },
+        "Integrations": {
+            "name": "Integrations",
+            "partitionByType": {
+                "SlackSpaceIntegration": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "SlackWorkspace": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "workspaceId": {
+                                    "type": "LabelString"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "workspaceName": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": false
+                                    },
+                                    "workspaceImageUrl": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
+                                    "connectedTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "connectedByAccountId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "SlackWorkspaceBot": {
+                            "id": 1,
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "workspaceId": {
+                                    "type": "LabelString"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "botUserId": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": false
+                                    },
+                                    "botToken": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": false
+                                    },
+                                    "botScopes": {
+                                        "valueSchema": {
+                                            "type": "Set",
+                                            "valueSchema": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "SlackUser": {
+                            "id": 2,
+                            "orderKey": "a2",
+                            "sortKeyAttributeByKey": {
+                                "workspaceId": {
+                                    "type": "LabelString"
+                                },
+                                "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "slackUserId": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": false
+                                    },
+                                    "displayName": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
+                                    "realName": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
+                                    "email": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
+                                    "profileImageUrl": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
+                                    "connectedTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                }
+            },
+            "indexes": []
+        },
         "Notifications": {
             "name": "Notifications",
             "partitionByType": {
@@ -11026,6 +11195,48 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     },
                     "sortRangeByType": {
+                        "SlackIntegration": {
+                            "id": 2,
+                            "orderKey": "Zz",
+                            "sortKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Id"
+                                },
+                                "workspaceId": {
+                                    "type": "LabelString"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "lastUpdatedTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "slackUserId": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
                         "WebPushSubscription": {
                             "id": 0,
                             "orderKey": "a0",

@@ -76,6 +76,7 @@ export function createAwsAppOrApiService(
         loadBalancer: loadBalancerOptions,
         withAgentServiceUrl,
         withStripeSecrets,
+        withSlackSecrets,
         withLogoDevSecrets,
         withCookieNameSuffixOption,
         importUploadsBucketName,
@@ -98,6 +99,7 @@ export function createAwsAppOrApiService(
         };
         withAgentServiceUrl?: boolean;
         withStripeSecrets?: boolean;
+        withSlackSecrets?: boolean;
         withLogoDevSecrets?: boolean;
         withCookieNameSuffixOption?: boolean;
         importUploadsBucketName?: string;
@@ -322,6 +324,15 @@ export function createAwsAppOrApiService(
                       ),
                   }
                 : {}),
+            ...(withSlackSecrets
+                ? {
+                      SLACK_CLIENT_ID: EcsSecret.fromSecretsManager(secrets, "slackClientId"),
+                      SLACK_CLIENT_SECRET: EcsSecret.fromSecretsManager(
+                          secrets,
+                          "slackClientSecret",
+                      ),
+                  }
+                : {}),
         },
         environment: {
             NODE_ENV: "production",
@@ -367,6 +378,9 @@ export function createAwsAppOrApiService(
             "--apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY",
             "--webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY",
             "--webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY",
+            ...(withSlackSecrets
+                ? ["--slackClientId=$SLACK_CLIENT_ID", "--slackClientSecret=$SLACK_CLIENT_SECRET"]
+                : []),
             ...(withStripeSecrets
                 ? [
                       "--stripeSecretKey=$STRIPE_SECRET_KEY",

@@ -10,6 +10,7 @@ import {
     ServerUnknownActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {ActorContextModule, ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
@@ -28,6 +29,7 @@ type TestContextExtraModules = {
     email: EmailContextModuleBase;
     billing: BillingContextModuleBase;
     importer: ImporterContextModuleBase;
+    slack: SlackContextModuleBase;
     logoDev: LogoDevContextModuleBase;
 };
 

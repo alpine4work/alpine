@@ -62,6 +62,7 @@ export class AwsAppService extends Construct {
             },
             withAgentServiceUrl: true,
             withStripeSecrets: true,
+            withSlackSecrets: true,
             withLogoDevSecrets: true,
             withCookieNameSuffixOption: true,
             importUploadsBucketName: options.importUploads.bucketName,

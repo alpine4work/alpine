@@ -2,6 +2,7 @@ import {
     ServerActionContextModules,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {SendWebPushNotificationJobDescription} from "~/server/jobs/core/job_description.js";
 import {sendAllPendingSubtleNotifications} from "~/server/notifications/data/internal/push/send_all_pending_subtle_notifications.js";
@@ -37,7 +38,12 @@ export async function processSendAllPendingSubtleNotificationsJob(
 }
 
 export async function processSendPendingSubtleNotificationsForInboxJob(
-    context: Context<ServerSystemActionContextModules & {webPush: WebPushContextModule}>,
+    context: Context<
+        ServerSystemActionContextModules & {
+            webPush: WebPushContextModule;
+            slack: SlackContextModuleBase;
+        }
+    >,
     {accountId, spaceId, sendTime}: {accountId: AccountId; spaceId: SpaceId; sendTime: Date},
 ) {
     await sendPendingSubtleNotificationsForInbox(context, {accountId, spaceId, sendTime});

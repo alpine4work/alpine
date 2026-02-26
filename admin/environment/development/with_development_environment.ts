@@ -42,6 +42,8 @@ import {
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
+import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
@@ -251,6 +253,14 @@ export async function withDevelopmentEnvironment<Value>(
         }),
         billing: new BillingNoopDevelopmentContextModule(),
         importer: new ImporterDevelopmentContextModule(),
+        slack:
+            env.SLACK_CLIENT_ID && env.SLACK_CLIENT_SECRET
+                ? new SlackContextModule({
+                      clientId: env.SLACK_CLIENT_ID,
+                      clientSecret: env.SLACK_CLIENT_SECRET,
+                      authRedirectOrigin: env.SLACK_AUTH_REDIRECT_ORIGIN ?? "",
+                  })
+                : new NoopSlackContextModule(),
         r2: new CloudflareR2ContextModule(cloudflareClient),
         logoDev:
             env.LOGO_DEV_SECRET_KEY && env.LOGO_DEV_PUBLISHABLE_KEY

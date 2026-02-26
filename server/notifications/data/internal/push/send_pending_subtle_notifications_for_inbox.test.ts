@@ -1,4 +1,3 @@
-import {jest} from "@jest/globals";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
@@ -7,9 +6,14 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {InboxEntryItem, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
+import {createOrUpdateAccountWebPushSubscriptionWithoutAuthorization} from "~/server/notifications/data/internal/push/create_or_update_web_push_subscription_without_authorization.js";
 import {getInitialWebPushSubscriptionItem} from "~/server/notifications/data/internal/push/get_initial_web_push_subscription_item.js";
 import {PendingSubtleNotificationStub} from "~/server/notifications/data/internal/push/pending_subtle_notification_stub.js";
 import {queuePendingSubtleNotification} from "~/server/notifications/data/internal/push/queue_pending_subtle_notification.js";
+import {
+    getPendingSubtleNotificationSummaryContent,
+    sendPendingSubtleNotificationsForInbox,
+} from "~/server/notifications/data/internal/push/send_pending_subtle_notifications_for_inbox.js";
 import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {processNotificationEvent} from "~/server/notifications/data/process/process_notification_event.js";
 import {createTestWebPushSubscription} from "~/server/notifications/data/push/test_helpers/create_test_web_push_subscription.js";
@@ -25,18 +29,6 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BrowserId, ChatId, NotificationEventId} from "~/shared/id/types/id_types.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
-
-const sendWebPushNotificationToAllSubscriptionsMock = jest.fn();
-
-jest.unstable_mockModule("../push/send_web_push_notification_to_all_subscriptions.js", () => ({
-    sendWebPushNotificationToAllSubscriptions: sendWebPushNotificationToAllSubscriptionsMock,
-}));
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const sendWebPushNotificationToAllSubscriptionsModule =
-    await import("./send_web_push_notification_to_all_subscriptions.js");
-const {getPendingSubtleNotificationSummaryContent, sendPendingSubtleNotificationsForInbox} =
-    await import("~/server/notifications/data/internal/push/send_pending_subtle_notifications_for_inbox.js");
 
 const sendWebPushNotificationMock = import.meta.jest.fn();
 
@@ -122,10 +114,46 @@ function createChatMessageNotificationEvent(
 
 describe("sendPendingSubtleNotificationsForInbox", () => {
     beforeEach(() => {
-        sendWebPushNotificationToAllSubscriptionsMock.mockClear();
+        sendWebPushNotificationMock.mockClear();
     });
 
     test("returns early when account has no web push subscriptions", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const otherSession = await space.createSession();
+
+        // Create a chat and message
+        const chat = await TestChat.get(session, otherSession);
+        const message = await chat.sendMessage(otherSession, "Hello");
+        await ProcessContextModule.waitForTestTasks();
+
+        const inboxEntry = await getChatInboxEntry(session, space, chat.id);
+        const notificationEvent = createChatMessageNotificationEvent(
+            space,
+            chat,
+            otherSession.account.id,
+            message.index,
+            message.createdTime,
+        );
+        await queuePendingSubtleNotification(space.systemAction(), {
+            accountId: session.account.id,
+            spaceId: space.id,
+            notificationEvent,
+            inboxEntry,
+        });
+
+        // Should not throw and should return early (no web push subscription)
+        await sendPendingSubtleNotificationsForInbox(
+            space.systemAction().clone({webPush: new TestWebPushContextModule()}),
+            {
+                accountId: session.account.id,
+                spaceId: space.id,
+            },
+        );
+        expect(sendWebPushNotificationMock).not.toHaveBeenCalled();
+    });
+
+    test("clears pending notifications and returns when account has no push subscriptions", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const otherSession = await space.createSession();
@@ -169,8 +197,7 @@ describe("sendPendingSubtleNotificationsForInbox", () => {
                 accountId: session.account.id,
             },
         );
-        expect(subtleNotificationsItem?.pendingSubtleNotifications.size).toBe(1);
-        expect(sendWebPushNotificationToAllSubscriptionsMock).not.toHaveBeenCalled();
+        expect(subtleNotificationsItem?.pendingSubtleNotifications.size).toBe(0);
     });
 
     test("returns early when there are no pending quiet notifications", async () => {
@@ -186,7 +213,7 @@ describe("sendPendingSubtleNotificationsForInbox", () => {
                 spaceId: space.id,
             },
         );
-        expect(sendWebPushNotificationToAllSubscriptionsMock).not.toHaveBeenCalled();
+        expect(sendWebPushNotificationMock).not.toHaveBeenCalled();
     });
 
     test("clears pending notifications and returns when there is no content to send", async () => {
@@ -243,7 +270,62 @@ describe("sendPendingSubtleNotificationsForInbox", () => {
             },
         );
         expect(subtleNotificationsItem?.pendingSubtleNotifications.size).toBe(0);
-        expect(sendWebPushNotificationToAllSubscriptionsMock).not.toHaveBeenCalled();
+        expect(sendWebPushNotificationMock).not.toHaveBeenCalled();
+    });
+    test("sends web push notification when there is content to send and a web push subscription exists", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const otherSession = await space.createSession();
+
+        // Create a chat and message
+        const chat = await TestChat.get(session, otherSession);
+        const message = await chat.sendMessage(otherSession, "Hello");
+        await ProcessContextModule.waitForTestTasks();
+
+        const inboxEntry = await getChatInboxEntry(session, space, chat.id);
+        const notificationEvent = createChatMessageNotificationEvent(
+            space,
+            chat,
+            otherSession.account.id,
+            message.index,
+            message.createdTime,
+        );
+
+        await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
+            accountId: session.account.id,
+            browserId: generateId<BrowserId>(),
+            subscription: createTestWebPushSubscription(
+                `https://push.cyberworlds.dev/endpoint-${generateId<BrowserId>()}}`,
+            ),
+        });
+
+        await queuePendingSubtleNotification(space.systemAction(), {
+            accountId: session.account.id,
+            spaceId: space.id,
+            notificationEvent,
+            inboxEntry,
+        });
+
+        // Should not throw and should return early (no web push subscription)
+        await sendPendingSubtleNotificationsForInbox(
+            space.systemAction().clone({webPush: new TestWebPushContextModule()}),
+            {
+                accountId: session.account.id,
+                spaceId: space.id,
+            },
+        );
+
+        // Verify pending notifications were not cleared (since we returned early)
+        const subtleNotificationsItem = await NotificationsTable.getItemIfExists(
+            space.systemAction(),
+            {
+                partitionType: "Inbox",
+                sortRangeType: "PendingSubtleNotifications",
+                spaceId: space.id,
+                accountId: session.account.id,
+            },
+        );
+        expect(subtleNotificationsItem?.pendingSubtleNotifications.size).toBe(0);
     });
 });
 

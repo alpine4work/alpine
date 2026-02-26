@@ -3,6 +3,7 @@ import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {CaretRight, SlackLogo} from "phosphor-react";
 import {useMemo, useState} from "react";
 import {usePress} from "react-aria";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {Link} from "~/client/web/design/link.js";
@@ -24,7 +25,9 @@ import {
     spaceListSettingsHeadingSettingsRowTitleMarginBottom,
 } from "~/client/web/styles/space_settings_shared_styles.js";
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
+import {getConnectedSlackWorkspaceIfExists} from "~/server/integrations/slack/get_connected_slack_workspace_if_exists.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {hasSlackIntegrationSettingsFeature} from "~/shared/integrations/has_slack_integration_settings_feature.js";
@@ -46,9 +49,15 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export async function loader() {
+export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+
+    const slackIntegration = await getConnectedSlackWorkspaceIfExists(context, {spaceId});
+
     return jsonWithSchema(LoaderSchema, {
-        hasSlackIntegrationConfigured: false,
+        hasSlackIntegrationConfigured: slackIntegration !== null,
     });
 }
 

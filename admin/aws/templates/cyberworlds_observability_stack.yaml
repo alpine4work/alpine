@@ -958,6 +958,10 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__inbox__write_capacity_units
                           Type: double
+                        - Name: dynamodb__consumed_capacity__integrations__read_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__integrations__write_capacity_units
+                          Type: double
                         - Name: dynamodb__consumed_capacity__notifications__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__notifications__write_capacity_units
@@ -1133,6 +1137,10 @@ Resources:
                         - Name: dynamodb__table__inbox__partition__realtime__sort_range_type
                           Type: string
                         - Name: dynamodb__table__inbox__partition__graveyard__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__integrations__partition_type
+                          Type: string
+                        - Name: dynamodb__table__integrations__partition__slack_space_integration__sort_range_type
                           Type: string
                         - Name: dynamodb__table__notifications__partition_type
                           Type: string

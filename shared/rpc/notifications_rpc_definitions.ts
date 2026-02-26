@@ -252,3 +252,35 @@ export const deregisterOurAccountWebPushSubscription = defineRpc({
     },
     output: {},
 });
+
+export const areNotificationsToSlackEnabled = defineRpc({
+    name: "areNotificationsToSlackEnabled",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        workspaceId: Schema.string,
+    },
+    output: {
+        enabled: Schema.boolean,
+    },
+});
+
+export const enableNotificationsToSlack = defineRpc({
+    name: "enableNotificationsToSlack",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        workspaceId: Schema.string,
+    },
+    output: {},
+});
+
+export const disableNotificationsToSlack = defineRpc({
+    name: "disableNotificationsToSlack",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        workspaceId: Schema.string,
+    },
+    output: {},
+});

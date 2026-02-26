@@ -21,6 +21,7 @@ ts_project(
         "//server/emails",
         "//server/helpers",
         "//server/importer",
+        "//server/integrations",
         "//server/jobs/core",
         "//server/opensearch",
         "//server/spaces/test_helpers",

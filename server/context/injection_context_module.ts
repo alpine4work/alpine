@@ -219,12 +219,23 @@ export const NotificationsInjectionContextModule =
         archiveInboxChatEntryAfterSetChatMessageReaction: true,
         archiveInboxPostCommentsEntryAfterSetPostCommentReaction: true,
         archiveInboxTaskEntryAfterSetTaskCommentReaction: true,
+        notifyInboxOfSlackIntegrationChange: true,
     });
 
 export type NotificationsInjection = {
     notifyInboxOfTimeZoneChange(
         context: ServerSessionActionContext,
         timeZone: TimeZone,
+    ): Promise<void>;
+
+    notifyInboxOfSlackIntegrationChange(
+        context: ServerActionContext,
+        options: {
+            eventType: "connectSlackAccount" | "disconnectSlackAccount";
+            spaceId: SpaceId;
+            workspaceId: string;
+            accountId: AccountId;
+        },
     ): Promise<void>;
 
     archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(

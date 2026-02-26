@@ -10,6 +10,20 @@ if (!runfilesPath) throw new Error("Expected `RUNFILES` environment variable to 
 // Duplicate packages we can't easily get rid of go in this map. Please add a
 // comment explaining why there are duplicate packages.
 const allowedDuplicatePackageVersionsByName = new Map([
+    // NOTE(rmtobin, 2026-02-20): Duplicate packages after adding @slack/web-api
+    // dependency for Slack integration.
+    //
+    // - `retry@^0.12.0` is a dependency of `promise-retry` which is a transitive
+    //    dependency of our patched @remix-run/dev@2.9.2 which is a major effort to upgrade.
+    //
+    // - `eventemitter3` is both a direct dependency of `@slack/web-api` and a transitive
+    //    dependency through `p-queue`. Once `@slack/web-api` updates to a newer
+    //    version of `p-queue`, we can likely remove this duplicate.[1]
+    //
+    // [1]: https://github.com/slackapi/node-slack-sdk/pull/2506
+    ["retry", ["0.12.0", "0.13.1"]],
+    ["eventemitter3", ["4.0.7", "5.0.4"]],
+
     // Our `wrangler` dependency has an old version of `esbuild` we allow since we
     // should be bundling our code with a newer version of `esbuild` before it gets
     // to `wrangler`.
@@ -38,7 +52,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["@esbuild/win32-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
     ["@esbuild/aix-ppc64", ["0.21.5", "0.25.10"]],
     ["@jridgewell/gen-mapping", ["0.1.1", "0.3.13"]],
-    ["get-tsconfig", ["4.13.0", "4.6.2"]],
 
     // Incompatible versions from AWS dependencies. Mostly stemming from
     // `@aws-sdk/client-s3`'s dependency on `@aws-crypto/sha1-browser`.

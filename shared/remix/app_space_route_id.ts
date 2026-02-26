@@ -20,6 +20,7 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.documents.$documentId.duplicate"
     | "routes/s.$spaceId.favorites"
     | "routes/s.$spaceId.inbox"
+    | "routes/s.$spaceId.integrations.slack.oauth"
     | "routes/s.$spaceId.invite._index"
     | "routes/s.$spaceId.invite.accept"
     | "routes/s.$spaceId.invite.reject-and-mark-as-spam"

@@ -40,6 +40,7 @@ import {
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {
     TestWebPushContextModule,
     WebPushContextModule,
@@ -58,6 +59,8 @@ import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
+import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
@@ -237,6 +240,16 @@ async function createAppService({
         void awsSigner.prefetchState(startupSpan);
     }
 
+    const edgeServiceUrl = assertExists(
+        options.edgeServiceUrl,
+        "`edgeServiceUrl` option is required",
+    );
+
+    const resourceServiceUrl = assertExists(
+        options.resourceServiceUrl,
+        "`resourceServiceUrl` option is required",
+    );
+
     const languageModel =
         process.env.NODE_ENV === "production"
             ? new CohereEmbedEnglishV3LanguageModel({
@@ -289,6 +302,34 @@ async function createAppService({
                   stripeSigningSecret: options.stripeSigningSecret,
               })
             : new BillingNoopDevelopmentContextModule();
+    }
+
+    let slackContextModule: SlackContextModuleBase;
+
+    if (process.env.NODE_ENV === "production") {
+        slackContextModule = new SlackContextModule({
+            clientId: assertExists(
+                options.slackClientId,
+                "`slackClientId` option is required in production",
+            ),
+            clientSecret: assertExists(
+                options.slackClientSecret,
+                "`slackClientSecret` option is required in production",
+            ),
+            // We do not currently set a `slackAuthRedirectOrigin` option in production,
+            // so this will default to the edge service URL.
+            authRedirectOrigin: options.slackAuthRedirectOrigin ?? edgeServiceUrl,
+        });
+    } else {
+        if (options.slackClientId && options.slackClientSecret && options.slackAuthRedirectOrigin) {
+            slackContextModule = new SlackContextModule({
+                clientId: options.slackClientId,
+                clientSecret: options.slackClientSecret,
+                authRedirectOrigin: options.slackAuthRedirectOrigin,
+            });
+        } else {
+            slackContextModule = new NoopSlackContextModule();
+        }
     }
 
     const basicProcessContext = Context.new(
@@ -399,16 +440,6 @@ async function createAppService({
         );
     };
 
-    const edgeServiceUrl = assertExists(
-        options.edgeServiceUrl,
-        "`edgeServiceUrl` option is required",
-    );
-
-    const resourceServiceUrl = assertExists(
-        options.resourceServiceUrl,
-        "`resourceServiceUrl` option is required",
-    );
-
     const processContext: AppServiceProcessContext = basicProcessContext.clone({
         opensearch: createServiceOpensearchContextModule(awsSigner, options),
         r2: createServiceCloudflareR2ContextModule(options),
@@ -435,6 +466,7 @@ async function createAppService({
         billing: billingContextModule,
         importer: importerContextModule,
         logoDev: logoDevContextModule,
+        slack: slackContextModule,
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),

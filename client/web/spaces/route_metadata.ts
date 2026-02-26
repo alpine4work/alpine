@@ -140,6 +140,10 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.settings.integrations.slack": {
         errorTitle: "Couldn\u2019t open Slack integration settings",
     },
+    "routes/s.$spaceId.integrations.slack.oauth": {
+        errorTitle: "Couldn\u2019t complete Slack authorization",
+        spaceSideBarSpacing: "Never",
+    },
     "routes/s.$spaceId.settings.people": {
         errorTitle: "Couldn\u2019t open people settings",
     },

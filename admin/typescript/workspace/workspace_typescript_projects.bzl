@@ -141,6 +141,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/helpers/node:node",
     "//server/importer:importer",
     "//server/importer/notion:notion",
+    "//server/integrations:integrations",
     "//server/jobs/core:core",
     "//server/jobs/queue:queue_lib",
     "//server/jobs/queue/consumer:consumer",
