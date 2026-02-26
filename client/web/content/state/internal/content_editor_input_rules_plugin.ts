@@ -253,8 +253,9 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
                 "|",
                 // Match two or more characters. The characters next to the brackets
                 // must not be spaces. All characters within the brackets must not be
-                // the bracket character itself.
-                `[^${char}\\s][^${char}]*[^${char}\\s]`,
+                // the bracket character itself. Use non-greedy matching to prefer
+                // the first valid closing bracket.
+                `[^${char}\\s][^${char}]*?[^${char}\\s]`,
                 // Close group...
                 ")",
                 // The closing bracket.
@@ -266,7 +267,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
             "u",
         );
 
-        return new InputRule(regExp, (state, match, start) => {
+        return new InputRule(regExp, (state, match, start, end) => {
             const {$from} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
             const fullMatch = match[0];
             const offset = match[1]!.length;
@@ -280,26 +281,33 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
             const transaction = state.tr;
 
             if (markType.name === "code") {
-                const replacements = normalizeContentEditorCodeText(
-                    fullMatch.slice(offset + 1, fullMatch.length - endOffset - 1),
-                );
+                const content = fullMatch.slice(offset + 1, fullMatch.length - endOffset - 1);
+                const replacements = normalizeContentEditorCodeText(content);
 
-                for (const replacement of replacements.reverse()) {
-                    transaction.replaceWith(
-                        start + offset + 1 + replacement.from,
-                        start + offset + 1 + replacement.to,
-                        state.schema.text(replacement.text),
-                    );
+                if (replacements.length > 0) {
+                    for (let i = replacements.length - 1; i >= 0; i--) {
+                        const replacement = replacements[i]!;
+                        transaction.replaceWith(
+                            start + offset + 1 + replacement.from,
+                            start + offset + 1 + replacement.to,
+                            state.schema.text(replacement.text),
+                        );
+                    }
+
+                    transaction.delete(start + offset, start + offset + 1);
+
+                    const markStart = start + offset;
+                    const markEnd = transaction.mapping.map(end - endOffset);
+                    transaction.addMark(markStart, markEnd, markType.create());
+                    return transaction;
                 }
             }
 
             transaction.delete(start + offset, start + offset + 1);
 
-            transaction.addMark(
-                start + offset,
-                transaction.mapping.map(start + fullMatch.length - endOffset),
-                markType.create(),
-            );
+            const markStart = start + offset;
+            const markEnd = transaction.mapping.map(end - endOffset);
+            transaction.addMark(markStart, markEnd, markType.create());
 
             return transaction;
         });

@@ -3489,6 +3489,32 @@ test("characters typed after coded text with ` are not coded", async () => {
     expect(getDoc().toString()).toEqual('doc(paragraph(code("hello"), " world"))');
 });
 
+test("inserting closing backtick in middle of text only marks the intended text as code", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("`testi");
+
+    const textbox = getTextbox();
+    const textNode = textbox.querySelector("p")!.childNodes[0] as Text;
+    assert(textNode.nodeType === Node.TEXT_NODE);
+
+    textNode.textContent = "`test`i";
+
+    window.getSelection()!.collapse(textNode, 6);
+
+    const inputEvent = new InputEvent("input", {
+        inputType: "insertText",
+        data: "`",
+        bubbles: true,
+        cancelable: true,
+    });
+
+    getEditor().dom.dispatchEvent(inputEvent);
+    await Promise.resolve();
+
+    expect(getDoc().toString()).toEqual('doc(paragraph(code("test"), "i"))');
+});
+
 test("bold mark is not ended until it is toggled off", async () => {
     render(<TestContentEditor />);
 
