@@ -416,11 +416,11 @@ test("includes recommended group chats for autocomplete", async ({
     const chat2 = await TestChat.get(session1, session3);
     const chat3 = await TestChat.get(session1, session2, session3);
 
-    await chat1.sendMessage(session1, "message1");
+    await chat1.sendMessage(session2, "message1");
 
     await chat2.sendMessage(session3, "message2");
 
-    await chat3.sendMessage(session1, "message3");
+    await chat3.sendMessage(session2, "message3");
 
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);

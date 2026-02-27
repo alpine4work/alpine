@@ -7,7 +7,6 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     BrowserId,
@@ -166,12 +165,6 @@ export const authorizeTaskAccess = defineRpc({
     },
     output: {
         spaceId: Schema.id<SpaceId>(),
-        // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
-        // once clients are connecting with the right `AccessLevel`.
-        editResult: Schema.result(
-            Schema.object({ok: Schema.value(true)}),
-            Schema.object({ok: Schema.value(false), error: ErrorSchema}),
-        ),
     },
 });
 

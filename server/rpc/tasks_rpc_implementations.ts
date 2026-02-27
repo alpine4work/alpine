@@ -22,7 +22,6 @@ import {
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import * as definitions from "~/shared/rpc/tasks_rpc_definitions.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
@@ -148,12 +147,13 @@ export default implementRpcs(definitions, {
         execute: async (_context, input) => {
             const context = _context.actor.authorizeSession();
 
-            const [{spaceId}, editResult] = await runAllPromises([
-                authorizeTaskAccess(context, input.taskId, input.expectedAccessLevel),
-                captureResultPromise(() => authorizeTaskAccess(context, input.taskId, "Edit")),
-            ]);
+            const {spaceId} = await authorizeTaskAccess(
+                context,
+                input.taskId,
+                input.expectedAccessLevel,
+            );
 
-            return {spaceId, editResult};
+            return {spaceId};
         },
     },
 
