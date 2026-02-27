@@ -1,10 +1,12 @@
 import {Block, KnownBlock} from "@slack/web-api";
+import {slackAccountConnectedSuccessMessage} from "~/server/integrations/slack/internal/message_templates/slack_account_connected_success_message.js";
 import {slackAlpineNotificationMessage} from "~/server/integrations/slack/internal/message_templates/slack_alpine_notification_message.js";
 import {slackWorkspaceConnectedSuccessMessage} from "~/server/integrations/slack/internal/message_templates/slack_workspace_connected_success_message.js";
 
 export const slackMessageTemplates = {
     SlackWorkspaceConnectedSuccess: slackWorkspaceConnectedSuccessMessage,
     SlackAlpineNotification: slackAlpineNotificationMessage,
+    SlackAccountConnectedSuccess: slackAccountConnectedSuccessMessage,
 };
 
 export type SlackMessageTemplates = keyof typeof slackMessageTemplates;

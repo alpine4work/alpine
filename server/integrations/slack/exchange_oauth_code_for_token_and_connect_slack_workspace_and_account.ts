@@ -49,6 +49,21 @@ export async function exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWo
             profileImageUrl: userProfile.profileImageUrl,
         });
 
+        const {text, blocks} = generateSlackMessageBodyFromTemplate(
+            "SlackAccountConnectedSuccess",
+            {
+                spaceName: space.name,
+                spaceId,
+                edgeServiceUrl: context.constants.edgeServiceUrl,
+            },
+        );
+        await context.slack.sendDirectMessageAsAlpineApp(context, {
+            spaceId,
+            slackUserId,
+            text,
+            blocks,
+        });
+
         return {slackWorkspace: existingSlackWorkspace, slackAccount};
     } else {
         const slackWorkspace = await createSlackWorkspaceIntegration(context, {
