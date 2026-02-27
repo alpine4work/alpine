@@ -36,11 +36,11 @@ const LoaderSchema = Schema.object({
  * file in the `server/integrations/slack` directory.
  */
 export async function loader({context, params, request}: LoaderArgs) {
-    if (!hasSlackIntegrationSettingsFeature()) {
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+
+    if (!hasSlackIntegrationSettingsFeature(spaceId)) {
         return redirect(`/s/${params.spaceId}/settings/integrations`);
     }
-
-    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
     const authenticatedContext = (await context.actor.authenticate()).actor.authorizeSession();
 

@@ -98,7 +98,6 @@ export default function SpaceIntegrationListSettingsRoute() {
         return availableImporters.filter(importer => importer.isAvailable(space.id));
     }, [space.id]);
 
-    // NOTE (#slack-integration): Slack integration is currently feature flagged to only development.
     const slackIntegration: IntegrationData = {
         slug: "slack",
         name: "Slack",
@@ -107,7 +106,7 @@ export default function SpaceIntegrationListSettingsRoute() {
             : "Connect your Slack workspace",
         icon: <SlackLogo size={spacing[spaceListSettingsHeadingSettingsRowAvatarSize]} />,
         isConfigured: hasSlackIntegrationConfigured,
-        isAvailable: hasSlackIntegrationSettingsFeature(),
+        isAvailable: hasSlackIntegrationSettingsFeature(space.id),
     };
     if (slackIntegration.isConfigured) {
         configuredIntegrations.push(slackIntegration);

@@ -1,4 +1,6 @@
-// TODO (#slack-integration) Update this to allow the Alpine space in prod.
-export const hasSlackIntegrationSettingsFeature = () => {
-    return process.env.NODE_ENV !== "production";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {internalSpaceIds} from "~/shared/spaces/known_space_ids.js";
+
+export const hasSlackIntegrationSettingsFeature = (spaceId: SpaceId) => {
+    return process.env.NODE_ENV !== "production" || internalSpaceIds.has(spaceId);
 };
