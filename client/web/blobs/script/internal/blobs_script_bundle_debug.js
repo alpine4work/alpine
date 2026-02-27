@@ -3944,6 +3944,7 @@ var Vector2 = class _Vector2 {
 };
 
 // client/web/blobs/helpers/draw_blobs_factory.js
+var actuallyDrawBlobsForIntegrationTestMap;
 if (typeof window !== "undefined" && !window.__blobs) {
     const factory = new Lazy(() => {
         const canvas = document.createElement("canvas");
@@ -4102,6 +4103,14 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
             const result = factory.draw(size, scaledSettings, scaledBlobs);
             const ctx = canvas.getContext("2d");
             ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+        } else {
+            actuallyDrawBlobsForIntegrationTestMap ??
+                (actuallyDrawBlobsForIntegrationTestMap = /* @__PURE__ */ new WeakMap());
+            actuallyDrawBlobsForIntegrationTestMap.set(canvas, () => {
+                const result = factory.draw(size, scaledSettings, scaledBlobs);
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+            });
         }
         const gradient = assertExists(
             (_b =
@@ -4146,6 +4155,19 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
         setTimeout(actuallyDraw, 0);
     } else {
         actuallyDraw();
+    }
+}
+function actuallyDrawBlobsForIntegrationTest() {
+    assert(globalThis.__isIntegrationTest);
+    for (const element of document.querySelectorAll("canvas[data-blob-id]")) {
+        const draw =
+            actuallyDrawBlobsForIntegrationTestMap == null
+                ? void 0
+                : actuallyDrawBlobsForIntegrationTestMap.get(element);
+        actuallyDrawBlobsForIntegrationTestMap == null
+            ? void 0
+            : actuallyDrawBlobsForIntegrationTestMap.delete(element);
+        draw == null ? void 0 : draw();
     }
 }
 var BlobFactoryBlob = class {
@@ -4405,5 +4427,8 @@ function drawBlobs(blobCanvasId, settings, scale) {
 }
 if (typeof window !== "undefined") {
     window.__drawBlobs = drawBlobs;
+    if (globalThis.__isIntegrationTest) {
+        window.__actuallyDrawBlobsForIntegrationTest = actuallyDrawBlobsForIntegrationTest;
+    }
 }
 //# sourceMappingURL=blobs_script_bundle_debug_unminified.js.map

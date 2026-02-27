@@ -923,7 +923,7 @@ async function authorizeFeedEntryIfPossible(
  * Create a feed entry model from the feed entry. If the session actor has lost
  * access to the feed entry then return an error.
  */
-async function createFeedEntryModelIfPossible(
+export async function createFeedEntryModelIfPossible(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
     entry: FeedEntry,

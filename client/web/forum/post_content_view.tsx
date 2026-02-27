@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {ChatCircle, ChatCircleDots, Check, DotsThree} from "phosphor-react";
+import {ChatCircleDots, Check, DotsThree} from "phosphor-react";
 import {NodeSelection} from "prosemirror-state";
 import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/web/accounts/account_avatar_pile.js";
@@ -26,7 +26,7 @@ import {PostCommentsState} from "~/client/web/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
-import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/web/icons/caret_up_with_customizable_stroke_width_icon.js";
+import {ChatCircleWithCaretUpIcon} from "~/client/web/icons/chat_circle_with_caret_up_icon.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {InlineEditorToolbar} from "~/client/web/messaging/inline_editor_toolbar.js";
@@ -688,34 +688,17 @@ function PostContentViewFooter({
                                     size={spacing[postContentViewFooterButtonIconSize]}
                                 />
                             ) : (
-                                <Box
-                                    position="relative"
-                                    width={postContentViewFooterButtonIconSize}
-                                    height={postContentViewFooterButtonIconSize}
-                                >
-                                    <ChatCircle
-                                        size={spacing[postContentViewFooterButtonIconSize]}
-                                    />
-                                    <Box
-                                        position="absolute"
-                                        inset="0"
-                                        display="flex"
-                                        justifyContent="center"
-                                        alignItems="center"
-                                    >
-                                        <CaretUpWithCustomizableStrokeWidthIcon
-                                            size={spacing["2"]}
-                                            strokeWidthScale={4 / 2}
-                                            style={{
-                                                transform:
-                                                    postCommentsState !== "Closed"
-                                                        ? "rotate(-180deg)"
-                                                        : "rotate(0deg)",
-                                                transition: "transform 250ms ease",
-                                            }}
-                                        />
-                                    </Box>
-                                </Box>
+                                <ChatCircleWithCaretUpIcon
+                                    size={spacing[postContentViewFooterButtonIconSize]}
+                                    caretStyle={{
+                                        transformOrigin: "center",
+                                        transform:
+                                            postCommentsState !== "Closed"
+                                                ? "rotate(180deg)"
+                                                : "rotate(0deg)",
+                                        transition: "transform 250ms ease",
+                                    }}
+                                />
                             )
                         }
                         iconPlacement="start"

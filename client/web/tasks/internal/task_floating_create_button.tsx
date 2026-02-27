@@ -1,7 +1,10 @@
 import classNames from "classnames";
 import {Plus} from "phosphor-react";
+import {useState} from "react";
+import {flushSync} from "react-dom";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -18,6 +21,20 @@ export function TaskFloatingCreateButton({filters}: {filters?: ReadonlyArray<Tas
     const {space} = useSpaceContext();
 
     const peekContext = usePeekContext();
+
+    const [isHiddenForDev, setIsHiddenForDev] = useState(false);
+
+    useDevConsoleTool("taskFloatingCreateButton", () => ({
+        toggleVisibility: () => {
+            // Change visibility synchronously so when taking a screenshot we don't have to
+            // wait for React to re-render.
+            flushSync(() => {
+                setIsHiddenForDev(isVisible => !isVisible);
+            });
+        },
+    }));
+
+    if (isHiddenForDev) return null;
 
     // Don't render the floating create button when inside the peek stack. Since if
     // you render a task collection view peek on top of a task collection, it would

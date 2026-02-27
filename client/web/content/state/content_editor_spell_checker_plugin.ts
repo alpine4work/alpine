@@ -9,7 +9,6 @@ import {contentStyles} from "~/client/web/styles/styles.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
@@ -333,7 +332,7 @@ export function contentEditorSpellCheckerPlugin() {
 export function getContentEditorSpellCheckerLints(
     state: EditorState,
 ): ReadonlyArray<ContentSpellCheckLint> {
-    return assertExists(contentEditorSpellCheckerPluginKey.getState(state)).lints;
+    return contentEditorSpellCheckerPluginKey.getState(state)?.lints ?? emptyArray;
 }
 
 export function setContentEditorSpellCheckerLints(

@@ -211,6 +211,7 @@ const shimmerOptionsByRouteId: Record<
     },
     // This route is only used in tests, so we don't bother with a shimmer.
     "routes/s.$spaceId.dev.empty": false,
+    "routes/s.$spaceId.dev.feed": {component: FeedRouteShimmer},
     "routes/s.$spaceId.documents.$documentId._index": {component: DocumentRouteShimmer},
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,

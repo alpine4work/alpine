@@ -127,7 +127,7 @@ export function Modal({
     /**
      * Border radius for the modal content.
      */
-    borderRadius?: "1.5" | "2" | "2.5";
+    borderRadius?: "1.5" | "2" | "2.5" | "none";
 
     /**
      * Background color for the modal content.

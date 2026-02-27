@@ -1,11 +1,13 @@
 import {ArrowLeft, ArrowRight, Gear, House, MagnifyingGlass, SignOut, Star} from "phosphor-react";
-import {ReactNode} from "react";
+import {ReactNode, useState} from "react";
+import {flushSync} from "react-dom";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
@@ -52,6 +54,28 @@ export function SpaceLayoutSideBar({
 
     const spaceSideBarSpacing = useSpaceSideBarSpacing();
 
+    // Used in `//admin/scenarios/screenshots` for taking a screenshot of a
+    // document with the space side bar hidden.
+    const [isHiddenForDev, setIsHiddenForDev] = useState(false);
+    const [areNavigationButtonsHiddenForDev, setAreNavigationButtonsHiddenForDev] = useState(false);
+
+    useDevConsoleTool("spaceSideBar", () => ({
+        toggleVisibility: () => {
+            // Change visibility synchronously so when taking a screenshot we don't have to
+            // wait for React to re-render.
+            flushSync(() => {
+                setIsHiddenForDev(isVisible => !isVisible);
+            });
+        },
+        toggleNavigationButtonsVisibility: () => {
+            // Change visibility synchronously so when taking a screenshot we don't have to
+            // wait for React to re-render.
+            flushSync(() => {
+                setAreNavigationButtonsHiddenForDev(isVisible => !isVisible);
+            });
+        },
+    }));
+
     return (
         <Box
             zIndex="80"
@@ -76,7 +100,10 @@ export function SpaceLayoutSideBar({
                 display="flex"
                 flexDirection="column"
                 alignItems="center"
-                style={{width: spaceLayoutStyles.sideBarWidth}}
+                style={{
+                    width: spaceLayoutStyles.sideBarWidth,
+                    visibility: isHiddenForDev ? "hidden" : undefined,
+                }}
             >
                 <Box
                     paddingTop="3"
@@ -125,7 +152,7 @@ export function SpaceLayoutSideBar({
                     gap="3"
                 >
                     <SpaceLayoutSideBarAccountButton currentAccount={currentAccount} />
-                    <SpaceLayoutSideBarNavigationButtons />
+                    {!areNavigationButtonsHiddenForDev && <SpaceLayoutSideBarNavigationButtons />}
                 </Box>
             </Box>
         </Box>

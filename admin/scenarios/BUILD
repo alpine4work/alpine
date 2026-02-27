@@ -12,9 +12,12 @@ ts_project(
     deps = [
         "//:node_modules/@inquirer/prompts",
         "//:node_modules/@internationalized/date",
+        "//:node_modules/@types/mustache",
         "//:node_modules/chalk",
         "//:node_modules/cookie",
         "//:node_modules/gpt-tokenizer",
+        "//:node_modules/mustache",
+        "//:node_modules/playwright",
         "//admin/environment/development",
         "//admin/helpers",
         "//server/chat/test_helpers",

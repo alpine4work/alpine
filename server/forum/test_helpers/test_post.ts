@@ -242,14 +242,14 @@ export class TestPost extends TestCommentRoomBase {
             content,
             fileIds,
             createdTimeZone,
-            overrideCreatedTimeForTest,
+            overrideCreatedTime,
             isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
             createdTimeZone?: TimeZone;
-            overrideCreatedTimeForTest?: Date;
+            overrideCreatedTime?: Date;
             isStream?: boolean;
         },
     ) {
@@ -260,7 +260,7 @@ export class TestPost extends TestCommentRoomBase {
             fileIds,
             isStream,
             createdTimeZone: createdTimeZone ?? defaultTimeZone,
-            overrideCreatedTimeForTest,
+            overrideCreatedTimeForTest: overrideCreatedTime,
         });
     }
 

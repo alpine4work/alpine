@@ -77,7 +77,7 @@ export abstract class TestMessagingRoomBase {
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
             createdTimeZone?: TimeZone;
-            overrideCreatedTimeForTest?: Date;
+            overrideCreatedTime?: Date;
             isStream?: boolean;
         },
     ): Promise<{index: number; createdTime: Date}>;
@@ -118,6 +118,7 @@ export abstract class TestMessagingRoomBase {
             messageIndex: number;
             partIndex: number;
             payload: MessageStreamPartPayload;
+            overrideCreatedTime?: Date;
         },
     ): Promise<void>;
 
@@ -209,7 +210,7 @@ export abstract class TestMessagingRoomBase {
                     ? Array.from(files, file => (typeof file === "string" ? file : file.id))
                     : [],
                 createdTimeZone,
-                overrideCreatedTimeForTest: overrideCreatedTime,
+                overrideCreatedTime,
                 isStream:
                     isStream ||
                     (typeof content !== "string" &&
@@ -245,7 +246,7 @@ export abstract class TestCommentRoomBase extends TestMessageRoomBase {
     }
 
     public createComment(
-        session: TestSession,
+        session: TestSession | TestBotAccount | TestAccountActionContext,
         content?: string | Node,
         options?: TestMessagingRoomCreateMessageOptions,
     ) {
@@ -332,6 +333,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         context: TestBotActionContext,
         partIndex: number,
         payload: string | Node | MessageStreamPartPayload,
+        {overrideCreatedTime}: {overrideCreatedTime?: Date} = {},
     ) {
         return this.room._putMessageStreamPart(context, {
             messageIndex: this.index,
@@ -342,6 +344,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
                     : payload instanceof Node
                       ? {type: "Content", content: assertMessageContent(payload)}
                       : payload,
+            overrideCreatedTime,
         });
     }
 

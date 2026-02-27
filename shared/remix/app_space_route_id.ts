@@ -14,6 +14,7 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.create._index"
     | "routes/s.$spaceId.create.more"
     | "routes/s.$spaceId.dev.empty"
+    | "routes/s.$spaceId.dev.feed"
     | "routes/s.$spaceId.documents.$documentId._index"
     | "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId.$index.reactions"
     | "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index"

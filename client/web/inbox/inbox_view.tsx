@@ -1,10 +1,12 @@
 import {HydrationState} from "@remix-run/router";
 import {SpinnerGap} from "phosphor-react";
-import {Memo, useCallback, useEffect, useMemo, useRef} from "react";
+import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {flushSync} from "react-dom";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/web/dynamo/dynamo_general_realtime_index_query.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/web/helpers/events/is_modified_keyboard_event.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
@@ -206,6 +208,22 @@ export function InboxView({
         [filter, nextEntry, previousEntry, selectEntry],
     );
 
+    /* ========================================================================== *\
+     *                              Dev console tool                              *
+    \* ========================================================================== */
+
+    const [isEntryTimeHiddenForDev, setIsEntryTimeHiddenForDev] = useState(false);
+
+    useDevConsoleTool("inbox", () => ({
+        toggleEntryTimeVisibility: () => {
+            // Change visibility synchronously so when taking a screenshot we don't have to
+            // wait for React to re-render.
+            flushSync(() => {
+                setIsEntryTimeHiddenForDev(isVisible => !isVisible);
+            });
+        },
+    }));
+
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
@@ -268,6 +286,7 @@ export function InboxView({
                             }
                             selectedEntryKey={selectedEntryKey}
                             selectEntry={selectEntry}
+                            isEntryTimeVisible={!isEntryTimeHiddenForDev}
                         />
                     )}
                 </Box>
@@ -303,6 +322,7 @@ function InboxViewEntries({
     itemsDeletedByLastChangeForAnimation,
     selectedEntryKey,
     selectEntry,
+    isEntryTimeVisible,
 }: {
     filter: "New" | "Archive";
     query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
@@ -317,6 +337,7 @@ function InboxViewEntries({
     }>;
     selectedEntryKey: DynamoItemKey | null;
     selectEntry: Memo<(entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>>;
+    isEntryTimeVisible: boolean;
 }) {
     const archiveInboxEntry = useArchiveInboxEntry();
     const unarchiveInboxEntry = useUnarchiveInboxEntry();
@@ -415,6 +436,7 @@ function InboxViewEntries({
                                                 withMarginTop={isFirstItem}
                                                 withMarginBottom={isLastItem}
                                                 withBorderTop={isFirstItem}
+                                                withEntryTime={isEntryTimeVisible}
                                                 deletedItemAnimation={
                                                     animation ===
                                                     deletedItemAnimationsState.activeAnimations
@@ -466,6 +488,7 @@ function InboxViewEntries({
                                                 withMarginTop={isFirstItem}
                                                 withMarginBottom={isLastItem}
                                                 withBorderTop={isFirstItem}
+                                                withEntryTime={isEntryTimeVisible}
                                                 aria-posinset={index}
                                                 aria-setsize={ariaSetsize}
                                                 deletedItemAnimation={deletedItemAnimation}
@@ -564,12 +587,13 @@ function InboxViewEntries({
                             query,
                             deletedItemAnimations,
                             filter,
+                            isEntryTimeVisible,
                             deletedItemAnimationsState.activeAnimations?.currentAnimation,
-                            archiveInboxEntry,
-                            unarchiveInboxEntry,
                             selectedEntryKey,
                             ariaSetsize,
                             selectEntry,
+                            archiveInboxEntry,
+                            unarchiveInboxEntry,
                         ],
                     )}
                     extraChildrenOutsideContentElement={({contentHeight}) => (

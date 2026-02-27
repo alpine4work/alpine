@@ -5805,6 +5805,7 @@ export async function createTaskComment(
         content,
         fileIds,
         createdTimeZone,
+        overrideCreatedTimeForTest,
         isStream,
         consistency,
     }: {
@@ -5813,6 +5814,7 @@ export async function createTaskComment(
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         createdTimeZone: TimeZone;
+        overrideCreatedTimeForTest?: Date;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
     },
@@ -5821,6 +5823,10 @@ export async function createTaskComment(
     index: number;
     createdTime: Date;
 }> {
+    if (overrideCreatedTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId, commentsSummaryItem}, parentForEvent] = await runAllPromiseThunks(
             async () => {
@@ -5908,7 +5914,9 @@ export async function createTaskComment(
 
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
-        const createdTime = new Date(Date.now());
+        const currentTime = new Date(Date.now());
+
+        const createdTime = overrideCreatedTimeForTest ?? currentTime;
 
         // If this is a stream message and we have empty content then we only send a
         // notification event after the first content part has finished.
@@ -5996,7 +6004,7 @@ export async function createTaskComment(
                           lastPartCreatedTime: null,
                           lastPingTime: null,
                           lastIndexSearchEntityJob: {
-                              sendTime: createdTime,
+                              sendTime: currentTime,
                               delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
                           },
                           pendingNotificationEvent: !willSendNotificationEvent

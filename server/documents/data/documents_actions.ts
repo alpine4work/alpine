@@ -166,6 +166,7 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -2751,12 +2752,14 @@ export async function updateDocumentContent(
             initialCommentContent: MessageContent;
             initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone: TimeZone;
+
             /**
              * Optionally allow the caller to specify the time at which we report the
              * thread was created. Used by our document collaboration service to use the
              * optimistic creation time of the comment thread.
              */
             createdTime?: Date;
+            overrideCreatedTimeForTest?: Date;
         }>;
         resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
         unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
@@ -3428,7 +3431,14 @@ export async function updateDocumentContent(
         // comment threads asynchronously instead of in the same transaction to get
         // around this limit should we find users hitting it.
         for (const createCommentThread of createCommentThreads) {
-            const createdTime = createCommentThread.createdTime ?? currentTime;
+            if (createCommentThread.overrideCreatedTimeForTest) {
+                assert(isTestNodeEnvOrAdminScenariosScript);
+            }
+
+            const createdTime =
+                createCommentThread.overrideCreatedTimeForTest ??
+                createCommentThread.createdTime ??
+                currentTime;
 
             transaction.push(
                 DocumentsTable.transactionCreateItem({
@@ -3496,7 +3506,7 @@ export async function updateDocumentContent(
                                     documentId: documentId,
                                     commentThreadId: createCommentThread.commentThreadId,
                                     commentIndex: 0,
-                                    createdTime: createCommentThread.createdTime ?? currentTime,
+                                    createdTime,
                                     createdTimeZone: createCommentThread.createdTimeZone,
                                     authorId: context.actor.getAccountId(),
                                     mentionedAccountIds,
@@ -4782,6 +4792,7 @@ export async function createDocumentComment(
         parent,
         content,
         createdTimeZone,
+        overrideCreatedTimeForTest,
         fileIds,
         isStream,
         consistency,
@@ -4791,6 +4802,7 @@ export async function createDocumentComment(
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
         createdTimeZone: TimeZone;
+        overrideCreatedTimeForTest?: Date;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
@@ -4800,6 +4812,10 @@ export async function createDocumentComment(
     index: number;
     createdTime: Date;
 }> {
+    if (overrideCreatedTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
     return context.dynamo.retryTransaction(async context => {
         const [spaceId, commentThreadItem, parentForEvent] = await runAllPromises([
             (async () => {
@@ -4901,7 +4917,9 @@ export async function createDocumentComment(
 
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
-        const createdTime = new Date(Date.now());
+        const currentTime = new Date(Date.now());
+
+        const createdTime = overrideCreatedTimeForTest ?? currentTime;
 
         // If this is a stream message and we have empty content then we only send a
         // notification event after the first content part has finished.
@@ -4982,7 +5000,7 @@ export async function createDocumentComment(
                           lastPartCreatedTime: null,
                           lastPingTime: null,
                           lastIndexSearchEntityJob: {
-                              sendTime: createdTime,
+                              sendTime: currentTime,
                               delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
                           },
                           pendingNotificationEvent: !willSendNotificationEvent

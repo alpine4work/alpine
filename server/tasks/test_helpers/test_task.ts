@@ -283,12 +283,14 @@ export class TestTask extends TestCommentRoomBase {
             content,
             fileIds,
             createdTimeZone,
+            overrideCreatedTime,
             isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
             createdTimeZone?: TimeZone;
+            overrideCreatedTime?: Date;
             isStream?: boolean;
         },
     ) {
@@ -299,6 +301,7 @@ export class TestTask extends TestCommentRoomBase {
             fileIds,
             isStream,
             createdTimeZone: createdTimeZone ?? defaultTimeZone,
+            overrideCreatedTimeForTest: overrideCreatedTime,
         });
     }
 

@@ -1,8 +1,7 @@
-// We can't use `wait()` or `setTimeout()` since Jest will override
-// `setTimeout()` when `jest.useFakeTimers()` is on. But we want to wait the
-
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
+// We can't use `wait()` or `setTimeout()` since Jest will override
+// `setTimeout()` when `jest.useFakeTimers()` is on. But we want to wait the
 // timeout anyway.
 const originalSetTimeout = setTimeout;
 

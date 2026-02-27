@@ -67,6 +67,7 @@ export function InboxEntryView({
     withMarginBottom,
     withBorderTop,
     withBackgroundIfPressed = false,
+    withEntryTime = true,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
     deletedItemAnimation = null,
@@ -84,6 +85,7 @@ export function InboxEntryView({
     withMarginBottom?: boolean;
     withBorderTop?: boolean;
     withBackgroundIfPressed?: boolean;
+    withEntryTime?: boolean;
     // Because entries are virtualized, we need to set these properties so screen
     // readers can correctly announce what position the user is in no matter
     // what's in the DOM.
@@ -97,8 +99,7 @@ export function InboxEntryView({
     onArchive: (options: {withAnimation: boolean}) => MaybePromise<void>;
     onUnarchive: () => MaybePromise<void>;
 }) {
-    const currentTime = useCurrentTimeRoundedToHour();
-    const {isAppleDevice, timeZone, locale} = useClientInfo();
+    const {isAppleDevice, locale} = useClientInfo();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {currentAccount} = useSpaceContext();
 
@@ -787,38 +788,12 @@ export function InboxEntryView({
                                     ),
                                 [entryDisplay.latestMessage, showLatestMessage],
                             )}
-                            <Box flexShrink="0">
-                                {showLatestMessage && <>&nbsp;∙&nbsp;</>}
-                                {useMemo(() => {
-                                    if (differenceInHours(currentTime, entryDisplay.time) < 24) {
-                                        const formatter = getIntlDateTimeFormat({
-                                            locale,
-                                            timeZone,
-                                            hour: "numeric",
-                                            minute: "2-digit",
-                                        });
-
-                                        return formatter
-                                            .format(entryDisplay.time)
-                                            .replaceAll(/\s*(AM|PM)/g, string =>
-                                                string.trim().toLowerCase(),
-                                            );
-                                    } else {
-                                        const formatter = getIntlDateTimeFormat({
-                                            locale,
-                                            timeZone,
-                                            month: "short",
-                                            day: "numeric",
-                                        });
-
-                                        return formatter
-                                            .format(entryDisplay.time)
-                                            .replaceAll(/\s*(AM|PM)/g, string =>
-                                                string.trim().toLowerCase(),
-                                            );
-                                    }
-                                }, [currentTime, entryDisplay.time, locale, timeZone])}
-                            </Box>
+                            {withEntryTime && (
+                                <Box flexShrink="0">
+                                    {showLatestMessage && <>&nbsp;∙&nbsp;</>}
+                                    <InboxEntryViewTime time={entryDisplay.time} />
+                                </Box>
+                            )}
                         </Box>
                     </Box>
                 </Box>
@@ -942,4 +917,35 @@ function getPrimaryBrandIconByType(
         case "Post":
             return <PostBrandIcon />;
     }
+}
+
+function InboxEntryViewTime({time}: {time: Date}) {
+    const {locale, timeZone} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
+
+    return useMemo(() => {
+        if (differenceInHours(currentTime, time) < 24) {
+            const formatter = getIntlDateTimeFormat({
+                locale,
+                timeZone,
+                hour: "numeric",
+                minute: "2-digit",
+            });
+
+            return formatter
+                .format(time)
+                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+        } else {
+            const formatter = getIntlDateTimeFormat({
+                locale,
+                timeZone,
+                month: "short",
+                day: "numeric",
+            });
+
+            return formatter
+                .format(time)
+                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+        }
+    }, [currentTime, locale, time, timeZone]);
 }

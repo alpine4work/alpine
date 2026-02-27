@@ -85,6 +85,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         session: TestSpaceSession,
         range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
         content: string | Node,
+        {overrideCreatedTime}: {overrideCreatedTime?: Date} = {},
     ) {
         const id = generateId<DocumentCommentThreadId>();
         const createdTime = new Date();
@@ -112,8 +113,9 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
                                 ? parseTestMessageContent(document.space.id, content)
                                 : assertMessageContent(content),
                         initialCommentFileIds: [],
-                        createdTime,
                         createdTimeZone: defaultTimeZone,
+                        createdTime,
+                        overrideCreatedTimeForTest: overrideCreatedTime,
                     },
                 ],
             },
@@ -151,12 +153,14 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             content,
             fileIds,
             createdTimeZone,
+            overrideCreatedTime,
             isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
             createdTimeZone?: TimeZone;
+            overrideCreatedTime?: Date;
             isStream?: boolean;
         },
     ) {
@@ -168,6 +172,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             fileIds,
             isStream,
             createdTimeZone: createdTimeZone ?? defaultTimeZone,
+            overrideCreatedTimeForTest: overrideCreatedTime,
         });
     }
 

@@ -1,9 +1,10 @@
-import {useCallback, useMemo} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {FeedViewSideBar} from "~/client/web/feed/internal/feed_view_side_bar.js";
 import {PostFeedList} from "~/client/web/forum/post_feed_list.js";
 import {PostListView} from "~/client/web/forum/post_list_view.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
@@ -48,12 +49,20 @@ export function FeedView({
         PostFeedList.new(initialFeed),
     );
 
+    const [isLeftSideBarHiddenForDev, setIsLeftSideBarHiddenForDev] = useState(false);
+
+    useDevConsoleTool("feed", () => ({
+        toggleLeftSideBarVisibility: () => {
+            setIsLeftSideBarHiddenForDev(isVisible => !isVisible);
+        },
+    }));
+
     const sideBarLeftSize = useMemo(
         () =>
-            routeLayout !== "narrow"
+            routeLayout !== "narrow" && !isLeftSideBarHiddenForDev
                 ? ({maxWidth: searchEntitySideBarWidth, flex: feedViewSideBarLeftFlex} as const)
                 : undefined,
-        [routeLayout],
+        [isLeftSideBarHiddenForDev, routeLayout],
     );
 
     // While we don't actually render a right sidebar, on large screens (where
@@ -63,13 +72,13 @@ export function FeedView({
     // visual whitespace to the left of the post content.
     const sideBarRightSize = useMemo(
         () =>
-            routeLayout !== "narrow"
+            routeLayout !== "narrow" && !isLeftSideBarHiddenForDev
                 ? ({
                       maxWidth: feedViewSideBarRightMaxWidth,
                       flex: feedViewSideBarRightFlex,
                   } as const)
                 : undefined,
-        [routeLayout],
+        [isLeftSideBarHiddenForDev, routeLayout],
     );
 
     const navigationBar = useNavigationBar({

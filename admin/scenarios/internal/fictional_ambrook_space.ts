@@ -101,13 +101,13 @@ async function createFictionalAmbrookAccounts(space: TestSpace) {
         // Designer
         mattRHorn: space.createSession({
             name: "Matt R. Horn",
-            reactionCharacter: {type: "Cat", variant: "Grey"},
+            reactionCharacter: {type: "Frog", variant: "Green"},
         }),
 
         // Engineer 1
         masonClay: space.createSession({
             name: "Mason Clay",
-            reactionCharacter: {type: "Yeti", variant: "Brown"},
+            reactionCharacter: {type: "Pigeon", variant: "Plain"},
         }),
 
         // Engineer 2
@@ -125,7 +125,7 @@ async function createFictionalAmbrookAccounts(space: TestSpace) {
         // HR
         hollyEvergreen: space.createSession({
             name: "Holly Evergreen",
-            reactionCharacter: {type: "Tree", variant: "Pink"},
+            reactionCharacter: {type: "Tulip", variant: "Pink"},
         }),
 
         // AI

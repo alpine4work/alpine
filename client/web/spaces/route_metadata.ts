@@ -52,6 +52,10 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.dev.empty": {
         errorTitle: "Couldn\u2019t open space",
     },
+    "routes/s.$spaceId.dev.feed": {
+        errorTitle: "Couldn’t open space",
+        spaceSideBarSpacing: "Always",
+    },
     "routes/s.$spaceId.documents.$documentId._index": {
         errorTitle: "Couldn\u2019t open document",
         spaceSideBarSpacing: "Never",

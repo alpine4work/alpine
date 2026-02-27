@@ -18,6 +18,7 @@ import {
     useState,
 } from "react";
 import {usePress} from "react-aria";
+import {flushSync} from "react-dom";
 import {To, createPath} from "react-router";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
@@ -27,6 +28,7 @@ import {IconButton} from "~/client/web/design/icon_button.js";
 import {Modal} from "~/client/web/design/modal.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/web/helpers/events/is_modified_keyboard_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/web/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
@@ -274,13 +276,25 @@ export function SearchModal({
         ],
     );
 
+    const [withoutBorderRadiusForDev, setWithoutBorderRadiusForDev] = useState(false);
+
+    useDevConsoleTool("searchModal", () => ({
+        toggleBorderRadius: () => {
+            // Change visibility synchronously so when taking a screenshot we don't have to
+            // wait for React to re-render.
+            flushSync(() => {
+                setWithoutBorderRadiusForDev(hasBorderRadius => !hasBorderRadius);
+            });
+        },
+    }));
+
     return (
         <Modal
             aria-label="Search"
             maxWidth={searchModalMaxWidth}
             height="full"
             maxHeight={searchModalMaxHeight}
-            borderRadius="2.5"
+            borderRadius={withoutBorderRadiusForDev ? "none" : "2.5"}
             withoutCloseButton={true}
             // Don't animate the search modal open. The search modal is generally opened by
             // a user with direct intent to search. The search modal is a critical part of

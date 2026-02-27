@@ -186,6 +186,16 @@ export class TestDocument {
         return getDocumentWithOptionalComments(this.space.systemAction(), this.id);
     }
 
+    public async getContent() {
+        const {content} = await getDocumentContent(this.space.systemAction(), this.id);
+        return content;
+    }
+
+    public async updateContentPreview() {
+        const {updateContentPreview} = await getDocumentContent(this.space.systemAction(), this.id);
+        await updateContentPreview(this.space.systemAction());
+    }
+
     public async getString() {
         const {content} = await getDocumentContent(this.space.systemAction(), this.id);
         return content.toString();
@@ -347,8 +357,9 @@ export class TestDocument {
         session: TestSpaceSession,
         range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
         content: string | Node = TestDocumentCommentThread.createDefaultMessageContent(),
+        options?: {overrideCreatedTime?: Date},
     ) {
-        return TestDocumentCommentThread._create(this, session, range, content);
+        return TestDocumentCommentThread._create(this, session, range, content, options);
     }
 }
 

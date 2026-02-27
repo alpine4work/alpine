@@ -36,7 +36,7 @@ const backgroundColorsByReactionCharacter: ReactionCharacterMap<
     Frog: {
         Green: ["red", "orange", "green", "cyan", "purple", "pink"],
         Cyan: ["red", "orange", "green", "cyan", "purple", "pink"],
-        Yellow: ["green", "cyan"],
+        Yellow: ["cyan"],
     },
     Pigeon: {
         Plain: ["green", "cyan", "blue", "purple", "pink"],

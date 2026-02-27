@@ -71,6 +71,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {generateId} from "~/shared/id/id.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
@@ -107,7 +108,7 @@ export async function loader({context}: LoaderArgs) {
         browserId: context.loader.getBrowserId(),
         clientInfo: context.loader.getClientInfo(),
         webPushVapidPublicKey: context.loader.webPushVapidPublicKey,
-        isIntegrationTest: process.env.NODE_ENV === "test",
+        isIntegrationTest: isTestNodeEnvOrAdminScenariosScript,
     });
 }
 

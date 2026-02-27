@@ -5,6 +5,7 @@ import {
 } from "~/client/web/blobs/helpers/blobs_settings.js";
 import {HTMLCanvasElementWithBlobSettings} from "~/client/web/blobs/helpers/blobs_types.js";
 import {
+    actuallyDrawBlobsForIntegrationTest,
     drawBlobFactoryToCanvas,
     getInterpolatedThemeColor,
 } from "~/client/web/blobs/helpers/draw_blobs_factory.js";
@@ -15,6 +16,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 declare global {
     interface Window {
         __drawBlobs: typeof drawBlobs;
+        __actuallyDrawBlobsForIntegrationTest?: typeof actuallyDrawBlobsForIntegrationTest;
     }
 }
 
@@ -92,4 +94,8 @@ function drawBlobs(blobCanvasId: string, settings: BlobsSettings, scale?: number
 
 if (typeof window !== "undefined") {
     window.__drawBlobs = drawBlobs;
+
+    if (process.env.NODE_ENV !== "production" && (globalThis as any).__isIntegrationTest) {
+        window.__actuallyDrawBlobsForIntegrationTest = actuallyDrawBlobsForIntegrationTest;
+    }
 }

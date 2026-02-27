@@ -85,6 +85,7 @@ import {ForkActionContextModule} from "~/shared/context/fork_action_context_modu
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -231,7 +232,23 @@ export async function withUnitTestEnvironment<Value>(
     }
 
     try {
-        const value = await action(context);
+        const promiseWaiter = new PromiseWaiter();
+
+        const actualContext = context.cloneWithHelpers({
+            process: new ProcessContextModule({
+                waitUntil: promise => {
+                    promiseWaiter.waitUntil(promise);
+                    context.process.waitUntil(promise);
+                },
+            }),
+        });
+
+        const value = await action(actualContext);
+
+        // Wait for all `waitUntil()` promises to resolve before cleaning up
+        // the environment.
+        await promiseWaiter.wait();
+
         return value;
     } finally {
         for (const callback of afterEachCallbacks) {

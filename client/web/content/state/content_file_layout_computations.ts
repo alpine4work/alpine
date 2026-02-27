@@ -630,6 +630,20 @@ export function computeContentFileFloatLayout(
  */
 const fileImagePreviewSizeDownScale = 2;
 
+declare global {
+    // eslint-disable-next-line no-var
+    var __fileEntityPreviewSmallAspectRatio: number | undefined;
+}
+
+// In development and test environments we look for
+// `__fileEntityPreviewSmallAspectRatio` which lets us fudge the aspect ratio
+// of file entity previews for screenshots.
+const fileEntityPreviewSmallAspectRatio =
+    process.env.NODE_ENV !== "production" &&
+    typeof globalThis.__fileEntityPreviewSmallAspectRatio === "number"
+        ? globalThis.__fileEntityPreviewSmallAspectRatio
+        : letterPaperAspectRatio;
+
 /**
  * Get the original size of the file's preview in pixels. When laying out files
  * we'll try to preserve the width/height aspect ratio from this function. We
@@ -678,7 +692,7 @@ function getFileOrFileEntityPreviewSize(
             return {width: null, height: startHeight};
         }
 
-        const endHeight = blockWidth / maxFileCount / letterPaperAspectRatio;
+        const endHeight = blockWidth / maxFileCount / fileEntityPreviewSmallAspectRatio;
 
         if (
             fileCount <= 2 &&

@@ -31,7 +31,9 @@ import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_co
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -144,7 +146,23 @@ export async function withIntegrationTestEnvironment<Value>(
     }
 
     try {
-        const value = await action(context, services);
+        const promiseWaiter = new PromiseWaiter();
+
+        const actualContext = context.cloneWithHelpers({
+            process: new ProcessContextModule({
+                waitUntil: promise => {
+                    promiseWaiter.waitUntil(promise);
+                    context.process.waitUntil(promise);
+                },
+            }),
+        });
+
+        const value = await action(actualContext, services);
+
+        // Wait for all `waitUntil()` promises to resolve before cleaning up
+        // the environment.
+        await promiseWaiter.wait();
+
         return value;
     } finally {
         for (const callback of afterEachCallbacks) {

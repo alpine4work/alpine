@@ -199,12 +199,14 @@ export class TestChat extends TestMessageRoomBase {
             content,
             fileIds,
             createdTimeZone,
+            overrideCreatedTime,
             isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
             createdTimeZone?: TimeZone;
+            overrideCreatedTime?: Date;
             isStream?: boolean;
         },
     ) {
@@ -215,6 +217,7 @@ export class TestChat extends TestMessageRoomBase {
             fileIds,
             isStream,
             createdTimeZone: createdTimeZone ?? defaultTimeZone,
+            overrideCreatedTimeForTest: overrideCreatedTime,
         });
     }
 
@@ -254,10 +257,12 @@ export class TestChat extends TestMessageRoomBase {
             messageIndex,
             partIndex,
             payload,
+            overrideCreatedTime,
         }: {
             messageIndex: number;
             partIndex: number;
             payload: MessageStreamPartPayload;
+            overrideCreatedTime?: Date;
         },
     ) {
         await putChatMessageStreamPart(context, {
@@ -265,6 +270,7 @@ export class TestChat extends TestMessageRoomBase {
             messageIndex,
             partIndex,
             payload,
+            overrideCreatedTimeForTest: overrideCreatedTime,
         });
     }
 

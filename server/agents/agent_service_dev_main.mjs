@@ -4,13 +4,13 @@ import {Miniflare} from "miniflare";
 import {join as joinPath} from "path";
 import toml from "toml";
 import {parseArgs} from "util";
-// eslint-disable-next-line cyberworlds/sort-imports-by-source
-import {writeTracerEventToFileInDev} from "../../shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 import {
     runDevAgentsD1ApplyCommand,
     runDevAgentsD1StatusCommand,
     // eslint-disable-next-line cyberworlds/sort-imports-by-source
 } from "../../admin/dev/agents_d1/dev_agents_d1_commands.js";
+// eslint-disable-next-line cyberworlds/sort-imports-by-source
+import {writeTracerEventToFileInDev} from "../../shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 
 // Make our service easy to find in process managers. We include
 // "cyberworlds" and "node" so you can grep by those strings.

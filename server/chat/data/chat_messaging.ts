@@ -85,6 +85,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {Id, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -121,6 +122,7 @@ export function sendChatMessage(
         content,
         fileIds,
         createdTimeZone,
+        overrideCreatedTimeForTest,
         isStream,
         consistency,
         dangerousCurrentlyViewingSearchEntityId,
@@ -130,6 +132,7 @@ export function sendChatMessage(
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         createdTimeZone: TimeZone;
+        overrideCreatedTimeForTest?: Date;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
         dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId;
@@ -147,6 +150,7 @@ export function sendChatMessage(
         content,
         fileIds,
         createdTimeZone,
+        overrideCreatedTimeForTest,
         clerical: isStream ? {type: "Stream"} : undefined,
         consistency,
         dangerousCurrentlyViewingSearchEntityId,
@@ -165,6 +169,7 @@ function sendChatMessageForAccount(
         content,
         fileIds,
         createdTimeZone,
+        overrideCreatedTimeForTest,
         clerical,
         consistency,
         clientRequestToken,
@@ -176,6 +181,7 @@ function sendChatMessageForAccount(
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         createdTimeZone: TimeZone;
+        overrideCreatedTimeForTest?: Date;
         clerical?: MessageContentPayloadClerical;
         consistency?: DynamoCacheReadConsistency;
         clientRequestToken?: string;
@@ -187,6 +193,10 @@ function sendChatMessageForAccount(
     index: number;
     createdTime: Date;
 }> {
+    if (overrideCreatedTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
     return context.dynamo.retryTransaction(async context => {
         // Make sure we're either a system actor or a session actor for this account.
         await authorizeOwnSpaceAccountAccess(context, authorId);
@@ -303,7 +313,9 @@ function sendChatMessageForAccount(
 
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
-        const createdTime = new Date(Date.now());
+        const currentTime = new Date(Date.now());
+
+        const createdTime = overrideCreatedTimeForTest ?? currentTime;
 
         // If this is a stream message and we have empty content then we only send a
         // notification event after the first content part has finished.
@@ -379,7 +391,7 @@ function sendChatMessageForAccount(
                               lastPartCreatedTime: null,
                               lastPingTime: null,
                               lastIndexSearchEntityJob: {
-                                  sendTime: createdTime,
+                                  sendTime: currentTime,
                                   delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
                               },
                               pendingNotificationEvent: !willSendNotificationEvent
@@ -636,6 +648,7 @@ export function putChatMessageStreamPart(
         payload,
         consistency,
         isTimeoutErrorCompletion = false,
+        overrideCreatedTimeForTest,
     }: {
         chatId: ChatId;
         messageIndex: number;
@@ -643,12 +656,17 @@ export function putChatMessageStreamPart(
         payload: MessageStreamPartPayload;
         consistency?: DynamoCacheReadConsistency;
         isTimeoutErrorCompletion?: boolean;
+        overrideCreatedTimeForTest?: Date;
     },
 ): Promise<{spaceId: SpaceId; createdTime: Date}> {
     if (isTimeoutErrorCompletion && context.actor.type !== "System") {
         throw new PermissionDeniedError(
             "Only system actors can complete a message stream after timeout",
         );
+    }
+
+    if (overrideCreatedTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
     return context.dynamo.retryTransaction(async context => {
@@ -737,7 +755,7 @@ export function putChatMessageStreamPart(
                 },
             );
 
-            createdTime = currentTime;
+            createdTime = overrideCreatedTimeForTest ?? currentTime;
 
             const createPartTransactionEntry = ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",

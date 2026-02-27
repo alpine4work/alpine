@@ -48,6 +48,8 @@ declare global {
     }
 }
 
+let actuallyDrawBlobsForIntegrationTestMap: WeakMap<HTMLCanvasElement, () => void> | undefined;
+
 if (typeof window !== "undefined" && !window.__blobs) {
     const factory = new Lazy<BlobFactory>(() => {
         const canvas = document.createElement("canvas");
@@ -249,10 +251,18 @@ export function drawBlobFactoryToCanvas(
         // Integration tests are flaky when drawing to the canvas, so we skip this in tests.
         // This would cause a huge delay when the GPU can't handle drawing multiple blobs at once.
         // Often causing the test to timeout.
-        if (!(globalThis as any).__isIntegrationTest) {
+        if (process.env.NODE_ENV === "production" || !(globalThis as any).__isIntegrationTest) {
             const result = factory.draw(size, scaledSettings, scaledBlobs);
             const ctx = canvas.getContext("2d")!;
             ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+        } else {
+            actuallyDrawBlobsForIntegrationTestMap ??= new WeakMap();
+
+            actuallyDrawBlobsForIntegrationTestMap.set(canvas, () => {
+                const result = factory.draw(size, scaledSettings, scaledBlobs);
+                const ctx = canvas.getContext("2d")!;
+                ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+            });
         }
 
         // Create the gradient
@@ -305,6 +315,22 @@ export function drawBlobFactoryToCanvas(
         setTimeout(actuallyDraw, 0);
     } else {
         actuallyDraw();
+    }
+}
+
+/**
+ * In integration tests we skip drawing blobs because doing so is flaky in CI.
+ * However, for `//admin/scenarios/screenshots` we want to draw the blob to the
+ * canvas for a screenshot. So we provide this function which you can call in
+ * an integration test to draw blobs.
+ */
+export function actuallyDrawBlobsForIntegrationTest() {
+    assert(process.env.NODE_ENV !== "production" && (globalThis as any).__isIntegrationTest);
+
+    for (const element of document.querySelectorAll<HTMLCanvasElement>("canvas[data-blob-id]")) {
+        const draw = actuallyDrawBlobsForIntegrationTestMap?.get(element);
+        actuallyDrawBlobsForIntegrationTestMap?.delete(element);
+        draw?.();
     }
 }
 
