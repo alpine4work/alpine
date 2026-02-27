@@ -10,10 +10,10 @@ import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-const TaskBrandBigIconMemo = memo(TaskBrandBigIcon);
-export {TaskBrandBigIconMemo as TaskBrandBigIcon};
+const InboxBrandBigIconMemo = memo(InboxBrandBigIcon);
+export {InboxBrandBigIconMemo as InboxBrandBigIcon};
 
-function TaskBrandBigIcon({
+function InboxBrandBigIcon({
     size = "12",
     withoutStyleSheet,
 }: {
@@ -33,14 +33,14 @@ function TaskBrandBigIcon({
               : colorSchemeVars[contentStyles.brandIconDefaultColor];
 
     const splashColorClassName = sprinkles({
-        fill: mapObjectValues(brandIconSplashColorShade, shade => `green-${shade}` as const),
+        fill: mapObjectValues(brandIconSplashColorShade, shade => `purple-${shade}` as const),
     });
 
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
-            viewBox="0 0 48 48"
+            viewBox="0 0 32 32"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
             style={{width: spacing[size], height: spacing[size]}}
@@ -49,31 +49,20 @@ function TaskBrandBigIcon({
                 className={withoutStyleSheet === undefined ? splashColorClassName : undefined}
                 fill={
                     withoutStyleSheet === "light"
-                        ? colors[`green-${brandIconSplashColorShade.light}`]
+                        ? colors[`purple-${brandIconSplashColorShade.light}`]
                         : withoutStyleSheet === "dark"
-                          ? invertedColorsWithShade[`green-${brandIconSplashColorShade.dark}`]
+                          ? invertedColorsWithShade[`purple-${brandIconSplashColorShade.dark}`]
                           : undefined
                 }
                 opacity={brandIconSplashColorOpacity}
-                d="M15 13.25h28v29a4 4 0 0 1-4 4H19a4 4 0 0 1-4-4v-29Z"
+                d="M15.438 26.375a3.813 3.813 0 0 0 7.624 0M10.672 15.89a8.578 8.578 0 1 1 17.156 0c0 4.268.989 7.697 1.775 9.055a.953.953 0 0 1-.822 1.43H9.72a.954.954 0 0 1-.82-1.43c.785-1.358 1.773-4.788 1.773-9.054Z"
             />
             <path
-                fill={color}
-                fillRule="evenodd"
-                d="M17.375 24c0-.345.28-.625.625-.625h12a.625.625 0 1 1 0 1.25H18a.625.625 0 0 1-.625-.625ZM17.375 30c0-.345.28-.625.625-.625h6a.625.625 0 1 1 0 1.25h-6a.625.625 0 0 1-.625-.625Z"
-                clipRule="evenodd"
-            />
-            <path
-                fill={color}
-                fillRule="evenodd"
-                d="M8.375 7.5c0-.345.28-.625.625-.625h30c.345 0 .625.28.625.625v23a.625.625 0 1 1-1.25 0V8.125H9.625V37.5a3.875 3.875 0 0 0 3.875 3.875h14a.625.625 0 1 1 0 1.25h-14A5.125 5.125 0 0 1 8.375 37.5v-30Z"
-                clipRule="evenodd"
-            />
-            <path
-                fill={color}
-                fillRule="evenodd"
-                d="M15 3.875c.345 0 .625.28.625.625v6a.625.625 0 1 1-1.25 0v-6c0-.345.28-.625.625-.625ZM24 3.875c.345 0 .625.28.625.625v6a.625.625 0 1 1-1.25 0v-6c0-.345.28-.625.625-.625ZM33 3.875c.345 0 .625.28.625.625v6a.625.625 0 1 1-1.25 0v-6c0-.345.28-.625.625-.625ZM45.942 31.558a.625.625 0 0 1 0 .884l-10.5 10.5a.625.625 0 0 1-.884 0l-4.5-4.5a.625.625 0 1 1 .884-.884L35 41.616l10.058-10.058a.625.625 0 0 1 .884 0Z"
-                clipRule="evenodd"
+                stroke={color}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={0.875}
+                d="M12 24a4 4 0 1 0 8 0M7 13a9 9 0 0 1 18 0c0 4.477 1.038 8.075 1.863 9.5A1 1 0 0 1 26 24H6a1 1 0 0 1-.86-1.5C5.964 21.075 7 17.476 7 13Z"
             />
         </svg>
     );
