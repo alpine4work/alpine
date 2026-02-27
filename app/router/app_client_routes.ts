@@ -353,10 +353,45 @@ function updateInboxDataRoute(route: DataRouteObject, routeById: Map<string, Dat
     const originalRouteLoader = route.loader;
 
     route.loader = async (...args) => {
-        const result = await originalRouteLoader(...args);
+        const [result, spaceRouteModule] = await runAllPromises([
+            originalRouteLoader(...args),
+            spaceRouteModulePromise.get(),
+        ]);
         assert(result instanceof Response);
 
         const data = await processLoaderResult(result);
+
+        // When rendering a task route, we first need to call
+        // `clientLoaderTaskStoreLoaderData()`. Detect task routes loaded as nested
+        // routes within `/inbox` and make sure to call
+        // `clientLoaderTaskStoreLoaderData()` for their loader data.
+        //
+        // Otherwise if you open a notification peek from the inbox overlay then press
+        // the "Open in inbox" button you get an error.
+        if (
+            isObject(data) &&
+            isObject(data.peekData) &&
+            isObject(data.peekData.hydrationData) &&
+            isObject(data.peekData.hydrationData.loaderData)
+        ) {
+            for (const [routeId, peekData] of Object.entries(
+                data.peekData.hydrationData.loaderData,
+            )) {
+                if (
+                    routeId.startsWith("routes/s.$spaceId.tasks.") ||
+                    routeId.startsWith("routes/s.$spaceId.peek.tasks.")
+                ) {
+                    const spaceId = assertId<SpaceId>(args[0].params.spaceId ?? "");
+                    assert(
+                        spaceRouteModule.Component &&
+                            "clientLoaderTaskStoreLoaderData" in spaceRouteModule.Component &&
+                            typeof spaceRouteModule.Component.clientLoaderTaskStoreLoaderData ===
+                                "function",
+                    );
+                    spaceRouteModule.Component.clientLoaderTaskStoreLoaderData(spaceId, peekData);
+                }
+            }
+        }
 
         if (
             isObject(data) &&

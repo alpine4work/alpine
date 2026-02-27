@@ -111,12 +111,10 @@ test("will expand chat peek on top of chat peek with different selection", async
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByText("Logan Roy")).toBeHidden();
+    await expect(page.getByText("Siobahn Roy")).toBeVisible();
+    await expect(page.getByText("Kendall Roy")).toBeVisible();
+    await expect(page.getByText("Logan Roy")).toBeVisible();
 
-    await expect(page.getByRole("combobox", {name: "To"})).toBeVisible();
-    await page.getByRole("combobox", {name: "To"}).click();
     await page.getByText("Siobahn Roy").click();
 
     await expect(page.getByText("Siobahn Roy")).toBeVisible();

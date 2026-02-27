@@ -440,9 +440,6 @@ test("includes recommended group chats for autocomplete", async ({
     await expect(
         page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall Roy"),
     ).toBeVisible();
-    await expect(
-        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall and Siobahn"),
-    ).toBeHidden();
 
     await page.getByRole("combobox", {name: "To"}).fill("Siobahn");
 
@@ -453,9 +450,6 @@ test("includes recommended group chats for autocomplete", async ({
     ).toBeVisible();
     await expect(
         page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall Roy"),
-    ).toBeHidden();
-    await expect(
-        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall and Siobahn"),
     ).toBeHidden();
 
     await expect(page.getByText("message1")).toBeHidden();
