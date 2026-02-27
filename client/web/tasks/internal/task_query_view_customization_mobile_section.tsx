@@ -59,6 +59,7 @@ function TaskQueryViewCustomizationMobileSection(
         onFiltersChange,
         sorts,
         onSortsChange,
+        excludeFilters,
     }: {
         store: TaskClientStore;
         queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
@@ -74,6 +75,7 @@ function TaskQueryViewCustomizationMobileSection(
         ) => void;
         sorts: ReadonlyArray<TaskQuerySort>;
         onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
+        excludeFilters?: ReadonlySet<TaskQueryFilter["type"]>;
     },
     ref: Ref<TaskQueryViewCustomizationMobileSectionRef>,
 ) {
@@ -155,6 +157,7 @@ function TaskQueryViewCustomizationMobileSection(
                     firstCollectionsFilterOperationValueTriggerButtonRef={
                         firstCollectionsFilterOperationValueTriggerButtonRef
                     }
+                    excludeFilters={excludeFilters}
                 />
             )}
             {areSortsVisible && (
@@ -177,6 +180,7 @@ function TaskQueryViewCustomizationMobileSectionFilters({
     filterReferences,
     onFiltersChange,
     firstCollectionsFilterOperationValueTriggerButtonRef,
+    excludeFilters,
 }: {
     store: TaskClientStore;
     queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
@@ -188,6 +192,7 @@ function TaskQueryViewCustomizationMobileSectionFilters({
         options?: {mergeFilterReferences?: TaskQueryFilterReferences},
     ) => void;
     firstCollectionsFilterOperationValueTriggerButtonRef: RefObject<OverlayTriggerButtonRef | null>;
+    excludeFilters?: ReadonlySet<TaskQueryFilter["type"]>;
 }) {
     let hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = false;
 
@@ -214,6 +219,7 @@ function TaskQueryViewCustomizationMobileSectionFilters({
                     onAddFilter={filter => {
                         onFiltersChange([filter, ...filters]);
                     }}
+                    excludeFilters={excludeFilters}
                 >
                     <Button
                         icon={<Plus />}

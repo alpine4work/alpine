@@ -63,7 +63,14 @@ import {
     taskAnimationDurationMs,
 } from "~/client/web/tasks/internal/task_grid_view_virtualized_list_state.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/web/tasks/internal/task_grid_view_virtualized_list_types.js";
-import {TaskQueryViewCustomizationBar} from "~/client/web/tasks/internal/task_query_view_customization_bar.js";
+import {
+    TaskQueryViewCustomizationBar,
+    TaskQueryViewCustomizationBarRef,
+} from "~/client/web/tasks/internal/task_query_view_customization_bar.js";
+import {
+    TaskQueryViewCustomizationMobileSection,
+    TaskQueryViewCustomizationMobileSectionRef,
+} from "~/client/web/tasks/internal/task_query_view_customization_mobile_section.js";
 import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     TaskUndoStackEntry,
@@ -113,6 +120,9 @@ type TaskPersonalViewSection =
     | "Closed"
     | "Remaining";
 
+const defaultOrderSentence = "Tasks are grouped by status and due date.";
+const excludeFilters = new Set<TaskQueryFilter["type"]>(["Assignee"]);
+
 export function TaskPersonalView({
     store,
     activeQuery: initialActiveQuery,
@@ -155,6 +165,15 @@ export function TaskPersonalView({
         filterReferences: initialFilterReferences,
     });
     const [sorts, actuallySetSorts] = useState(initialSorts);
+
+    const desktopCustomizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
+    const mobileCustomizationSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
+    const [customizationState, setCustomizationState] = useState<{
+        initiallyFocus: "AddFilter" | "AddSort" | null;
+    } | null>(filters.length > 0 || sorts.length > 0 ? {initiallyFocus: null} : null);
+    if (!customizationState && (filters.length > 0 || sorts.length > 0)) {
+        setCustomizationState({initiallyFocus: null});
+    }
 
     const {
         queries: [
@@ -394,22 +413,71 @@ export function TaskPersonalView({
 
     const favoriteMenuAction = useSearchFavoriteEntityMenuAction("TaskPersonal", initialIsFavorite);
 
-    const navigationBarMenuActions = useMemo(
-        (): ReadonlyArray<MenuAction> => [
-            {
-                label: "Copy link",
-                icon: <LinkIcon />,
-                iconPlacement: "end",
-                pressErrorTitle: "Couldn\u2019t copy link",
-                onPress: async () => {
-                    const url = new URL(`/s/${space.id}/tasks`, window.location.href);
-                    await writeTextToClipboard(url.toString());
+    const navigationBarMenuActions = useMemo((): ReadonlyArray<ReadonlyArray<MenuAction>> => {
+        const menuActions: Array<ReadonlyArray<MenuAction>> = [
+            [
+                {
+                    label: "Copy link",
+                    icon: <LinkIcon />,
+                    iconPlacement: "end",
+                    pressErrorTitle: "Couldn\u2019t copy link",
+                    onPress: async () => {
+                        const url = new URL(`/s/${space.id}/tasks`, window.location.href);
+                        await writeTextToClipboard(url.toString());
+                    },
                 },
-            },
-            ...(favoriteMenuAction ? [favoriteMenuAction] : []),
-        ],
-        [favoriteMenuAction, space.id],
-    );
+                ...(favoriteMenuAction ? [favoriteMenuAction] : []),
+            ],
+        ];
+
+        if (routeLayout === "narrow") {
+            // eslint-disable-next-line react-compiler/react-compiler
+            menuActions.push([
+                {
+                    label: "Add filter",
+                    onPress: () => {
+                        // Make sure the filter/sort section is visible.
+                        assertExists(viewRef.current).setScrollOffset(0);
+
+                        if (!customizationState) {
+                            setCustomizationState({initiallyFocus: "AddFilter"});
+                        } else {
+                            if (platform === "mobile") {
+                                assertExists(
+                                    mobileCustomizationSectionRef.current,
+                                ).openAddFilterMenu();
+                            } else {
+                                assertExists(
+                                    desktopCustomizationBarRef.current,
+                                ).openAddFilterMenu();
+                            }
+                        }
+                    },
+                },
+                {
+                    label: "Add sort",
+                    onPress: () => {
+                        // Make sure the filter/sort section is visible.
+                        assertExists(viewRef.current).setScrollOffset(0);
+
+                        if (!customizationState) {
+                            setCustomizationState({initiallyFocus: "AddSort"});
+                        } else {
+                            if (platform === "mobile") {
+                                assertExists(
+                                    mobileCustomizationSectionRef.current,
+                                ).openAddSortMenu();
+                            } else {
+                                assertExists(desktopCustomizationBarRef.current).openAddSortMenu();
+                            }
+                        }
+                    },
+                },
+            ]);
+        }
+
+        return menuActions;
+    }, [favoriteMenuAction, space.id, platform, routeLayout, customizationState]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: routeLayout !== "narrow",
@@ -1661,10 +1729,46 @@ export function TaskPersonalView({
                         key: "NavigationBar",
                         minHeight: spacing[navigationBarHeight],
                         node: (
-                            <>
-                                <Box height="safe-area-inset-top" />
+                            <Box paddingTop="safe-area-inset">
                                 <Box height={navigationBarHeight} />
-                            </>
+                                {customizationState &&
+                                    (platform === "mobile" ? (
+                                        <TaskQueryViewCustomizationMobileSection
+                                            ref={mobileCustomizationSectionRef}
+                                            store={store}
+                                            queryReferencesForUrlGrant={null}
+                                            initiallyFocus={customizationState.initiallyFocus}
+                                            defaultOrderSentence={defaultOrderSentence}
+                                            filters={filters}
+                                            filterReferences={filterReferences}
+                                            onFiltersChange={updateFilters}
+                                            sorts={sorts}
+                                            onSortsChange={setSorts}
+                                            excludeFilters={excludeFilters}
+                                        />
+                                    ) : (
+                                        <Box
+                                            paddingX={screenPaddingX}
+                                            paddingTop="1"
+                                            paddingBottom="5"
+                                        >
+                                            <TaskQueryViewCustomizationBar
+                                                ref={desktopCustomizationBarRef}
+                                                store={store}
+                                                queryReferencesForUrlGrant={null}
+                                                shouldCollapseWhenFiltersAreEmpty={true}
+                                                defaultOrderSentence={defaultOrderSentence}
+                                                filters={filters}
+                                                filterReferences={filterReferences}
+                                                onFiltersChange={updateFilters}
+                                                sorts={sorts}
+                                                onSortsChange={setSorts}
+                                                initiallyFocus={customizationState.initiallyFocus}
+                                                excludeFilters={excludeFilters}
+                                            />
+                                        </Box>
+                                    ))}
+                            </Box>
                         ),
                     };
                 } else {
@@ -1928,14 +2032,16 @@ export function TaskPersonalView({
             isClosedGridViewEmpty,
             shouldRenderRemainingSection,
             routeLayout,
+            customizationState,
+            platform,
             store,
-            isRemainingGridViewHeaderVisible,
-            navigationBarMenuActions,
             filters,
             filterReferences,
             updateFilters,
             sorts,
             setSorts,
+            isRemainingGridViewHeaderVisible,
+            navigationBarMenuActions,
             activeGridViewResult.itemCount,
             renderActiveGridViewItem,
             overdueGridViewResult.itemCount,
@@ -2346,7 +2452,7 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
     offset: number;
     shouldRenderWithRelativePositioning: boolean;
     withoutRemainingGridViewHeader: boolean;
-    menuActions: ReadonlyArray<MenuAction>;
+    menuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     filters: ReadonlyArray<TaskQueryFilter>;
     filterReferences: TaskQueryFilterReferences;
     onFiltersChange: (
@@ -2399,13 +2505,13 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
                             store={store}
                             queryReferencesForUrlGrant={null}
                             shouldCollapseWhenFiltersAreEmpty={true}
-                            defaultOrderSentence="Tasks are grouped by status and due date."
+                            defaultOrderSentence={defaultOrderSentence}
                             filters={filters}
                             filterReferences={filterReferences}
                             onFiltersChange={onFiltersChange}
                             sorts={sorts}
                             onSortsChange={onSortsChange}
-                            excludeFilters={new Set(["Assignee"])}
+                            excludeFilters={excludeFilters}
                         />
                     </Box>
                     <Box
