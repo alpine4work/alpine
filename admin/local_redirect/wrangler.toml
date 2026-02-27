@@ -1,0 +1,17 @@
+name = "local-redirect-service"
+main = "local_redirect_service_bundle.js"
+no_bundle = true
+compatibility_date = "2022-07-12"
+workers_dev = false
+
+[route]
+pattern = "local-redirect.cyberworlds.dev"
+custom_domain = true
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+destinations = [ "honeycomb-logs" ]
+
+[vars]
+ALLOWABLE_DESTINATION_ORIGINS = ["http://localhost"]

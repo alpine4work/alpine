@@ -11,7 +11,11 @@ import {TraceId} from "~/shared/id/types/id_types.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-export type HoneycombDataset = "tracer" | "lifecycle" | "resource-service";
+export type HoneycombDataset =
+    | "tracer"
+    | "lifecycle"
+    | "resource-service"
+    | "local-redirect-service";
 
 /**
  * Client we use for sending our tracer events to Honeycomb.
