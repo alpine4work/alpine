@@ -245,13 +245,13 @@ export async function ensureLocalTaskIndexesIfEnabled(context: TaskRealtimeActio
 export async function deployTaskIndexes(
     tracer: TracerBase,
     client: OpensearchClient,
-    abortController: AbortController,
+    signal: AbortSignal,
 ) {
     assert(process.env.NODE_ENV === "production");
 
     await runAllPromises([
-        client.deployIndex(tracer, TaskIndex, abortController),
-        client.deployIndex(tracer, TaskCollectionIndex, abortController),
+        client.deployIndex(tracer, TaskIndex, signal),
+        client.deployIndex(tracer, TaskCollectionIndex, signal),
     ]);
 }
 

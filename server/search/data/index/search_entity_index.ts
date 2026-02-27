@@ -442,13 +442,13 @@ export function getSearchEntityIndexesForTest() {
 export async function deploySearchEntityIndexes(
     tracer: TracerBase,
     client: OpensearchClient,
-    abortController: AbortController,
+    signal: AbortSignal,
 ) {
     assert(process.env.NODE_ENV === "production");
 
     await runAllPromises([
-        client.deployIndex(tracer, SearchEntityKeywordIndex, abortController),
-        client.deployIndex(tracer, SearchEntityEmbeddingChunkIndex, abortController),
+        client.deployIndex(tracer, SearchEntityKeywordIndex, signal),
+        client.deployIndex(tracer, SearchEntityEmbeddingChunkIndex, signal),
     ]);
 }
 

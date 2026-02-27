@@ -72,8 +72,8 @@ export async function handler(
         });
 
         await runAllPromises([
-            deployTaskIndexes(tracer, client, abortController),
-            deploySearchEntityIndexes(tracer, client, abortController),
+            deployTaskIndexes(tracer, client, abortController.signal),
+            deploySearchEntityIndexes(tracer, client, abortController.signal),
         ]);
 
         return {
