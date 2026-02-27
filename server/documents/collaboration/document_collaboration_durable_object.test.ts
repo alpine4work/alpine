@@ -4923,6 +4923,55 @@ test("can\u2019t update content as a viewer", async () => {
     expect(connection2.takeEvents()).toEqual([]);
 });
 
+test("commenter can only update comment marks", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1);
+    await document.access.grant(session1, session2, "Comment");
+
+    await document.type(session1, "Hello, world!");
+
+    const connection = await connectForTest(
+        context.action(session2, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {accessLevel: "Comment"},
+    );
+
+    const {newVersion} = await connection.procedures.backfill({
+        version: 2,
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    await connection.procedures.updateContent({
+        version: newVersion,
+        steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
+        clientId: generateId<ContentEditorClientId>(),
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test comment"),
+                initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
+            },
+        ],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    await expect(
+        connection.procedures.updateContent({
+            version: newVersion + 1,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId<ContentEditorClientId>(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            updateOurPresenceState: {state: null},
+        }),
+    ).rejects.toThrow("Can\u2019t update document");
+});
+
 test("can\u2019t call comment procedures as viewer", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);

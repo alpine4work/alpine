@@ -23,7 +23,7 @@ import {
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
@@ -48,10 +48,7 @@ type DocumentCollaborationDurableObjectRoute =
     | {type: "BroadcastSpellCheckRealtimeEventTransaction"}
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
-    | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
-    // TODO(calebmer, #document-collaboration-access-level-refactor): Remove these
-    // routes once clients are all connecting to the `WebSocket` route.
-    | {type: "WithoutComments"};
+    | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -225,8 +222,6 @@ class DocumentCollaborationDurableObject {
             return ["/", {type: "Main", accessLevel}];
         }
 
-        if (url.pathname === "/view") return ["/view", {type: "WithoutComments"}];
-
         if (url.pathname.startsWith("/broadcast-new-message/")) {
             const commentThreadId = url.pathname.slice(23);
             if (isId<DocumentCommentThreadId>(commentThreadId)) {
@@ -282,15 +277,10 @@ class DocumentCollaborationDurableObject {
                 throw new NotFoundError("Route not found");
             }
             case "Main": {
-                // TODO(calebmer, #document-collaboration-access-level-refactor): Throw once
-                // clients are connecting with the right `AccessLevel`.
-                return this._webSocketServerByAccessLevel[route.accessLevel ?? "Comment"].upgrade(
-                    context.actor.authorizeSession(),
-                    request,
-                );
-            }
-            case "WithoutComments": {
-                return this._webSocketServerByAccessLevel.View.upgrade(
+                if (!route.accessLevel)
+                    throw new InvalidArgumentError("Invalid `access` search param");
+
+                return this._webSocketServerByAccessLevel[route.accessLevel].upgrade(
                     context.actor.authorizeSession(),
                     request,
                 );

@@ -149,7 +149,7 @@ export default implementRpcs(definitions, {
             const context = _context.actor.authorizeSession();
 
             const [{spaceId}, editResult] = await runAllPromises([
-                authorizeTaskAccess(context, input.taskId, input.expectedAccessLevel ?? "View"),
+                authorizeTaskAccess(context, input.taskId, input.expectedAccessLevel),
                 captureResultPromise(() => authorizeTaskAccess(context, input.taskId, "Edit")),
             ]);
 

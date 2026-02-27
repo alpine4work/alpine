@@ -1,12 +1,6 @@
 import {addDays, differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
-import {
-    AddMarkStep,
-    AddNodeMarkStep,
-    RemoveMarkStep,
-    RemoveNodeMarkStep,
-    Step,
-} from "prosemirror-transform";
+import {Step} from "prosemirror-transform";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
@@ -131,6 +125,7 @@ import {
     getDocumentContentTitle,
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/documents/document_model.js";
+import {getExpectedAccessLevelForUpdateDocumentContentSteps} from "~/shared/documents/get_expected_access_level_for_update_document_content_steps.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {
     DataLossError,
@@ -2909,24 +2904,8 @@ export async function updateDocumentContent(
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn\u2019t exist");
 
-        let expectedAccessLevel: AccessLevel = "Edit";
-
-        // If the client is ONLY adding or removing comment marks then its ok if they
-        // have the comment access level instead of the edit access level.
-        if (
-            clientSteps.every(
-                step =>
-                    (step instanceof AddMarkStep && step.mark.type.name === "comment") ||
-                    (step instanceof RemoveMarkStep && step.mark.type.name === "comment") ||
-                    (step instanceof AddNodeMarkStep && step.mark.type.name === "comment") ||
-                    (step instanceof RemoveNodeMarkStep && step.mark.type.name === "comment") ||
-                    (step instanceof AddMarksAfterRemoveAllStep &&
-                        step.mark.type.name === "comment") ||
-                    (step instanceof RemoveAllMarksStep && step.mark.type.name === "comment"),
-            )
-        ) {
-            expectedAccessLevel = "Comment";
-        }
+        const expectedAccessLevel =
+            getExpectedAccessLevelForUpdateDocumentContentSteps(clientSteps);
 
         // Make sure we have edit access to the document before continuing. Another
         // user with access may have cached the document so it's important we check

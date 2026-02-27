@@ -20,7 +20,7 @@ import {
     hasAccessLevel,
     isAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -263,9 +263,10 @@ class TaskNotesCollaborationDurableObject {
                 throw new NotFoundError("Route not found");
             }
             case "Main": {
-                // TODO(calebmer, #task-collaboration-access-level-refactor): Throw once
-                // clients are connecting with the right `AccessLevel`.
-                return this._webSocketServerByAccessLevel[route.accessLevel ?? "View"].upgrade(
+                if (!route.accessLevel)
+                    throw new InvalidArgumentError("Invalid `access` search param");
+
+                return this._webSocketServerByAccessLevel[route.accessLevel].upgrade(
                     context.actor.authorizeSession(),
                     request,
                 );
@@ -284,14 +285,7 @@ class TaskNotesCollaborationDurableObject {
 
                 TaskNotesCollaborationConnection.broadcastNewMessage(context, requestBody, () => {
                     return flatMapIterable(allAccessLevels, accessLevel => {
-                        // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
-                        // `trueBoolean` check once clients are connecting with the right
-                        // `AccessLevel`.
-                        //
-                        // `trueBoolean` is to trick TypeScript into thinking the code below is
-                        // reachable.
-                        if (!trueBoolean && !hasAccessLevel(accessLevel, "Comment"))
-                            return emptyArray;
+                        if (!hasAccessLevel(accessLevel, "Comment")) return emptyArray;
 
                         const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
                         return webSocketServer.iterateAllConnections();
@@ -318,14 +312,7 @@ class TaskNotesCollaborationDurableObject {
                     requestBody,
                     () => {
                         return flatMapIterable(allAccessLevels, accessLevel => {
-                            // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
-                            // `trueBoolean` check once clients are connecting with the right
-                            // `AccessLevel`.
-                            //
-                            // `trueBoolean` is to trick TypeScript into thinking the code below is
-                            // reachable.
-                            if (!trueBoolean && !hasAccessLevel(accessLevel, "Comment"))
-                                return emptyArray;
+                            if (!hasAccessLevel(accessLevel, "Comment")) return emptyArray;
 
                             const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
                             return webSocketServer.iterateAllConnections();
@@ -353,14 +340,7 @@ class TaskNotesCollaborationDurableObject {
                     requestBody,
                     () => {
                         return flatMapIterable(allAccessLevels, accessLevel => {
-                            // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
-                            // `trueBoolean` check once clients are connecting with the right
-                            // `AccessLevel`.
-                            //
-                            // `trueBoolean` is to trick TypeScript into thinking the code below is
-                            // reachable.
-                            if (!trueBoolean && !hasAccessLevel(accessLevel, "Comment"))
-                                return emptyArray;
+                            if (!hasAccessLevel(accessLevel, "Comment")) return emptyArray;
 
                             const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
                             return webSocketServer.iterateAllConnections();
@@ -390,20 +370,9 @@ class TaskNotesCollaborationDurableObject {
     }
 }
 
-const trueBoolean: boolean = true;
-
 function stripTaskNotesCollaborationEventComments(
     event: TaskNotesCollaborationEventStub,
 ): TaskNotesCollaborationEventStub | null {
-    // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
-    // early return once clients are connecting with the right `AccessLevel`.
-    //
-    // `trueBoolean` is to trick TypeScript into thinking the code below is
-    // reachable.
-    if (trueBoolean) {
-        return event;
-    }
-
     // Code style: Manually recreate the event objects so that we can be absolutely
     // sure comment data isn't slipping into `eventWithoutComments`. Especially
     // when we add new fields in the future, we want TypeScript to error and the

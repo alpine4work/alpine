@@ -162,9 +162,7 @@ export const authorizeTaskAccess = defineRpc({
     isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
-        // TODO(calebmer, #task-collaboration-access-level-refactor): Make this
-        // required once all clients are connecting with the right `AccessLevel`.
-        expectedAccessLevel: AccessLevelSchema.optional(),
+        expectedAccessLevel: AccessLevelSchema,
     },
     output: {
         spaceId: Schema.id<SpaceId>(),

@@ -37,6 +37,7 @@ import {
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
+import {getExpectedAccessLevelForUpdateDocumentContentSteps} from "~/shared/documents/get_expected_access_level_for_update_document_content_steps.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
@@ -373,12 +374,16 @@ export class DocumentCollaborationConnection {
             }),
 
         updateContent: (context, input) => {
-            // TODO(calebmer, #document-collaboration-access-level-refactor): Should switch
-            // this to `Edit` once we have clients connecting with the right access level.
-            if (!hasAccessLevel(this.accessLevel, "Comment")) {
+            const expectedAccessLevel = getExpectedAccessLevelForUpdateDocumentContentSteps(
+                input.steps,
+            );
+
+            if (!hasAccessLevel(this.accessLevel, expectedAccessLevel)) {
                 throw new PermissionDeniedError("Can\u2019t update document", {
                     displayMessage:
-                        documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Edit,
+                        documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
+                            expectedAccessLevel
+                        ],
                 });
             }
 

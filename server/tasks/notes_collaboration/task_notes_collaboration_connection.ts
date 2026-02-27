@@ -20,7 +20,7 @@ import {
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
-import {AccessLevel} from "~/shared/access/access_policy.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {
     ContentReferencedIds,
     getContentReferencedIdsForNode,
@@ -28,8 +28,8 @@ import {
     isEmptyContentReferencedIds,
 } from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -59,6 +59,7 @@ import {
     updateTaskCommentContent,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
 import {
     TaskNotesCollaborationEvent,
     TaskNotesCollaborationProtocol,
@@ -83,7 +84,6 @@ export class TaskNotesCollaborationConnection {
     private readonly _contentManager: TaskNotesCollaborationContentManager;
     public readonly closeWithError: (context: WorkerProcessContext, error: unknown) => void;
     private readonly _mutex = new Mutex();
-    private _editAccessPromiseResolver: PromiseResolver<void>;
     private readonly _messagingConnection: MessagingRealtimeConnection<TaskId, TaskCommentModel>;
 
     constructor({
@@ -114,14 +114,6 @@ export class TaskNotesCollaborationConnection {
         this.accessLevel = accessLevel;
         this._contentManager = contentManager;
         this.closeWithError = closeWithError;
-
-        // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
-        // once clients are connecting with the right `AccessLevel`.
-        this._editAccessPromiseResolver = createPromiseResolver();
-
-        // Can ignore uncaught exceptions. They'll be thrown if the user tries to
-        // update notes content.
-        this._editAccessPromiseResolver.promise.catch(() => {});
 
         this._messagingConnection = new MessagingRealtimeConnection({
             connectionId,
@@ -156,27 +148,10 @@ export class TaskNotesCollaborationConnection {
      * connection tries to make edits when they don't have edit access.
      */
     public async authorize(context: WorkerSessionActionContext) {
-        const {editResult} = await authorizeTaskAccess(context, {
+        await authorizeTaskAccess(context, {
             taskId: this._contentManager.taskId,
             expectedAccessLevel: this.accessLevel,
         });
-
-        // If the edit access promise resolver has not settled yet (e.g. when we
-        // recently initialized this collection) then we want to resolve the existing
-        // resolver instead of creating a new one.
-        if (this._editAccessPromiseResolver.isSettled()) {
-            this._editAccessPromiseResolver = createPromiseResolver();
-
-            // Can ignore uncaught exceptions. They'll be thrown if the user tries to
-            // update notes content.
-            this._editAccessPromiseResolver.promise.catch(() => {});
-        }
-
-        if (editResult.ok) {
-            this._editAccessPromiseResolver.resolve();
-        } else {
-            this._editAccessPromiseResolver.reject(editResult.error);
-        }
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -331,11 +306,16 @@ export class TaskNotesCollaborationConnection {
             //
             // Though the client mostly sends messages in sequence anyway.
             this._mutex.withLock(async () => {
-                // Make sure we still have edit access to the task. If we don't have edit
+                // Make sure we have edit access to the task. If we don't have edit
                 // access and we try to update then the content manager will optimistically
                 // accept the update and when persistence fails it kills the whole durable
                 // object.
-                await this._editAccessPromiseResolver.promise;
+                if (!hasAccessLevel(this.accessLevel, "Edit")) {
+                    throw new PermissionDeniedError("Can\u2019t update task notes", {
+                        displayMessage:
+                            taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Edit,
+                    });
+                }
 
                 await this._contentManager.update(context, this, input);
                 return {};
