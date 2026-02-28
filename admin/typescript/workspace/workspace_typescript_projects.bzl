@@ -24,6 +24,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//admin/lambda/local:local",
     "//admin/lambda/schedule_deploy:schedule_deploy",
     "//admin/lambda/send_alert:send_alert",
+    "//admin/local_redirect:local_redirect_service_lib",
     "//admin/opensearch/deploy_script:deploy_script_lib",
     "//admin/opensearch/local:local",
     "//admin/scenarios:scenarios_lib",
