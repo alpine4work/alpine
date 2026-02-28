@@ -569,7 +569,7 @@ http_archive(
     build_file = "@//admin/bazel:third_party/BUILD.zlib.bazel",
     integrity = "sha256-mpOyt9/ax3zrpaVYpYDnRmfdb+3kWFuR7vtg8Dty3yM=",
     strip_prefix = "zlib-1.3.1",
-    url = "https://zlib.net/zlib-1.3.1.tar.gz",
+    url = "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz",
 )
 
 http_archive(
