@@ -1,243 +1,176 @@
-# Databases: Vision
+# Alpine Databases: Technical Vision
 
-Alpine Databases is a realtime collaborative database product (similar to Airtable, Smartsheet, or
-Notion databases) powered by SQLite running in the browser via WASM.
+> A realtime collaborative database platform powered by SQLite in the browser.
 
-The core technical insight is using **SQLite WAL (Write-Ahead Logging)** as the synchronization
-primitive between a canonical server and connected clients. WAL gives us a structured, ordered log
-of page-level mutations that we can stream, apply, and revert—making it the backbone of our
-optimistic concurrency model.
+---
 
-## Architecture
+## Overview
 
-### Server
+Alpine Databases brings the power of SQLite to collaborative, multi-user applications by running it
+natively in the browser via WebAssembly (WASM) — synced in realtime with a server-side counterpart.
+Think Airtable or Notion databases, but with the full expressiveness of SQL and a sync architecture
+designed from the ground up around SQLite's page-based storage model.
 
-A centralized server holds the canonical SQLite database for each user database. The server runs the
-**same custom SQLite WASM build and TypeScript code** as the client—one shared implementation across
-Cloudflare Workers, Node.js, and the browser. All committed writes flow through the server, which:
+This document outlines the core technical ideas behind Alpine's architecture: how data flows between
+clients and servers, how we handle conflicts and consistency, and what features we're working
+toward.
 
-1. Applies SQL writes to the canonical database.
-2. Produces WAL frames as a byproduct of each transaction.
-3. Streams those WAL frames to all connected clients in commit order.
-4. Archives WAL frames in a **frame log** with a retention window (e.g. 7–30 days) for delta sync on
-   client reconnection.
+---
 
-The server is the single source of truth. Its WAL frame sequence defines the authoritative state of
-the database. The server checkpoints its own database normally—the frame log is a separate append-
-only archive, not the server's live WAL.
+## Core Architecture
 
-### Client
+### SQLite Everywhere
 
-Each client runs a single SQLite instance in WASM inside a **shared web worker**. All browser tabs
-for the same database share this one worker. The worker processes one operation at a time—no
-concurrent reads or writes within SQLite. Since all interactions are driven by humans through UI,
-this serialization is not a bottleneck.
+Alpine runs SQLite both in the browser (via WASM) and on the server. A **custom VFS (Virtual File
+System)** on the client stores database pages in two layers:
 
-#### Storage and sync
+-   **In-memory** — for fast, ephemeral access and optimistic writes
+-   **OPFS (Origin Private File System)** — for persistent local storage
 
-The client persists its database locally via **OPFS** (Origin Private File System). This enables
-fast startup: instead of downloading the full database on every connection, the client can resume
-from its local copy.
+On the server, a corresponding custom VFS intercepts written pages, persists them to a backing
+store, diffs the changes at the page level, and broadcasts the changed bytes to all connected
+clients over WebSocket.
 
-On connection the client reports its last confirmed frame number to the server. The server decides
-the sync strategy:
+This page-centric approach is key — it lets us treat SQLite's internal storage as the unit of
+replication, rather than trying to replicate SQL statements or application-level events.
 
-- **Delta sync (common case):** The client's frame number falls within the server's frame log
-  retention window. The server streams only the WAL frames the client missed. The client applies
-  them and checkpoints locally (safe because these are confirmed server frames with no pending
-  optimistic writes at reconnect time). For a productivity database driven by human writes, even a
-  week of frames is typically only tens of megabytes—fast to stream.
-- **Full snapshot (stale client):** The client's frame number is older than the retention window (or
-  the client has no local database at all). The server sends a full database snapshot. The client
-  replaces its local copy and starts fresh.
+---
 
-The threshold is simple: if the server still has the frames, send the delta; otherwise send a
-snapshot. This avoids ever needing to keep WAL frames indefinitely.
+## Realtime Sync
 
-#### Reads
+### Optimistic Writes
 
-Reads are always local. The client queries its own SQLite instance directly, so read latency is
-effectively zero.
+When a client executes a write:
 
-#### Writes (optimistic concurrency)
+1. The SQL is sent to the server _and_ executed immediately on the client (optimistically).
+2. Optimistically written pages are held in memory, layered on top of the persisted state. All
+   subsequent reads check this optimistic layer first.
+3. On the server, writes are applied serially. The VFS captures the resulting page changes and
+   broadcasts them as binary diffs over WebSocket to all connected clients.
+4. When a client receives a broadcast, it applies the incoming page changes to its local state.
+5. If the broadcast corresponds to one of the client's own pending optimistic writes, that write is
+   removed from the optimistic queue.
+6. Any remaining optimistic writes are **re-executed on top of the new server state** — analogous to
+   a `git rebase`.
 
-1. The client executes a SQL write against its local SQLite instance. This produces local WAL frames
-   that are immediately visible to local reads (optimistic update).
-2. The client sends the SQL command to the server for canonical execution.
-3. **Success:** The server commits the write and streams back its WAL frames. The client reverts its
-   local optimistic WAL frames and applies all the server's frames. The server always wins—even if
-   no other commits intervened, the server's frames are canonical because SQL can be
-   non-deterministic (`random()`, `now()`, trigger side effects, etc.) so the client's optimistic
-   frames may differ from the server's actual result.
-    - **Intervening commits:** While the client's write is in flight, other users' commits may
-      arrive via the realtime stream. The client must revert its optimistic frames, apply the
-      incoming server frames, then re-execute the original SQL command locally to produce fresh
-      optimistic frames on top of the new base state. This "rebase" may need to happen multiple
-      times before the client's own write is confirmed by the server.
-4. **Failure:** The server rejects the write (constraint violation, permission error, etc.). The
-   client reverts its local WAL frames, discarding the optimistic update.
+This model keeps the UI snappy while ensuring the server remains authoritative. Conflicts are
+resolved naturally by the serial application order on the server.
 
-The key property that makes this work: **WAL frames are revertible.** We can undo a local optimistic
-write by discarding its WAL frames and restoring the prior database state, because the original
-pages are still in the database file until a checkpoint moves them.
+---
 
-### WAL as the sync protocol
+## Reactive Queries
 
-WAL frames are the unit of synchronization. They are compact (just the modified pages plus a small
-header with checksums and page numbers), ordered, and self-describing. Streaming WAL frames from
-server to client is essentially streaming a changelog of the database at the storage layer—below the
-SQL abstraction.
+We plan to support live/reactive queries by tracking which pages are accessed during query execution
+and invalidating those queries when relevant page changes arrive.
 
-This is intentionally lower-level than streaming SQL statements or row-level changes. Page-level
-frames are:
+**Known challenges:**
 
-- **Schema-agnostic.** The sync layer doesn't need to understand table schemas.
-- **Complete.** They capture all side effects of a transaction (indexes, internal SQLite structures,
-  etc.) with no gaps.
-- **Compact.** Only modified pages are transmitted, not full snapshots.
+-   SQLite's **page 1 contains the file change counter** and is touched on every write, which would
+    cause excessive invalidation if used naively. We need a smarter heuristic or more granular
+    tracking.
+-   SQLite's **page cache** may prevent us from observing all page reads during a query. Disabling
+    the cache is an option, but has performance implications. Another possibility is hooking into or
+    patching the cache layer to intercept reads without fully disabling it.
 
-## The WASM WAL problem
+Reactive queries are a high-leverage feature — rather than re-evaluating every query on every page
+update, they allow us to only re-run queries that actually touch the changed pages.
 
-SQLite's official WASM build does not support WAL mode in the general case. This is our primary
-technical challenge.
+---
 
-### Why WAL doesn't work in WASM today
+## Partial Replication
 
-WAL mode normally requires the VFS to implement four shared-memory methods (`xShmMap`, `xShmLock`,
-`xShmBarrier`, `xShmUnmap`). These manage the **WAL index** (the `-shm` file), a shared-memory
-region that:
+Downloading an entire database to the client on first load is simple but potentially slow. Fetching
+pages on-demand as SQLite requests them is even worse — SQLite reads pages sequentially, and each
+missing page would require a round-trip, resulting in hundreds of sequential network requests.
 
-- Maps page numbers to their locations in the WAL file via a hash table, so readers can quickly find
-  the latest version of any page without scanning the entire WAL.
-- Coordinates concurrent readers and writers through lock bytes and read-marks.
+Instead, Alpine uses a **query-driven prefetch** strategy:
 
-On native platforms this is implemented via `mmap()` on a shared file. Browsers have no equivalent
-primitive, so the official WASM build omits these methods entirely.
+1. When a query runs on the client, it executes against the local state.
+2. The first time a **missing page** is encountered, the query is suspended and forwarded to the
+   server.
+3. The server re-executes the query, tracks all pages accessed, and returns the **query result** (or
+   the first _n_ rows) along with **all accessed pages**.
+4. Subsequent evaluations of that query — including realtime updates — run entirely client-side
+   against the now-populated local page cache.
 
-### Exclusive locking mode: our path forward
+When rendering on the server, we can bundle the initial query results and their accessed pages
+directly into the page response, eliminating the first-load round-trip entirely.
 
-SQLite has an **exclusive locking mode** (`PRAGMA locking_mode=EXCLUSIVE`) where it assumes a single
-connection owns the database. In this mode:
+**Index management is a significant risk here.** If queries devolve into full table scans, they'll
+pull in nearly every page anyway, negating the benefit of partial replication. This isn't something
+we can leave to users — manually managing indexes is impractical and error-prone. It will be
+Alpine's responsibility to programmatically create and maintain the right indexes based on observed
+query patterns.
 
-- The WAL index is kept in **heap memory** instead of shared memory. The `xShm*` VFS methods are
-  never called.
-- No lock arbitration or atomic operations are needed.
-- The official SQLite WASM build (3.47+) already supports WAL in exclusive locking mode for
-  OPFS-hosted databases, proving the basic machinery works.
+---
 
-This is a perfect fit for us. We deliberately run a single SQLite connection in one web worker—we
-don't want or need concurrency. Exclusive locking mode is not a limitation, it's our design.
+## History & Snapshots
 
-The remaining challenge is that the official WASM build doesn't expose the frame-level control we
-need. We can likely use its OPFS VFS (or a derivative) for storage, but we need hooks to intercept,
-inject, and revert WAL frames.
+The server-side backing store records every page version:
 
-### What we need to build
+```
+(page_number, timestamp, data)
+```
 
-A **custom SQLite WASM build** that supports WAL in exclusive locking mode with frame-level control.
-This means:
+Reading the current database means selecting the latest version of each page. Reading the database
+**at any point in time** means selecting the latest version of each page _as of that timestamp_ —
+making point-in-time snapshots a natural, first-class feature with no additional infrastructure. Old
+versions can be pruned over time to reclaim storage, with configurable retention windows depending
+on how much history a database needs to keep.
 
-1. Compiling SQLite to WASM with WAL enabled and exclusive locking mode.
-2. Using OPFS for local persistence (the official build already supports this) or writing a custom
-   VFS if we need more control over file I/O.
-3. Adding hooks (likely thin C API extensions) for injecting server WAL frames, extracting local WAL
-   frames, and reverting optimistic writes.
-4. Wrapping this in a JavaScript API that the rest of Alpine's client code can use.
+The choice of backing store is still TBD — one option is another SQLite database, which would keep
+the operational footprint delightfully minimal.
 
-The VFS also needs to give us **control over the WAL lifecycle** beyond what SQLite's public API
-normally exposes. Specifically we need to:
+---
 
-- **Read WAL frames** produced by local writes so we can send them to the server (or at least send
-  the SQL command).
-- **Inject WAL frames** received from the server into the local database.
-- **Revert WAL frames** from failed or rebased optimistic writes.
-- **Control checkpointing** so we don't checkpoint past frames we may need to revert.
+## Offline Support
 
-Some of this may require patching SQLite's WAL logic or adding thin C API extensions on top.
+Full offline write support isn't a goal — the complexity of multi-user write conflict resolution
+without a server is significant, and the use cases don't justify it. However, Alpine can
+meaningfully improve resilience and performance by persisting pages in the browser long-term (via
+OPFS):
 
-## Existing ecosystem
+-   Queries can be answered from the local cache even during brief network interruptions.
+-   On reconnect, the client sends the last-seen timestamp for each locally cached page. The server
+    responds with the latest versions of any stale pages, minimizing the data needed to catch up.
 
-- **wa-sqlite** implemented WAL-like concurrency at the VFS layer (OPFSPermutedVFS) rather than
-  using SQLite's actual WAL mode. Interesting engineering but a different approach from ours.
-- **Official SQLite WASM (3.47+)** supports WAL in exclusive locking mode, which uses heap memory
-  for the WAL index. Proves the WAL machinery works in WASM but is tied to OPFS and doesn't give us
-  frame-level control.
-- **cr-sqlite** supports WAL in native Node.js but not in browser WASM.
+This gives us most of the UX benefit of offline-first without the full complexity of offline write
+conflict resolution.
 
-None of these projects have attempted what we're doing: using WAL frames as a synchronization
-protocol. We are likely the first to need this specific capability.
+---
 
-## Expected difficulties
+## Deterministic Execution
 
-1. **Custom SQLite WASM build.** We need to compile SQLite ourselves with a custom VFS rather than
-   using an off-the-shelf WASM distribution. This is a meaningful build infrastructure investment.
+Because writes may execute multiple times — at least once on the client optimistically, once on the
+server, and potentially again during optimistic rebases — queries involving randomness or time could
+produce inconsistent results that appear to flicker.
 
-2. **WAL frame interception and invariants.** SQLite's WAL is an internal implementation detail, not
-   a public API surface. Extracting frames after local writes and injecting server frames will
-   require either patching SQLite source or carefully hooking the VFS layer. Beyond the interception
-   mechanism, frame replication has hard physical invariants that must be maintained:
-    - **Page size pinning.** Server and all clients must use the same page size. This must be set at
-      database creation and never changed, since WAL frames are raw pages.
-    - **Checksum chain.** Each WAL frame contains a cumulative checksum that chains from the
-      previous frame. Injecting server frames means either replaying the server's checksum chain or
-      recomputing it locally. A broken chain makes the WAL unreadable.
-    - **Salt values.** The WAL header contains two salt values that change on every WAL reset
-      (checkpoint that truncates the WAL). Frames are only valid if their salts match the WAL
-      header. Server-to-client frame injection must account for this.
-    - These invariants need to be fully understood and pinned down during the feasibility spike
-      before we commit to a wire format.
+Alpine addresses this by **controlling the VFS's time and randomness hooks**:
 
-3. **Revert semantics.** SQLite doesn't natively support "undo the last transaction's WAL frames."
-   We need to figure out the exact mechanism, and it's harder than "just discard the frames" because
-   we need to account for:
-    - **Connection state:** What happens to open transactions, prepared statements, and cached state
-      when we rewind the WAL underneath SQLite? We may need to close and reopen the connection, or
-      find a way to invalidate SQLite's internal caches.
-    - **WAL index consistency:** If we manipulate `mxFrame` to hide optimistic frames, the WAL index
-      hash table still has entries for those frames. We need to understand whether SQLite handles
-      this gracefully or whether the index must be rebuilt/corrected.
-    - **Frame boundaries:** We must track exactly which WAL frames belong to each optimistic write
-      so we know precisely where to rewind to. This means recording the frame boundary (start/end
-      frame number and base server commit sequence) for every speculative mutation.
-    - Possible approaches: manipulating `mxFrame` and relying on unreferenced frames being invisible
-      to readers, savepoints, direct WAL file truncation, or closing and reopening the database. The
-      feasibility spike must determine which approach is correct.
+-   Each write transaction is assigned a **transaction ID**, used to seed a deterministic RNG.
+-   The client's wall clock time is used for timestamp functions, provided it hasn't drifted
+    significantly from the server.
 
-4. **Checkpoint control.** SQLite auto-checkpoints by default (after 1000 WAL frames). We need to
-   disable auto-checkpoint and only checkpoint at explicit safe boundaries. The rule: checkpointing
-   is safe after applying **confirmed server frames** with no pending optimistic writes. It is never
-   safe to checkpoint while optimistic frames exist, because checkpointing merges WAL pages into the
-   database file, making them irreversible.
+This ensures that re-executing a write produces the same logical result regardless of when or where
+it runs — reducing visible inconsistency during the optimistic window.
 
-5. **Rebase correctness.** When rebasing a local optimistic write on top of newly-arrived server
-   state, re-executing the SQL command may produce different results (different rows affected,
-   constraint violations that didn't exist before). The client needs to handle these cases
-   gracefully.
+---
 
-6. **Memory management.** With OPFS, only SQLite's page cache lives in WASM linear memory—the full
-   database stays on disk and pages are loaded on demand. This means large databases don't blow up
-   memory, but we still need to be thoughtful about page cache sizing and WAL growth (uncheck-
-   pointed WAL frames accumulate in memory via the WAL index).
+## Undo / Redo
 
-7. **Frame log retention.** The server needs to archive WAL frames in an append-only log with a
-   retention window. Choosing the right retention period is a tradeoff between storage cost and how
-   often clients fall back to full snapshots. The frame log storage (likely R2 or similar) needs to
-   support efficient range reads by frame number.
+Although Alpine has full page-level history, **physical rollback is not suitable for undo/redo in a
+collaborative setting**. Rolling back pages after other users' changes have been applied risks
+conflicts and corruption.
 
-`shared/databases/meta/sqlite_wal_format.md` is a useful reference on the SQLite WAL format for our
-use case we can refer to while working through these difficulties.
+Undo/redo must be **logical** — recording the inverse operation for each user action, not the raw
+storage state. This works well for structured UI operations (adding a row, updating a cell) but
+becomes significantly harder for arbitrary SQL — particularly DDL operations like schema changes.
 
-## Open questions
+**Open problem.** Possible directions:
 
-- What is the right granularity for server-to-client sync: raw WAL frames, or a higher-level
-  representation?
-- How do we handle schema migrations in a world where clients may be mid-transaction when a schema
-  change arrives?
-- What is our story for conflict resolution beyond "last writer wins at the SQL level"?
-- How large can databases get before the WASM/OPFS approach becomes impractical?
+-   For schema-modifying SQL, require explicit snapshots rather than supporting undo.
+-   Restrict undo/redo to UI-driven operations only and treat raw SQL as outside its scope.
+-   Block schema changes via the SQL interface entirely, confining schema evolution to a controlled
+    migration path.
 
-## Non-goals (for now)
-
-- Offline support (OPFS persistence is for fast reconnect, not offline editing).
-- SQLite concurrency (single connection in exclusive locking mode by design).
-- UI design (TBD, the current focus is the synchronization engine).
+This is an area where the right constraints need to be established before the mechanism is built.
