@@ -105,6 +105,7 @@ emsdk_path = os.path.dirname(os.getenv('EM_CONFIG')).replace('\\\\\\\\', '/')
 LLVM_ROOT = emsdk_path + '/upstream/bin'
 BINARYEN_ROOT = emsdk_path + '/upstream'
 EMSCRIPTEN_ROOT = emsdk_path + '/upstream/emscripten'
+NODE_JS = '$$bazel_sandbox/$(location @//:node)'
 EOF
 
 export PATH="$$(dirname "$$bazel_sandbox/$(location @tcl//:build_tclsh)"):$$bazel_sandbox/external/$$wabt_external_name/bin:$$PATH"
@@ -145,5 +146,5 @@ cd ext/wasm
 make dist --jobs=6 >> "$$cmd_log" 2>> "$$cmd_log" || (cat "$$cmd_log" && exit 1)
 """,
     tags = ["cpu:6"],
-    tools = ["@//:zig", "@//:emscripten", "@emsdk//:all", "@//:wabt", "@tcl//:build_tclsh"],
+    tools = ["@//:zig", "@//:emscripten", "@emsdk//:all", "@//:wabt", "@tcl//:build_tclsh", "@//:node"],
 )
