@@ -670,6 +670,20 @@ http_archive(
 )
 
 # =========================================================================== #
+#                                     TCL                                     #
+# =========================================================================== #
+
+# TCL 8.6 is needed by SQLite's autosetup configure system. macOS ships with
+# TCL 8.5 which is too old (missing `tailcall` and other 8.6 features).
+http_archive(
+    name = "tcl",
+    build_file = "@//admin/bazel:third_party/BUILD.tcl.bazel",
+    sha256 = "91cb8fa61771c63c262efb553059b7c7ad6757afa5857af6265e4b0bdc2a14a5",
+    strip_prefix = "tcl8.6.16",
+    url = "https://downloads.sourceforge.net/sourceforge/tcl/tcl8.6.16-src.tar.gz",
+)
+
+# =========================================================================== #
 #                                   SQLite                                    #
 # =========================================================================== #
 

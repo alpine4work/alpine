@@ -1,0 +1,29 @@
+genrule(
+    name = "build_tclsh",
+    srcs = glob(["**"]),
+    outs = ["tclsh"],
+    cmd = """
+bazel_sandbox="$$(pwd)"
+cmd_log="$$bazel_sandbox/$(RULEDIR)/tcl_build.log"
+
+export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
+export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
+export CC="$$(pwd)/$(location @//:zig) cc"
+export CXX="$$(pwd)/$(location @//:zig) c++"
+export AR="$$(pwd)/$(location @//:zig) ar"
+
+cp -r "$$bazel_sandbox/external/tcl" $(RULEDIR)/tcl_src
+cd $(RULEDIR)/tcl_src/unix
+
+./configure \
+    --disable-shared \
+    >> "$$cmd_log" 2>> "$$cmd_log" || (cat "$$cmd_log" && exit 1)
+
+make tclsh \
+    >> "$$cmd_log" 2>> "$$cmd_log" || (cat "$$cmd_log" && exit 1)
+
+cp tclsh "$$bazel_sandbox/$(RULEDIR)/tclsh"
+""",
+    tools = ["@//:zig"],
+    visibility = ["//visibility:public"],
+)
