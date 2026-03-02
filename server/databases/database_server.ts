@@ -7,11 +7,11 @@ import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-const pageSize = 4096;
 const vfsNamePrefix = "alpine-server";
 let vfsCounter = 0;
 
@@ -136,7 +136,7 @@ export class DatabaseServer {
             0,
         );
 
-        this.db.exec(`PRAGMA page_size = ${pageSize}`);
+        this.db.exec(`PRAGMA page_size = ${sqlitePageSize}`);
         this.db.exec("PRAGMA journal_mode = OFF");
     }
 
@@ -253,9 +253,9 @@ export class DatabaseServer {
 
         return {
             read: (data, offset) => {
-                const pageIndex = Math.floor(offset / pageSize);
+                const pageIndex = Math.floor(offset / sqlitePageSize);
                 assert(
-                    Math.floor((offset + data.byteLength - 1) / pageSize) === pageIndex,
+                    Math.floor((offset + data.byteLength - 1) / sqlitePageSize) === pageIndex,
                     `read spans pages: offset=${offset} amount=${data.byteLength}`,
                 );
 
@@ -264,7 +264,7 @@ export class DatabaseServer {
                 // the correct one.
                 const pending = pendingWrites.get(pageIndex);
                 if (pending !== undefined) {
-                    const pageOffset = offset % pageSize;
+                    const pageOffset = offset % sqlitePageSize;
                     data.set(pending.subarray(pageOffset, pageOffset + data.byteLength));
                     return true;
                 }
@@ -283,18 +283,18 @@ export class DatabaseServer {
                     this.action.pages.set(pageIndex, new Uint8Array(page));
                 }
 
-                const pageOffset = offset % pageSize;
+                const pageOffset = offset % sqlitePageSize;
                 data.set(page.subarray(pageOffset, pageOffset + data.byteLength));
                 return true;
             },
 
             write: (data, offset) => {
-                assert(offset % pageSize === 0, `write offset ${offset} not page-aligned`);
+                assert(offset % sqlitePageSize === 0, `write offset ${offset} not page-aligned`);
                 assert(
-                    data.byteLength === pageSize,
-                    `write amount ${data.byteLength} !== ${pageSize}`,
+                    data.byteLength === sqlitePageSize,
+                    `write amount ${data.byteLength} !== ${sqlitePageSize}`,
                 );
-                const pageIndex = offset / pageSize;
+                const pageIndex = offset / sqlitePageSize;
 
                 if (this.action.type === "mutate") {
                     const existing = this.action.changedPages.get(pageIndex);
@@ -330,7 +330,7 @@ export class DatabaseServer {
             fileSize: () => {
                 let size = this.storage.getFileSize();
                 for (const [index] of pendingWrites) {
-                    const end = (index + 1) * pageSize;
+                    const end = (index + 1) * sqlitePageSize;
                     if (end > size) size = end;
                 }
                 return size;

@@ -1,20 +1,19 @@
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-
-const pageSize = 4096;
+import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
 
 class InMemoryStorage implements DatabaseServerStorage {
     private pages = new Map<number, Uint8Array>();
     private _fileSize = 0;
 
     readPage(index: number): Uint8Array {
-        return this.pages.get(index) ?? new Uint8Array(pageSize);
+        return this.pages.get(index) ?? new Uint8Array(sqlitePageSize);
     }
 
     writePages(pages: ReadonlyMap<number, Uint8Array>): void {
         for (const [index, data] of pages) {
             this.pages.set(index, new Uint8Array(data));
-            const end = (index + 1) * pageSize;
+            const end = (index + 1) * sqlitePageSize;
             if (end > this._fileSize) {
                 this._fileSize = end;
             }
@@ -247,7 +246,7 @@ describe("DatabaseServer", () => {
             const result = server.query("SELECT * FROM items");
 
             for (const [, pageData] of result.pages) {
-                expect(pageData.byteLength).toBe(pageSize);
+                expect(pageData.byteLength).toBe(sqlitePageSize);
             }
 
             server.close();
@@ -666,8 +665,8 @@ describe("DatabaseServer", () => {
             const result = server.mutate("INSERT INTO items VALUES (1)");
 
             for (const [, change] of result.changedPages) {
-                expect(change.before.byteLength).toBe(pageSize);
-                expect(change.after.byteLength).toBe(pageSize);
+                expect(change.before.byteLength).toBe(sqlitePageSize);
+                expect(change.after.byteLength).toBe(sqlitePageSize);
             }
 
             server.close();
@@ -682,14 +681,14 @@ describe("DatabaseServer", () => {
 
             // Snapshot storage state before the mutation.
             const prePages = new Map<number, Uint8Array>();
-            for (let i = 0; i < storage.getFileSize() / pageSize; i++) {
+            for (let i = 0; i < storage.getFileSize() / sqlitePageSize; i++) {
                 prePages.set(i, new Uint8Array(storage.readPage(i)));
             }
 
             const result = server.mutate("INSERT INTO items VALUES (2)");
 
             for (const [pageIndex, change] of result.changedPages) {
-                const prePage = prePages.get(pageIndex) ?? new Uint8Array(pageSize);
+                const prePage = prePages.get(pageIndex) ?? new Uint8Array(sqlitePageSize);
                 expect(change.before).toEqual(prePage);
             }
 

@@ -1,7 +1,6 @@
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-
-const pageSize = 4096;
 
 /**
  * {@link DatabaseServerStorage} implementation backed by a
@@ -30,7 +29,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         }>("SELECT data FROM pages WHERE page_index = ? ORDER BY timestamp DESC LIMIT 1", index);
         const row = result.next();
         if (row.done) {
-            return new Uint8Array(pageSize);
+            return new Uint8Array(sqlitePageSize);
         }
 
         assert(result.next().done);
@@ -58,11 +57,11 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             return 0;
         }
         assert(result.next().done);
-        return (row.value.page_index + 1) * pageSize;
+        return (row.value.page_index + 1) * sqlitePageSize;
     }
 
     truncate(size: number): void {
-        const maxPageIndex = Math.floor(size / pageSize);
+        const maxPageIndex = Math.floor(size / sqlitePageSize);
         this.sql.exec("DELETE FROM pages WHERE page_index >= ?", maxPageIndex);
     }
 }
