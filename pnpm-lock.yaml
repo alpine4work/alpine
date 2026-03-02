@@ -29,7 +29,7 @@ patchedDependencies:
     hash: ylo6ppuxbnnn5eh5o4zhyyzoeq
     path: admin/patches/@cloudflare__workers-types@4.20241112.0.patch
   '@cloudsnorkel/cdk-github-runners@0.14.1':
-    hash: nphwwozstceqoszw4afqrnyipu
+    hash: nzwz57ygioqfiwxwl3cfnmsimi
     path: admin/patches/@cloudsnorkel__cdk-github-runners@0.14.1.patch
   '@dnd-kit/core@6.0.8':
     hash: 7phbxv4pzfr6sphz6gpqy6mxeu
@@ -254,7 +254,7 @@ importers:
         version: 4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)
       '@cloudsnorkel/cdk-github-runners':
         specifier: 0.14.1
-        version: 0.14.1(patch_hash=nphwwozstceqoszw4afqrnyipu)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)
+        version: 0.14.1(patch_hash=nzwz57ygioqfiwxwl3cfnmsimi)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)
       '@codemirror/lang-sql':
         specifier: ^6.7.0
         version: 6.7.0(@codemirror/view@6.28.6)
@@ -11157,7 +11157,7 @@ snapshots:
 
   '@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)': {}
 
-  '@cloudsnorkel/cdk-github-runners@0.14.1(patch_hash=nphwwozstceqoszw4afqrnyipu)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)':
+  '@cloudsnorkel/cdk-github-runners@0.14.1(patch_hash=nzwz57ygioqfiwxwl3cfnmsimi)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)':
     dependencies:
       aws-cdk-lib: 2.189.1(constructs@10.1.143)
       constructs: 10.1.143
@@ -11618,8 +11618,6 @@ snapshots:
   '@iarna/toml@2.2.5': {}
 
   '@img/sharp-darwin-arm64@0.33.5':
-    optionalDependencies:
-      '@img/sharp-libvips-darwin-arm64': file:admin/vendor/libvips/libvips-darwin-arm64
     optional: true
 
   '@img/sharp-darwin-x64@0.33.5':

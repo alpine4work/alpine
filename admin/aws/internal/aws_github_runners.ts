@@ -298,6 +298,12 @@ export class AwsGithubRunners extends Construct {
             //
             // eslint-disable-next-line cyberworlds/string-quotes
             userDataExtra: Fn.join("", ['{"jobQueueUrl":"', sqs.getJobQueueUrl(), '"}']),
+
+            // Tag EC2 instances so the SSM State Manager association in AwsObservability
+            // installs and configures the CloudWatch Agent on them. We pass tags here
+            // (rather than using `observability.installCloudWatchAgent`) because instances
+            // are launched at runtime via `ec2:RunInstances`, not as CloudFormation resources.
+            extraTags: [{key: "CloudWatchAgent", value: "true"}],
         });
 
         const testRunnerProviderRole: unknown = (testRunnerProvider as any).role;
@@ -401,7 +407,11 @@ export class AwsGithubRunners extends Construct {
                 '"}',
             ]),
 
-            /* eslint-enable cyberworlds/string-quotes */
+            // Tag EC2 instances so the SSM State Manager association in AwsObservability
+            // installs and configures the CloudWatch Agent on them. We pass tags here
+            // (rather than using `observability.installCloudWatchAgent`) because instances
+            // are launched at runtime via ec2:RunInstances, not as CloudFormation resources.
+            extraTags: [{key: "CloudWatchAgent", value: "true"}],
         });
 
         const deployRunnerProviderRole: unknown = (deployRunnerProvider as any).role;
