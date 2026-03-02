@@ -5,19 +5,28 @@ const pageSize = 4096;
 
 class InMemoryStorage implements DatabaseServerStorage {
     private pages = new Map<number, Uint8Array>();
+    private fileSize = 0;
 
-    getPages(indexes: Array<number>): Array<Uint8Array> {
-        return indexes.map(i => {
-            const page = this.pages.get(i);
-            if (page) return new Uint8Array(page);
-            return new Uint8Array(pageSize);
-        });
+    readPage(index: number): Uint8Array {
+        return this.pages.get(index) ?? new Uint8Array(pageSize);
     }
 
-    setPages(pages: Map<number, Uint8Array>): void {
-        for (const [index, data] of pages) {
-            this.pages.set(index, new Uint8Array(data));
+    writePage(index: number, data: Uint8Array): void {
+        this.pages.set(index, new Uint8Array(data));
+        const end = (index + 1) * pageSize;
+        if (end > this.fileSize) {
+            this.fileSize = end;
         }
+    }
+
+    flush(): void {}
+
+    getFileSize(): number {
+        return this.fileSize;
+    }
+
+    truncate(size: number): void {
+        this.fileSize = size;
     }
 }
 

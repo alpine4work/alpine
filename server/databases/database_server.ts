@@ -5,6 +5,7 @@ import type {
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const pageSize = 4096;
 const vfsNamePrefix = "alpine-server";
@@ -17,11 +18,9 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
  * {@link DatabaseServerStorage} implementation.
  */
 export class DatabaseServer {
-    private readonly sqlite3: Sqlite3Static;
     private readonly db: Database;
 
-    private constructor(sqlite3: Sqlite3Static, db: Database) {
-        this.sqlite3 = sqlite3;
+    private constructor(db: Database) {
         this.db = db;
     }
 
@@ -38,7 +37,7 @@ export class DatabaseServer {
         db.exec(`PRAGMA page_size = ${pageSize}`);
         db.exec("PRAGMA journal_mode = OFF");
 
-        return new DatabaseServer(sqlite3, db);
+        return new DatabaseServer(db);
     }
 
     exec(sql: string): void {
@@ -69,10 +68,6 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
     const capi = sqlite3.capi;
     const wasm = sqlite3.wasm;
 
-    // Track file size per open file. We use the sqlite3_file
-    // pointer as key.
-    const fileSizes = new Map<WasmPointer, number>();
-
     const ioMethods = new sqlite3.capi.sqlite3_io_methods();
     ioMethods.iVersion = 1;
 
@@ -88,8 +83,7 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
             struct: ioMethods,
             applyArgcCheck: false,
             methods: {
-                xClose(filePtr: WasmPointer) {
-                    fileSizes.delete(filePtr);
+                xClose() {
                     return capi.SQLITE_OK;
                 },
 
@@ -100,32 +94,28 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
                     iOfst: number | bigint,
                 ) {
                     const offset = Number(iOfst);
-                    const startPage = Math.floor(offset / pageSize);
-                    const endPage = Math.floor((offset + iAmt - 1) / pageSize);
-                    const indexes: Array<number> = [];
-                    for (let i = startPage; i <= endPage; i++) {
-                        indexes.push(i);
-                    }
-                    const pages = storage.getPages(indexes);
-
-                    // Assemble the requested byte range from the pages.
                     const heap = wasm.heap8u();
-                    let bytesWritten = 0;
-                    for (let i = 0; i < pages.length; i++) {
-                        const page = pages[i]!;
-                        const pageStart = (startPage + i) * pageSize;
-                        const srcStart = Math.max(offset - pageStart, 0);
-                        const srcEnd = Math.min(offset + iAmt - pageStart, pageSize);
-                        heap.set(page.subarray(srcStart, srcEnd), buf + bytesWritten);
-                        bytesWritten += srcEnd - srcStart;
-                    }
 
-                    // If we read fewer bytes than requested, zero-fill
-                    // the remainder and report a short read.
-                    if (bytesWritten < iAmt) {
-                        heap.fill(0, buf + bytesWritten, buf + iAmt);
+                    // Reading beyond the file returns short read.
+                    // This happens when SQLite probes the header of
+                    // a newly created (empty) database.
+                    if (offset >= storage.getFileSize()) {
+                        heap.fill(0, buf, buf + iAmt);
                         return capi.SQLITE_IOERR_SHORT_READ;
                     }
+
+                    // SQLite does sub-page reads (e.g. the 100-byte
+                    // file header or the change counter at byte 24)
+                    // so we only assert the read fits in one page.
+                    const pageIndex = Math.floor(offset / pageSize);
+                    assert(
+                        Math.floor((offset + iAmt - 1) / pageSize) === pageIndex,
+                        `xRead spans pages: offset=${offset} amount=${iAmt}`,
+                    );
+
+                    const page = storage.readPage(pageIndex);
+                    const pageOffset = offset % pageSize;
+                    heap.set(page.subarray(pageOffset, pageOffset + iAmt), buf);
                     return capi.SQLITE_OK;
                 },
 
@@ -136,70 +126,28 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
                     iOfst: number | bigint,
                 ) {
                     const offset = Number(iOfst);
+                    assert(offset % pageSize === 0, `xWrite offset ${offset} not page-aligned`);
+                    assert(iAmt === pageSize, `xWrite amount ${iAmt} !== ${pageSize}`);
+
+                    const pageIndex = offset / pageSize;
                     const heap = wasm.heap8u();
                     const data = heap.slice(buf, buf + iAmt);
-
-                    const startPage = Math.floor(offset / pageSize);
-                    const endPage = Math.floor((offset + iAmt - 1) / pageSize);
-
-                    // For writes that span multiple pages or start at a
-                    // sub-page offset we need to read-modify-write.
-                    const needsRMW = offset % pageSize !== 0 || iAmt % pageSize !== 0;
-
-                    const pagesToWrite = new Map<number, Uint8Array>();
-
-                    if (needsRMW) {
-                        const indexes: Array<number> = [];
-                        for (let i = startPage; i <= endPage; i++) {
-                            indexes.push(i);
-                        }
-                        const existing = storage.getPages(indexes);
-                        for (let i = 0; i < existing.length; i++) {
-                            const pageIndex = startPage + i;
-                            const page = new Uint8Array(existing[i]!);
-                            const pageStart = pageIndex * pageSize;
-                            const srcStart = Math.max(offset - pageStart, 0);
-                            const srcEnd = Math.min(offset + iAmt - pageStart, pageSize);
-                            const dataOffset = pageStart + srcStart - offset;
-                            page.set(
-                                data.subarray(dataOffset, dataOffset + (srcEnd - srcStart)),
-                                srcStart,
-                            );
-                            pagesToWrite.set(pageIndex, page);
-                        }
-                    } else {
-                        // Fast path: write is page-aligned.
-                        const pageCount = iAmt / pageSize;
-                        for (let i = 0; i < pageCount; i++) {
-                            const off = i * pageSize;
-                            pagesToWrite.set(startPage + i, data.slice(off, off + pageSize));
-                        }
-                    }
-
-                    storage.setPages(pagesToWrite);
-
-                    // Update tracked file size.
-                    const end = offset + iAmt;
-                    const current = fileSizes.get(filePtr) ?? 0;
-                    if (end > current) {
-                        fileSizes.set(filePtr, end);
-                    }
-
+                    storage.writePage(pageIndex, data);
                     return capi.SQLITE_OK;
                 },
 
                 xTruncate(filePtr: WasmPointer, size: number) {
-                    fileSizes.set(filePtr, size);
+                    storage.truncate(size);
                     return capi.SQLITE_OK;
                 },
 
                 xSync() {
+                    storage.flush();
                     return capi.SQLITE_OK;
                 },
 
                 xFileSize(filePtr: WasmPointer, pSize: WasmPointer) {
-                    const size = fileSizes.get(filePtr) ?? 0;
-                    wasm.poke64(pSize, BigInt(size));
+                    wasm.poke64(pSize, BigInt(storage.getFileSize()));
                     return capi.SQLITE_OK;
                 },
 
@@ -244,7 +192,6 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
                 ) {
                     const file = new sqlite3.capi.sqlite3_file(filePtr);
                     file.$pMethods = ioMethods.pointer!;
-                    fileSizes.set(filePtr, 0);
                     if (pOutputFlags) {
                         wasm.poke32(
                             pOutputFlags,
@@ -274,7 +221,6 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
                     nOut: number,
                     zOut: WasmPointer,
                 ) {
-                    // Copy the input name directly as the "full" path.
                     const fullName = wasm.cstrToJs(zName);
                     const heap = wasm.heap8u();
                     const encoder = new TextEncoder();
@@ -286,7 +232,6 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
                 },
 
                 xCurrentTime(vfsPtr: WasmPointer, pTimeOut: WasmPointer) {
-                    // Julian day number for the current time.
                     const now = Date.now() / 86_400_000 + 2_440_587.5;
                     wasm.poke64f(pTimeOut, now);
                     return capi.SQLITE_OK;
