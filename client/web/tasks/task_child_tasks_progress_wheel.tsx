@@ -52,7 +52,7 @@ export function TaskChildTasksProgressWheel({
 
     const spacingScale = useSpacingScale();
 
-    const fraction = Math.max(closedChildTaskCount / childTaskCount, 0.1);
+    const fraction = childTaskCount > 0 ? Math.max(closedChildTaskCount / childTaskCount, 0.1) : 0;
 
     const size: Spacing = "3";
 
@@ -102,27 +102,29 @@ export function TaskChildTasksProgressWheel({
                     strokeWidth={1}
                 />
             </svg>
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={taskChildTasksProgressWheelLineClassName}
-                fill="currentColor"
-                viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
-            >
-                <path
-                    d={`\
+            {fraction > 0 && (
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={taskChildTasksProgressWheelLineClassName}
+                    fill="currentColor"
+                    viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
+                >
+                    <path
+                        d={`\
 M ${viewBoxSize / 2}, ${viewBoxSize / 2}
 m 0, -${radius}
 a ${radius},${radius} 0 1,1 0,${radius * 2}
 a ${radius},${radius} 0 1,1 0,-${radius * 2}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={`${fraction * circumference} ${circumference}`}
-                    style={{transition: "stroke-dasharray 200ms ease"}}
-                />
-            </svg>
+                        fill="none"
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={strokeWidth}
+                        strokeDasharray={`${fraction * circumference} ${circumference}`}
+                        style={{transition: "stroke-dasharray 200ms ease"}}
+                    />
+                </svg>
+            )}
         </div>
     );
 }

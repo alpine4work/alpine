@@ -22,6 +22,7 @@ export type TaskQueryBasicNormalizedSort = {
     readonly type:
         | "DisplayStatus"
         | "Priority"
+        | "Layout"
         | "Assignee"
         | "Creator"
         | "Assigner"
@@ -48,6 +49,11 @@ const TaskQueryBasicNormalizedSortSchemas: {
     }),
     Priority: Schema.object({
         type: Schema.value("Priority"),
+        direction: Schema.enum(["Ascending", "Descending"]),
+        missing: Schema.enum(["First", "Last"]),
+    }),
+    Layout: Schema.object({
+        type: Schema.value("Layout"),
         direction: Schema.enum(["Ascending", "Descending"]),
         missing: Schema.enum(["First", "Last"]),
     }),

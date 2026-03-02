@@ -33,9 +33,11 @@ test("returns default values when no filters are specified", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -64,9 +66,11 @@ test("sets status and assigneeStatus for ifOpenInactive", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -95,9 +99,11 @@ test("sets status, assigneeStatus, and assigneeId for ifOpenActive with currentA
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: currentAccountId,
         assigneeStatus: "Active",
@@ -125,9 +131,11 @@ test("doesn\u2019t set assigneeId for ifOpenActive without currentAccountId", ()
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -155,9 +163,11 @@ test("sets status to Closed for ifClosed", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Closed",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -189,9 +199,11 @@ test("sets collectionIds from IncludesAllOf collectionsFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set([collectionId1, collectionId2]),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -222,9 +234,11 @@ test("sets collectionIds from IncludesOneOf collectionsFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set([collectionId1]),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -254,9 +268,11 @@ test("ignores negated terms in collectionsFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -283,9 +299,11 @@ test("ignores IsEmpty term in collectionsFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -314,9 +332,11 @@ test("sets priority to null from priorityFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -344,9 +364,11 @@ test("sets priority to Low from priorityFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: "Low",
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -374,9 +396,11 @@ test("sets priority to Medium from priorityFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: "Medium",
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -404,9 +428,11 @@ test("sets priority to High from priorityFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: "High",
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -434,9 +460,11 @@ test("sets priority to Urgent from priorityFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: "Urgent",
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -465,9 +493,11 @@ test("sets title from titleFilter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "Task Title",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -502,9 +532,11 @@ test("combines multiple titleFilter entries with spaces", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "First Second",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -542,9 +574,11 @@ test("keeps assigneeId if it already matches OneOf filter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: assigneeId,
         assigneeStatus: "Active",
@@ -573,9 +607,11 @@ test("sets assigneeId from OneOf filter when it doesn\u2019t match", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: assigneeId,
         assigneeStatus: "Inactive",
@@ -611,9 +647,11 @@ test("sets assigneeId to null when OneOf filter only contains MissingAccount", (
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -651,9 +689,11 @@ test("keeps assigneeId if it already matches NoneOf filter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: assigneeId1,
         assigneeStatus: "Active",
@@ -683,9 +723,11 @@ test("sets assigneeId to currentAccountId with NoneOf filter when available", ()
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -721,9 +763,11 @@ test("sets assigneeId to null with NoneOf filter when MissingAccount is not in f
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -752,9 +796,11 @@ test("sets assigneeId to currentAccountId with NoneOf filter when MissingAccount
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: currentAccountId,
         assigneeStatus: "Inactive",
@@ -786,9 +832,11 @@ test("sets assigneeId to null with NoneOf filter when MissingAccount and current
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -816,9 +864,11 @@ test("leaves dueDate null for IsEmpty filter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -859,9 +909,11 @@ test("leaves dueDate null for RangeOrIsEmpty filter", () => {
     const result = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, evaluationContext);
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -905,9 +957,11 @@ test("sets dueDate to a week from today when it falls within the range", () => {
     const expectedDate = currentDate.add({days: 7});
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -943,9 +997,11 @@ test("sets dueDate to lower bound + 1 day when a week from today is before the r
     const expectedDate = lowerBoundDate.add({days: 1});
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -981,9 +1037,11 @@ test("sets dueDate to upper bound - 1 day when a week from today is after the ra
     const expectedDate = upperBoundDate.subtract({days: 1});
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set(),
         priority: null,
+        layout: null,
         title: "",
         assigneeId: null,
         assigneeStatus: "Inactive",
@@ -1048,9 +1106,11 @@ test("combines multiple filter types correctly", () => {
     const expectedDueDate = currentDate.add({days: 7});
 
     expect(result).toEqual({
+        parentTaskId: null,
         status: "Open",
         collectionIds: new Set([collectionId]),
         priority: "High",
+        layout: null,
         title: "Important Task",
         assigneeId: assigneeId,
         assigneeStatus: "Active",

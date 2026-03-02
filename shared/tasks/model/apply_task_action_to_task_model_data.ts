@@ -11,6 +11,7 @@ import {TaskTaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model
 import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
 import {
     TaskSortableAccount,
     mergeTaskSortableAccounts,
@@ -18,7 +19,7 @@ import {
 import {TaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
 
 /**
- * Applies a `TaskTaskAction` to a `TaskIndexDoc`. `TaskTaskAction`s are
+ * Applies a `TaskTaskAction` to a `TaskModel`. `TaskTaskAction`s are
  * commutative and idempotent. This means they can be applied in any order or
  * multiple times and we'll converge to the same result every time.
  *
@@ -343,6 +344,21 @@ export function applyTaskActionToTaskModelData(
             return {
                 ...task,
                 priority: newPriority,
+            };
+        }
+        case "UpdateLayout": {
+            const newLayout = task.layout
+                ? task.layout.apply({
+                      value: action.layout,
+                      version: actionTime,
+                  })
+                : new TaskLayoutRegister(action.layout, actionTime);
+
+            if (newLayout === task.layout) return task;
+
+            return {
+                ...task,
+                layout: newLayout,
             };
         }
         case "UpdateAccessPolicy": {

@@ -11,12 +11,19 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {generateId} from "~/shared/id/id.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     TaskQueryFilter,
     serializeTaskQueryFiltersSearchParam,
 } from "~/shared/tasks/task_query_filter.js";
 
-export function TaskFloatingCreateButton({filters}: {filters?: ReadonlyArray<TaskQueryFilter>}) {
+export function TaskFloatingCreateButton({
+    filters,
+    parentTaskId,
+}: {
+    filters?: ReadonlyArray<TaskQueryFilter>;
+    parentTaskId?: TaskId;
+}) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -63,11 +70,17 @@ export function TaskFloatingCreateButton({filters}: {filters?: ReadonlyArray<Tas
                 cursor="pointer"
                 pressErrorTitle="Couldn&#x2019;t create task"
                 onPress={async () => {
-                    if (!filters) {
+                    if (!filters && !parentTaskId) {
                         const taskId = generateId();
                         await navigate(`/s/${space.id}/tasks/${taskId}?create&focus`);
                     } else {
-                        const createSearchParam = serializeTaskQueryFiltersSearchParam(filters);
+                        let createSearchParam = serializeTaskQueryFiltersSearchParam(filters ?? []);
+
+                        if (parentTaskId) {
+                            // The "+" is URL encoding for a space. So we'll call
+                            // `url.searchParams.get("create").split(" ")` to extract the parent `TaskId`.
+                            createSearchParam += `+${parentTaskId}`;
+                        }
 
                         const taskId = generateId();
                         await navigate(

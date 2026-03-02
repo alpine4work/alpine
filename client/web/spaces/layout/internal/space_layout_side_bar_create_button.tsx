@@ -12,16 +12,19 @@ import {ChatBrandIcon} from "~/client/web/icons/brand/chat_brand_icon.js";
 import {DocumentBrandBigIcon} from "~/client/web/icons/brand/document_brand_big_icon.js";
 import {PostBrandBigIcon} from "~/client/web/icons/brand/post_brand_big_icon.js";
 import {TaskBrandBigIcon} from "~/client/web/icons/brand/task_brand_big_icon.js";
+import {TaskBrandIcon} from "~/client/web/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/web/icons/brand/task_collection_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/web/icons/brand/task_query_brand_icon.js";
 import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
+import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
+import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 
 // NOTE(calebmer): The icons used here for create actions are the same icons
 // used in `<SearchEntityView/>`'s `getSearchEntityTypeDisplay()`. If you
@@ -29,6 +32,7 @@ import {generateId} from "~/shared/id/id.js";
 export function SpaceLayoutSideBarCreateButton() {
     const clientInfo = useClientInfo();
     const {space} = useSpaceContext();
+    const rootNavigate = useRootNavigate();
     const peekStackContext = usePeekStackContext();
 
     const triggerRef = useRef<OverlayTriggerButtonRef>(null);
@@ -156,6 +160,29 @@ export function SpaceLayoutSideBarCreateButton() {
                             key: "more",
                             label: "More",
                             actions: [
+                                {
+                                    label: "Project",
+                                    icon: <TaskBrandIcon />,
+                                    pressErrorTitle: "Couldn\u2019t create project",
+                                    onPress: async () => {
+                                        const taskId = generateId();
+
+                                        const createSearchParam =
+                                            serializeTaskQueryFiltersSearchParam([
+                                                {
+                                                    type: "Layout",
+                                                    operation: {
+                                                        type: "OneOf",
+                                                        layouts: ["Project"],
+                                                    },
+                                                },
+                                            ]);
+
+                                        await rootNavigate(
+                                            `/s/${space.id}/tasks/${taskId}?create=${createSearchParam}&focus`,
+                                        );
+                                    },
+                                },
                                 {
                                     label: "Task collection",
                                     icon: <TaskCollectionBrandIcon />,

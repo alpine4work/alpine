@@ -416,6 +416,24 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
             },
         ],
     },
+    {
+        name: "one of project layout",
+        filters: [
+            {
+                type: "Layout",
+                operation: {type: "OneOf", layouts: ["Project"]},
+            },
+        ],
+    },
+    {
+        name: "none of project layout",
+        filters: [
+            {
+                type: "Layout",
+                operation: {type: "NoneOf", layouts: ["Project"]},
+            },
+        ],
+    },
     ...cast<Array<{name: string; operation: TaskQueryFilterAccountOperation}>>([
         {
             name: "empty",

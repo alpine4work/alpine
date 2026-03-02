@@ -1650,6 +1650,7 @@ function getTaskActionApproximateActionCountType(
         case "UpdateAssigneeStatus":
         case "UpdateDueDate":
         case "UpdatePriority":
+        case "UpdateLayout":
         case "UpdateAccessPolicy":
             return "Discrete";
 

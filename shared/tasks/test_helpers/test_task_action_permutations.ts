@@ -34,6 +34,7 @@ import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatus} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
@@ -66,6 +67,7 @@ export type TaskTestInterface = {
     title: TaskTitle;
     dueDate: CalendarDate | null;
     priority: TaskPriority | null;
+    layout: TaskLayout | null;
 };
 
 export type TaskCollectionTestInterface = {
@@ -1886,6 +1888,52 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     priority: null,
+                },
+            };
+        },
+    },
+    {
+        name: "update layout",
+        create: ({creator}): TaskTaskActionTestArtifacts => {
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creatorId: creator.accountId,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateLayout",
+                        layout: "Project",
+                    },
+                ],
+                task: {
+                    layout: "Project",
+                },
+            };
+        },
+    },
+    {
+        name: "update layout twice",
+        create: ({creator}): TaskTaskActionTestArtifacts => {
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creatorId: creator.accountId,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateLayout",
+                        layout: "Project",
+                    },
+                    {
+                        type: "UpdateLayout",
+                        layout: null,
+                    },
+                ],
+                task: {
+                    layout: null,
                 },
             };
         },
@@ -4562,6 +4610,7 @@ export function testTaskActionPermutations({
                                         title: emptyTaskTitle.get(),
                                         dueDate: null,
                                         priority: null,
+                                        layout: null,
                                         ...expectation.task,
                                         creator:
                                             expectation.task.creator ??

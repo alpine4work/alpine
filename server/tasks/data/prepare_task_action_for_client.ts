@@ -37,6 +37,7 @@ export async function prepareTaskActionForClient(
                 case "UpdateTitle":
                 case "UpdateDueDate":
                 case "UpdatePriority":
+                case "UpdateLayout":
                 case "UpdateAssigneeStatus":
                 case "UpdateAccessPolicy":
                     return action;

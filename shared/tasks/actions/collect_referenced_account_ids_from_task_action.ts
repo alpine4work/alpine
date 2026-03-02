@@ -61,6 +61,7 @@ export function collectReferencedAccountIdsFromTaskAction(
                 case "UpdateTitle":
                 case "UpdateDueDate":
                 case "UpdatePriority":
+                case "UpdateLayout":
                 case "UpdateAccessPolicy":
                 case "UpdateNotepadPagePosition":
                 case "UpdateAssigneeActivePosition": {

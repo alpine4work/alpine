@@ -284,6 +284,11 @@ export type TaskGridViewVirtualizedListProps = {
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
 
     /**
+     * Label for the title column header. Defaults to "Name".
+     */
+    columnHeaderTitleFieldLabel?: string;
+
+    /**
      * The max width of a `<TaskRowView>`. Used by `<TaskDetailView>` to make sure
      * the subtasks grid view is the same width as the rest of the detail view's
      * content.
@@ -301,18 +306,6 @@ export type TaskGridViewVirtualizedListProps = {
      * items.
      */
     withoutBottomGhostTask?: boolean;
-
-    /**
-     * Don't render the up to three decorative ghost row items. Similar to
-     * `withoutBottomGhostTask`.
-     *
-     * Same as `withoutDecorativeGhostRowsIfEmpty` but doesn't have a secondary
-     * condition which needs to be met.
-     *
-     * If this is true and `withoutColumnHeader` is true and
-     * `withoutBottomGhostTask` is true then this list should render zero items.
-     */
-    withoutDecorativeGhostRows?: boolean;
 
     /**
      * Don't render the bottom ghost task if there are no tasks. Similar to
@@ -336,15 +329,32 @@ export type TaskGridViewVirtualizedListProps = {
     withBottomGhostTaskIfNullQuery?: boolean;
 
     /**
-     * Don't render the up to three decorative ghost row items if there's no tasks.
-     * Similar to `withoutBottomGhostTaskIfEmpty`.
+     * How to render decorative ghost rows for this grid view. Defaults to
+     * `Background`.
      *
-     * If this is true and `withoutColumnHeader` is true and the query is auto
-     * sorted then if there are no tasks in the query we should render zero items.
-     * If the query is not auto sorted then `withoutBottomGhostTaskIfEmpty` must
-     * also be true to render zero items when there's no tasks.
+     * - `Background`: Render as many decorative ghost rows as it takes to fill
+     *   the remainder of the screen. For when you only have a few views but still
+     *   want to render row lines to create some sense of the grid view structure.
+     *
+     * - `BackgroundIfNotEmpty`: Same as `Background` but only when there's at
+     *   least one task in the virtualized grid view.
+     *
+     * - `Some`: Makes sure we always render at least 3 rows in the grid view. If
+     *   there are 0 rows in the grid view we render 3 decorative ghost rows, if
+     *   there is 1 row in the grid view we render 2 decorative ghost rows and
+     *   so on.
+     *
+     * - `BackgroundOrSomeIfEmpty`: Same as `BackgroundIfNotEmpty` but if empty
+     *   behaves as `Some`.
+     *
+     * If `decorativeGhostRows` is `Background` or `BackgroundIfNotEmpty` and
+     * there's a next grid view then we render no decorative ghost rows.
      */
-    withoutDecorativeGhostRowsIfEmpty?: boolean;
+    decorativeGhostRows?:
+        | "Background"
+        | "BackgroundIfNotEmpty"
+        | "Some"
+        | "BackgroundOrSomeIfEmpty";
 
     /**
      * Provide custom handling for the undo/redo stack entry. Important for
@@ -492,44 +502,44 @@ export type TaskGridViewVirtualizedListResult = {
     /**
      * (Optional) Focuses the start of the last task title in the grid view.
      */
-    focusLastTaskTitleStart: () => void;
+    focusLastTaskTitleStart: Memo<() => void>;
 
     /**
      * (Optional) Focuses the end of the last task title in the grid view.
      */
-    focusLastTaskTitleEnd: () => void;
+    focusLastTaskTitleEnd: Memo<() => void>;
 
     /**
      * (Optional) Focuses all the text in the last task title in the grid view.
      */
-    focusLastTaskTitleAll: () => void;
+    focusLastTaskTitleAll: Memo<() => void>;
 
     /**
      * (Optional) Focuses an X coordinate position in the last task title in the
      * grid view.
      */
-    focusLastTaskTitleCoord: (coord: number) => void;
+    focusLastTaskTitleCoord: Memo<(coord: number) => void>;
 
     /**
      * (Optional) Focuses a column in the last task title in the grid view.
      */
-    focusLastTaskCell: (column: TaskGridViewColumn) => void;
+    focusLastTaskCell: Memo<(column: TaskGridViewColumn) => void>;
 
     /**
      * (Optional) Focuses the start of the first task title in the grid view.
      */
-    focusFirstTaskTitleStart: () => void;
+    focusFirstTaskTitleStart: Memo<() => void>;
 
     /**
      * (Optional) Focuses an X coordinate position in the first task title in the
      * grid view.
      */
-    focusFirstTaskTitleCoord: (coord: number) => void;
+    focusFirstTaskTitleCoord: Memo<(coord: number) => void>;
 
     /**
      * (Optional) Focuses a column in the first task title in the grid view.
      */
-    focusFirstTaskCell: (column: TaskGridViewColumn) => void;
+    focusFirstTaskCell: Memo<(column: TaskGridViewColumn) => void>;
 
     /**
      * (Optional) Add an entry to the grid view's undo stack.
@@ -944,12 +954,12 @@ export function useTaskGridViewVirtualizedListBase({
     withoutColumnHeader = false,
     withoutBorderTopIfFirstRow = false,
     columnHeaderControls,
+    columnHeaderTitleFieldLabel,
     rowMaxWidth = null,
     withoutBottomGhostTask = false,
-    withoutDecorativeGhostRows = false,
     withoutBottomGhostTaskIfEmpty = false,
-    withoutDecorativeGhostRowsIfEmpty = false,
     withBottomGhostTaskIfNullQuery = false,
+    decorativeGhostRows = "Background",
     onApplyUndoStackEntry,
     stateKey: stateKeyFromProps,
     isDragging,
@@ -1109,16 +1119,62 @@ export function useTaskGridViewVirtualizedListBase({
         (capabilities.hasColumns && !withoutColumnHeader) || !!columnHeaderControls;
     const itemCountBeforeState = hasColumnHeader ? 1 : 0;
 
+    let decorativeGhostRowMinItemCount: number;
+    let hasDecorativeGhostRowBackground: boolean;
+
+    switch (decorativeGhostRows) {
+        case "Background": {
+            if (hasNextGridView) {
+                decorativeGhostRowMinItemCount = 0;
+                hasDecorativeGhostRowBackground = false;
+            } else {
+                decorativeGhostRowMinItemCount = 1;
+                hasDecorativeGhostRowBackground = true;
+            }
+            break;
+        }
+        case "BackgroundIfNotEmpty": {
+            if (hasNextGridView) {
+                decorativeGhostRowMinItemCount = 0;
+                hasDecorativeGhostRowBackground = false;
+            } else if (stateItemCount === 0) {
+                decorativeGhostRowMinItemCount = 0;
+                hasDecorativeGhostRowBackground = false;
+            } else {
+                decorativeGhostRowMinItemCount = 1;
+                hasDecorativeGhostRowBackground = true;
+            }
+            break;
+        }
+        case "Some": {
+            decorativeGhostRowMinItemCount = 3;
+            hasDecorativeGhostRowBackground = false;
+            break;
+        }
+        case "BackgroundOrSomeIfEmpty": {
+            if (hasNextGridView) {
+                decorativeGhostRowMinItemCount = 0;
+                hasDecorativeGhostRowBackground = false;
+            } else if (stateItemCount === 0) {
+                decorativeGhostRowMinItemCount = 3;
+                hasDecorativeGhostRowBackground = false;
+            } else {
+                decorativeGhostRowMinItemCount = 1;
+                hasDecorativeGhostRowBackground = true;
+            }
+            break;
+        }
+        default:
+            throw exhaustive(decorativeGhostRows);
+    }
+
     const itemCount =
         itemCountBeforeState +
         (loadedState !== "FullyLoaded"
             ? stateItemCount + 1
             : Math.max(
                   stateItemCount + (hasBottomGhostTask ? 1 : 0),
-                  withoutDecorativeGhostRows ||
-                      (withoutDecorativeGhostRowsIfEmpty && stateItemCount === 0)
-                      ? 0
-                      : 3,
+                  decorativeGhostRowMinItemCount,
               ));
 
     const taskRowByGridKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
@@ -2668,6 +2724,7 @@ export function useTaskGridViewVirtualizedListBase({
                                     ref={ref}
                                     hasColumns={capabilities.hasColumns}
                                     withoutAssigneeField={capabilities.withoutAssigneeField}
+                                    titleFieldLabel={columnHeaderTitleFieldLabel}
                                     columnHeaderControls={columnHeaderControlsWithMinHeightPx}
                                     minHeight={minHeight}
                                     offset={offset}
@@ -2775,6 +2832,7 @@ export function useTaskGridViewVirtualizedListBase({
                                 }
                                 withPaddingBottom={itemIndex === itemCount - 1}
                                 hasNextGridView={hasNextGridView}
+                                hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
                                 mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
                             />
                         );
@@ -2811,12 +2869,12 @@ export function useTaskGridViewVirtualizedListBase({
                                 (isRootQueryNull && !withBottomGhostTaskIfNullQuery)
                             }
                             structuralItemKeyPrefix={structuralItemKeyPrefix}
-                            hasColumnHeader={hasColumnHeader}
                             relativeItemIndex={relativeItemIndex}
                             isFirstRow={itemIndex - itemCountBeforeState === 0}
                             withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
                             withPaddingBottom={itemIndex === itemCount - 1}
                             hasNextGridView={hasNextGridView}
+                            hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                             focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
                         />
@@ -2869,6 +2927,7 @@ export function useTaskGridViewVirtualizedListBase({
                         duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
                         withPaddingBottom={itemIndex === itemCount - 1}
                         hasNextGridView={hasNextGridView}
+                        hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
                         mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
                     />
                 );
@@ -2923,12 +2982,14 @@ export function useTaskGridViewVirtualizedListBase({
         bottomGhostTaskId,
         capabilities,
         columnHeaderControlsWithMinHeightPx,
+        columnHeaderTitleFieldLabel,
         duplicateTaskAndAllChildren,
         events,
         explicitLoadMoreButton,
         getAreChildTasksExpandedStore,
         hasBottomGhostTask,
         hasColumnHeader,
+        hasDecorativeGhostRowBackground,
         hasNextGridView,
         isDragging,
         isRootQueryManuallySorted,
@@ -3373,6 +3434,11 @@ function getTaskUndoActionsGridViewTargetIfExists(
             }
             case "UpdatePriority": {
                 column = "Priority";
+                preference = 2;
+                break;
+            }
+            case "UpdateLayout": {
+                column = "Title";
                 preference = 2;
                 break;
             }

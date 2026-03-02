@@ -46,7 +46,7 @@ import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -1626,6 +1626,12 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
 
     const [isHovered, setIsHovered] = useState(false);
 
+    const hoverTimeoutRef = useRef<{
+        timeout: Timeout;
+        clientX: number;
+        clientY: number;
+    }>(null);
+
     const [shouldInitiallyFocus, setShouldInitiallyFocus] = useState(false);
     if (shouldInitiallyFocus && !isOpened && !shouldOpen) setShouldInitiallyFocus(false);
 
@@ -1983,12 +1989,51 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
                             }
 
                             setIsHovered(true);
-                            setHoverTriangleState({
-                                initialX: event.clientX,
-                                initialY: event.clientY,
-                            });
-                            event.currentTarget.focus({preventScroll: true});
-                            onOpen();
+
+                            // Immediately start loading our async actions on hover even if we're not going
+                            // to use them for another 200ms.
+                            if (actionsPromise === null) {
+                                setActionsPromise(
+                                    PromiseImmediate.resolve(
+                                        typeof action.actions !== "function"
+                                            ? action.actions
+                                            : action.actions(),
+                                    ),
+                                );
+                            }
+
+                            hoverTimeoutRef.current?.timeout.clear();
+
+                            // Wait 200ms before opening the sub-menu. If the user is quickly moving their
+                            // mouse through the menu immediately opening submenus is distracting. A little
+                            // delay helps the menu not feel janky in the common case while still not being
+                            // too long to feel sluggish.
+                            //
+                            // Opening the hover triangle instantly also makes it harder to tap on menu
+                            // items below the menu with a sub-menu.
+                            hoverTimeoutRef.current = {
+                                clientX: event.clientX,
+                                clientY: event.clientY,
+                                timeout: createTimeout(() => {
+                                    if (!hoverTimeoutRef.current) return;
+
+                                    setHoverTriangleState({
+                                        // `pointermove` may have changed the current `clientX` or `clientY`.
+                                        initialX: hoverTimeoutRef.current.clientX,
+                                        initialY: hoverTimeoutRef.current.clientY,
+                                    });
+
+                                    hoverTimeoutRef.current = null;
+
+                                    onOpen();
+                                }, 200),
+                            };
+                        },
+                        onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+                            if (hoverTimeoutRef.current) {
+                                hoverTimeoutRef.current.clientX = event.clientX;
+                                hoverTimeoutRef.current.clientY = event.clientY;
+                            }
                         },
                         onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
                             if (event.pointerType === "touch" || !isHovered) {
@@ -1996,7 +2041,9 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
                             }
 
                             setIsHovered(false);
-                            event.currentTarget.blur();
+
+                            hoverTimeoutRef.current?.timeout.clear();
+                            hoverTimeoutRef.current = null;
                         },
                         onKeyDown: (event: React.KeyboardEvent) => {
                             // When focus is in a `menu` and on a `menuitem` that has a submenu, opens the

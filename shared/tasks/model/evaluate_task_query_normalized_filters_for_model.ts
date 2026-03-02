@@ -21,6 +21,7 @@ assertEqualTypes<
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
+    | "layoutFilter"
     | "titleFilter"
     | "assigneeFilter"
     | "creatorFilter"
@@ -80,6 +81,16 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
             (filters.priorityFilter.ifMedium && priority === "Medium") ||
             (filters.priorityFilter.ifHigh && priority === "High") ||
             (filters.priorityFilter.ifUrgent && priority === "Urgent");
+
+        if (!pass) return false;
+    }
+
+    if (filters.layoutFilter !== undefined) {
+        const layout = task.getLayout();
+
+        const pass =
+            (filters.layoutFilter.ifNull && layout === null) ||
+            (filters.layoutFilter.ifProject && layout === "Project");
 
         if (!pass) return false;
     }

@@ -161,5 +161,6 @@ export async function prepareTaskForClient(
         title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
+        layout: task.layout,
     });
 }

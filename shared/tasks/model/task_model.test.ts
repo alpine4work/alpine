@@ -396,4 +396,29 @@ describe("getCloneActions", () => {
         const priorityAction = findAction<TaskUpdatePriorityAction>(actions, "UpdatePriority");
         expect(priorityAction?.taskAction.priority).toBe("High");
     });
+
+    test("copies layout when not default", () => {
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout: "Project",
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+        const layoutAction = findAction(actions, "UpdateLayout");
+        expect(layoutAction?.taskAction.type).toBe("UpdateLayout");
+        assert(layoutAction?.taskAction.type === "UpdateLayout");
+        expect(layoutAction.taskAction.layout).toBe("Project");
+    });
 });

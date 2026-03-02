@@ -6,6 +6,7 @@ import {
 } from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
@@ -19,6 +20,7 @@ import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js
 import {ObjectSchema, Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
+import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {
     TaskQueryCollectionsFilter,
@@ -27,6 +29,7 @@ import {
     TaskQueryFilterAccountOperation,
     TaskQueryFilterDateOperation,
     TaskQueryFilterDateOperationDate,
+    TaskQueryLayoutFilter,
     TaskQueryPriorityFilter,
 } from "~/shared/tasks/task_query_filter.js";
 
@@ -66,6 +69,7 @@ export type TaskQueryNormalizedFilters = {
     readonly displayStatusFilter: TaskQueryDisplayStatusNormalizedFilter;
     readonly collectionsFilter?: TaskQueryCollectionsNormalizedFilter;
     readonly priorityFilter?: TaskQueryPriorityNormalizedFilter;
+    readonly layoutFilter?: TaskQueryLayoutNormalizedFilter;
     readonly titleFilter?: TaskQueryTitleNormalizedFilter;
     readonly assigneeFilter?: TaskQueryAccountNormalizedFilter;
     readonly creatorFilter?: TaskQueryAccountNormalizedFilter;
@@ -243,6 +247,21 @@ const TaskQueryPriorityNormalizedFilterSchema = Schema.object({
     ifUrgent: Schema.boolean,
 }) as Schema<TaskQueryPriorityNormalizedFilter>;
 
+export type TaskQueryLayoutNormalizedFilter =
+    | {
+          readonly ifNull: true;
+          readonly ifProject: boolean;
+      }
+    | {
+          readonly ifNull: boolean;
+          readonly ifProject: true;
+      };
+
+const TaskQueryLayoutNormalizedFilterSchema = Schema.object({
+    ifNull: Schema.boolean,
+    ifProject: Schema.boolean,
+}) as Schema<TaskQueryLayoutNormalizedFilter>;
+
 export type TaskQueryAccountNormalizedFilter =
     | {
           readonly type: "OneOf";
@@ -318,6 +337,7 @@ export const TaskQueryNormalizedFiltersSchema: Schema<TaskQueryNormalizedFilters
     displayStatusFilter: TaskQueryDisplayStatusNormalizedFilterSchema,
     collectionsFilter: TaskQueryCollectionsNormalizedFilterSchema.optional(),
     priorityFilter: TaskQueryPriorityNormalizedFilterSchema.optional(),
+    layoutFilter: TaskQueryLayoutNormalizedFilterSchema.optional(),
     titleFilter: TaskQueryTitleNormalizedFilterSchema.optional(),
     assigneeFilter: TaskQueryAccountNormalizedFilterSchema.optional(),
     creatorFilter: TaskQueryAccountNormalizedFilterSchema.optional(),
@@ -418,6 +438,24 @@ export function normalizeTaskQueryFilters(
                     if (mergeResult.type === "AlwaysFalse") return {type: "Impossible"};
 
                     normalizedFilters.priorityFilter = mergeResult.filter;
+                }
+                break;
+            }
+            case "Layout": {
+                const normalizeResult = normalizeTaskQueryLayoutFilter(filter);
+                if (normalizeResult.type === "Undefined") continue;
+                if (normalizeResult.type === "AlwaysFalse") return {type: "Impossible"};
+
+                if (!normalizedFilters.layoutFilter) {
+                    normalizedFilters.layoutFilter = normalizeResult.filter;
+                } else {
+                    const mergeResult = mergeTaskQueryLayoutFilters(
+                        normalizedFilters.layoutFilter,
+                        normalizeResult.filter,
+                    );
+                    if (mergeResult.type === "AlwaysFalse") return {type: "Impossible"};
+
+                    normalizedFilters.layoutFilter = mergeResult.filter;
                 }
                 break;
             }
@@ -1027,6 +1065,62 @@ function mergeTaskQueryPriorityFilters(
         return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
     } else if (ifUrgent) {
         return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else {
+        return {type: "AlwaysFalse"};
+    }
+}
+
+function normalizeTaskQueryLayoutFilter(
+    filter: TaskQueryLayoutFilter,
+):
+    | {type: "Filter"; filter: TaskQueryLayoutNormalizedFilter}
+    | {type: "Undefined"}
+    | {type: "AlwaysFalse"} {
+    // NOTE(calebmer): Eventually we should evolve this to `ReadonlySet<TaskLayout | null>`
+    // but right now our UI only supports filtering "is project" and "is not project". We
+    // don't want the data model to support filters our UI won't render.
+    const layouts = cast<ReadonlyArray<TaskLayout | null>>(filter.operation.layouts);
+
+    if (layouts.length === 0) return {type: "Undefined"};
+
+    let ifNull: boolean;
+    let ifProject: boolean;
+
+    switch (filter.operation.type) {
+        case "OneOf": {
+            ifNull = layouts.includes(null);
+            ifProject = layouts.includes("Project");
+            break;
+        }
+        case "NoneOf": {
+            ifNull = !layouts.includes(null);
+            ifProject = !layouts.includes("Project");
+            break;
+        }
+        default:
+            throw exhaustive(filter.operation);
+    }
+
+    if (ifNull) {
+        return {type: "Filter", filter: {ifNull, ifProject}};
+    } else if (ifProject) {
+        return {type: "Filter", filter: {ifNull, ifProject}};
+    } else {
+        return {type: "AlwaysFalse"};
+    }
+}
+
+function mergeTaskQueryLayoutFilters(
+    filter1: TaskQueryLayoutNormalizedFilter,
+    filter2: TaskQueryLayoutNormalizedFilter,
+): {type: "Filter"; filter: TaskQueryLayoutNormalizedFilter} | {type: "AlwaysFalse"} {
+    const ifNull = filter1.ifNull && filter2.ifNull;
+    const ifProject = filter1.ifProject && filter2.ifProject;
+
+    if (ifNull) {
+        return {type: "Filter", filter: {ifNull, ifProject}};
+    } else if (ifProject) {
+        return {type: "Filter", filter: {ifNull, ifProject}};
     } else {
         return {type: "AlwaysFalse"};
     }

@@ -27,16 +27,6 @@ globalStyle(`${textCursorNotInheritedClassName} > *`, {
     cursor: "default",
 });
 
-export const textCursorNotInherited2ClassName = style({
-    cursor: "text",
-});
-
-globalStyle(`${textCursorNotInherited2ClassName} > * > *`, {
-    // Our `:root` cursor is explicitly set to `"default"` so `userSelect: "none"`
-    // text always has a default cursor.
-    cursor: "default",
-});
-
 export const rowTitleInputEmptyContainerClassName = style({});
 
 export const rowTitleInputPlaceholderClassName = style({
@@ -172,10 +162,24 @@ export const rowTitleInputMultilineAfterClassName = style({
     },
 });
 
+const detailNotesContentEditorMinParagraphCount = 2;
+
 export const detailNotesContentEditorMinHeightPx = mapObjectValues(
     paragraphLineHeightPx,
     (paragraphLineHeight, spacingScale) =>
-        paragraphLineHeight * 2 + convertRemLengthToPx(paragraphMargin, spacingScale) * 1,
+        paragraphLineHeight * detailNotesContentEditorMinParagraphCount +
+        convertRemLengthToPx(paragraphMargin, spacingScale) *
+            (detailNotesContentEditorMinParagraphCount - 1),
+);
+
+const projectDetailNotesContentEditorMinParagraphCount = 4;
+
+export const projectDetailNotesContentEditorMinHeightPx = mapObjectValues(
+    paragraphLineHeightPx,
+    (paragraphLineHeight, spacingScale) =>
+        paragraphLineHeight * projectDetailNotesContentEditorMinParagraphCount +
+        convertRemLengthToPx(paragraphMargin, spacingScale) *
+            (projectDetailNotesContentEditorMinParagraphCount - 1),
 );
 
 export const detailNotesContentEditorClassName = style({
@@ -193,6 +197,25 @@ export const detailNotesContentEditorClassName = style({
         [`${largeSpacingScaleSelector} &, ${largeSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
             {
                 minHeight: detailNotesContentEditorMinHeightPx.large,
+            },
+    },
+});
+
+export const projectDetailNotesContentEditorClassName = style({
+    height: "100%",
+    selectors: {
+        // We need the `${containerClassName} > ${docClassName}` selectors to make sure
+        // we override the `min-height: 100%` set with the same selector.
+        [`&, ${containerClassName} > ${docClassName}&`]: {
+            minHeight: projectDetailNotesContentEditorMinHeightPx.small,
+        },
+        [`${mediumSpacingScaleSelector} &, ${mediumSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
+            {
+                minHeight: projectDetailNotesContentEditorMinHeightPx.medium,
+            },
+        [`${largeSpacingScaleSelector} &, ${largeSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
+            {
+                minHeight: projectDetailNotesContentEditorMinHeightPx.large,
             },
     },
 });

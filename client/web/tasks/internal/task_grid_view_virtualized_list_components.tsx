@@ -24,7 +24,6 @@ import {maintainTextInputVisibility} from "~/client/web/design/use_text_input_vi
 import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
-import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {TaskRowShimmer} from "~/client/web/shimmer/task_row_shimmer.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
@@ -36,8 +35,6 @@ import {
 import {
     taskGridViewExplicitLoadMoreButtonHeight,
     taskGridViewMoreUnloadedTasksHeight,
-    taskGridViewPaddingBottomWithNext,
-    taskGridViewPaddingBottomWithoutNext,
     taskRowViewMinHeight,
 } from "~/client/web/styles/tasks_shared_styles.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/web/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
@@ -56,8 +53,15 @@ import {
     TaskGridViewVirtualizedListViewRef,
 } from "~/client/web/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskRowView, TaskRowViewRef} from "~/client/web/tasks/internal/task_row_view.js";
+import {TaskRowViewPaddingBottom} from "~/client/web/tasks/internal/task_row_view_padding_bottom.js";
 import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
-import {Spacing, addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -80,6 +84,7 @@ function TaskGridViewColumnHeader(
     {
         hasColumns,
         withoutAssigneeField,
+        titleFieldLabel,
         columnHeaderControls,
         minHeight,
         offset,
@@ -87,6 +92,7 @@ function TaskGridViewColumnHeader(
     }: {
         hasColumns: boolean;
         withoutAssigneeField: boolean;
+        titleFieldLabel: string | undefined;
         columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
         minHeight: number;
         offset: number;
@@ -96,6 +102,11 @@ function TaskGridViewColumnHeader(
 ) {
     const columnHeaderContainerRef = useRef<HTMLDivElement>(null);
 
+    // Collection cell overlay renders above this `z-index` whereas `<TaskRowView>`
+    // with `z-index` updated via `<TaskRowViewDroppable>` renders below this
+    // `z-index`.
+    const zIndex = 45;
+
     return (
         <Box
             ref={columnHeaderContainerRef}
@@ -103,6 +114,7 @@ function TaskGridViewColumnHeader(
                 shouldRenderWithRelativePositioning
                     ? {
                           position: "relative",
+                          zIndex,
                       }
                     : {
                           position: "absolute",
@@ -110,12 +122,10 @@ function TaskGridViewColumnHeader(
                           left: 0,
                           right: 0,
                           bottom: 0,
+                          zIndex,
                       }
             }
             pointerEvents="none"
-            // Default to 30. Our `useEffect()` hook above will update the `z-index` when
-            // the column header is stuck.
-            zIndex="30"
         >
             <Box
                 ref={virtualizedItemRef}
@@ -151,6 +161,7 @@ function TaskGridViewColumnHeader(
                     {hasColumns && (
                         <TaskGridViewActualColumnHeader
                             withoutAssigneeField={withoutAssigneeField}
+                            titleFieldLabel={titleFieldLabel}
                         />
                     )}
                 </OverlayScopeContextProvider>
@@ -339,85 +350,88 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         relativeItemIndex,
         isFirstRow,
         withoutBorderTopIfFirstRow,
+        paddingTop,
         withPaddingBottom,
         hasNextGridView,
+        hasDecorativeGhostRowBackground,
         focusPreviousTaskTitleEnd,
         focusPreviousTaskTitleAll,
     }: {
         rowMaxWidth: Spacing | null;
         isInert: boolean;
         structuralItemKeyPrefix: string;
-        hasColumnHeader: boolean;
         relativeItemIndex: number;
         isFirstRow: boolean;
         withoutBorderTopIfFirstRow: boolean;
+        paddingTop?: RemLength;
         withPaddingBottom: boolean;
         hasNextGridView: boolean;
-        focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
-        focusPreviousTaskTitleAll: Memo<(key: string) => void>;
+        hasDecorativeGhostRowBackground: boolean;
+        focusPreviousTaskTitleEnd: Memo<(key: string) => void> | undefined;
+        focusPreviousTaskTitleAll: Memo<(key: string) => void> | undefined;
     }) {
-        const platform = usePlatform();
+        const focusTitleEnd = () => {
+            focusPreviousTaskTitleEnd?.(
+                `${structuralItemKeyPrefix}DecorativeGhostTask:${relativeItemIndex}`,
+            );
+        };
+
+        const focusTitleAll = () => {
+            focusPreviousTaskTitleAll?.(
+                `${structuralItemKeyPrefix}DecorativeGhostTask:${relativeItemIndex}`,
+            );
+        };
 
         return (
-            <Box
-                paddingX={screenPaddingX}
-                maxWidth={rowMaxWidth ?? undefined}
-                marginX="center"
-                // Create an illusion that the text editor extends into the margins by giving
-                // the margin a text cursor and making it clickable putting focus in the task.
-                // A double click selects the task text.
-                //
-                // This is an affordance for mouse users, does not need to be usable
-                // by keyboard.
-                cursor={!isInert ? "text" : undefined}
-                {...useOutOfBoundsClickSelection({
-                    isDisabled: isInert,
-                    onSelect: () =>
-                        focusPreviousTaskTitleEnd(
-                            `${structuralItemKeyPrefix}DecorativeGhostTask:${relativeItemIndex}`,
-                        ),
-                    onSelectAll: () =>
-                        focusPreviousTaskTitleAll(
-                            `${structuralItemKeyPrefix}DecorativeGhostTask:${relativeItemIndex}`,
-                        ),
-                })}
-            >
+            <>
                 <Box
-                    width="full"
-                    height={taskRowViewMinHeight}
-                    pointerEvents="none"
-                    style={{
-                        // Draw the top and bottom border with a shadow so it:
-                        //
-                        // 1. Doesn't add 2px to layout
-                        // 2. Adjacent borders share the same space so we don't get 2px dividers
-                        boxShadow:
-                            // The column header in a grid view renders a semi-translucent grey border. To
-                            // avoid drawing a border darker than `grey-5` at the top of the screen if this
-                            // is the first row in a grid with columns then only render a bottom border.
-                            isFirstRow && withoutBorderTopIfFirstRow
-                                ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
-                                : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                    }}
-                />
-                {withPaddingBottom && (
+                    paddingX={screenPaddingX}
+                    maxWidth={rowMaxWidth ?? undefined}
+                    marginX="center"
+                    style={{paddingTop}}
+                    // Create an illusion that the text editor extends into the margins by giving
+                    // the margin a text cursor and making it clickable putting focus in the task.
+                    // A double click selects the task text.
+                    //
+                    // This is an affordance for mouse users, does not need to be usable
+                    // by keyboard.
+                    cursor={!isInert ? "text" : undefined}
+                    {...useOutOfBoundsClickSelection({
+                        isDisabled: isInert,
+                        onSelect: focusTitleEnd,
+                        onSelectAll: focusTitleAll,
+                    })}
+                >
                     <Box
                         width="full"
-                        height={
-                            hasNextGridView
-                                ? taskGridViewPaddingBottomWithNext
-                                : taskGridViewPaddingBottomWithoutNext
-                        }
+                        height={taskRowViewMinHeight}
                         pointerEvents="none"
                         style={{
-                            height:
-                                platform === "mobile" && !hasNextGridView
-                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskGridViewPaddingBottomWithoutNext]})`
-                                    : undefined,
+                            // Draw the top and bottom border with a shadow so it:
+                            //
+                            // 1. Doesn't add 2px to layout
+                            // 2. Adjacent borders share the same space so we don't get 2px dividers
+                            boxShadow:
+                                // The column header in a grid view renders a semi-translucent grey border. To
+                                // avoid drawing a border darker than `grey-5` at the top of the screen if this
+                                // is the first row in a grid with columns then only render a bottom border.
+                                isFirstRow && withoutBorderTopIfFirstRow
+                                    ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
+                                    : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                         }}
                     />
+                </Box>
+                {withPaddingBottom && (
+                    <TaskRowViewPaddingBottom
+                        rowMaxWidth={rowMaxWidth}
+                        isInert={isInert}
+                        hasNextGridView={hasNextGridView}
+                        hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
+                        focusTitleEnd={focusTitleEnd}
+                        focusTitleAll={focusTitleAll}
+                    />
                 )}
-            </Box>
+            </>
         );
     },
 );
@@ -610,6 +624,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     withoutPaddingLeft,
     withPaddingBottom,
     hasNextGridView,
+    hasDecorativeGhostRowBackground,
     mobileKeyboardToolbarPortalRef,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
@@ -651,6 +666,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     withoutPaddingLeft?: boolean;
     withPaddingBottom?: boolean;
     hasNextGridView: boolean;
+    hasDecorativeGhostRowBackground: boolean;
     mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement | null>;
 }) {
     const {timeZone} = useClientInfo();
@@ -1382,6 +1398,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             withoutPaddingLeft={withoutPaddingLeft}
             withPaddingBottom={withPaddingBottom}
             hasNextGridView={hasNextGridView}
+            hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
             getMoveTaskToRootQueryActions={events.getMoveTaskToRootQueryActions}
             getMoveTaskToQueryActions={getMoveTaskToQueryActions}
             getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}

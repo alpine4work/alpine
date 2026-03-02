@@ -29,7 +29,6 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
-import {tasksStyles} from "~/client/web/styles/styles.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {
@@ -61,7 +60,6 @@ import {
     TaskQueryViewCustomizationMobileSection,
     TaskQueryViewCustomizationMobileSectionRef,
 } from "~/client/web/tasks/internal/task_query_view_customization_mobile_section.js";
-import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskCollectionMobileEditor} from "~/client/web/tasks/task_collection_mobile_editor.js";
 import {useTaskQueryState} from "~/client/web/tasks/use_task_query_state.js";
 import {
@@ -602,7 +600,6 @@ export function TaskCollectionView({
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
-        focusEnd: focusGridViewEnd,
         undo,
         redo,
     } = useTaskGridViewVirtualizedList({
@@ -779,6 +776,7 @@ export function TaskCollectionView({
         desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
         shareButton: accessPolicy
             ? {
+                  isReadOnly: !collectionSubscription,
                   entityNoun: "task collection",
                   entityId: `TaskCollection:${collectionId}`,
                   accessPolicy,
@@ -883,19 +881,6 @@ export function TaskCollectionView({
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            className={
-                hasEditAccessLevel ? tasksStyles.textCursorNotInherited2ClassName : undefined
-            }
-            {...useOutOfBoundsClickSelection({
-                isDisabled: !hasEditAccessLevel,
-                // Accept clicks on our `<VirtualizedScrollView>` child too.
-                accept: event =>
-                    event.target === event.currentTarget ||
-                    (event.target instanceof Element &&
-                        event.target.parentElement === event.currentTarget),
-                onSelect: () => focusGridViewEnd(),
-                onSelectAll: () => focusGridViewEnd(),
-            })}
         >
             {gridViewModals}
             <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>

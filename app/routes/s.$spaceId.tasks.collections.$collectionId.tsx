@@ -415,11 +415,16 @@ function TaskCollectionRouteInner() {
         if (!collectionSubscription) return;
 
         if (searchParams.has("create") || searchParams.has("focus") || searchParams.has("color")) {
-            const newSearchParams = new URLSearchParams(searchParams);
-            newSearchParams.delete("create");
-            newSearchParams.delete("focus");
-            newSearchParams.delete("color");
-            setSearchParams(newSearchParams, {replace: true});
+            setSearchParams(
+                oldSearchParams => {
+                    const newSearchParams = new URLSearchParams(oldSearchParams);
+                    newSearchParams.delete("create");
+                    newSearchParams.delete("focus");
+                    newSearchParams.delete("color");
+                    return newSearchParams;
+                },
+                {replace: true},
+            );
         }
     }, [collectionSubscription, searchParams, setSearchParams]);
 

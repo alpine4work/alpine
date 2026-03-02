@@ -62,5 +62,6 @@ export function createEmptyTaskIndexDoc(
         title: {raw: emptyTaskTitle.get()},
         dueDate: new TaskDueDateRegister(null, actionTime),
         priority: new TaskPriorityRegister(null, actionTime),
+        layout: null,
     };
 }

@@ -19,6 +19,7 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
         DeleteDefaultGrant: () => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
             const collections = task?.getCollections().getArray() ?? emptyArray;
+            const noun = task?.getLayout() === "Project" ? "project" : "task";
 
             const firstCollectionWithDefaultGrant = findMapIterable(
                 collections,
@@ -37,14 +38,15 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
             );
 
             if (!firstCollectionWithDefaultGrant) {
-                return `This task is public because the parent task is shared with everyone in ${space.name}. Try making the parent task private.`;
+                return `This ${noun} is public because the parent task is shared with everyone in ${space.name}. Try making the parent task private.`;
             } else {
-                return `This task is public because it\u2019s in the \u201C${firstCollectionWithDefaultGrant.getName()}\u201D collection which is shared with everyone in ${space.name}. Try removing the task from public collections.`;
+                return `This ${noun} is public because it\u2019s in the \u201C${firstCollectionWithDefaultGrant.getName()}\u201D collection which is shared with everyone in ${space.name}. Try removing the ${noun} from public collections.`;
             }
         },
         SetDefaultGrantLevel: accessLevel => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
             const collections = task?.getCollections().getArray() ?? emptyArray;
+            const noun = task?.getLayout() === "Project" ? "project" : "task";
 
             const firstCollectionWithDefaultGrant = findMapIterable(
                 collections,
@@ -82,14 +84,15 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
             }
 
             if (!firstCollectionWithDefaultGrant) {
-                return `You can ${permissionDescription} this task because the parent task is shared with everyone in ${space.name}. Try removing \u201C${defaultAccessLevelText[accessLevel]}\u201D access from the parent task.`;
+                return `You can ${permissionDescription} this ${noun} because the parent task is shared with everyone in ${space.name}. Try removing \u201C${defaultAccessLevelText[accessLevel]}\u201D access from the parent task.`;
             } else {
-                return `You can ${permissionDescription} this task because it\u2019s in the \u201C${firstCollectionWithDefaultGrant.getName()}\u201D collection which is shared with everyone in ${space.name}. Try removing the task from collections with \u201C${defaultAccessLevelText[accessLevel]}\u201D access.`;
+                return `You can ${permissionDescription} this ${noun} because it\u2019s in the \u201C${firstCollectionWithDefaultGrant.getName()}\u201D collection which is shared with everyone in ${space.name}. Try removing the ${noun} from collections with \u201C${defaultAccessLevelText[accessLevel]}\u201D access.`;
             }
         },
         DeleteUrlGrant: () => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
             const collections = task?.getCollections().getArray() ?? emptyArray;
+            const noun = task?.getLayout() === "Project" ? "project" : "task";
 
             const firstCollectionWithUrlGrant = findMapIterable(collections, ({collectionId}) => {
                 const collection = taskSubscription
@@ -105,18 +108,19 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
             });
 
             if (!firstCollectionWithUrlGrant) {
-                return `This task is public because the parent task is shared to anyone with the link. Try making the parent task private.`;
+                return `This ${noun} is public because the parent task is shared to anyone with the link. Try making the parent task private.`;
             } else {
-                return `This task is public because it\u2019s in the \u201C${firstCollectionWithUrlGrant.getName()}\u201D collection which is shared to anyone with the link. Try removing the task from public collections.`;
+                return `This ${noun} is public because it\u2019s in the \u201C${firstCollectionWithUrlGrant.getName()}\u201D collection which is shared to anyone with the link. Try removing the ${noun} from public collections.`;
             }
         },
         DeleteAccountGrant: (accountId: AccountId) => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
             const collections = task?.getCollections().getArray() ?? emptyArray;
+            const noun = task?.getLayout() === "Project" ? "project" : "task";
 
             const assigneeAccountId = task?.getAssignee()?.assignee.accountId;
             if (assigneeAccountId === accountId) {
-                return "This person has access to the task because they\u2019re assigned to it. Try removing them as task assignee.";
+                return `This person has access to the ${noun} because they\u2019re assigned to it. Try unassigning them.`;
             }
 
             const firstCollectionWithAccountGrant = findMapIterable(
@@ -136,14 +140,15 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
             );
 
             if (!firstCollectionWithAccountGrant) {
-                return `This person has access to the task because the parent task is shared with them. Try removing their access from the parent task.`;
+                return `This person has access to the ${noun} because the parent task is shared with them. Try removing their access from the parent task.`;
             } else {
-                return `This person has access to the task because the \u201C${firstCollectionWithAccountGrant.getName()}\u201D collection is shared with them. Try removing the task from collections shared with this person.`;
+                return `This person has access to the ${noun} because the \u201C${firstCollectionWithAccountGrant.getName()}\u201D collection is shared with them. Try removing the ${noun} from collections shared with this person.`;
             }
         },
         SetAccountGrantLevel: (accountId: AccountId, accessLevel) => {
             const task = taskSubscription?.taskEntryStore.getSnapshot().task;
             const collections = task?.getCollections().getArray() ?? emptyArray;
+            const noun = task?.getLayout() === "Project" ? "project" : "task";
 
             let permissionDescription: string;
             switch (accessLevel) {
@@ -163,7 +168,7 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
 
             const assigneeAccountId = task?.getAssignee()?.assignee.accountId;
             if (assigneeAccountId === accountId) {
-                return `This person can ${permissionDescription} the task because they\u2019re assigned to it. Try removing them as task assignee.`;
+                return `This person can ${permissionDescription} the ${noun} because they\u2019re assigned to it. Try unassigning them.`;
             }
 
             const firstCollectionWithAccountGrant = findMapIterable(
@@ -184,9 +189,9 @@ export function createTaskDetailViewInheritedAccessPolicyExplanations({
             );
 
             if (!firstCollectionWithAccountGrant) {
-                return `This person can ${permissionDescription} the task because the parent task is shared with them. Try removing their \u201C${defaultAccessLevelText[accessLevel]}\u201D access from the parent task.`;
+                return `This person can ${permissionDescription} the ${noun} because the parent task is shared with them. Try removing their \u201C${defaultAccessLevelText[accessLevel]}\u201D access from the parent task.`;
             } else {
-                return `This person can ${permissionDescription} the task because the \u201C${firstCollectionWithAccountGrant.getName()}\u201D collection is shared with them. Try removing the task from collections where this person has \u201C${defaultAccessLevelText[accessLevel]}\u201D access.`;
+                return `This person can ${permissionDescription} the ${noun} because the \u201C${firstCollectionWithAccountGrant.getName()}\u201D collection is shared with them. Try removing the ${noun} from collections where this person has \u201C${defaultAccessLevelText[accessLevel]}\u201D access.`;
             }
         },
     };

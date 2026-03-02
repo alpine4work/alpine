@@ -20,7 +20,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {inputPlaceholderStyles, tasksStyles} from "~/client/web/styles/styles.js";
+import {inputPlaceholderStyles} from "~/client/web/styles/styles.js";
 import {
     defaultTaskQueryViewName,
     taskQueryViewCustomizationMobileLayoutMarginTop,
@@ -52,7 +52,6 @@ import {
     TaskQueryViewDesktopHeaderName,
     TaskQueryViewDesktopHeaderNameRef,
 } from "~/client/web/tasks/internal/task_query_view_desktop_header_name.js";
-import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskQueryState} from "~/client/web/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
@@ -372,7 +371,6 @@ export function TaskQueryView({
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
-        focusEnd: focusGridViewEnd,
         undo,
         redo,
     } = useTaskGridViewVirtualizedList({
@@ -405,11 +403,13 @@ export function TaskQueryView({
         // Don't render the three decorative ghost rows on mobile when we're rendering
         // the instructional view component. This allows us to visually center the new
         // view instructions.
-        withoutDecorativeGhostRowsIfEmpty:
+        decorativeGhostRows:
             routeLayout === "narrow" &&
             platform === "mobile" &&
             !queryState.activeQuery.isAvailable &&
-            queryState.activeQuery.isMissingRequiredFilters,
+            queryState.activeQuery.isMissingRequiredFilters
+                ? "BackgroundIfNotEmpty"
+                : "BackgroundOrSomeIfEmpty",
         // NOTE(calebmer): Currently, all updates which use this are disabled in
         // auto-sorted views:
         //
@@ -584,19 +584,6 @@ export function TaskQueryView({
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            className={
-                queryState.activeQuery ? tasksStyles.textCursorNotInherited2ClassName : undefined
-            }
-            {...useOutOfBoundsClickSelection({
-                isDisabled: !queryState.activeQuery,
-                // Accept clicks on our `<VirtualizedScrollView>` child too.
-                accept: event =>
-                    event.target === event.currentTarget ||
-                    (event.target instanceof Element &&
-                        event.target.parentElement === event.currentTarget),
-                onSelect: () => focusGridViewEnd(),
-                onSelectAll: () => focusGridViewEnd(),
-            })}
         >
             {gridViewModals}
             <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>

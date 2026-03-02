@@ -45,8 +45,6 @@ import {
     tasksStyles,
 } from "~/client/web/styles/styles.js";
 import {
-    taskGridViewPaddingBottomWithNext,
-    taskGridViewPaddingBottomWithoutNext,
     taskRowViewDragHandleWidth,
     taskRowViewDragHandleWidthRem,
     taskRowViewExpandButtonWidth,
@@ -99,6 +97,7 @@ import {
 } from "~/client/web/tasks/internal/task_row_view_dense_fields.js";
 import {TaskRowViewDroppable} from "~/client/web/tasks/internal/task_row_view_droppable.js";
 import {renderTaskRowViewDroppableIndentations} from "~/client/web/tasks/internal/task_row_view_droppable_indentations.js";
+import {TaskRowViewPaddingBottom} from "~/client/web/tasks/internal/task_row_view_padding_bottom.js";
 import {TaskStatusButton} from "~/client/web/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskGridViewDraggableData} from "~/client/web/tasks/task_grid_view_dnd_context.js";
@@ -277,16 +276,6 @@ const titleCellClassName = sprinkles({
     pointerEvents: "none",
 });
 
-const paddingBottomWithNextGridViewClassName = sprinkles({
-    width: "full",
-    height: taskGridViewPaddingBottomWithNext,
-});
-
-const paddingBottomWithoutNextGridViewClassName = sprinkles({
-    width: "full",
-    height: taskGridViewPaddingBottomWithoutNext,
-});
-
 function TaskRowView(
     {
         capabilities,
@@ -313,6 +302,7 @@ function TaskRowView(
         withoutPaddingLeft,
         withPaddingBottom,
         hasNextGridView,
+        hasDecorativeGhostRowBackground,
         getMoveTaskToQueryActions,
         getMoveTaskToRootQueryActions,
         getMaybeRemoveTaskFromQueryActions,
@@ -362,6 +352,7 @@ function TaskRowView(
         withoutPaddingLeft?: boolean;
         withPaddingBottom?: boolean;
         hasNextGridView: boolean;
+        hasDecorativeGhostRowBackground: boolean;
         getMoveTaskToQueryActions: (
             taskId: TaskId,
             position:
@@ -1952,8 +1943,10 @@ function TaskRowView(
             </ContextMenuActions>
             {withPaddingBottom && (
                 <TaskRowViewPaddingBottom
-                    hasEditAccessLevel={hasEditAccessLevel}
+                    rowMaxWidth={rowMaxWidth}
+                    isInert={!hasEditAccessLevel}
                     hasNextGridView={hasNextGridView}
+                    hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
                     focusTitleEnd={focusTitleEnd}
                     focusTitleAll={focusTitleAll}
                 />
@@ -2141,42 +2134,6 @@ function TaskRowViewDragAfterLongTouchController({
                 left: 0,
                 width: 0,
             }}
-        />
-    );
-}
-
-function TaskRowViewPaddingBottom({
-    hasEditAccessLevel,
-    hasNextGridView,
-    focusTitleEnd,
-    focusTitleAll,
-}: {
-    hasEditAccessLevel: boolean;
-    hasNextGridView: boolean;
-    focusTitleEnd: () => void;
-    focusTitleAll: () => void;
-}) {
-    const platform = usePlatform();
-
-    return (
-        <div
-            className={
-                hasNextGridView
-                    ? paddingBottomWithNextGridViewClassName
-                    : paddingBottomWithoutNextGridViewClassName
-            }
-            style={{
-                cursor: hasEditAccessLevel ? "text" : undefined,
-                height:
-                    platform === "mobile" && !hasNextGridView
-                        ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskGridViewPaddingBottomWithoutNext]})`
-                        : undefined,
-            }}
-            {...useOutOfBoundsClickSelection({
-                isDisabled: !hasEditAccessLevel,
-                onSelect: focusTitleEnd,
-                onSelectAll: focusTitleAll,
-            })}
         />
     );
 }

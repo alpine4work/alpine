@@ -86,7 +86,7 @@ export function renderMessageListItem<
     shouldAddMarginBottom?: boolean | string;
     isReadOnly?: boolean;
     render?: (node: ReactNode) => ReactElement;
-}): VirtualizedScrollViewItem {
+}): VirtualizedScrollViewItem & {renderAdditionalItemIndexes?: readonly []} {
     switch (item.type) {
         case "Loaded":
         case "Unloaded":

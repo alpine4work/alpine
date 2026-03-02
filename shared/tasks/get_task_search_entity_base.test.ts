@@ -78,6 +78,7 @@ function makeRawData({
         title: new TaskTitleModel(createTaskTitleFromText(title)),
         dueDate: new TaskDueDateRegister(null, createdTime),
         priority: new TaskPriorityRegister(null, createdTime),
+        layout: null,
     };
 }
 

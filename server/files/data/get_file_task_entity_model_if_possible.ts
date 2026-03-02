@@ -102,6 +102,7 @@ export async function getFileTaskEntityModelIfPossible(
                     title: emptyTaskTitleModel.get(),
                     dueDate: new TaskDueDateRegister(null, zeroHybridLogicalTime),
                     priority: new TaskPriorityRegister(null, zeroHybridLogicalTime),
+                    layout: null,
                 }),
                 assignee: null,
                 parent: null,

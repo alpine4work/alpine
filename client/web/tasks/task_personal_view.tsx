@@ -30,12 +30,13 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {
+    backgroundFontSizePercentage,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
-    tasksStyles,
 } from "~/client/web/styles/styles.js";
 import {
     taskGridViewColumnHeaderHeight,
@@ -58,6 +59,7 @@ import {
     useTaskGridViewVirtualizedListItemAnimation,
     useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard,
 } from "~/client/web/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskGridViewDecorativeGhostTaskMemo} from "~/client/web/tasks/internal/task_grid_view_virtualized_list_components.js";
 import {
     TaskGridViewVirtualizedListAnimation,
     taskAnimationDurationMs,
@@ -71,7 +73,6 @@ import {
     TaskQueryViewCustomizationMobileSection,
     TaskQueryViewCustomizationMobileSectionRef,
 } from "~/client/web/tasks/internal/task_query_view_customization_mobile_section.js";
-import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     TaskUndoStackEntry,
     useTaskUndoStackState,
@@ -86,14 +87,16 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
+import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
     RemLength,
-    Spacing,
     addRemLengths,
     parseRemLength,
     screenPaddingX,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
 import {concatReadonlyArrays} from "~/shared/helpers/array/concat_readonly_arrays.js";
@@ -482,12 +485,9 @@ export function TaskPersonalView({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: routeLayout !== "narrow",
         withoutDisappearingTitle: true,
-        title:
-            platform === "mobile" ? (
-                "My tasks"
-            ) : (
-                <TaskPersonalNavigationBarTitleDesktop paddingLeft="0" />
-            ),
+        title: "My tasks",
+        desktopTitleFontSize: "400",
+        desktopTitleFontWeight: "bold",
         menuActions: navigationBarMenuActions,
     });
 
@@ -636,7 +636,6 @@ export function TaskPersonalView({
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTask: true,
-        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -825,7 +824,6 @@ export function TaskPersonalView({
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTask: true,
-        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1022,7 +1020,6 @@ export function TaskPersonalView({
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTask: true,
-        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1222,7 +1219,6 @@ export function TaskPersonalView({
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTask: true,
-        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1426,7 +1422,7 @@ export function TaskPersonalView({
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTask: true,
-        withoutDecorativeGhostRows: true,
+
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1545,8 +1541,27 @@ export function TaskPersonalView({
         [previousGridViewAnimations, remainingGridViewHeaderAnimations],
     );
 
+    const remainingStructuralItemKeyPrefix = "Remaining-";
+
+    const remainingPreviousGridViewResult = !isClosedGridViewEmpty
+        ? closedGridViewResult
+        : !isDueSoonGridViewEmpty
+          ? dueSoonGridViewResult
+          : !isDueTodayGridViewEmpty
+            ? dueTodayGridViewResult
+            : !isOverdueGridViewEmpty
+              ? overdueGridViewResult
+              : !isActiveGridViewEmpty
+                ? activeGridViewResult
+                : undefined;
+
+    const remainingPreviousFocusLastTaskTitleEnd =
+        remainingPreviousGridViewResult?.focusLastTaskTitleEnd;
+    const remainingPreviousFocusLastTaskTitleAll =
+        remainingPreviousGridViewResult?.focusLastTaskTitleAll;
+
     const remainingGridViewResult = useTaskGridViewVirtualizedListBase({
-        structuralItemKeyPrefix: "Remaining-",
+        structuralItemKeyPrefix: remainingStructuralItemKeyPrefix,
         capabilities: gridViewCapabilities,
         store,
         query: remainingQuery,
@@ -1624,17 +1639,7 @@ export function TaskPersonalView({
             pushUndoStackEntry({...entry, extra: "Remaining"});
         },
         scrollToAnchorPosition,
-        previousGridView: !isClosedGridViewEmpty
-            ? closedGridViewResult
-            : !isDueSoonGridViewEmpty
-              ? dueSoonGridViewResult
-              : !isDueTodayGridViewEmpty
-                ? dueTodayGridViewResult
-                : !isOverdueGridViewEmpty
-                  ? overdueGridViewResult
-                  : !isActiveGridViewEmpty
-                    ? activeGridViewResult
-                    : undefined,
+        previousGridView: remainingPreviousGridViewResult,
         previousGridViewAnimations,
     });
 
@@ -1642,10 +1647,11 @@ export function TaskPersonalView({
         remainingGridViewResult.stateItemCount === 0 &&
         remainingGridViewResult.loadedState === "FullyLoaded";
 
-    const allOtherSectionsEmpty = !isMaybeRemainingGridViewHeaderVisible;
+    const allSectionsExceptRemainingEmpty = !isMaybeRemainingGridViewHeaderVisible;
+
     const shouldRenderRemainingSection =
         !isRemainingGridViewEmpty ||
-        allOtherSectionsEmpty ||
+        allSectionsExceptRemainingEmpty ||
         // If the user has not applied any filters, always show the remaining section.
         activeFilters.length === 0;
 
@@ -1686,21 +1692,41 @@ export function TaskPersonalView({
      *                                   Render                                   *
     \* ========================================================================== */
 
-    const focusEnd = () => {
-        if (remainingGridViewResult.itemCount > 0) {
-            remainingGridViewResult.focusEnd();
-        } else if (closedGridViewResult.itemCount > 0) {
-            closedGridViewResult.focusEnd();
-        } else if (dueSoonGridViewResult.itemCount > 0) {
-            dueSoonGridViewResult.focusEnd();
-        } else if (dueTodayGridViewResult.itemCount > 0) {
-            dueTodayGridViewResult.focusEnd();
-        } else if (overdueGridViewResult.itemCount > 0) {
-            overdueGridViewResult.focusEnd();
-        } else if (activeGridViewResult.itemCount > 0) {
-            activeGridViewResult.focusEnd();
-        }
-    };
+    const itemCount =
+        // `NavigationBar`
+        1 +
+        (!isActiveGridViewEmpty
+            ? // `ActiveHeader`
+              1 + activeGridViewResult.itemCount
+            : 0) +
+        (!isOverdueGridViewEmpty
+            ? // `OverdueHeader`
+              1 + overdueGridViewResult.itemCount
+            : 0) +
+        (!isDueTodayGridViewEmpty
+            ? // `DueTodayHeader`
+              1 + dueTodayGridViewResult.itemCount
+            : 0) +
+        (!isDueSoonGridViewEmpty
+            ? // `DueSoonHeader`
+              1 + dueSoonGridViewResult.itemCount
+            : 0) +
+        (!isClosedGridViewEmpty
+            ? // `ClosedHeader`
+              1 + closedGridViewResult.itemCount
+            : 0) +
+        (shouldRenderRemainingSection
+            ? (isRemainingGridViewHeaderVisible ? 1 : 0) + remainingGridViewResult.itemCount
+            : // Decorative ghost row rendering decorative ghost row background.
+              1);
+
+    // Make sure we animate that last decorative ghost row!
+    const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForLastDecorativeGhostRow} =
+        useTaskGridViewVirtualizedListItemAnimation(
+            viewRef,
+            previousGridViewAnimations,
+            !shouldRenderRemainingSection ? itemCount - 1 : null,
+        );
 
     // Extract the `renderItem` property so we can call it in `useCallback()`
     // without depending on the whole `activeGridViewResult` object. If we
@@ -1779,7 +1805,7 @@ export function TaskPersonalView({
                             : spacing[navigationBarHeight],
                         withManualLayout: true,
                         render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
-                            <TaskPersonalNavigationBar
+                            <TaskPersonalViewDesktopNavigationBar
                                 itemRef={ref}
                                 store={store}
                                 offset={offset}
@@ -2022,6 +2048,46 @@ export function TaskPersonalView({
                 index -= remainingGridViewResult.itemCount;
             }
 
+            // If we're not rendering the remaining section (because of filters) then we
+            // render a decorative ghost task to get our repeating grid view lines at the
+            // end of personal task view. Otherwise the remaining section is responsible
+            // for rendering our decorative ghost task background.
+            if (!shouldRenderRemainingSection && index === 0) {
+                // We only render this when there's a section that's not the remaining section
+                // visible. If all sections are hidden then we render the remaining section.
+                //
+                // This assert is a precaution to make sure we don't get in a state this code
+                // doesn't expect.
+                assert(!allSectionsExceptRemainingEmpty);
+
+                return {
+                    key: `${remainingStructuralItemKeyPrefix}DecorativeGhostTask:${index}`,
+                    minHeight: spacing[taskRowViewMinHeight],
+                    node: (
+                        <TaskGridViewDecorativeGhostTaskMemo
+                            rowMaxWidth={null}
+                            isInert={gridViewCapabilities.isReadOnly}
+                            structuralItemKeyPrefix={remainingStructuralItemKeyPrefix}
+                            relativeItemIndex={index}
+                            isFirstRow={false}
+                            withoutBorderTopIfFirstRow={false}
+                            // HACK: The previous section will have padding bottom of
+                            // `taskGridViewPaddingBottomWithNext`. Add some padding top to create space
+                            // equivalent to a task row.
+                            paddingTop={subtractRemLengths(
+                                taskRowViewMinHeight,
+                                taskGridViewPaddingBottomWithNext,
+                            )}
+                            withPaddingBottom={true}
+                            hasNextGridView={false}
+                            hasDecorativeGhostRowBackground={true}
+                            focusPreviousTaskTitleEnd={remainingPreviousFocusLastTaskTitleEnd}
+                            focusPreviousTaskTitleAll={remainingPreviousFocusLastTaskTitleAll}
+                        />
+                    ),
+                };
+            }
+
             throw new OutOfRangeError("Index out of personal task view bounds");
         },
         [
@@ -2054,6 +2120,10 @@ export function TaskPersonalView({
             renderClosedGridViewItem,
             remainingGridViewResult.itemCount,
             renderRemainingGridViewItem,
+            allSectionsExceptRemainingEmpty,
+            gridViewCapabilities.isReadOnly,
+            remainingPreviousFocusLastTaskTitleEnd,
+            remainingPreviousFocusLastTaskTitleAll,
         ],
     );
 
@@ -2065,16 +2135,6 @@ export function TaskPersonalView({
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            className={tasksStyles.textCursorNotInherited2ClassName}
-            {...useOutOfBoundsClickSelection({
-                // Accept clicks on our `<VirtualizedScrollView>` child too.
-                accept: event =>
-                    event.target === event.currentTarget ||
-                    (event.target instanceof Element &&
-                        event.target.parentElement === event.currentTarget),
-                onSelect: focusEnd,
-                onSelectAll: focusEnd,
-            })}
         >
             {activeGridViewResult.modals}
             {overdueGridViewResult.modals}
@@ -2087,34 +2147,7 @@ export function TaskPersonalView({
                     ref={viewRef}
                     elementRef={scrollViewRef}
                     bufferedItemHeight={spacing[taskRowViewMinHeight]}
-                    itemCount={
-                        // `NavigationBar`
-                        1 +
-                        (!isActiveGridViewEmpty
-                            ? // `ActiveHeader`
-                              1 + activeGridViewResult.itemCount
-                            : 0) +
-                        (!isOverdueGridViewEmpty
-                            ? // `OverdueHeader`
-                              1 + overdueGridViewResult.itemCount
-                            : 0) +
-                        (!isDueTodayGridViewEmpty
-                            ? // `DueTodayHeader`
-                              1 + dueTodayGridViewResult.itemCount
-                            : 0) +
-                        (!isDueSoonGridViewEmpty
-                            ? // `DueSoonHeader`
-                              1 + dueSoonGridViewResult.itemCount
-                            : 0) +
-                        (!isClosedGridViewEmpty
-                            ? // `ClosedHeader`
-                              1 + closedGridViewResult.itemCount
-                            : 0) +
-                        (shouldRenderRemainingSection
-                            ? (isRemainingGridViewHeaderVisible ? 1 : 0) +
-                              remainingGridViewResult.itemCount
-                            : 0)
-                    }
+                    itemCount={itemCount}
                     alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalItemIndexes}
                     scrollbarInsetTop={
                         routeLayout === "narrow"
@@ -2231,6 +2264,7 @@ export function TaskPersonalView({
                         onRenderedRangeLayoutChangeForDueSoonHeader();
                         onRenderedRangeLayoutChangeForClosedHeader();
                         onRenderedRangeLayoutChangeForRemainingHeader();
+                        onRenderedRangeLayoutChangeForLastDecorativeGhostRow();
 
                         let runningItemCount = 0;
 
@@ -2434,7 +2468,7 @@ function shiftRenderedRange(
     }
 }
 
-const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
+const TaskPersonalViewDesktopNavigationBar = memo(function TaskPersonalViewDesktopNavigationBar({
     itemRef,
     store,
     offset,
@@ -2462,6 +2496,33 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
     sorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
+    const spacingScale = useSpacingScale();
+
+    // We want to baseline align our `fontSize="400"` collection name with our
+    // centered `fontSize="75"` customization bar (filters and sort). Calculate
+    // the offset for center aligned `fontSize="400"` using font metrics.
+    const nameBaselineAlignmentMarginTop = useMemo(() => {
+        const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
+
+        const fontSize75Descender =
+            fontSize75.fontSize *
+            (backgroundFontSizePercentage - 1) *
+            (interFontDescender / (interFontAscender + interFontDescender));
+
+        const fontSize75BottomHalfHeight = fontSize75Descender + fontSize75.fontSize / 2;
+
+        const fontSize400 = fontSizesBySpacingScale["400"][spacingScale];
+
+        const fontSize400Descender =
+            fontSize400.fontSize *
+            (backgroundFontSizePercentage - 1) *
+            (interFontDescender / (interFontAscender + interFontDescender));
+
+        const fontSize400BottomHalfHeight = fontSize400Descender + fontSize400.fontSize / 2;
+
+        return -fontSize400BottomHalfHeight + fontSize75BottomHalfHeight;
+    }, [spacingScale]);
+
     return (
         <div
             className={pointerEventsNoneNotInheritedClassName}
@@ -2486,7 +2547,20 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
                 backgroundColor="grey-0"
             >
                 <Box minHeight={navigationBarHeight} display="flex" paddingRight={screenPaddingX}>
-                    <TaskPersonalNavigationBarTitleDesktop paddingLeft="10" />
+                    <Box
+                        flexShrink="0"
+                        display="flex"
+                        alignItems="center"
+                        height={navigationBarHeight}
+                        paddingLeft="10"
+                    >
+                        <h1
+                            className={sprinkles({fontSize: "400", fontStyle: "bold"})}
+                            style={{marginTop: nameBaselineAlignmentMarginTop}}
+                        >
+                            My tasks
+                        </h1>
+                    </Box>
                     <Box
                         flexShrink="0"
                         alignSelf="stretch"
@@ -2552,26 +2626,6 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
                 )}
             </Box>
         </div>
-    );
-});
-
-const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigationBarTitleDesktop({
-    paddingLeft,
-}: {
-    paddingLeft: Spacing;
-}) {
-    return (
-        <Box
-            flexShrink="0"
-            display="flex"
-            alignItems="center"
-            height={navigationBarHeight}
-            paddingLeft={paddingLeft}
-        >
-            <Box display="flex" alignItems="center" gap="3">
-                <h1 className={sprinkles({fontSize: "400", fontStyle: "bold"})}>My tasks</h1>
-            </Box>
-        </Box>
     );
 });
 

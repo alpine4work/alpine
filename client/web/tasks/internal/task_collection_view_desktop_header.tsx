@@ -142,7 +142,12 @@ function TaskCollectionViewDesktopHeader(
     );
 
     return (
-        <Box minHeight={navigationBarHeight} display="flex" paddingX={screenPaddingX}>
+        <Box
+            flexShrink="0"
+            minHeight={navigationBarHeight}
+            display="flex"
+            paddingX={screenPaddingX}
+        >
             <Box
                 height={navigationBarHeight}
                 display="flex"
@@ -208,6 +213,7 @@ function TaskCollectionViewDesktopHeader(
                 {currentAccount && (
                     <Box paddingRight="3">
                         <ShareButton
+                            isReadOnly={!collectionSubscription}
                             entityNoun="task collection"
                             entityId={`TaskCollection:${collectionId}`}
                             accessPolicy={accessPolicy}

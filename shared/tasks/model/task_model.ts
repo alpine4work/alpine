@@ -37,6 +37,7 @@ import {
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskLayout, TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
 import {TaskPosition, TaskPositionRegister} from "~/shared/tasks/task_position.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
@@ -73,6 +74,7 @@ assertEqualTypes<
     | "UpdateTitle"
     | "UpdateDueDate"
     | "UpdatePriority"
+    | "UpdateLayout"
     | "UpdateAccessPolicy"
     | "UpdateNotepadPagePosition"
     | "UpdateAssigneeActivePosition"
@@ -112,6 +114,7 @@ const TaskModelDataSchema = Schema.object({
     title: TaskTitleModel.schema,
     dueDate: TaskDueDateRegister.schema,
     priority: TaskPriorityRegister.schema,
+    layout: TaskLayoutRegister.schema.nullable().default(null),
 });
 
 // An inactive assignee status object we can return to maintain referential
@@ -193,6 +196,7 @@ export class TaskModel {
             title: emptyTaskTitleModel.get(),
             dueDate: new TaskDueDateRegister(null, actionTime),
             priority: new TaskPriorityRegister(null, actionTime),
+            layout: null,
         });
     }
 
@@ -467,6 +471,20 @@ export class TaskModel {
             });
         }
 
+        // Layout
+        const layout = this.getLayout();
+        if (layout !== null) {
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout,
+                },
+            });
+        }
+
         return {
             taskId,
             actions,
@@ -609,6 +627,10 @@ export class TaskModel {
     public getPriority() {
         return this.rawData.priority.value;
     }
+
+    public getLayout(): TaskLayout | null {
+        return this.rawData.layout?.value ?? null;
+    }
 }
 
 function tickTaskModelData(task: TaskModelData, clock: {tick(time: HybridLogicalTime): void}) {
@@ -626,4 +648,5 @@ function tickTaskModelData(task: TaskModelData, clock: {tick(time: HybridLogical
     clock.tick(task.assigneePosition.version);
     clock.tick(task.dueDate.version);
     clock.tick(task.priority.version);
+    if (task.layout) clock.tick(task.layout.version);
 }

@@ -15,7 +15,10 @@ import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
-import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
+import {
+    getCurrentDate,
+    useCurrentDate,
+} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -30,6 +33,7 @@ import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/c
 import {unknownTaskQueryFromServerRetentionPeriodMs} from "~/client/web/tasks/core/task_realtime_client.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/web/tasks/get_task_grid_view_load_query_limit.js";
+import {normalizeTaskDetailViewQuery} from "~/client/web/tasks/normalize_task_detail_view_query.js";
 import {TaskDetailView} from "~/client/web/tasks/task_detail_view.js";
 import {taskDetailViewLoadMoreChildTasksLimit} from "~/client/web/tasks/task_detail_view_load_more_child_tasks_limit.js";
 import {TaskGridViewDndContext} from "~/client/web/tasks/task_grid_view_dnd_context.js";
@@ -39,10 +43,11 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {getTaskNotesContentAndOptionalInitialCommentsIfExists} from "~/server/tasks/data/task_table.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -57,7 +62,7 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {iterableWithIndex} from "~/shared/helpers/iterable/iterable_with_index.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
-import {isId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {AccountId, BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -72,7 +77,11 @@ import {
     TaskNotesContentWithReferencesSchema,
     emptyTaskNotesContentWithReferences,
 } from "~/shared/tasks/task_notes_content_schema.js";
-import {deserializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
+import {
+    deserializeTaskQueryFiltersSearchParam,
+    serializeTaskQueryFiltersSearchParam,
+} from "~/shared/tasks/task_query_filter.js";
+import {TaskQueryFilterReferencesSchema} from "~/shared/tasks/task_query_filter_references.js";
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
@@ -82,6 +91,10 @@ import {
     getTaskQueryNormalizedFiltersInitialFields,
 } from "~/shared/tasks/task_query_normalized_filters_initial_fields.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {
+    deserializeTaskQuerySortsSearchParam,
+    serializeTaskQuerySortsSearchParam,
+} from "~/shared/tasks/task_query_sort.js";
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskRealtimeLoadQueriesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {addFallbackToTaskTitle, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
@@ -91,6 +104,7 @@ import {
 } from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
+    key: Schema.id(),
     initialMetaTitleText: Schema.string,
     hasUrlGrant: Schema.boolean,
     childrenGridViewExpansionState: TaskGridViewExpansionStateSchema,
@@ -105,6 +119,7 @@ const LoaderSchema = Schema.object({
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
     isFavorite: Schema.boolean,
     initialFieldsAssignee: AccountModel.schema.nullable(),
+    filterReferences: TaskQueryFilterReferencesSchema,
 });
 
 export const meta = createMetaFunction(
@@ -131,43 +146,6 @@ export async function loader({params, context: unauthenticatedContext, request}:
     const isCreatingTask = createSearchParam !== null;
     const showInboxEntry = url.searchParams.get("inbox") === "show";
 
-    const childrenQuery: {
-        limit: number;
-        filters: TaskQueryNormalizedFilters;
-        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-        shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
-    } = {
-        limit: taskDetailViewLoadMoreChildTasksLimit,
-
-        filters: {
-            displayStatusFilter: {
-                ifOpenInactive: true,
-                ifOpenActive: true,
-                ifClosed: true,
-            },
-            parentFilter: {
-                parentTaskId: taskId,
-            },
-        },
-        sorts: [
-            {
-                type: "ParentPosition",
-                direction: "Ascending",
-                missing: "Last",
-            },
-            {
-                type: "CreatedTime",
-                direction: "Ascending",
-                missing: "Last",
-            },
-        ],
-
-        // We only store grid view expansion state for accounts with space access.
-        shouldLoadGridViewExpandedChildTasksForBrowserId: isSpaceAccessAuthorized
-            ? context.loader.getBrowserId()
-            : undefined,
-    };
-
     let initialFields: TaskQueryNormalizedFiltersInitialFields | null = null;
     if (createSearchParam !== null && createSearchParam.length > 0) {
         const initialTime = context.loader.getInitialTime();
@@ -180,7 +158,13 @@ export async function loader({params, context: unauthenticatedContext, request}:
             ),
         );
 
-        const filters = deserializeTaskQueryFiltersSearchParam(createSearchParam);
+        // We construct the URL `create` search param with `+` so like this:
+        // `${filters}+${parentTaskId}`. `+` is an encoding for a space character in
+        // URLs (`decodeURIComponent("+")` is `" "`).
+        const [createSearchParamFilters = "", createSearchParamParentTaskId = ""] =
+            createSearchParam.split(" ", 2);
+
+        const filters = deserializeTaskQueryFiltersSearchParam(createSearchParamFilters);
 
         const normalizedFiltersResult = normalizeTaskQueryFilters(filters, {
             currentDate,
@@ -188,16 +172,73 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 context.actor.type === "Session" ? context.actor.getAccountId() : null,
         });
         if (normalizedFiltersResult.type === "Possible") {
-            initialFields = getTaskQueryNormalizedFiltersInitialFields(
-                normalizedFiltersResult.normalizedFilters,
-                {
-                    currentDate,
-                    currentAccountId:
-                        context.actor.type === "Session" ? context.actor.getAccountId() : null,
-                },
-            );
+            let normalizedFilters = normalizedFiltersResult.normalizedFilters;
+
+            if (createSearchParamParentTaskId.length > 0) {
+                if (!isId<TaskId>(createSearchParamParentTaskId)) {
+                    throw new InvalidArgumentError("Invalid parent `TaskId`");
+                }
+
+                // The initial `parentTaskId` should never equal `taskId`. This lets us
+                // check the returned `taskSubscription`'s `TaskId` to know whether it's the
+                // route task or the initial field parent task.
+                if (createSearchParamParentTaskId === taskId) {
+                    throw new InvalidArgumentError(
+                        "Can\u2019t set parent task to own `TaskId` (that creates a cycle)",
+                    );
+                }
+
+                normalizedFilters = {
+                    ...normalizedFilters,
+                    parentFilter: {parentTaskId: createSearchParamParentTaskId},
+                };
+            }
+
+            initialFields = getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, {
+                currentDate,
+                currentAccountId:
+                    context.actor.type === "Session" ? context.actor.getAccountId() : null,
+            });
         }
     }
+
+    // `filter`/`sort` with `create` doesn't have an effect since a ghost task
+    // we're creating won't have any subtasks. These `filter`/`sort` params are for
+    // subtasks so they don't change `initialFields`.
+    const filtersString = url.searchParams.get("filter");
+    const filters = filtersString ? deserializeTaskQueryFiltersSearchParam(filtersString) : [];
+    const sortsString = url.searchParams.get("sort");
+    const sorts = sortsString ? deserializeTaskQuerySortsSearchParam(sortsString) : [];
+
+    const {normalizedFiltersResult, normalizedSorts} = normalizeTaskDetailViewQuery(
+        taskId,
+        filters,
+        sorts,
+        {
+            currentDate: getCurrentDate(context),
+            currentAccountId:
+                context.actor.type === "Session" ? context.actor.getAccountId() : null,
+        },
+    );
+
+    const childrenQuery: {
+        limit: number;
+        filters: TaskQueryNormalizedFilters;
+        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
+    } | null =
+        normalizedFiltersResult.type === "Possible"
+            ? {
+                  limit: taskDetailViewLoadMoreChildTasksLimit,
+                  filters: normalizedFiltersResult.normalizedFilters,
+                  sorts: normalizedSorts,
+
+                  // We only store grid view expansion state for accounts with space access.
+                  shouldLoadGridViewExpandedChildTasksForBrowserId: isSpaceAccessAuthorized
+                      ? context.loader.getBrowserId()
+                      : undefined,
+              }
+            : null;
 
     const [
         loadQueriesOutputResult,
@@ -205,11 +246,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
         inboxEntry,
         isFavorite,
         initialFieldsAssignee,
-        initialFieldsLoadCollectionsResult,
+        initialFieldsLoadQueriesOutput,
+        filterReferences,
     ] = await runAllPromises([
         captureResultPromise(
             context.tasks.loadQueries(spaceId, {
-                queries: [childrenQuery],
+                queries: childrenQuery ? [childrenQuery] : [],
                 taskIds: [taskId],
                 collectionIds: [],
             }),
@@ -231,13 +273,15 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
         // Load data needed for initial fields.
         initialFields?.assigneeId ? getAccount(context, spaceId, initialFields.assigneeId) : null,
-        initialFields && initialFields.collectionIds.size > 0
+        initialFields && (initialFields.parentTaskId || initialFields.collectionIds.size > 0)
             ? context.tasks.loadQueries(spaceId, {
                   queries: [],
-                  taskIds: [],
+                  taskIds: initialFields.parentTaskId ? [initialFields.parentTaskId] : [],
                   collectionIds: Array.from(initialFields.collectionIds),
               })
             : null,
+
+        getTaskQueryFilterReferences(context, spaceId, filters),
     ]);
 
     let loadQueriesOutput: TaskRealtimeLoadQueriesOutput | null;
@@ -269,6 +313,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
     return jsonWithSchema(
         LoaderSchema,
         {
+            key: generateId(),
             initialMetaTitleText: backfillTask?.task.getTitle().getText() ?? "",
             hasUrlGrant: backfillTask?.task.getAccessPolicy().urlGrant !== null,
             childrenGridViewExpansionState:
@@ -284,29 +329,34 @@ export async function loader({params, context: unauthenticatedContext, request}:
             inboxEntry,
             isFavorite,
             initialFieldsAssignee,
+            filterReferences,
         },
         {
             taskStoreLoaderData: loadQueriesOutput
                 ? {
-                      queries: [
-                          {
-                              limit: childrenQuery.limit,
-                              filters: childrenQuery.filters,
-                              sorts: childrenQuery.sorts,
-                              loadedState: assertExists(loadQueriesOutput.queries[0]).loadedState,
-                          },
-                          ...loadQueriesOutput.extraQueries,
-                      ],
+                      queries: childrenQuery
+                          ? [
+                                {
+                                    limit: childrenQuery.limit,
+                                    filters: childrenQuery.filters,
+                                    sorts: childrenQuery.sorts,
+                                    loadedState: assertExists(loadQueriesOutput.queries[0])
+                                        .loadedState,
+                                },
+                                ...loadQueriesOutput.extraQueries,
+                            ]
+                          : [],
                       taskIds: [taskId],
                       collectionIds: [],
                       updateEvent: loadQueriesOutput.updateEvent,
                   }
-                : initialFields && initialFields.collectionIds.size > 0
+                : initialFields &&
+                    (initialFields.parentTaskId || initialFields.collectionIds.size > 0)
                   ? {
                         queries: [],
-                        taskIds: [],
+                        taskIds: initialFields.parentTaskId ? [initialFields.parentTaskId] : [],
                         collectionIds: Array.from(initialFields.collectionIds),
-                        updateEvent: assertExists(initialFieldsLoadCollectionsResult).updateEvent,
+                        updateEvent: assertExists(initialFieldsLoadQueriesOutput).updateEvent,
                     }
                   : undefined,
         },
@@ -333,6 +383,17 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export default function TaskRoute() {
+    const {key} = useLoaderDataWithSchema(LoaderSchema);
+
+    return (
+        <TaskRouteInner
+            // Completely re-mount the route when we get new data from the server.
+            key={key}
+        />
+    );
+}
+
+function TaskRouteInner() {
     const clientInfo = useClientInfo();
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
@@ -343,7 +404,6 @@ export default function TaskRoute() {
     assert(spaceId && isId<SpaceId>(spaceId));
 
     const createSearchParam = searchParams.get("create");
-    const isCreatingTask = createSearchParam !== null;
 
     const [shouldInitiallyFocus] = useState(searchParams.get("focus") === "");
 
@@ -355,6 +415,7 @@ export default function TaskRoute() {
         inboxEntry,
         isFavorite: initialIsFavorite,
         initialFieldsAssignee,
+        filterReferences: initialFilterReferences,
     } = useLoaderDataWithSchema(LoaderSchema);
     const {
         store,
@@ -371,28 +432,19 @@ export default function TaskRoute() {
         childrenQuery: TaskClientQuery;
     } | null>(null);
 
-    if (!isCreatingTask && !newlyCreatedTaskSubscriptionAndChildrenQuery) {
-        assert(childrenQueryFromLoader && taskSubscriptionFromLoader);
-    } else {
-        // Either both `childrenQuery` and `taskSubscription` exist or neither of
-        // them exist (when creating a new task).
-        assert(
-            (childrenQueryFromLoader && taskSubscriptionFromLoader) ||
-                (!childrenQueryFromLoader && !taskSubscriptionFromLoader),
-        );
-    }
-
     // If we get a children query or task subscription from the server then null
     // out the newly created children query and task subscription.
     if (
         newlyCreatedTaskSubscriptionAndChildrenQuery &&
-        (childrenQueryFromLoader || taskSubscriptionFromLoader)
+        (childrenQueryFromLoader || taskSubscriptionFromLoader?.taskId === taskId)
     ) {
         setNewlyCreatedTaskSubscriptionAndChildrenQuery(null);
     }
 
     const taskSubscription =
-        taskSubscriptionFromLoader ??
+        // The task subscription from `loader` may be for the initial parent task field
+        // if we're creating a new task with a parent.
+        (taskSubscriptionFromLoader?.taskId === taskId ? taskSubscriptionFromLoader : null) ??
         newlyCreatedTaskSubscriptionAndChildrenQuery?.taskSubscription ??
         null;
     const childrenQuery =
@@ -400,40 +452,59 @@ export default function TaskRoute() {
         newlyCreatedTaskSubscriptionAndChildrenQuery?.childrenQuery ??
         null;
 
-    // Retain our queries so they aren't destroyed while we're using them.
+    // Retain our `taskSubscription` so it isn't destroyed while we're
+    // using it. But we don't retain `childrenQuery`! Instead `childrenQuery` is
+    // retained by `<TaskDetailview>`. That way when the query changes we can
+    // release the query and retain a new one.
     useEffect(() => {
-        childrenQuery?.retain();
         taskSubscription?.retain();
 
         return () => {
-            if (childrenQuery || taskSubscription) {
-                // Release after a microtask in case the component is re-rendering which will
-                // synchronously call `retain()` again.
-                scheduleMicrotask(() => {
-                    batchStoreUpdates(() => {
-                        childrenQuery?.release();
-                        taskSubscription?.release();
-                    });
-                });
-            }
+            // Release after a microtask in case the component is re-rendering which will
+            // synchronously call `retain()` again.
+            scheduleMicrotask(() => {
+                taskSubscription?.release();
+            });
         };
-    }, [childrenQuery, taskSubscription]);
+    }, [taskSubscription]);
+
+    const [initialFilters] = useState(() => {
+        const filtersString = searchParams.get("filter");
+        if (!filtersString) return [];
+        return deserializeTaskQueryFiltersSearchParam(filtersString);
+    });
+
+    const [initialSorts] = useState(() => {
+        const sortsString = searchParams.get("sort");
+        if (!sortsString) return [];
+        return deserializeTaskQuerySortsSearchParam(sortsString);
+    });
 
     // Remove the `create` search param.
     useEffect(() => {
         if ((childrenQuery || taskSubscription) && searchParams.has("create")) {
-            const newSearchParams = new URLSearchParams(searchParams);
-            newSearchParams.delete("create");
-            setSearchParams(newSearchParams, {replace: true});
+            setSearchParams(
+                oldSearchParams => {
+                    const newSearchParams = new URLSearchParams(oldSearchParams);
+                    newSearchParams.delete("create");
+                    return newSearchParams;
+                },
+                {replace: true},
+            );
         }
     }, [childrenQuery, searchParams, setSearchParams, taskSubscription]);
 
     // Remove the `focus` search param.
     useEffect(() => {
         if (searchParams.has("focus")) {
-            const newSearchParams = new URLSearchParams(searchParams);
-            newSearchParams.delete("focus");
-            setSearchParams(newSearchParams, {replace: true});
+            setSearchParams(
+                oldSearchParams => {
+                    const newSearchParams = new URLSearchParams(oldSearchParams);
+                    newSearchParams.delete("focus");
+                    return newSearchParams;
+                },
+                {replace: true},
+            );
         }
     }, [searchParams, setSearchParams]);
 
@@ -464,9 +535,11 @@ export default function TaskRoute() {
 
     const defaultInitialFields = useMemo(
         (): TaskQueryNormalizedFiltersInitialFields => ({
+            parentTaskId: null,
             status: "Open",
             collectionIds: emptySet,
             priority: null,
+            layout: null,
             title: "",
             assigneeId: currentAccount?.id ?? null,
             assigneeStatus: "Inactive",
@@ -489,7 +562,10 @@ export default function TaskRoute() {
             return defaultInitialFields;
         }
 
-        const filters = deserializeTaskQueryFiltersSearchParam(createSearchParam);
+        const [createSearchParamFilters = "", createSearchParamParentTaskId = ""] =
+            createSearchParam.split(" ", 2);
+
+        const filters = deserializeTaskQueryFiltersSearchParam(createSearchParamFilters);
 
         const normalizedFiltersResult = normalizeTaskQueryFilters(filters, {
             currentDate,
@@ -497,13 +573,23 @@ export default function TaskRoute() {
         });
         if (normalizedFiltersResult.type === "Impossible") return defaultInitialFields;
 
-        return getTaskQueryNormalizedFiltersInitialFields(
-            normalizedFiltersResult.normalizedFilters,
-            {
-                currentDate,
-                currentAccountId: currentAccount?.id ?? null,
-            },
-        );
+        let normalizedFilters = normalizedFiltersResult.normalizedFilters;
+
+        if (createSearchParamParentTaskId.length > 0) {
+            if (!isId<TaskId>(createSearchParamParentTaskId)) {
+                throw new InvalidArgumentError("Invalid parent `TaskId`");
+            }
+
+            normalizedFilters = {
+                ...normalizedFilters,
+                parentFilter: {parentTaskId: createSearchParamParentTaskId},
+            };
+        }
+
+        return getTaskQueryNormalizedFiltersInitialFields(normalizedFilters, {
+            currentDate,
+            currentAccountId: currentAccount?.id ?? null,
+        });
     }, [
         childrenQuery,
         createSearchParam,
@@ -524,9 +610,15 @@ export default function TaskRoute() {
         [initialFieldsCollectionSubscriptions],
     );
 
-    // Retain the collection subscriptions from `initialFields.collectionIds`. So
-    // we keep those collections up-to-date in realtime.
+    // Retain the collection subscriptions from `initialFields.collectionIds` and
+    // parent task subscription from `initialFields.parentTaskId`. So we keep those
+    // collections/task up-to-date in realtime.
     useEffect(() => {
+        if (initialFields.parentTaskId) {
+            assert(taskSubscriptionFromLoader?.taskId === initialFields.parentTaskId);
+            taskSubscriptionFromLoader.retain();
+        }
+
         for (const collectionId of initialFields.collectionIds) {
             const collectionSubscription = assertExists(
                 initialFieldsCollectionSubscriptionById.get(collectionId),
@@ -539,22 +631,40 @@ export default function TaskRoute() {
             // Release after a microtask in case the effect re-runs in which case we'll
             // synchronously call `retain()` again.
             scheduleMicrotask(() => {
-                for (const collectionId of initialFields.collectionIds) {
-                    const collectionSubscription = assertExists(
-                        initialFieldsCollectionSubscriptionById.get(collectionId),
-                    );
+                batchStoreUpdates(() => {
+                    if (initialFields.parentTaskId) {
+                        assert(taskSubscriptionFromLoader?.taskId === initialFields.parentTaskId);
+                        taskSubscriptionFromLoader.release();
+                    }
 
-                    collectionSubscription.release();
-                }
+                    for (const collectionId of initialFields.collectionIds) {
+                        const collectionSubscription = assertExists(
+                            initialFieldsCollectionSubscriptionById.get(collectionId),
+                        );
+
+                        collectionSubscription.release();
+                    }
+                });
             });
         };
-    }, [initialFields.collectionIds, initialFieldsCollectionSubscriptionById]);
+    }, [
+        initialFields.collectionIds,
+        initialFields.parentTaskId,
+        initialFieldsCollectionSubscriptionById,
+        taskSubscriptionFromLoader,
+    ]);
 
     const initialFieldsModel = useMemo((): TaskQueryNormalizedFiltersInitialFieldsModel => {
         return {
+            // We assert the `taskSubscriptionFromLoader` `TaskId` is correct in the above
+            // `useEffect()`.
+            parentTaskSubscription: initialFields.parentTaskId ? taskSubscriptionFromLoader : null,
             status: initialFields.status,
-            collectionIds: initialFields.collectionIds,
+            // We assert the `initialFieldsCollectionSubscriptionById` `TaskCollectionId`s
+            // are correct in the above `useEffect()`.
+            collectionSubscriptionById: initialFieldsCollectionSubscriptionById,
             priority: initialFields.priority,
+            layout: initialFields.layout,
             titleUpdate:
                 initialFields.title.length > 0
                     ? emptyTaskTitleModel.get().replace(0, 0, initialFields.title)
@@ -574,13 +684,15 @@ export default function TaskRoute() {
         currentAccount,
         initialFields.assigneeId,
         initialFields.assigneeStatus,
-        initialFields.collectionIds,
         initialFields.dueDate,
+        initialFields.layout,
+        initialFields.parentTaskId,
         initialFields.priority,
         initialFields.status,
         initialFields.title,
         initialFieldsAssignee,
         initialFieldsCollectionSubscriptionById,
+        taskSubscriptionFromLoader,
     ]);
 
     const commitActionTransactionAndCreateIfNeeded = useEvent(
@@ -708,8 +820,54 @@ export default function TaskRoute() {
                 taskId={taskId}
                 store={store}
                 taskSubscription={taskSubscription}
-                childrenQuery={childrenQuery}
-                initialChildrenGridViewExpansionState={initialChildrenGridViewExpansionState}
+                initialChildrenQuery={
+                    childrenQuery
+                        ? {
+                              query: childrenQuery,
+                              initialGridViewExpansionState: initialChildrenGridViewExpansionState,
+                          }
+                        : null
+                }
+                initialFilters={initialFilters}
+                initialFilterReferences={initialFilterReferences}
+                initialSorts={initialSorts}
+                onFiltersChange={filters => {
+                    const newSearchParams = new URLSearchParams(searchParams);
+
+                    if (filters.length === 0) {
+                        newSearchParams.delete("filter");
+                    } else {
+                        newSearchParams.set(
+                            "filter",
+                            serializeTaskQueryFiltersSearchParam(filters),
+                        );
+                    }
+
+                    setSearchParams(newSearchParams, {
+                        replace: true,
+                        // Don't revalidate when updating search params from here. We can't use the
+                        // stable `shouldRevalidate` route function because if the user navigates to
+                        // a new URL we want to load new data and re-render the route.
+                        unstable_shouldRevalidate: false,
+                    });
+                }}
+                onSortsChange={sorts => {
+                    const newSearchParams = new URLSearchParams(searchParams);
+
+                    if (sorts.length === 0) {
+                        newSearchParams.delete("sort");
+                    } else {
+                        newSearchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
+                    }
+
+                    setSearchParams(newSearchParams, {
+                        replace: true,
+                        // Don't revalidate when updating search params from here. We can't use the
+                        // stable `shouldRevalidate` route function because if the user navigates to
+                        // a new URL we want to load new data and re-render the route.
+                        unstable_shouldRevalidate: false,
+                    });
+                }}
                 initialFields={initialFieldsModel}
                 initialIsFavorite={initialIsFavorite}
                 initialNotesVersion={initialNotesVersion}
@@ -732,6 +890,20 @@ function pushTaskQueryNormalizedFiltersInitialFieldsActions(
     initialFields: TaskQueryNormalizedFiltersInitialFieldsModel,
     actions: Array<TaskActionModel>,
 ) {
+    if (initialFields.parentTaskSubscription) {
+        const time = clock.now();
+
+        actions.push({
+            type: "UpdateTask",
+            time,
+            taskId,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: initialFields.parentTaskSubscription.taskId,
+            },
+        });
+    }
+
     switch (initialFields.status) {
         case "Open":
             break;
@@ -811,10 +983,12 @@ function pushTaskQueryNormalizedFiltersInitialFieldsActions(
     const collectionOrderKeys = generateOrderKeysBetween(
         null,
         null,
-        initialFields.collectionIds.size,
+        initialFields.collectionSubscriptionById.size,
     );
 
-    for (const [collectionId, collectionIndex] of iterableWithIndex(initialFields.collectionIds)) {
+    for (const [collectionId, collectionIndex] of iterableWithIndex(
+        initialFields.collectionSubscriptionById.keys(),
+    )) {
         const time = clock.now();
 
         actions.push({
@@ -839,6 +1013,20 @@ function pushTaskQueryNormalizedFiltersInitialFieldsActions(
             taskAction: {
                 type: "UpdatePriority",
                 priority: initialFields.priority,
+            },
+        });
+    }
+
+    if (initialFields.layout !== null) {
+        const time = clock.now();
+
+        actions.push({
+            type: "UpdateTask",
+            time,
+            taskId,
+            taskAction: {
+                type: "UpdateLayout",
+                layout: initialFields.layout,
             },
         });
     }

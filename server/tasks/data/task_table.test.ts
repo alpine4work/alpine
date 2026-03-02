@@ -4705,6 +4705,66 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
+    test("can update task layout", async () => {
+        const taskId = generateId<TaskId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creatorId: session1.accountId,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout: "Project",
+                },
+            },
+        ]);
+    });
+
+    test("can\u2019t update layout with unreasonable updated time", async () => {
+        const taskId = generateId<TaskId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creatorId: session1.accountId,
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: getUnreasonableTime(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateLayout",
+                        layout: "Project",
+                    },
+                },
+            ]),
+        ).rejects.toThrow(InvalidArgumentError);
+    });
+
     test("can update task parent", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();

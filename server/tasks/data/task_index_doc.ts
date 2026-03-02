@@ -61,6 +61,11 @@ import {
     getTaskFilterableTimeSetterDate,
 } from "~/shared/tasks/task_filterable_time.js";
 import {
+    TaskLayout,
+    TaskLayoutIntegerMapping,
+    TaskLayoutRegister,
+} from "~/shared/tasks/task_layout.js";
+import {
     TaskPosition,
     TaskPositionRegister,
     TaskPositionSchema,
@@ -401,6 +406,20 @@ const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
         .nullable(),
 );
 
+const TaskIndexLayoutType = createCrdtRegisterOpensearchType(
+    TaskLayoutRegister,
+    new OpensearchIndexByteType({
+        isFilterable: true,
+        isSortable: true,
+    })
+        .transform<TaskLayout>({
+            serialize: layout => TaskLayoutIntegerMapping.into(layout),
+            deserialize: layout =>
+                TaskLayoutIntegerMapping.from(TaskLayoutIntegerMapping.assert(layout)),
+        })
+        .nullable(),
+);
+
 export type TaskIndexSearchEntityJob = SchemaType<typeof TaskIndexSearchEntityJobSchema>;
 
 const TaskIndexSearchEntityJobSchema = Schema.object({
@@ -609,6 +628,12 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         title: TaskIndexTitleType,
         dueDate: TaskIndexDueDateType,
         priority: TaskIndexPriorityType,
+
+        layout: TaskIndexLayoutType
+            // NOTE(calebmer, 2026-02-20): This property didn't exist on tasks until this
+            // date. Represent default layout as null for old docs.
+            .nullable()
+            .default(null),
 
         /**
          * Information about the last time we sent an `IndexSearchEntity` job for this

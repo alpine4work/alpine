@@ -12,6 +12,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
 import {
     TaskSortableAccount,
     mergeTaskSortableAccounts,
@@ -360,6 +361,21 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
             return {
                 ...task,
                 priority: newPriority,
+            };
+        }
+        case "UpdateLayout": {
+            const newLayout = task.layout
+                ? task.layout.apply({
+                      value: action.layout,
+                      version: actionTime,
+                  })
+                : new TaskLayoutRegister(action.layout, actionTime);
+
+            if (newLayout === task.layout) return task;
+
+            return {
+                ...task,
+                layout: newLayout,
             };
         }
         case "UpdateAccessPolicy": {

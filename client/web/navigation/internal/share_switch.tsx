@@ -141,7 +141,7 @@ export function ShareSwitch({
                     title={`Make this ${entityNoun} private?`}
                     description={`${
                         accessPolicy.urlGrant ? `Anyone with the link` : `Everyone in ${space.name}`
-                    } won\u2019t longer be able to access the ${entityNoun}.`}
+                    } won\u2019t be able to access the ${entityNoun} anymore.`}
                     primaryButtonLabel="Confirm"
                     onPrimaryButtonPress={() => {
                         if (!accessPolicy.defaultGrant && !accessPolicy.urlGrant) {

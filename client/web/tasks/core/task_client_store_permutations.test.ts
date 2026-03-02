@@ -154,6 +154,7 @@ testTaskActionPermutations({
             title: task.getTitle().getRaw(),
             dueDate: task.getDueDate(),
             priority: task.getPriority(),
+            layout: task.getLayout(),
         };
     },
     getTaskCollection: collectionId => {

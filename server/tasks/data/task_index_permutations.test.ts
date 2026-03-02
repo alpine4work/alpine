@@ -144,6 +144,7 @@ testTaskActionPermutations({
             title: task.title.raw,
             dueDate: task.dueDate.value,
             priority: task.priority.value,
+            layout: task.layout?.value ?? null,
         };
     },
     getTaskCollection: async (collectionId): Promise<TaskCollectionTestInterface> => {

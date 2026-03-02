@@ -56,6 +56,7 @@ import {Reaction} from "~/shared/reactions/reaction.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {createDefaultTaskAccessPolicy} from "~/shared/tasks/create_default_task_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
@@ -108,6 +109,7 @@ export class TestTask extends TestCommentRoomBase {
             parent,
             assignee,
             priority,
+            layout,
             dueDate,
             collections,
         }: {
@@ -116,6 +118,7 @@ export class TestTask extends TestCommentRoomBase {
             parent?: TestTask;
             assignee?: TestAccount | TestSession | null;
             priority?: TaskPriority;
+            layout?: TaskLayout | null;
             dueDate?: CalendarDate | null;
             collections?: TestTaskCollection | ReadonlyArray<TestTaskCollection>;
         } = {},
@@ -202,6 +205,18 @@ export class TestTask extends TestCommentRoomBase {
                 taskAction: {
                     type: "UpdatePriority",
                     priority,
+                },
+            });
+        }
+
+        if (layout !== undefined) {
+            actions.push({
+                type: "UpdateTask",
+                time: testTaskClock.now(),
+                taskId: id,
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout,
                 },
             });
         }
@@ -570,6 +585,24 @@ export class TestTask extends TestCommentRoomBase {
                 taskAction: {
                     type: "UpdatePriority",
                     priority,
+                },
+            },
+        ]);
+    }
+
+    public async updateLayout(
+        session: TestSpaceSession,
+        layout: TaskLayout | null,
+        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
+    ) {
+        await commitTaskActionTransaction(session.action(), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout,
                 },
             },
         ]);

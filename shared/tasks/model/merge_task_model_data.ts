@@ -70,6 +70,10 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
         title: task1.title.isEqual(task2.title) ? task1.title : task1.title.apply(task2.title),
         dueDate: task1.dueDate.merge(task2.dueDate),
         priority: task1.priority.merge(task2.priority),
+        layout:
+            task1.layout && task2.layout
+                ? task1.layout.merge(task2.layout)
+                : (task1.layout ?? task2.layout),
     };
 
     // Optimization: If nothing changed between `task1` and the merged task then

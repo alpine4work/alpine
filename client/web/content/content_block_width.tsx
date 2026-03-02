@@ -127,7 +127,7 @@ export function ContentBlockWidthContextProvider({
     children,
 }: {
     isDisabled?: boolean;
-    width?: ParsableRemLength | number;
+    width?: ParsableRemLength | `${number}/${number}` | number;
     maxWidth?: ParsableRemLength | number;
     paddingX?: ParsableRemLength | number;
     paddingLeft?: ParsableRemLength | number;
@@ -147,18 +147,30 @@ export function ContentBlockWidthContextProvider({
 
         const screenPaddingXPx = convertRemLengthToPx(screenPaddingX[platform], spacingScale);
 
-        let width = widthProp ?? parent?.availableWidth ?? clientInfo.screenWidth;
+        const parentWidth = parent?.availableWidth ?? clientInfo.screenWidth;
+        let width = widthProp ?? parentWidth;
         let paddingLeft = paddingLeftProp ?? paddingXProp ?? 0;
         let paddingRight = paddingRightProp ?? paddingXProp ?? 0;
         let assumedPaddingLeft = parent?.assumedPaddingLeft ?? screenPaddingXPx;
         let assumedPaddingRight = parent?.assumedPaddingRight ?? screenPaddingXPx;
 
         if (typeof width === "string") {
-            width = convertRemLengthToPx(width, spacingScale);
+            if (!width.includes("/")) {
+                width = convertRemLengthToPx(width as ParsableRemLength, spacingScale);
+            } else {
+                const [numeratorString = "", denominatorString = ""] = width.split("/", 2);
+                const numerator = parseFloat(numeratorString);
+                const denominator = parseFloat(denominatorString);
+                const fraction = numerator / denominator;
+
+                width = parentWidth * fraction;
+            }
         }
+
         if (typeof paddingLeft === "string") {
             paddingLeft = convertRemLengthToPx(paddingLeft, spacingScale);
         }
+
         if (typeof paddingRight === "string") {
             paddingRight = convertRemLengthToPx(paddingRight, spacingScale);
         }

@@ -82,7 +82,7 @@ function getFilterMenuSections({
     onAddFilter: (filter: TaskQueryFilter) => void;
 }): Array<Array<FilterMenuAction>> {
     return [
-        // First menu section (status, collections, priority, title)
+        // First menu section (status, collections, priority, project, title)
         [
             {
                 filterType: "DisplayStatus",
@@ -132,6 +132,19 @@ function getFilterMenuSections({
                         operation: {
                             type: "Includes",
                             titleQuery: "",
+                        },
+                    });
+                },
+            },
+            {
+                filterType: "Layout",
+                label: "Project",
+                onPress: () => {
+                    onAddFilter({
+                        type: "Layout",
+                        operation: {
+                            type: "OneOf",
+                            layouts: ["Project"],
                         },
                     });
                 },

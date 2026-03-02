@@ -29,23 +29,27 @@ export function showTaskDeleteConfirmationModalDialog({
     onAfterClose?: () => void;
 }) {
     const taskEntryStore = store.getTaskEntryStore(taskId);
-    const childTaskCount = taskEntryStore.getSnapshot()?.task?.getChildTaskCount() ?? 0;
+    const task = taskEntryStore.getSnapshot()?.task ?? null;
+    const layout = task?.getLayout() ?? null;
+    const noun = layout === "Project" ? "project" : "task";
+    const childNoun = layout === "Project" ? "task" : "subtask";
+    const childTaskCount = task?.getChildTaskCount() ?? 0;
 
     const childTaskCountPrettyNumber = printPrettyNumber(
         getClientInfo().locale,
         childTaskCount,
-        "subtask",
+        childNoun,
     );
 
     reporter.showDialog({
-        title: "Delete task?",
+        title: `Delete ${noun}?`,
         description: `${
             childTaskCount === 0
-                ? "The task\u2019s subtasks will also be deleted."
-                : `The task\u2019s ${childTaskCountPrettyNumber} will also be deleted.`
-        } To keep a record of finished work you can close tasks instead of deleting them.`,
+                ? `The ${noun}\u2019s ${childNoun}s will also be deleted.`
+                : `The ${noun}\u2019s ${childTaskCountPrettyNumber} will also be deleted.`
+        } To keep a record of finished work you can close ${noun}s instead of deleting them.`,
         primaryButtonLabel: "Delete",
-        primaryButtonPressErrorTitle: "Couldn\u2019t delete task",
+        primaryButtonPressErrorTitle: `Couldn\u2019t delete ${noun}`,
         onPrimaryButtonPress: async () => {
             await onBeforeDelete?.();
 

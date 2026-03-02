@@ -20,6 +20,7 @@ assertEqualTypes<
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
+    | "layoutFilter"
     | "titleFilter"
     | "assigneeFilter"
     | "creatorFilter"
@@ -39,6 +40,7 @@ assertEqualTypes<
     TaskQueryNormalizedSort["type"],
     | "DisplayStatus"
     | "Priority"
+    | "Layout"
     | "Assignee"
     | "Creator"
     | "Assigner"
@@ -412,6 +414,20 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                     return filters.priorityFilter.ifUrgent;
                 default:
                     throw exhaustive(action.priority);
+            }
+        }
+        case "UpdateLayout": {
+            if (sorts.some(sort => sort.type === "Layout")) return true;
+
+            if (!filters.layoutFilter) return false;
+
+            switch (action.layout) {
+                case null:
+                    return filters.layoutFilter.ifNull;
+                case "Project":
+                    return filters.layoutFilter.ifProject;
+                default:
+                    throw exhaustive(action.layout);
             }
         }
         case "UpdateAccessPolicy":

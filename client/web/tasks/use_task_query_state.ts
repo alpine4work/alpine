@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo} from "react";
+import {useStateWithDependencies} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -28,6 +29,10 @@ export function isTaskQueryMissingRequiredFilters(
     currentAccountId: AccountId | null | undefined,
     filters: TaskQueryNormalizedFilters,
 ): boolean {
+    // Assume that if the user is filtering based on a parent task then they have
+    // access to the parent task.
+    if (filters.parentFilter) return false;
+
     if (typeof currentAccountId === "string") {
         if (
             filters.creatorFilter?.type === "OneOf" &&
@@ -87,11 +92,13 @@ export type TaskQueryState = {
  * filters/sorts.
  */
 export function useTaskQueryState({
+    key,
     store,
     initialQuery,
     filters,
     sorts,
 }: {
+    key?: string;
     store: TaskClientStore;
     initialQuery: {
         query: TaskClientQuery;
@@ -111,12 +118,18 @@ export function useTaskQueryState({
         return isTaskQueryMissingRequiredFilters(currentAccount?.id, filters);
     }, [currentAccount?.id, filters]);
 
-    const [queryState, setQueryState] = useState<TaskQueryState>({
-        activeQuery: initialQuery
-            ? {isAvailable: true, query: initialQuery}
-            : {isAvailable: false, isMissingRequiredFilters, query: null},
-        pendingQuery: null,
-    });
+    const [queryState, setQueryState] = useStateWithDependencies<
+        TaskQueryState,
+        [string | undefined]
+    >(
+        {
+            activeQuery: initialQuery
+                ? {isAvailable: true, query: initialQuery}
+                : {isAvailable: false, isMissingRequiredFilters, query: null},
+            pendingQuery: null,
+        },
+        [key],
+    );
 
     // Make sure the queries in `queryState` stay retained during this
     // component's lifetime.

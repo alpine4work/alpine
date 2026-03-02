@@ -8,6 +8,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
 import {TaskAssigneeSchema} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatusSchema} from "~/shared/tasks/task_assignee_status.js";
+import {TaskLayoutSchema} from "~/shared/tasks/task_layout.js";
 import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 import {TaskPrioritySchema} from "~/shared/tasks/task_priority.js";
 import {TaskStatusSchema} from "~/shared/tasks/task_status.js";
@@ -386,6 +387,16 @@ const TaskUpdatePriorityActionSchema = Schema.object({
 });
 
 /**
+ * Updates the layout of the task.
+ */
+export type TaskUpdateLayoutAction = SchemaType<typeof TaskUpdateLayoutActionSchema>;
+
+const TaskUpdateLayoutActionSchema = Schema.object({
+    type: Schema.value("UpdateLayout"),
+    layout: TaskLayoutSchema.nullable(),
+});
+
+/**
  * Updates the access policy of the task.
  *
  * Will be rejected by the server if you don't have the `Manage` permission
@@ -419,6 +430,7 @@ export const TaskTaskActionUnion = {
     UpdateTitle: TaskUpdateTitleActionSchema,
     UpdateDueDate: TaskUpdateDueDateActionSchema,
     UpdatePriority: TaskUpdatePriorityActionSchema,
+    UpdateLayout: TaskUpdateLayoutActionSchema,
     UpdateAccessPolicy: TaskUpdateAccessPolicyActionSchema,
     // NOTE(calebmer, 2025-03-18): Remnants of the task notepad feature. We ignore
     // these actions at this point but we need minimal handling for backwards

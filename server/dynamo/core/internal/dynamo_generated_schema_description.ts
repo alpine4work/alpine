@@ -13411,6 +13411,30 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
+                                                                        "UpdateLayout": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateLayout"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "layout": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Nullable",
+                                                                                        "schema": {
+                                                                                            "type": "Enum",
+                                                                                            "values": [
+                                                                                                "Project"
+                                                                                            ]
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
                                                                         "UpdateAccessPolicy": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {

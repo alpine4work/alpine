@@ -242,6 +242,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
+        layout: task.layout,
     });
 }
 
@@ -3612,6 +3613,64 @@ test("can filter for individual priorities", async () => {
             },
         ]),
     ).toEqual([task5Id]);
+});
+
+test("can filter by layout", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+
+    await commitTaskActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateLayout",
+                layout: "Project",
+            },
+        },
+    ]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Layout",
+                operation: {type: "OneOf", layouts: ["Project"]},
+            },
+        ]),
+    ).toEqual([task2Id]);
+
+    expect(
+        await testQuery(session1, space, [
+            {
+                type: "Layout",
+                operation: {type: "NoneOf", layouts: ["Project"]},
+            },
+        ]),
+    ).toEqual([task1Id]);
 });
 
 test("can filter for three priorities at once", async () => {

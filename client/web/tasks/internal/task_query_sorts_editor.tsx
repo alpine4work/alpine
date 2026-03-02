@@ -216,6 +216,21 @@ function TaskQuerySortsEditorRow({
                 </TaskQuerySortsEditorRowBase>
             );
         }
+        case "Layout": {
+            return (
+                <TaskQuerySortsEditorRowBase
+                    id={id}
+                    name="Project"
+                    onDelete={onSortDelete}
+                    isDragOverlay={isDragOverlay}
+                >
+                    <TaskQuerySortsEditorRowLayoutDirection
+                        missing={sort.missing}
+                        onMissingChange={missing => onSortChange({...sort, missing})}
+                    />
+                </TaskQuerySortsEditorRowBase>
+            );
+        }
         case "Assignee": {
             return (
                 <TaskQuerySortsEditorRowBase
@@ -531,6 +546,46 @@ function TaskQuerySortsEditorRowPriorityDirection({
                 iconPlacement="end"
             >
                 {direction === "Ascending" ? ascendingLabel : descendingLabel}
+            </Button>
+        </MenuButton>
+    );
+}
+
+function TaskQuerySortsEditorRowLayoutDirection({
+    missing,
+    onMissingChange,
+}: {
+    missing: "First" | "Last";
+    onMissingChange: (missing: "First" | "Last") => void;
+}) {
+    const platform = usePlatform();
+
+    const firstLabel = "Task → Project";
+    const lastLabel = "Project → Task";
+
+    return (
+        <MenuButton
+            actions={[
+                {
+                    label: lastLabel,
+                    isSelected: missing === "Last",
+                    onPress: () => onMissingChange("Last"),
+                },
+                {
+                    label: firstLabel,
+                    isSelected: missing === "First",
+                    onPress: () => onMissingChange("First"),
+                },
+            ]}
+        >
+            <Button
+                variant="quieter"
+                height={platform === "mobile" ? "full" : "5"}
+                paddingX={platform === "mobile" ? "2" : "1.5"}
+                icon={<CaretDown />}
+                iconPlacement="end"
+            >
+                {missing === "First" ? firstLabel : lastLabel}
             </Button>
         </MenuButton>
     );

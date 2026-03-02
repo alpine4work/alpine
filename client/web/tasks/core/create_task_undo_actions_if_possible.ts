@@ -722,6 +722,21 @@ function pushTaskUndoAction(
             });
             break;
         }
+        case "UpdateLayout": {
+            const task = getTask(action.taskId);
+            if (!task) return {abort: true};
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout: task.getLayout(),
+                },
+            });
+            break;
+        }
         case "UpdateAccessPolicy": {
             // We don't let you undo (with cmd-z) access policy changes. Similar to how we
             // don't allow you to undo access policy changes in documents or task

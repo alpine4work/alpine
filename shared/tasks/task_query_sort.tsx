@@ -14,6 +14,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  */
 export type TaskQuerySort =
     | TaskQueryDisplayStatusSort
+    | TaskQueryLayoutSort
     | TaskQueryPrioritySort
     | TaskQueryAssigneeSort
     | TaskQueryCreatorSort
@@ -32,6 +33,11 @@ export type TaskQueryDisplayStatusSort = {
 export type TaskQueryPrioritySort = {
     readonly type: "Priority";
     readonly direction: "Ascending" | "Descending";
+};
+
+export type TaskQueryLayoutSort = {
+    readonly type: "Layout";
+    readonly missing: "First" | "Last";
 };
 
 export type TaskQueryAssigneeSort = {
@@ -149,6 +155,8 @@ function getTaskQuerySortByteLength(sort: TaskQuerySort): number {
             return 1;
         case "Priority":
             return 1;
+        case "Layout":
+            return 1;
         case "Assignee":
             return 1;
         case "Creator":
@@ -248,6 +256,14 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
+        case "Layout": {
+            if (sort.missing === "First") {
+                view.setUint8(0, 20);
+            } else {
+                view.setUint8(0, 21);
+            }
+            break;
+        }
         default:
             throw exhaustive(sort);
     }
@@ -298,6 +314,10 @@ function deserializeTaskQuerySort(view: DataView): {
             return {sort: {type: "ActivatedTime", direction: "Ascending"}, byteLength: 1};
         case 19:
             return {sort: {type: "ActivatedTime", direction: "Descending"}, byteLength: 1};
+        case 20:
+            return {sort: {type: "Layout", missing: "First"}, byteLength: 1};
+        case 21:
+            return {sort: {type: "Layout", missing: "Last"}, byteLength: 1};
         default:
             throw new InvalidArgumentError(`Unrecognized sort type ${typeByte}`);
     }

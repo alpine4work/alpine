@@ -32,6 +32,8 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                     return [{displayStatus: item}];
                 case "Priority":
                     return [{"priority.value": item}];
+                case "Layout":
+                    return [{"layout.value": item}];
                 case "Assignee":
                     return [{"assignee.value.assignee.workingAccountName": item}];
                 case "Creator":
@@ -165,6 +167,22 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                 break;
             }
             case "Priority": {
+                if (sortValue === null) {
+                    // OpenSearch returns the max/min value for a numeric type in the cursor when
+                    // it's missing instead of null.
+                    newCursor.push(
+                        (sort.direction === "Descending" && sort.missing === "Last") ||
+                            (sort.direction === "Ascending" && sort.missing === "First")
+                            ? minInt32
+                            : maxInt32,
+                    );
+                } else {
+                    assert(typeof sortValue === "number");
+                    newCursor.push(sortValue);
+                }
+                break;
+            }
+            case "Layout": {
                 if (sortValue === null) {
                     // OpenSearch returns the max/min value for a numeric type in the cursor when
                     // it's missing instead of null.

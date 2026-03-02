@@ -104,6 +104,7 @@ function addTaskQueryFilterReferencedIds(
     switch (filter.type) {
         case "DisplayStatus":
         case "Priority":
+        case "Layout":
         case "Title":
         case "DueDate":
         case "CreatedDate":

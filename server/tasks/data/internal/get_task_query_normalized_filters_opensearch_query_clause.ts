@@ -18,6 +18,7 @@ import {
     TaskDisplayStatus,
     TaskDisplayStatusIntegerMapping,
 } from "~/shared/tasks/task_display_status.js";
+import {TaskLayout, TaskLayoutIntegerMapping} from "~/shared/tasks/task_layout.js";
 import {TaskPriority, TaskPriorityIntegerMapping} from "~/shared/tasks/task_priority.js";
 import {
     TaskQueryAccountNormalizedFilter,
@@ -33,6 +34,7 @@ assertEqualTypes<
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
+    | "layoutFilter"
     | "titleFilter"
     | "assigneeFilter"
     | "creatorFilter"
@@ -277,6 +279,40 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
                             },
                         },
                         {bool: {must_not: {exists: {field: "priority.value"}}}},
+                    ],
+                },
+            });
+        }
+    }
+
+    if (filters.layoutFilter) {
+        const terms: Array<TaskLayout> = [];
+
+        if (filters.layoutFilter.ifProject) terms.push("Project");
+
+        if (!filters.layoutFilter.ifNull) {
+            filterQueryClauses.push({
+                terms: {
+                    "layout.value": new OpensearchQueryValue(
+                        terms.map(TaskLayoutIntegerMapping.into),
+                    ),
+                },
+            });
+        } else if (terms.length === 0) {
+            filterQueryClauses.push({bool: {must_not: {exists: {field: "layout.value"}}}});
+        } else {
+            filterQueryClauses.push({
+                bool: {
+                    minimum_should_match: 1,
+                    should: [
+                        {
+                            terms: {
+                                "layout.value": new OpensearchQueryValue(
+                                    terms.map(TaskLayoutIntegerMapping.into),
+                                ),
+                            },
+                        },
+                        {bool: {must_not: {exists: {field: "layout.value"}}}},
                     ],
                 },
             });

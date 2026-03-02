@@ -3228,6 +3228,11 @@ async function actuallyCommitTaskActionTransaction(
                                 // is validated above.
                                 break;
                             }
+                            case "UpdateLayout": {
+                                // We don't store layout in essential attributes and action time
+                                // is validated above.
+                                break;
+                            }
                             case "UpdateAccessPolicy": {
                                 await state.authorizeTaskItemAccess(taskItem, "Manage");
 

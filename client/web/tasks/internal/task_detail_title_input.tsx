@@ -68,11 +68,10 @@ function TaskDetailTitleInput(
         onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
         placeholder: string;
         isReadOnly: boolean;
-        elementRef: Ref<HTMLDivElement>;
     },
     ref: Ref<TaskDetailTitleInputRef>,
 ) {
-    const {title, placeholder, isReadOnly, elementRef} = props;
+    const {title, placeholder, isReadOnly} = props;
 
     const isInitialAppRender = useIsInitialAppRender();
     const {currentAccount} = useSpaceContext();
@@ -385,7 +384,7 @@ function TaskDetailTitleInput(
     const titleNodeForInitialAppRender = isInitialAppRender ? title.getProsemirrorNode() : null;
 
     return (
-        <div ref={elementRef}>
+        <div>
             <FocusRing isVisibleWhenFocusWithin>
                 <div
                     className={classNames(

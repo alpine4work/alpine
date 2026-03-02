@@ -227,6 +227,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
+        layout: task.layout,
     });
 }
 
@@ -750,6 +751,69 @@ test("sorts by priority", async () => {
         task6Id,
         task4Id,
         task5Id,
+    ]);
+});
+
+test("sorts by layout", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+
+    await commitTaskActionTransaction(context.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateLayout",
+                layout: "Project",
+            },
+        },
+    ]);
+
+    expect(await testQuery(space, [{type: "Layout", missing: "Last"}])).toEqual([
+        task2Id,
+        task1Id,
+        task3Id,
+    ]);
+
+    expect(await testQuery(space, [{type: "Layout", missing: "First"}])).toEqual([
+        task1Id,
+        task3Id,
+        task2Id,
     ]);
 });
 
