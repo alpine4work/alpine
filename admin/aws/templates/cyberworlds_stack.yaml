@@ -3218,8 +3218,8 @@ Resources:
                     Fn::GetAtt:
                         - AppServiceLaunchTemplate42ACBC3C
                         - LatestVersionNumber
-            MaxSize: "8"
-            MinSize: "4"
+            MaxSize: "4"
+            MinSize: "2"
             NewInstancesProtectedFromScaleIn: true
             Tags:
                 - Key: CloudWatchAgent
@@ -3990,7 +3990,7 @@ Resources:
                 MinimumHealthyPercent: 50
             DeploymentController:
                 Type: ECS
-            DesiredCount: 4
+            DesiredCount: 2
             EnableECSManagedTags: false
             HealthCheckGracePeriodSeconds: 60
             LoadBalancers:
