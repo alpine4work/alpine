@@ -138,7 +138,7 @@ export class DatabaseServer {
     query(sql: string): DatabaseServerQueryResult {
         this.db.exec("BEGIN");
         this.action = {type: "query", pages: new Map()};
-        this.db.pageAccessHook((pgno: number, flags: number) => {
+        this.db.pageAccessHook((_pArg, pgno, flags) => {
             if (flags === 1 && this.action.type === "query") {
                 const pageIndex = pgno - 1;
                 if (!this.action.pages.has(pageIndex)) {
