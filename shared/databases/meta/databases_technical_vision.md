@@ -24,8 +24,8 @@ toward.
 Alpine runs SQLite both in the browser (via WASM) and on the server. A **custom VFS (Virtual File
 System)** on the client stores database pages in two layers:
 
--   **In-memory** — for fast, ephemeral access and optimistic writes
--   **OPFS (Origin Private File System)** — for persistent local storage
+- **In-memory** — for fast, ephemeral access and optimistic writes
+- **OPFS (Origin Private File System)** — for persistent local storage
 
 On the server, a corresponding custom VFS intercepts written pages, persists them to a backing
 store, diffs the changes at the page level, and broadcasts the changed bytes to all connected
@@ -65,12 +65,12 @@ and invalidating those queries when relevant page changes arrive.
 
 **Known challenges:**
 
--   SQLite's **page 1 contains the file change counter** and is touched on every write, which would
-    cause excessive invalidation if used naively. We need a smarter heuristic or more granular
-    tracking.
--   SQLite's **page cache** may prevent us from observing all page reads during a query. Disabling
-    the cache is an option, but has performance implications. Another possibility is hooking into or
-    patching the cache layer to intercept reads without fully disabling it.
+- SQLite's **page 1 contains the file change counter** and is touched on every write, which would
+  cause excessive invalidation if used naively. We need a smarter heuristic or more granular
+  tracking.
+- SQLite's **page cache** may prevent us from observing all page reads during a query. Disabling the
+  cache is an option, but has performance implications. Another possibility is hooking into or
+  patching the cache layer to intercept reads without fully disabling it.
 
 Reactive queries are a high-leverage feature — rather than re-evaluating every query on every page
 update, they allow us to only re-run queries that actually touch the changed pages.
@@ -130,9 +130,9 @@ without a server is significant, and the use cases don't justify it. However, Al
 meaningfully improve resilience and performance by persisting pages in the browser long-term (via
 OPFS):
 
--   Queries can be answered from the local cache even during brief network interruptions.
--   On reconnect, the client sends the last-seen timestamp for each locally cached page. The server
-    responds with the latest versions of any stale pages, minimizing the data needed to catch up.
+- Queries can be answered from the local cache even during brief network interruptions.
+- On reconnect, the client sends the last-seen timestamp for each locally cached page. The server
+  responds with the latest versions of any stale pages, minimizing the data needed to catch up.
 
 This gives us most of the UX benefit of offline-first without the full complexity of offline write
 conflict resolution.
@@ -147,9 +147,9 @@ produce inconsistent results that appear to flicker.
 
 Alpine addresses this by **controlling the VFS's time and randomness hooks**:
 
--   Each write transaction is assigned a **transaction ID**, used to seed a deterministic RNG.
--   The client's wall clock time is used for timestamp functions, provided it hasn't drifted
-    significantly from the server.
+- Each write transaction is assigned a **transaction ID**, used to seed a deterministic RNG.
+- The client's wall clock time is used for timestamp functions, provided it hasn't drifted
+  significantly from the server.
 
 This ensures that re-executing a write produces the same logical result regardless of when or where
 it runs — reducing visible inconsistency during the optimistic window.
@@ -168,9 +168,9 @@ becomes significantly harder for arbitrary SQL — particularly DDL operations l
 
 **Open problem.** Possible directions:
 
--   For schema-modifying SQL, require explicit snapshots rather than supporting undo.
--   Restrict undo/redo to UI-driven operations only and treat raw SQL as outside its scope.
--   Block schema changes via the SQL interface entirely, confining schema evolution to a controlled
-    migration path.
+- For schema-modifying SQL, require explicit snapshots rather than supporting undo.
+- Restrict undo/redo to UI-driven operations only and treat raw SQL as outside its scope.
+- Block schema changes via the SQL interface entirely, confining schema evolution to a controlled
+  migration path.
 
 This is an area where the right constraints need to be established before the mechanism is built.
