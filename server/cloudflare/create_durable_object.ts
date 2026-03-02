@@ -119,6 +119,7 @@ export function createDurableObject<
         initializeActionContext: WorkerActionContext;
         idName: string;
         destroy: () => void;
+        storage: DurableObjectStorage;
     }) => Promise<DurableObject>;
 }): {
     new (
@@ -356,6 +357,7 @@ export function createDurableObject<
                                                 initializeActionContext: actionContext,
                                                 idName,
                                                 destroy: () => (this._object = null),
+                                                storage: this._state.storage,
                                             }),
                                     ),
                                 };
@@ -462,6 +464,7 @@ export function createDurableObject<
                             initializeActionContext: actionContext,
                             idName,
                             destroy: () => objectByIdName.delete(idName),
+                            storage: undefined as unknown as DurableObjectStorage,
                         }),
                     );
 
@@ -474,6 +477,7 @@ export function createDurableObject<
                             initializeActionContext: actionContext,
                             idName,
                             destroy: () => objectByIdName.delete(idName),
+                            storage: undefined as unknown as DurableObjectStorage,
                         }),
                     );
 

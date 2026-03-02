@@ -1271,3 +1271,4 @@ export {ChannelRealtimeDurableObject} from "~/server/forum/realtime/channel_real
 export {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_durable_object.js";
 export {MyAccountDurableObject} from "~/server/notifications/my_account/my_account_durable_object.js";
 export {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";
+export {DatabaseDurableObject} from "~/server/databases/database_durable_object.js";

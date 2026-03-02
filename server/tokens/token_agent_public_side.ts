@@ -185,6 +185,7 @@ export class TokenAgentPublicSide {
             case "ChatRealtimeService":
             case "MyAccountService":
             case "TaskNotesCollaborationService":
+            case "DatabaseService":
                 return this._edgeServiceFamilyPublicKeyForRs256;
             case "TaskRealtimeService":
                 return this._taskRealtimeServicePublicKeyForRs256;
@@ -212,6 +213,7 @@ export class TokenAgentPublicSide {
             case "ChatRealtimeService":
             case "MyAccountService":
             case "TaskNotesCollaborationService":
+            case "DatabaseService":
                 return this._edgeServiceFamilyPublicKeyForRsaOaep;
             case "TaskRealtimeService":
                 return this._taskRealtimeServicePublicKeyForRsaOaep;

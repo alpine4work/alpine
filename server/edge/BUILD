@@ -54,6 +54,7 @@ ts_project(
         "//app/static:static_manifest",
         "//server/chat/realtime",
         "//server/cloudflare",
+        "//server/databases",
         "//server/documents/collaboration",
         "//server/forum/realtime",
         "//server/helpers",

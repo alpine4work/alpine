@@ -94,6 +94,14 @@ new_classes = ["MyAccountDurableObject"]
 tag = "v5"
 new_classes = ["TaskNotesCollaborationDurableObject"]
 
+[[durable_objects.bindings]]
+name = "DatabaseDurableObjectNamespace"
+class_name = "DatabaseDurableObject"
+
 [[migrations]]
 tag = "v6"
 new_classes = ["ChannelRealtimeDurableObject"]
+
+[[migrations]]
+tag = "v7"
+new_sqlite_classes = ["DatabaseDurableObject"]

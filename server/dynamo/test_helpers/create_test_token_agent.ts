@@ -47,6 +47,7 @@ export async function createTestTokenAgents<
             case "ChatRealtimeService":
             case "MyAccountService":
             case "TaskNotesCollaborationService":
+            case "DatabaseService":
                 return joinPath(keysDirectoryPath, "edge_service_family_rsa");
             default:
                 throw exhaustive(serviceName);
