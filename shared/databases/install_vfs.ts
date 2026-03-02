@@ -42,16 +42,34 @@ export interface VfsMethods {
 }
 
 /**
+ * Handle returned by {@link installVfs} for retrieving errors
+ * that occurred inside VFS callbacks. When a VfsFile or
+ * VfsMethods method throws, the helper stashes the error and
+ * returns the appropriate SQLite error code. Call
+ * {@link takeError} to retrieve (and clear) the stashed error
+ * after the SQLite call that triggered it.
+ */
+export interface InstalledVfs {
+    /** Returns and clears the stashed error, or `null`. */
+    takeError(): unknown | null;
+}
+
+/**
  * Installs a custom SQLite VFS backed by the given
  * {@link VfsMethods}. Handles all struct setup, WASM memory
  * access, string conversion, and boilerplate VFS methods.
  *
  * The helper manages the `filePtr → VfsFile` mapping
  * internally. All VfsFile method calls are wrapped in
- * try/catch — on exception, the appropriate SQLite error code
- * is returned.
+ * try/catch — on exception, the error is stashed (retrievable
+ * via the returned {@link InstalledVfs}) and the appropriate
+ * SQLite error code is returned.
  */
-export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMethods): void {
+export function installVfs(
+    sqlite3: Sqlite3Static,
+    name: string,
+    methods: VfsMethods,
+): InstalledVfs {
     const capi = sqlite3.capi;
     const wasm = sqlite3.wasm;
 
@@ -66,6 +84,14 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
     vfs.$mxPathname = 512;
 
     const files = new Map<WasmPointer, VfsFile>();
+
+    let stashedError: unknown | null = null;
+
+    function stash(error: unknown): void {
+        if (stashedError === null) {
+            stashedError = error;
+        }
+    }
 
     // Pre-cast result codes to avoid `as` noise on every return.
     const ok = capi.SQLITE_OK as any;
@@ -83,9 +109,8 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
                     if (file === undefined) return ok;
                     try {
                         file.close();
-                    } catch {
-                        // Intentionally swallowed — close errors
-                        // are not propagatable.
+                    } catch (error) {
+                        stash(error);
                     }
                     files.delete(filePtr);
                     return ok;
@@ -102,7 +127,8 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
                     try {
                         const data = wasm.heap8u().subarray(buf, buf + iAmt);
                         return file.read(data, Number(iOfst)) ? ok : ioErrShortRead;
-                    } catch {
+                    } catch (error) {
+                        stash(error);
                         return ioErr;
                     }
                 },
@@ -119,7 +145,8 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
                         const data = wasm.heap8u().subarray(buf, buf + iAmt);
                         file.write(data, Number(iOfst));
                         return ok;
-                    } catch {
+                    } catch (error) {
+                        stash(error);
                         return ioErr;
                     }
                 },
@@ -130,7 +157,8 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
                     try {
                         file.truncate(size);
                         return ok;
-                    } catch {
+                    } catch (error) {
+                        stash(error);
                         return ioErr;
                     }
                 },
@@ -141,7 +169,8 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
                     try {
                         file.sync();
                         return ok;
-                    } catch {
+                    } catch (error) {
+                        stash(error);
                         return ioErr;
                     }
                 },
@@ -155,7 +184,8 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
                         const view = new DataView(heap.buffer, pSize, 8);
                         view.setBigInt64(0, BigInt(size), true);
                         return ok;
-                    } catch {
+                    } catch (error) {
+                        stash(error);
                         return ioErr;
                     }
                 },
@@ -217,7 +247,8 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
                         }
 
                         return ok;
-                    } catch {
+                    } catch (error) {
+                        stash(error);
                         return cantOpen;
                     }
                 },
@@ -226,7 +257,8 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
                     try {
                         methods.delete(wasm.cstrToJs(zName) ?? "", syncDir);
                         return ok;
-                    } catch {
+                    } catch (error) {
+                        stash(error);
                         return ioErr;
                     }
                 },
@@ -241,7 +273,8 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
                         const exists = methods.access(wasm.cstrToJs(zName) ?? "", flags);
                         wasm.poke32(pResOut, exists ? 1 : 0);
                         return ok;
-                    } catch {
+                    } catch (error) {
+                        stash(error);
                         return ioErr;
                     }
                 },
@@ -292,4 +325,12 @@ export function installVfs(sqlite3: Sqlite3Static, name: string, methods: VfsMet
             },
         },
     });
+
+    return {
+        takeError(): unknown | null {
+            const error = stashedError;
+            stashedError = null;
+            return error;
+        },
+    };
 }

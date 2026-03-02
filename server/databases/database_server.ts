@@ -5,7 +5,7 @@ import type {
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import type {VfsFile} from "~/shared/databases/install_vfs.js";
+import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -50,64 +50,6 @@ const queryDenyActionCodes = new Set([
     27, // SQLITE_REINDEX
     30, // SQLITE_DROP_VTABLE
 ]);
-
-class DatabaseFile implements VfsFile {
-    private readonly storage: DatabaseServerStorage;
-    private readonly getAction: () => DatabaseServerAction;
-
-    constructor(storage: DatabaseServerStorage, getAction: () => DatabaseServerAction) {
-        this.storage = storage;
-        this.getAction = getAction;
-    }
-
-    read(data: Uint8Array, offset: number): boolean {
-        const fileSize = this.storage.getFileSize();
-
-        if (offset >= fileSize) {
-            data.fill(0);
-            return false;
-        }
-
-        const pageIndex = Math.floor(offset / pageSize);
-        assert(
-            Math.floor((offset + data.byteLength - 1) / pageSize) === pageIndex,
-            `read spans pages: offset=${offset} amount=${data.byteLength}`,
-        );
-
-        const page = this.storage.readPage(pageIndex);
-
-        // When in query mode, stash database pages so the
-        // pageAccessHook doesn't double-read them.
-        const action = this.getAction();
-        if (action.type === "query" && !action.pages.has(pageIndex)) {
-            action.pages.set(pageIndex, new Uint8Array(page));
-        }
-
-        const pageOffset = offset % pageSize;
-        data.set(page.subarray(pageOffset, pageOffset + data.byteLength));
-        return true;
-    }
-
-    write(data: Uint8Array, offset: number): void {
-        assert(offset % pageSize === 0, `write offset ${offset} not page-aligned`);
-        assert(data.byteLength === pageSize, `write amount ${data.byteLength} !== ${pageSize}`);
-        this.storage.writePage(offset / pageSize, new Uint8Array(data));
-    }
-
-    truncate(size: number): void {
-        this.storage.truncate(size);
-    }
-
-    sync(): void {
-        this.storage.flush();
-    }
-
-    fileSize(): number {
-        return this.storage.getFileSize();
-    }
-
-    close(): void {}
-}
 
 class TempFile implements VfsFile {
     private pages = new Map<number, Uint8Array>();
@@ -157,6 +99,15 @@ class TempFile implements VfsFile {
 
     truncate(size: number): void {
         this.size = size;
+        for (const [index, page] of this.pages) {
+            if (index >= Math.ceil(size / pageSize)) {
+                this.pages.delete(index);
+            } else if (size % pageSize !== 0 && index === Math.ceil(size / pageSize) - 1) {
+                // Zero bytes past the truncation point on the
+                // last partial page.
+                page.fill(0, size % pageSize);
+            }
+        }
     }
 
     sync(): void {}
@@ -175,9 +126,9 @@ class TempFile implements VfsFile {
 export class DatabaseServer {
     private readonly db: Database;
     private readonly storage: DatabaseServerStorage;
+    private readonly vfs: InstalledVfs;
     private action: DatabaseServerAction = {type: "idle"};
-    private stashedError: unknown | null = null;
-    private readonly tempFiles = new Set<TempFile>();
+    private readonly tempFiles = new Map<string, TempFile>();
 
     private constructor(sqlite3: Sqlite3Static, storage: DatabaseServerStorage) {
         this.storage = storage;
@@ -185,33 +136,29 @@ export class DatabaseServer {
         const capi = sqlite3.capi;
         const name = `${vfsNamePrefix}-${vfsCounter++}`;
 
-        const stashError = (error: unknown): void => {
-            if (this.stashedError === null) {
-                this.stashedError = error;
-            }
-        };
-
-        installVfs(sqlite3, name, {
-            open: (_filename, flags) => {
+        this.vfs = installVfs(sqlite3, name, {
+            open: (filename, flags) => {
                 if (flags & capi.SQLITE_OPEN_MAIN_DB) {
-                    return new DatabaseFile(storage, () => this.action);
+                    return this.openMainDatabaseFile();
                 }
                 if (flags & (capi.SQLITE_OPEN_TEMP_DB | capi.SQLITE_OPEN_TEMP_JOURNAL)) {
                     const file = new TempFile();
-                    this.tempFiles.add(file);
+                    if (filename !== null) {
+                        this.tempFiles.set(filename, file);
+                    }
                     return file;
                 }
-                const error = new UnimplementedError(
+                throw new UnimplementedError(
                     `Unsupported file type: flags=0x${flags.toString(16)}`,
                 );
-                stashError(error);
-                throw error;
             },
 
-            delete() {},
+            delete: filename => {
+                this.tempFiles.delete(filename);
+            },
 
-            access() {
-                return false;
+            access: filename => {
+                return this.tempFiles.has(filename);
             },
         });
 
@@ -267,9 +214,8 @@ export class DatabaseServer {
             const pages = (this.action as {type: "query"; pages: Map<number, Uint8Array>}).pages;
             return {rows, pages};
         } catch (error) {
-            const stashed = this.stashedError;
+            const stashed = this.vfs.takeError();
             if (stashed !== null) {
-                this.stashedError = null;
                 if (stashed instanceof Error) {
                     stashed.cause = error;
                 }
@@ -279,10 +225,64 @@ export class DatabaseServer {
         } finally {
             this.db.pageAccessHook(null);
             this.action = {type: "idle"};
-            this.stashedError = null;
+            this.vfs.takeError();
             this.tempFiles.clear();
             this.db.exec("ROLLBACK");
         }
+    }
+
+    private openMainDatabaseFile(): VfsFile {
+        return {
+            read: (data, offset) => {
+                const fileSize = this.storage.getFileSize();
+
+                if (offset >= fileSize) {
+                    data.fill(0);
+                    return false;
+                }
+
+                const pageIndex = Math.floor(offset / pageSize);
+                assert(
+                    Math.floor((offset + data.byteLength - 1) / pageSize) === pageIndex,
+                    `read spans pages: offset=${offset} amount=${data.byteLength}`,
+                );
+
+                const page = this.storage.readPage(pageIndex);
+
+                // When in query mode, stash database pages so
+                // the pageAccessHook doesn't double-read them.
+                if (this.action.type === "query" && !this.action.pages.has(pageIndex)) {
+                    this.action.pages.set(pageIndex, new Uint8Array(page));
+                }
+
+                const pageOffset = offset % pageSize;
+                data.set(page.subarray(pageOffset, pageOffset + data.byteLength));
+                return true;
+            },
+
+            write: (data, offset) => {
+                assert(offset % pageSize === 0, `write offset ${offset} not page-aligned`);
+                assert(
+                    data.byteLength === pageSize,
+                    `write amount ${data.byteLength} !== ${pageSize}`,
+                );
+                this.storage.writePage(offset / pageSize, new Uint8Array(data));
+            },
+
+            truncate: size => {
+                this.storage.truncate(size);
+            },
+
+            sync: () => {
+                this.storage.flush();
+            },
+
+            fileSize: () => {
+                return this.storage.getFileSize();
+            },
+
+            close: () => {},
+        };
     }
 
     /** Exposed for tests only. Do not use in production code. */
