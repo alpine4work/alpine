@@ -64,9 +64,15 @@ export class DatabaseServer {
 // VFS implementation
 // ---------------------------------------------------------------------------
 
+type VfsFile =
+    | {type: "database"}
+    | {type: "temp"; pages: Map<number, Uint8Array>; fileSize: number};
+
 function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name: string): void {
     const capi = sqlite3.capi;
     const wasm = sqlite3.wasm;
+
+    const files = new Map<number, VfsFile>();
 
     const ioMethods = new sqlite3.capi.sqlite3_io_methods();
     ioMethods.iVersion = 1;
@@ -83,7 +89,8 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
             struct: ioMethods,
             applyArgcCheck: false,
             methods: {
-                xClose() {
+                xClose(filePtr: WasmPointer) {
+                    files.delete(filePtr);
                     return capi.SQLITE_OK;
                 },
 
@@ -93,13 +100,19 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
                     iAmt: number,
                     iOfst: number | bigint,
                 ) {
+                    const file = files.get(filePtr);
+                    assert(file !== undefined, "xRead: unknown file handle");
+
                     const offset = Number(iOfst);
                     const heap = wasm.heap8u();
+
+                    const fileSize =
+                        file.type === "database" ? storage.getFileSize() : file.fileSize;
 
                     // Reading beyond the file returns short read.
                     // This happens when SQLite probes the header of
                     // a newly created (empty) database.
-                    if (offset >= storage.getFileSize()) {
+                    if (offset >= fileSize) {
                         heap.fill(0, buf, buf + iAmt);
                         return capi.SQLITE_IOERR_SHORT_READ;
                     }
@@ -113,7 +126,10 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
                         `xRead spans pages: offset=${offset} amount=${iAmt}`,
                     );
 
-                    const page = storage.readPage(pageIndex);
+                    const page =
+                        file.type === "database"
+                            ? storage.readPage(pageIndex)
+                            : (file.pages.get(pageIndex) ?? new Uint8Array(pageSize));
                     const pageOffset = offset % pageSize;
                     heap.set(page.subarray(pageOffset, pageOffset + iAmt), buf);
                     return capi.SQLITE_OK;
@@ -125,29 +141,74 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
                     iAmt: number,
                     iOfst: number | bigint,
                 ) {
-                    const offset = Number(iOfst);
-                    assert(offset % pageSize === 0, `xWrite offset ${offset} not page-aligned`);
-                    assert(iAmt === pageSize, `xWrite amount ${iAmt} !== ${pageSize}`);
+                    const file = files.get(filePtr);
+                    assert(file !== undefined, "xWrite: unknown file handle");
 
-                    const pageIndex = offset / pageSize;
+                    const offset = Number(iOfst);
                     const heap = wasm.heap8u();
-                    const data = heap.slice(buf, buf + iAmt);
-                    storage.writePage(pageIndex, data);
+
+                    if (file.type === "database") {
+                        assert(offset % pageSize === 0, `xWrite offset ${offset} not page-aligned`);
+                        assert(iAmt === pageSize, `xWrite amount ${iAmt} !== ${pageSize}`);
+
+                        const pageIndex = offset / pageSize;
+                        const data = heap.slice(buf, buf + iAmt);
+                        storage.writePage(pageIndex, data);
+                    } else {
+                        // Temp files may have arbitrary write
+                        // offsets (e.g. journal headers), so we do
+                        // byte-level read-modify-write into pages.
+                        let remaining = iAmt;
+                        let srcOffset = buf;
+                        let dstOffset = offset;
+                        while (remaining > 0) {
+                            const pageIndex = Math.floor(dstOffset / pageSize);
+                            const pageOffset = dstOffset % pageSize;
+                            const chunkSize = Math.min(remaining, pageSize - pageOffset);
+                            const page = file.pages.get(pageIndex) ?? new Uint8Array(pageSize);
+                            page.set(heap.subarray(srcOffset, srcOffset + chunkSize), pageOffset);
+                            file.pages.set(pageIndex, page);
+                            srcOffset += chunkSize;
+                            dstOffset += chunkSize;
+                            remaining -= chunkSize;
+                        }
+                        const end = offset + iAmt;
+                        if (end > file.fileSize) {
+                            file.fileSize = end;
+                        }
+                    }
                     return capi.SQLITE_OK;
                 },
 
                 xTruncate(filePtr: WasmPointer, size: number) {
-                    storage.truncate(size);
+                    const file = files.get(filePtr);
+                    assert(file !== undefined, "xTruncate: unknown file handle");
+
+                    if (file.type === "database") {
+                        storage.truncate(size);
+                    } else {
+                        file.fileSize = size;
+                    }
                     return capi.SQLITE_OK;
                 },
 
-                xSync() {
-                    storage.flush();
+                xSync(filePtr: WasmPointer) {
+                    const file = files.get(filePtr);
+                    assert(file !== undefined, "xSync: unknown file handle");
+
+                    if (file.type === "database") {
+                        storage.flush();
+                    }
                     return capi.SQLITE_OK;
                 },
 
                 xFileSize(filePtr: WasmPointer, pSize: WasmPointer) {
-                    wasm.poke64(pSize, BigInt(storage.getFileSize()));
+                    const file = files.get(filePtr);
+                    assert(file !== undefined, "xFileSize: unknown file handle");
+
+                    const fileSize =
+                        file.type === "database" ? storage.getFileSize() : file.fileSize;
+                    wasm.poke64(pSize, BigInt(fileSize));
                     return capi.SQLITE_OK;
                 },
 
@@ -192,6 +253,17 @@ function installVfs(sqlite3: Sqlite3Static, storage: DatabaseServerStorage, name
                 ) {
                     const file = new sqlite3.capi.sqlite3_file(filePtr);
                     file.$pMethods = ioMethods.pointer!;
+
+                    if (flags & capi.SQLITE_OPEN_MAIN_DB) {
+                        files.set(filePtr, {type: "database"});
+                    } else {
+                        files.set(filePtr, {
+                            type: "temp",
+                            pages: new Map(),
+                            fileSize: 0,
+                        });
+                    }
+
                     if (pOutputFlags) {
                         wasm.poke32(
                             pOutputFlags,
