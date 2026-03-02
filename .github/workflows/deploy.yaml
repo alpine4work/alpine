@@ -99,6 +99,20 @@ jobs:
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/script --config=github-runner --config=production --nofetch
 
+            - name: Collect sourcemaps
+              shell: bash
+              run: |
+                  mkdir -p /tmp/sourcemaps
+                  find -L bazel-bin -name '*.map' -path '*/app/build/*' -exec cp {} /tmp/sourcemaps/ \;
+                  echo "Sourcemaps: $(find /tmp/sourcemaps -name '*.map' | wc -l)"
+
+            - name: Upload sourcemaps
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sourcemaps-${{ inputs.commitSha }}
+                  path: /tmp/sourcemaps
+                  retention-days: 14
+
             - name: Deploy
               shell: bash
               env:

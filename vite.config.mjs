@@ -24,6 +24,11 @@ export default defineConfig(({mode}) => {
         },
         build: {
             outDir: "./app/build",
+            // Generate sourcemaps but don't inject `//# sourceMappingURL` comments
+            // into the bundles. This way browsers and CDN won't try to fetch them.
+            // The `.map` files are uploaded as GitHub artifacts during deploy and
+            // used by `dev sourcemap` to resolve production stack traces.
+            sourcemap: "hidden",
         },
         // Vite will rewrite asset URLs to be prefixed with this value on build.
         // In development, Vite ignores the origin portion of the URL[1] and we override it with an

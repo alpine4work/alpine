@@ -27,6 +27,7 @@ ts_project(
         "//:node_modules/fs-extra",
         "//:node_modules/murmurhash",
         "//:node_modules/ws",
+        "//:node_modules/source-map",
         "//:node_modules/yargs",
         "//admin/cron",
         "//admin/dev/agents_d1",
@@ -104,6 +105,13 @@ js_binary(
     name = "stack",
     data = [":dev_lib"],
     entry_point = "dev_stack_main.js",
+    env = {"NODE_ENV": "development"},
+)
+
+js_binary(
+    name = "sourcemap",
+    data = [":dev_lib"],
+    entry_point = "dev_sourcemap_main.js",
     env = {"NODE_ENV": "development"},
 )
 

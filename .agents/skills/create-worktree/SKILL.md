@@ -1,6 +1,8 @@
 ---
 name: create-worktree
-description: Create a git worktree for isolated development with its own dev server, database, and session. Use when the user asks to create a new workspace or isolated environment.
+description:
+    Create a git worktree for isolated development with its own dev server, database, and session.
+    Use when the user asks to create a new workspace or isolated environment.
 ---
 
 # Creating a worktree for isolated development
@@ -16,7 +18,8 @@ git worktree add ../cyberworlds-worktree-1 -b <branch-name>
 cd ../cyberworlds-worktree-1
 ```
 
-**2. Create `.env.development.local` with unique ports (add 100 for worktree-1, 200 for worktree-2, etc.):**
+**2. Create `.env.development.local` with unique ports (add 100 for worktree-1, 200 for worktree-2,
+etc.):**
 
 ```bash
 DEV_ENV_PATHS_NAME_SUFFIX=-worktree-1

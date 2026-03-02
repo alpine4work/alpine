@@ -250,7 +250,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["signal-exit", ["3.0.7", "4.1.0"]],
     ["slash", ["3.0.0", "4.0.0"]],
     ["source-map-support", ["0.5.13", "0.5.21"]],
-    ["source-map", ["0.6.1", "0.7.4"]],
+    ["source-map", ["0.6.1", "0.7.6"]],
     ["ssri", ["8.0.1", "10.0.6"]],
     ["string-width", ["4.2.3", "5.1.2", "7.2.0"]],
     ["string_decoder", ["1.1.1", "1.3.0"]],

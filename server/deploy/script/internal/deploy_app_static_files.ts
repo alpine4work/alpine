@@ -88,6 +88,10 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 if ((await fs.stat(childPath)).isDirectory()) {
                     await traverse(`${childRelativePath}/`, childPath);
                 } else {
+                    // Don't upload sourcemaps to R2. They're uploaded as GitHub
+                    // artifacts during deploy and used by `dev sourcemap`.
+                    if (childRelativePath.endsWith(".map")) return;
+
                     uploadFileByPath.set(childRelativePath, {
                         path: childRelativePath,
                         contentMd5: await getFileMd5Hash(childPath),

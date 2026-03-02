@@ -70,6 +70,7 @@ Usage:
     dev path [name]          Print a single path in your development environment
     dev deployed             Check if the head commit has been deployed
     dev deployed [commit]    Check if the provided commit has been deployed
+    dev sourcemap            Resolve a production stack trace using sourcemaps
     dev agents <command>     Manage agents-related services
     dev experimental         Run experimental scripts
     dev --help               Print this message"
@@ -307,6 +308,10 @@ EOF
 
     deployed)
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:deployed -- ${@:2}
+        ;;
+
+    sourcemap)
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:sourcemap -- ${@:2}
         ;;
 
     agents)
