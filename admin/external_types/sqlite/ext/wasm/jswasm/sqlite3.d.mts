@@ -1273,6 +1273,16 @@ export class Database {
 
   /** Instance method version of {@link checkRc()}. */
   checkRc: (resultCode: number) => this;
+
+  /**
+   * Registers a callback that is invoked whenever a database page is
+   * read or written. The callback receives the page number and a flag
+   * indicating the access type: `1` for read, `2` for write. Pass a
+   * falsy value to disable the hook.
+   */
+  pageAccessHook(
+    callback: ((pgno: number, flags: number) => void) | null | false | 0,
+  ): this;
 }
 
 /**
