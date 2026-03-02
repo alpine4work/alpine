@@ -32,7 +32,7 @@ class InMemoryStorage implements DatabaseServerStorage {
 
 test("SELECT 1 + 1", async () => {
     const server = await DatabaseServer.create(new InMemoryStorage());
-    const db = server.unsafeGetDb();
+    const db = server.unsafeGetDbForTests();
 
     expect(db.selectValue("SELECT 1 + 1")).toBe(2);
 
@@ -41,7 +41,7 @@ test("SELECT 1 + 1", async () => {
 
 test("create table, insert, and query", async () => {
     const server = await DatabaseServer.create(new InMemoryStorage());
-    const db = server.unsafeGetDb();
+    const db = server.unsafeGetDbForTests();
 
     db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
     // eslint-disable-next-line cyberworlds/string-quotes
@@ -62,7 +62,7 @@ test("create table, insert, and query", async () => {
 
 test("data persists across multiple exec calls", async () => {
     const server = await DatabaseServer.create(new InMemoryStorage());
-    const db = server.unsafeGetDb();
+    const db = server.unsafeGetDbForTests();
 
     db.exec("CREATE TABLE counters (value INTEGER NOT NULL)");
     db.exec("INSERT INTO counters (value) VALUES (10)");
@@ -75,6 +75,51 @@ test("data persists across multiple exec calls", async () => {
             rowMode: "array",
         }),
     ).toEqual([[11], [21]]);
+
+    server.close();
+});
+
+test("query returns rows and accessed pages", async () => {
+    const server = await DatabaseServer.create(new InMemoryStorage());
+    const db = server.unsafeGetDbForTests();
+
+    db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+    // eslint-disable-next-line cyberworlds/string-quotes
+    db.exec("INSERT INTO items (name) VALUES ('alpha'), ('beta')");
+
+    const result = server.query("SELECT id, name FROM items ORDER BY id");
+
+    expect(result.rows).toEqual([
+        {id: 1, name: "alpha"},
+        {id: 2, name: "beta"},
+    ]);
+    expect(result.pages.size).toBeGreaterThan(0);
+
+    // Every page should be a full page of data.
+    for (const [, data] of result.pages) {
+        expect(data.byteLength).toBe(pageSize);
+    }
+
+    server.close();
+});
+
+test("query rejects write statements", async () => {
+    const server = await DatabaseServer.create(new InMemoryStorage());
+    const db = server.unsafeGetDbForTests();
+
+    db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
+
+    expect(() => server.query("INSERT INTO items (id) VALUES (1)")).toThrow();
+    expect(() => server.query("DELETE FROM items")).toThrow();
+    expect(() => server.query("UPDATE items SET id = 2")).toThrow();
+
+    server.close();
+});
+
+test("query rejects pragmas", async () => {
+    const server = await DatabaseServer.create(new InMemoryStorage());
+
+    expect(() => server.query("PRAGMA table_list")).toThrow();
 
     server.close();
 });
