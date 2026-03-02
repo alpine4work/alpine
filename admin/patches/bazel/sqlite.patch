@@ -1,8 +1,7 @@
-diff --git a/a/ext/wasm/GNUmakefile b/b/ext/wasm/GNUmakefile
-index 937e16d..6ce0519 100644
+diff --git a/ext/wasm/GNUmakefile b/ext/wasm/GNUmakefile
 --- a/ext/wasm/GNUmakefile
 +++ b/ext/wasm/GNUmakefile
-@@ -248,8 +248,13 @@ c-pp.D.64bit = -Dbits64
+@@ -248,8 +248,13 @@
  #
  # This is intended to be used in makefile targets which generate an
  # Emscripten module and where $@ is the module's .js/.mjs file.
@@ -16,4 +15,35 @@ index 937e16d..6ce0519 100644
 +  sed -i $(if $(filter Darwin,$(shell uname -s)),'') -e '/^.*= \(_sqlite3\|_fiddle\)[^=]*=.*createExportWrapper/d' \
    -e '/^var \(_sqlite3\|_fiddle\)[^=]*=.*makeInvalidEarlyAccess/d' $@ || exit; \
    echo '$(1) $(emo.garbage) (Probably) /createExportWrapper()/d and /makeInvalidEarlyAccess()/d'
- 
+
+diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
+--- a/ext/wasm/api/pre-js.c-pp.js
++++ b/ext/wasm/api/pre-js.c-pp.js
+@@ -91,12 +91,26 @@
+           ? "" : scriptDirectory)
+     );
+     sims.debugModule("instantiateWasm() uri =", uri, "sIMS =",this);
+-    const wfetch = ()=>fetch(uri, {credentials: 'same-origin'});
+     const finalThen = (arg)=>{
+       arg.imports = imports;
+       sims.instantiateWasm = arg /* used by sqlite3-api-prologue.c-pp.js */;
+       onSuccess(arg.instance, arg.module);
+     };
++    /* Node.js: load WASM from the filesystem. The web/worker builds
++    ** use fetch() which doesn't support file:// URLs in Node.js.
++    ** Dynamic import() is used so the node:fs/node:url references
++    ** don't break browser environments. */
++    if(typeof process!=='undefined' && process.versions && process.versions.node){
++      return (async ()=>{
++        const {readFileSync} = await import('node:fs');
++        const {fileURLToPath} = await import('node:url');
++        const filePath = uri.startsWith('file://') ? fileURLToPath(uri) : uri;
++        const bytes = readFileSync(filePath);
++        return WebAssembly.instantiate(bytes, imports).then(finalThen);
++      })();
++    }
++    /* Browser: use fetch */
++    const wfetch = ()=>fetch(uri, {credentials: 'same-origin'});
+     const loadWasm = WebAssembly.instantiateStreaming
+           ? async ()=>
+           WebAssembly
