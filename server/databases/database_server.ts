@@ -40,19 +40,9 @@ export class DatabaseServer {
         return new DatabaseServer(db);
     }
 
-    exec(sql: string): void {
-        this.db.exec(sql);
-    }
-
-    selectArrays(sql: string): Array<Array<unknown>> {
-        return this.db.exec(sql, {
-            returnValue: "resultRows",
-            rowMode: "array",
-        });
-    }
-
-    selectValue(sql: string): unknown {
-        return this.db.selectValue(sql);
+    /** Exposed for tests only. Do not use in production code. */
+    unsafeGetDb(): Database {
+        return this.db;
     }
 
     close(): void {

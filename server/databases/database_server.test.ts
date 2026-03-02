@@ -32,20 +32,27 @@ class InMemoryStorage implements DatabaseServerStorage {
 
 test("SELECT 1 + 1", async () => {
     const server = await DatabaseServer.create(new InMemoryStorage());
+    const db = server.unsafeGetDb();
 
-    expect(server.selectValue("SELECT 1 + 1")).toBe(2);
+    expect(db.selectValue("SELECT 1 + 1")).toBe(2);
 
     server.close();
 });
 
 test("create table, insert, and query", async () => {
     const server = await DatabaseServer.create(new InMemoryStorage());
+    const db = server.unsafeGetDb();
 
-    server.exec("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+    db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
     // eslint-disable-next-line cyberworlds/string-quotes
-    server.exec("INSERT INTO items (name) VALUES ('alpha'), ('beta')");
+    db.exec("INSERT INTO items (name) VALUES ('alpha'), ('beta')");
 
-    expect(server.selectArrays("SELECT id, name FROM items ORDER BY id")).toEqual([
+    expect(
+        db.exec("SELECT id, name FROM items ORDER BY id", {
+            returnValue: "resultRows",
+            rowMode: "array",
+        }),
+    ).toEqual([
         [1, "alpha"],
         [2, "beta"],
     ]);
@@ -55,13 +62,19 @@ test("create table, insert, and query", async () => {
 
 test("data persists across multiple exec calls", async () => {
     const server = await DatabaseServer.create(new InMemoryStorage());
+    const db = server.unsafeGetDb();
 
-    server.exec("CREATE TABLE counters (value INTEGER NOT NULL)");
-    server.exec("INSERT INTO counters (value) VALUES (10)");
-    server.exec("INSERT INTO counters (value) VALUES (20)");
-    server.exec("UPDATE counters SET value = value + 1");
+    db.exec("CREATE TABLE counters (value INTEGER NOT NULL)");
+    db.exec("INSERT INTO counters (value) VALUES (10)");
+    db.exec("INSERT INTO counters (value) VALUES (20)");
+    db.exec("UPDATE counters SET value = value + 1");
 
-    expect(server.selectArrays("SELECT value FROM counters ORDER BY value")).toEqual([[11], [21]]);
+    expect(
+        db.exec("SELECT value FROM counters ORDER BY value", {
+            returnValue: "resultRows",
+            rowMode: "array",
+        }),
+    ).toEqual([[11], [21]]);
 
     server.close();
 });
