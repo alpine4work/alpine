@@ -17,11 +17,24 @@ let vfsCounter = 0;
 
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
-type DatabaseServerAction = {type: "idle"} | {type: "query"; pages: Map<number, Uint8Array>};
+type DatabaseServerAction =
+    | {type: "idle"}
+    | {type: "query"; pages: Map<number, Uint8Array>}
+    | {type: "mutate"; changedPages: Map<number, DatabaseServerPageChange>};
 
 export interface DatabaseServerQueryResult {
     rows: Array<Record<string, unknown>>;
     pages: Map<number, Uint8Array>;
+}
+
+export interface DatabaseServerPageChange {
+    before: Uint8Array;
+    after: Uint8Array;
+}
+
+export interface DatabaseServerMutateResult {
+    rows: Array<Record<string, unknown>>;
+    changedPages: Map<number, DatabaseServerPageChange>;
 }
 
 // Mapping from SQLite authorizer action codes to
@@ -176,19 +189,62 @@ export class DatabaseServer {
         }
     }
 
+    mutate(sql: string): DatabaseServerMutateResult {
+        this.action = {type: "mutate", changedPages: new Map()};
+        this.db.exec("BEGIN");
+        try {
+            const rows = this.db.exec(sql, {
+                returnValue: "resultRows",
+                rowMode: "object",
+            }) as Array<Record<string, unknown>>;
+            this.db.exec("COMMIT");
+            const changedPages = (
+                this.action as {
+                    type: "mutate";
+                    changedPages: Map<number, DatabaseServerPageChange>;
+                }
+            ).changedPages;
+            return {rows, changedPages};
+        } catch (error) {
+            try {
+                this.db.exec("ROLLBACK");
+            } catch {
+                // With journal_mode=OFF, ROLLBACK may not be
+                // able to undo partial writes.
+            }
+            const stashed = this.vfs.takeError();
+            if (stashed !== null) {
+                if (stashed instanceof Error) {
+                    stashed.cause = error;
+                }
+                throw stashed;
+            }
+            throw error;
+        } finally {
+            this.action = {type: "idle"};
+            this.vfs.takeError();
+            this.tempFiles.clear();
+        }
+    }
+
     private isAllowed(action: AuthorizerAction): boolean {
         if (this.action.type === "idle") {
             return true;
         }
-        switch (action) {
-            case "read":
-            case "select":
-            case "transaction":
-            case "function":
-            case "recursive":
-                return true;
-            default:
-                return false;
+        switch (this.action.type) {
+            case "query":
+                switch (action) {
+                    case "read":
+                    case "select":
+                    case "transaction":
+                    case "function":
+                    case "recursive":
+                        return true;
+                    default:
+                        return false;
+                }
+            case "mutate":
+                return action !== "pragma";
         }
     }
 
@@ -227,7 +283,21 @@ export class DatabaseServer {
                     data.byteLength === pageSize,
                     `write amount ${data.byteLength} !== ${pageSize}`,
                 );
-                this.storage.writePage(offset / pageSize, new Uint8Array(data));
+                const pageIndex = offset / pageSize;
+
+                if (this.action.type === "mutate") {
+                    const existing = this.action.changedPages.get(pageIndex);
+                    if (existing === undefined) {
+                        this.action.changedPages.set(pageIndex, {
+                            before: new Uint8Array(this.storage.readPage(pageIndex)),
+                            after: new Uint8Array(data),
+                        });
+                    } else {
+                        existing.after = new Uint8Array(data);
+                    }
+                }
+
+                this.storage.writePage(pageIndex, new Uint8Array(data));
             },
 
             truncate: size => {

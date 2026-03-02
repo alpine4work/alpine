@@ -555,6 +555,319 @@ describe("DatabaseServer", () => {
         });
     });
 
+    describe("mutate — basic operations", () => {
+        test("INSERT returns empty rows and non-empty changedPages", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
+            );
+
+            // eslint-disable-next-line cyberworlds/string-quotes
+            const result = server.mutate("INSERT INTO items VALUES (1, 'hello')");
+
+            expect(result.rows).toEqual([]);
+            expect(result.changedPages.size).toBeGreaterThan(0);
+
+            server.close();
+        });
+
+        test("INSERT with RETURNING returns rows", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
+            );
+
+            const result = server.mutate(
+                // eslint-disable-next-line cyberworlds/string-quotes
+                "INSERT INTO items VALUES (1, 'hello') RETURNING id, name",
+            );
+
+            expect(result.rows).toEqual([{id: 1, name: "hello"}]);
+
+            server.close();
+        });
+
+        test("CREATE TABLE via mutate", async () => {
+            const server = await createServerWithSchema();
+
+            server.mutate("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)");
+            // eslint-disable-next-line cyberworlds/string-quotes
+            server.mutate("INSERT INTO items VALUES (1, 'hello')");
+
+            const result = server.query("SELECT * FROM items");
+            expect(result.rows).toEqual([{id: 1, name: "hello"}]);
+
+            server.close();
+        });
+
+        test("multiple mutations accumulate state", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+            );
+
+            server.mutate("INSERT INTO items VALUES (1)");
+            server.mutate("INSERT INTO items VALUES (2)");
+            server.mutate("INSERT INTO items VALUES (3)");
+
+            const result = server.query("SELECT * FROM items ORDER BY id");
+            expect(result.rows).toEqual([{id: 1}, {id: 2}, {id: 3}]);
+
+            server.close();
+        });
+
+        test("UPDATE modifies existing data", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY, value INTEGER)",
+                "INSERT INTO items VALUES (1, 100)",
+            );
+
+            server.mutate("UPDATE items SET value = 200 WHERE id = 1");
+
+            const result = server.query("SELECT * FROM items");
+            expect(result.rows).toEqual([{id: 1, value: 200}]);
+
+            server.close();
+        });
+
+        test("DELETE removes data", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+                "INSERT INTO items VALUES (1), (2), (3)",
+            );
+
+            server.mutate("DELETE FROM items WHERE id = 2");
+
+            const result = server.query("SELECT * FROM items ORDER BY id");
+            expect(result.rows).toEqual([{id: 1}, {id: 3}]);
+
+            server.close();
+        });
+    });
+
+    describe("mutate — changed pages", () => {
+        test("changedPages has before and after snapshots", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+            );
+
+            const result = server.mutate("INSERT INTO items VALUES (1)");
+
+            for (const [, change] of result.changedPages) {
+                expect(change.before).toBeInstanceOf(Uint8Array);
+                expect(change.after).toBeInstanceOf(Uint8Array);
+            }
+
+            server.close();
+        });
+
+        test("all page snapshots are 4096 bytes", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+            );
+
+            const result = server.mutate("INSERT INTO items VALUES (1)");
+
+            for (const [, change] of result.changedPages) {
+                expect(change.before.byteLength).toBe(pageSize);
+                expect(change.after.byteLength).toBe(pageSize);
+            }
+
+            server.close();
+        });
+
+        test("before snapshot matches pre-mutation storage state", async () => {
+            const storage = new InMemoryStorage();
+            const server = await DatabaseServer.create(storage);
+            const db = server.unsafeGetDbForTests();
+            db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
+            db.exec("INSERT INTO items VALUES (1)");
+
+            // Snapshot storage state before the mutation.
+            const prePages = new Map<number, Uint8Array>();
+            for (let i = 0; i < storage.getFileSize() / pageSize; i++) {
+                prePages.set(i, new Uint8Array(storage.readPage(i)));
+            }
+
+            const result = server.mutate("INSERT INTO items VALUES (2)");
+
+            for (const [pageIndex, change] of result.changedPages) {
+                const prePage = prePages.get(pageIndex) ?? new Uint8Array(pageSize);
+                expect(change.before).toEqual(prePage);
+            }
+
+            server.close();
+        });
+
+        test("after snapshot matches post-mutation storage state", async () => {
+            const storage = new InMemoryStorage();
+            const server = await DatabaseServer.create(storage);
+            const db = server.unsafeGetDbForTests();
+            db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
+            db.exec("INSERT INTO items VALUES (1)");
+
+            const result = server.mutate("INSERT INTO items VALUES (2)");
+
+            for (const [pageIndex, change] of result.changedPages) {
+                expect(change.after).toEqual(storage.readPage(pageIndex));
+            }
+
+            server.close();
+        });
+
+        test("before and after differ for changed pages", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+            );
+
+            const result = server.mutate("INSERT INTO items VALUES (1)");
+
+            // At least one page should have different before/after.
+            let hasDiff = false;
+            for (const [, change] of result.changedPages) {
+                if (!change.before.every((b, i) => b === change.after[i])) {
+                    hasDiff = true;
+                    break;
+                }
+            }
+            expect(hasDiff).toBe(true);
+
+            server.close();
+        });
+    });
+
+    describe("mutate — authorization", () => {
+        test("INSERT is allowed", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+            );
+
+            expect(() => server.mutate("INSERT INTO items VALUES (1)")).not.toThrow();
+
+            server.close();
+        });
+
+        test("UPDATE is allowed", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+                "INSERT INTO items VALUES (1)",
+            );
+
+            expect(() => server.mutate("UPDATE items SET id = 2")).not.toThrow();
+
+            server.close();
+        });
+
+        test("DELETE is allowed", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+                "INSERT INTO items VALUES (1)",
+            );
+
+            expect(() => server.mutate("DELETE FROM items")).not.toThrow();
+
+            server.close();
+        });
+
+        test("CREATE TABLE is allowed", async () => {
+            const server = await createServerWithSchema();
+
+            expect(() => server.mutate("CREATE TABLE t (id INTEGER)")).not.toThrow();
+
+            server.close();
+        });
+
+        test("DROP TABLE is allowed", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+            );
+
+            expect(() => server.mutate("DROP TABLE items")).not.toThrow();
+
+            server.close();
+        });
+
+        test("ALTER TABLE is allowed", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+            );
+
+            expect(() => server.mutate("ALTER TABLE items ADD COLUMN name TEXT")).not.toThrow();
+
+            server.close();
+        });
+
+        test("CREATE INDEX is allowed", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
+            );
+
+            expect(() => server.mutate("CREATE INDEX idx_name ON items(name)")).not.toThrow();
+
+            server.close();
+        });
+
+        test("PRAGMA is rejected", async () => {
+            const server = await createServerWithSchema();
+
+            expect(() => server.mutate("PRAGMA table_list")).toThrow();
+
+            server.close();
+        });
+
+        test("SELECT is allowed within mutate", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+                "INSERT INTO items VALUES (1)",
+            );
+
+            const result = server.mutate("SELECT * FROM items");
+
+            expect(result.rows).toEqual([{id: 1}]);
+
+            server.close();
+        });
+    });
+
+    describe("mutate — error handling", () => {
+        test("invalid SQL throws", async () => {
+            const server = await createServerWithSchema();
+
+            expect(() => server.mutate("NOT VALID SQL")).toThrow();
+
+            server.close();
+        });
+
+        test("constraint violation throws", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+                "INSERT INTO items VALUES (1)",
+            );
+
+            expect(() => server.mutate("INSERT INTO items VALUES (1)")).toThrow();
+
+            server.close();
+        });
+
+        test("database is usable after failed mutation", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+                "INSERT INTO items VALUES (1)",
+            );
+
+            // Duplicate key — should fail.
+            expect(() => server.mutate("INSERT INTO items VALUES (1)")).toThrow();
+
+            // Should still be able to query.
+            const result = server.query("SELECT * FROM items");
+            expect(result.rows).toEqual([{id: 1}]);
+
+            // Should still be able to mutate.
+            server.mutate("INSERT INTO items VALUES (2)");
+            const result2 = server.query("SELECT * FROM items ORDER BY id");
+            expect(result2.rows).toEqual([{id: 1}, {id: 2}]);
+
+            server.close();
+        });
+    });
+
     describe("create", () => {
         test("multiple servers can coexist", async () => {
             const server1 = await createServerWithSchema(
