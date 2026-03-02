@@ -87,10 +87,10 @@ export class AwsJobQueueService extends Construct {
             vpc,
             launchTemplate,
 
-            minCapacity: 3,
+            minCapacity: 2,
             // During a deploy, we double our capacity needs since we keep running old
             // instances to maintain availability while a new fleet of instances start.
-            maxCapacity: 6,
+            maxCapacity: 4,
 
             // See the long comment in `AwsAppService` for why we use a public
             // subnet for our services. The TL;DR is sending egress traffic like Honeycomb
@@ -377,7 +377,7 @@ export class AwsJobQueueService extends Construct {
         new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
             taskDefinition,
-            desiredCount: 4,
+            desiredCount: 2,
             // Specifies the max/min task count during a deploy.
             minHealthyPercent: 50,
             maxHealthyPercent: 200,

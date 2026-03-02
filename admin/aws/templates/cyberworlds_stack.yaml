@@ -5399,8 +5399,8 @@ Resources:
                     Fn::GetAtt:
                         - JobQueueServiceLaunchTemplate05372F6D
                         - LatestVersionNumber
-            MaxSize: "6"
-            MinSize: "3"
+            MaxSize: "4"
+            MinSize: "2"
             NewInstancesProtectedFromScaleIn: true
             Tags:
                 - Key: CloudWatchAgent
@@ -6221,7 +6221,7 @@ Resources:
                 MinimumHealthyPercent: 50
             DeploymentController:
                 Type: ECS
-            DesiredCount: 4
+            DesiredCount: 2
             EnableECSManagedTags: false
             SchedulingStrategy: REPLICA
             TaskDefinition:
