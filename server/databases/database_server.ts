@@ -249,20 +249,31 @@ export class DatabaseServer {
     }
 
     private openMainDatabaseFile(): VfsFile {
+        const pendingWrites = new Map<number, Uint8Array>();
+
         return {
             read: (data, offset) => {
-                const fileSize = this.storage.getFileSize();
-
-                if (offset >= fileSize) {
-                    data.fill(0);
-                    return false;
-                }
-
                 const pageIndex = Math.floor(offset / pageSize);
                 assert(
                     Math.floor((offset + data.byteLength - 1) / pageSize) === pageIndex,
                     `read spans pages: offset=${offset} amount=${data.byteLength}`,
                 );
+
+                // Check pending writes first — if SQLite evicted a
+                // dirty page from its cache, the buffered version is
+                // the correct one.
+                const pending = pendingWrites.get(pageIndex);
+                if (pending !== undefined) {
+                    const pageOffset = offset % pageSize;
+                    data.set(pending.subarray(pageOffset, pageOffset + data.byteLength));
+                    return true;
+                }
+
+                const fileSize = this.storage.getFileSize();
+                if (offset >= fileSize) {
+                    data.fill(0);
+                    return false;
+                }
 
                 const page = this.storage.readPage(pageIndex);
 
@@ -288,8 +299,13 @@ export class DatabaseServer {
                 if (this.action.type === "mutate") {
                     const existing = this.action.changedPages.get(pageIndex);
                     if (existing === undefined) {
+                        // Capture the before state. Check pending
+                        // writes first in case the page was written
+                        // earlier in the same transaction.
+                        const before =
+                            pendingWrites.get(pageIndex) ?? this.storage.readPage(pageIndex);
                         this.action.changedPages.set(pageIndex, {
-                            before: new Uint8Array(this.storage.readPage(pageIndex)),
+                            before: new Uint8Array(before),
                             after: new Uint8Array(data),
                         });
                     } else {
@@ -297,7 +313,7 @@ export class DatabaseServer {
                     }
                 }
 
-                this.storage.writePage(pageIndex, new Uint8Array(data));
+                pendingWrites.set(pageIndex, new Uint8Array(data));
             },
 
             truncate: size => {
@@ -305,11 +321,19 @@ export class DatabaseServer {
             },
 
             sync: () => {
-                this.storage.flush();
+                if (pendingWrites.size > 0) {
+                    this.storage.writePages(pendingWrites);
+                    pendingWrites.clear();
+                }
             },
 
             fileSize: () => {
-                return this.storage.getFileSize();
+                let size = this.storage.getFileSize();
+                for (const [index] of pendingWrites) {
+                    const end = (index + 1) * pageSize;
+                    if (end > size) size = end;
+                }
+                return size;
             },
 
             close: () => {},

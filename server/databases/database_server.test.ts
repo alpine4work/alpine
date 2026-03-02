@@ -11,15 +11,15 @@ class InMemoryStorage implements DatabaseServerStorage {
         return this.pages.get(index) ?? new Uint8Array(pageSize);
     }
 
-    writePage(index: number, data: Uint8Array): void {
-        this.pages.set(index, new Uint8Array(data));
-        const end = (index + 1) * pageSize;
-        if (end > this._fileSize) {
-            this._fileSize = end;
+    writePages(pages: ReadonlyMap<number, Uint8Array>): void {
+        for (const [index, data] of pages) {
+            this.pages.set(index, new Uint8Array(data));
+            const end = (index + 1) * pageSize;
+            if (end > this._fileSize) {
+                this._fileSize = end;
+            }
         }
     }
-
-    flush(): void {}
 
     getFileSize(): number {
         return this._fileSize;

@@ -3,21 +3,21 @@
  * file I/O from the actual persistence mechanism.
  *
  * All methods are synchronous because the VFS calls them directly
- * from `xRead`/`xWrite`.
+ * from `xRead`/`xSync`.
  *
  * The storage is responsible for tracking file size. Calling
- * `writePage` at a given index should update the file size if the
- * write extends the file.
+ * `writePages` should update the file size if any of the written
+ * pages extend the file.
  */
 export interface DatabaseServerStorage {
     /** Read a single page by its zero-based index. */
     readPage(index: number): Uint8Array;
 
-    /** Write a single page by its zero-based index. */
-    writePage(index: number, data: Uint8Array): void;
-
-    /** Called from `xSync`. Flush any buffered writes. */
-    flush(): void;
+    /**
+     * Write a batch of pages. Called from `xSync` with all
+     * pages that were dirtied since the last sync.
+     */
+    writePages(pages: ReadonlyMap<number, Uint8Array>): void;
 
     /** Return the current file size in bytes. */
     getFileSize(): number;
