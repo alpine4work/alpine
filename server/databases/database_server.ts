@@ -7,6 +7,7 @@ import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -51,74 +52,6 @@ const queryDenyActionCodes = new Set([
     30, // SQLITE_DROP_VTABLE
 ]);
 
-class TempFile implements VfsFile {
-    private pages = new Map<number, Uint8Array>();
-    private size = 0;
-
-    read(data: Uint8Array, offset: number): boolean {
-        if (offset >= this.size) {
-            data.fill(0);
-            return false;
-        }
-
-        const pageIndex = Math.floor(offset / pageSize);
-        assert(
-            Math.floor((offset + data.byteLength - 1) / pageSize) === pageIndex,
-            `read spans pages: offset=${offset} amount=${data.byteLength}`,
-        );
-
-        const page = this.pages.get(pageIndex) ?? new Uint8Array(pageSize);
-        const pageOffset = offset % pageSize;
-        data.set(page.subarray(pageOffset, pageOffset + data.byteLength));
-        return true;
-    }
-
-    write(data: Uint8Array, offset: number): void {
-        // Temp files may have arbitrary write offsets
-        // (e.g. journal headers), so we do byte-level
-        // read-modify-write into pages.
-        let remaining = data.byteLength;
-        let srcOffset = 0;
-        let dstOffset = offset;
-        while (remaining > 0) {
-            const pageIndex = Math.floor(dstOffset / pageSize);
-            const pageOffset = dstOffset % pageSize;
-            const chunkSize = Math.min(remaining, pageSize - pageOffset);
-            const page = this.pages.get(pageIndex) ?? new Uint8Array(pageSize);
-            page.set(data.subarray(srcOffset, srcOffset + chunkSize), pageOffset);
-            this.pages.set(pageIndex, page);
-            srcOffset += chunkSize;
-            dstOffset += chunkSize;
-            remaining -= chunkSize;
-        }
-        const end = offset + data.byteLength;
-        if (end > this.size) {
-            this.size = end;
-        }
-    }
-
-    truncate(size: number): void {
-        this.size = size;
-        for (const [index, page] of this.pages) {
-            if (index >= Math.ceil(size / pageSize)) {
-                this.pages.delete(index);
-            } else if (size % pageSize !== 0 && index === Math.ceil(size / pageSize) - 1) {
-                // Zero bytes past the truncation point on the
-                // last partial page.
-                page.fill(0, size % pageSize);
-            }
-        }
-    }
-
-    sync(): void {}
-
-    fileSize(): number {
-        return this.size;
-    }
-
-    close(): void {}
-}
-
 /**
  * Runs a canonical SQLite database backed by a
  * {@link DatabaseServerStorage} implementation.
@@ -128,7 +61,7 @@ export class DatabaseServer {
     private readonly storage: DatabaseServerStorage;
     private readonly vfs: InstalledVfs;
     private action: DatabaseServerAction = {type: "idle"};
-    private readonly tempFiles = new Map<string, TempFile>();
+    private readonly tempFiles = new Map<string, VfsTempFile>();
 
     private constructor(sqlite3: Sqlite3Static, storage: DatabaseServerStorage) {
         this.storage = storage;
@@ -142,7 +75,7 @@ export class DatabaseServer {
                     return this.openMainDatabaseFile();
                 }
                 if (flags & (capi.SQLITE_OPEN_TEMP_DB | capi.SQLITE_OPEN_TEMP_JOURNAL)) {
-                    const file = new TempFile();
+                    const file = new VfsTempFile();
                     if (filename !== null) {
                         this.tempFiles.set(filename, file);
                     }
