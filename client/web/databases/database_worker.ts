@@ -1,6 +1,7 @@
 import {databaseWorkerMethods} from "~/client/web/databases/database_worker_methods.js";
+import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
-import type {Database, Sqlite3Static} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
@@ -12,21 +13,6 @@ const workerSelf = globalThis as unknown as {
 };
 
 let db: Database;
-
-function initDatabase(sqlite3: Sqlite3Static): Database {
-    const vfsName = "alpine-client-memory";
-
-    installVfs(sqlite3, vfsName, {
-        open: () => new VfsTempFile(),
-        delete: () => {},
-        access: () => false,
-    });
-
-    const database = new sqlite3.oo1.DB("/db.sqlite3", "ct", vfsName);
-    database.exec("PRAGMA page_size = 4096");
-    database.exec("PRAGMA journal_mode = MEMORY");
-    return database;
-}
 
 const rpc = new WebWorkerRpc({
     methods: databaseWorkerMethods,
@@ -46,7 +32,24 @@ workerSelf.onmessage = event => {
     rpc.handleMessage(event.data);
 };
 
-sqlite3InitModule().then(sqlite3 => {
-    db = initDatabase(sqlite3);
+sqlite3InitModule().then(async sqlite3 => {
+    const pageStore = await OpfsPageStore.create();
+    const vfsName = "alpine-client-opfs";
+
+    installVfs(sqlite3, vfsName, {
+        open: (_filename, flags) => {
+            if (flags & sqlite3.capi.SQLITE_OPEN_MAIN_DB) {
+                return pageStore;
+            }
+            return new VfsTempFile();
+        },
+        delete: () => {},
+        access: () => false,
+    });
+
+    db = new sqlite3.oo1.DB("/db.sqlite3", "ct", vfsName);
+    db.exec("PRAGMA page_size = 4096");
+    db.exec("PRAGMA journal_mode = MEMORY");
+
     workerSelf.postMessage({type: "ready"});
 });

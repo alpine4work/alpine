@@ -7,6 +7,22 @@ import {sprinkles} from "~/client/web/styles/styles.js";
 
 type DatabaseRpc = WebWorkerRpc<typeof databaseWorkerMethods>;
 
+/* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
+const sampleQueries = [
+    {
+        label: "Create table",
+        sql: "CREATE TABLE tasks (\n  id INTEGER PRIMARY KEY,\n  title TEXT NOT NULL,\n  status TEXT DEFAULT 'todo',\n  created_at TEXT DEFAULT (datetime('now'))\n);",
+    },
+    {
+        label: "Insert rows",
+        sql: "INSERT INTO tasks (title, status) VALUES\n  ('Design database schema', 'done'),\n  ('Build OPFS storage layer', 'in_progress'),\n  ('Add sync protocol', 'todo'),\n  ('Write documentation', 'todo');",
+    },
+    {label: "Select all", sql: "SELECT * FROM tasks;"},
+    {label: "Filter", sql: "SELECT * FROM tasks WHERE status = 'todo';"},
+    {label: "Aggregate", sql: "SELECT status, count(*) AS count FROM tasks GROUP BY status;"},
+];
+/* eslint-enable cyberworlds/string-quotes */
+
 export function DatabaseView() {
     const [query, setQuery] = useState("");
     const [rpc, setRpc] = useState<DatabaseRpc | null>(null);
@@ -69,6 +85,18 @@ export function DatabaseView() {
                 onChange={event => setQuery(event.currentTarget.value)}
                 placeholder="SELECT * FROM ..."
             />
+            <Box display="flex" gap="2" flexWrap="wrap">
+                {sampleQueries.map(sample => (
+                    <Button
+                        key={sample.label}
+                        variant="quieter"
+                        onPress={() => setQuery(sample.sql)}
+                        pressErrorTitle="Failed to set query"
+                    >
+                        {sample.label}
+                    </Button>
+                ))}
+            </Box>
             <Box display="flex">
                 <Button
                     variant="neutral"
