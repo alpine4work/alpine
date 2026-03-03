@@ -14,6 +14,31 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 declare const self: ServiceWorkerGlobalScope;
 
+// --- Database coordination: MessagePort relay ---
+//
+// The leader tab registers its clientId. Follower tabs
+// send a MessagePort which we relay to the leader so
+// followers can talk directly to the leader's worker.
+
+let dbLeaderClientId: string | null = null;
+
+self.addEventListener("message", (event: ExtendableMessageEvent) => {
+    const data = event.data;
+    if (data?.type === "db-register-leader") {
+        dbLeaderClientId = (event.source as Client).id;
+    } else if (data?.type === "db-connect") {
+        const port = event.ports[0];
+        if (dbLeaderClientId === null || !port) return;
+        event.waitUntil(
+            self.clients.get(dbLeaderClientId).then(client => {
+                if (client) {
+                    client.postMessage({type: "db-port"}, [port]);
+                }
+            }),
+        );
+    }
+});
+
 // Install event - fired when the service worker is first installed
 self.addEventListener("install", (event: ExtendableEvent) => {
     event.waitUntil(self.skipWaiting());

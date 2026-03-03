@@ -1,3 +1,4 @@
+import type {OpfsDirectoryHandle, OpfsSyncAccessHandle} from "~/client/web/databases/opfs.js";
 import type {VfsFile} from "~/shared/databases/install_vfs.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -13,20 +14,6 @@ const indexSchema = Schema.map(
 );
 
 /**
- * Minimal type for the OPFS synchronous access handle.
- * Available in dedicated workers via
- * `FileSystemFileHandle.createSyncAccessHandle()`.
- */
-interface SyncAccessHandle {
-    read(buffer: Uint8Array, options?: {at?: number}): number;
-    write(buffer: Uint8Array, options?: {at?: number}): number;
-    truncate(size: number): void;
-    flush(): void;
-    close(): void;
-    getSize(): number;
-}
-
-/**
  * A {@link VfsFile} that stores database pages in OPFS.
  *
  * Pages are stored as dense 4096-byte slots in a single
@@ -38,26 +25,21 @@ interface SyncAccessHandle {
  */
 export class OpfsPageStore implements VfsFile {
     private readonly index = new Map<number, {slot: number; timestamp: number}>();
-    private readonly pagesHandle: SyncAccessHandle;
-    private readonly indexHandle: SyncAccessHandle;
+    private readonly pagesHandle: OpfsSyncAccessHandle;
+    private readonly indexHandle: OpfsSyncAccessHandle;
     private nextSlot = 0;
     private maxPageIndex = -1;
 
-    private constructor(pagesHandle: SyncAccessHandle, indexHandle: SyncAccessHandle) {
+    private constructor(pagesHandle: OpfsSyncAccessHandle, indexHandle: OpfsSyncAccessHandle) {
         this.pagesHandle = pagesHandle;
         this.indexHandle = indexHandle;
     }
 
-    static async create(): Promise<OpfsPageStore> {
-        // OPFS root is accessed via navigator.storage in a
-        // dedicated worker. Types are declared locally since
-        // TypeScript's lib doesn't include them yet.
-        const root: any = await (navigator as any).storage.getDirectory();
-        const dir: any = await root.getDirectoryHandle("databases", {create: true});
-        const pagesFile: any = await dir.getFileHandle("pages.bin", {create: true});
-        const pagesHandle: SyncAccessHandle = await pagesFile.createSyncAccessHandle();
-        const indexFile: any = await dir.getFileHandle("index.json", {create: true});
-        const indexHandle: SyncAccessHandle = await indexFile.createSyncAccessHandle();
+    static async create(dir: OpfsDirectoryHandle): Promise<OpfsPageStore> {
+        const pagesFile = await dir.getFileHandle("pages.bin", {create: true});
+        const pagesHandle = await pagesFile.createSyncAccessHandle();
+        const indexFile = await dir.getFileHandle("index.json", {create: true});
+        const indexHandle = await indexFile.createSyncAccessHandle();
 
         // TODO: Load existing data instead of clearing on
         // every start.
