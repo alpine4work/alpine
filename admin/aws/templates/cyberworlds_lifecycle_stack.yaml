@@ -1290,6 +1290,11 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/CloudWatchAgentServerPolicy
             Tags:
                 - Key: GitHubRunners:Provider
                   Value: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider

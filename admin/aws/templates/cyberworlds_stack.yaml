@@ -2185,6 +2185,11 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/CloudWatchAgentServerPolicy
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateRole/Resource
     TaskRealtimeServiceLaunchTemplateRoleDefaultPolicy89E98F70:
@@ -5279,6 +5284,11 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/CloudWatchAgentServerPolicy
         Metadata:
             aws:cdk:path: CyberworldsStack/JobQueueService/LaunchTemplateRole/Resource
     JobQueueServiceLaunchTemplateRoleDefaultPolicy169D1E69:

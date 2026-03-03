@@ -315,6 +315,10 @@ export class AwsGithubRunners extends Construct {
             ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
         );
 
+        testRunnerProviderRole.addManagedPolicy(
+            ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
+        );
+
         // Allow reading/writing to Bazel remote cache bucket.
         bucket.grantReadWrite(testRunnerProvider);
 

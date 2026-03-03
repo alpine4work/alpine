@@ -74,6 +74,7 @@ export class AwsJobQueueService extends Construct {
                 assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
                 managedPolicies: [
                     ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+                    ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
                 ],
             }),
             securityGroup: new SecurityGroup(this, "LaunchTemplateSecurityGroup", {

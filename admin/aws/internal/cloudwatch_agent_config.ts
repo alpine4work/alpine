@@ -7,7 +7,6 @@ export const cloudwatchAgentConfig = JSON.stringify({
         append_dimensions: {
             AutoScalingGroupName: "${aws:AutoScalingGroupName}",
             InstanceId: "${aws:InstanceId}",
-            InstanceType: "${aws:InstanceType}",
         },
         aggregation_dimensions: [["AutoScalingGroupName"]],
         metrics_collected: {
@@ -15,21 +14,13 @@ export const cloudwatchAgentConfig = JSON.stringify({
                 measurement: ["total", "used", "used_percent"],
                 metrics_collection_interval: 5,
             },
-            cpu: {
-                measurement: ["usage_idle", "usage_iowait", "usage_system", "usage_user"],
-                metrics_collection_interval: 5,
-            },
             disk: {
-                measurement: ["total", "used", "used_percent", "inodes_used", "inodes_total"],
+                measurement: ["used_percent", "inodes_free"],
                 metrics_collection_interval: 60,
                 resources: ["/"],
             },
             swap: {
-                measurement: ["free", "used", "used_percent"],
-            },
-            diskio: {
-                measurement: ["reads", "writes", "io_time", "read_time", "write_time"],
-                resources: ["/"],
+                measurement: ["used_percent"],
             },
         },
     },

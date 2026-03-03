@@ -112,6 +112,7 @@ export class AwsTaskRealtimeService extends Construct {
                     assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
                     managedPolicies: [
                         ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+                        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
                     ],
                 }),
                 securityGroup: launchTemplateSecurityGroup,
