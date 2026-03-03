@@ -3,6 +3,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "databases",
     visibility = ["//server:__subpackages__"],
+    test_deps = [
+        "//:node_modules/@miniflare/durable-objects",
+        "//:node_modules/@miniflare/storage-memory",
+        "//:node_modules/better-sqlite3",
+    ],
     deps = [
         "//:node_modules/@cloudflare/workers-types",
         "@sqlite",
