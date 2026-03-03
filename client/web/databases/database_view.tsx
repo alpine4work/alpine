@@ -1,4 +1,8 @@
 import {useEffect, useState} from "react";
+import {
+    type DatabaseConnection,
+    connectToDatabase,
+} from "~/client/web/databases/database_coordinator.js";
 import {databaseWorkerMethods} from "~/client/web/databases/database_worker_methods.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
@@ -30,24 +34,15 @@ export function DatabaseView() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const worker = new Worker(new URL("./database_worker.js", import.meta.url), {
-            type: "module",
+        let connection: DatabaseConnection | null = null;
+
+        connectToDatabase().then(conn => {
+            connection = conn;
+            setRpc(conn.rpc);
         });
 
-        worker.onmessage = event => {
-            if (event.data?.type === "ready") {
-                const workerRpc = new WebWorkerRpc({
-                    methods: databaseWorkerMethods,
-                    handlers: {} as any,
-                    send: message => worker.postMessage(message),
-                });
-                worker.onmessage = e => workerRpc.handleMessage(e.data);
-                setRpc(workerRpc);
-            }
-        };
-
         return () => {
-            worker.terminate();
+            connection?.close();
         };
     }, []);
 
