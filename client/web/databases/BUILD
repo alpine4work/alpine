@@ -15,6 +15,7 @@ ts_project(
         "//client/web/helpers",
         "//client/web/styles",
         "//shared/databases",
+        "//shared/helpers",
         "//shared/schema",
     ],
 )
