@@ -632,6 +632,18 @@ Resources:
                           Type: string
                         - Name: http__search__from
                           Type: string
+                        - Name: http__search__www_referrer
+                          Type: string
+                        - Name: http__search__utm_source
+                          Type: string
+                        - Name: http__search__utm_medium
+                          Type: string
+                        - Name: http__search__utm_campaign
+                          Type: string
+                        - Name: http__search__utm_term
+                          Type: string
+                        - Name: http__search__utm_content
+                          Type: string
                         - Name: http__client_ip
                           Type: string
                         - Name: http__service__name

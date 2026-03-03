@@ -48,6 +48,14 @@ type TracerEventHttpSearchParamNameMap = {
     limit: true;
     cursor: true;
     from: true;
+    // We have Framer custom code that adds these search params to `/auth/sign-in`
+    // and `/auth/sign-up` links.
+    www_referrer: true;
+    utm_source: true;
+    utm_medium: true;
+    utm_campaign: true;
+    utm_term: true;
+    utm_content: true;
 };
 
 const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
@@ -66,6 +74,12 @@ const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
     limit: true,
     cursor: true,
     from: true,
+    www_referrer: true,
+    utm_source: true,
+    utm_medium: true,
+    utm_campaign: true,
+    utm_term: true,
+    utm_content: true,
 };
 
 /**
@@ -96,6 +110,12 @@ export const tracerEventHttpSearchParamNameByServiceName: {
         "comments",
         "inbox",
         "file",
+        "www_referrer",
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
     ]),
     EdgeService: new Set(["variant", "width"]),
     TaskRealtimeService: new Set(["consistency"]),
