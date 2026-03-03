@@ -78,6 +78,7 @@ type EdgeServiceRoute =
     | {type: "ChatRealtimeService"; chatId: string; pathname: string}
     | {type: "MyAccountService"; accountId: string; pathname: string}
     | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
+    | {type: "DatabaseService"; databaseId: string; pathname: string}
     | {type: "TaskRealtimeService"; spaceId: SpaceId}
     | {type: "LoadTaskQueries"; spaceId: SpaceId}
     | {type: "UploadFile"; spaceId: SpaceId}
@@ -365,6 +366,18 @@ async function handleFetch(
                 route = {type: "TaskNotesCollaborationService", taskId, pathname};
                 break;
             }
+            case "databases": {
+                const databaseId = pathSegments[1];
+                if (databaseId === undefined) break;
+
+                const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                routeString = `/api/durable-objects/databases/:databaseId${
+                    pathname !== "/" ? "/*" : ""
+                }`;
+                route = {type: "DatabaseService", databaseId, pathname};
+                break;
+            }
             default: {
                 break;
             }
@@ -646,6 +659,19 @@ async function actuallyHandleFetch(
                     request,
                     pathname: route.pathname,
                     idName: route.taskId,
+                    span,
+                });
+            }
+
+            case "DatabaseService": {
+                return fetchFromDurableObjectStub({
+                    durableObjectNamespace: env.DatabaseDurableObjectNamespace,
+                    serviceName: "DatabaseService",
+                    tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
+                    request,
+                    pathname: route.pathname,
+                    idName: route.databaseId,
                     span,
                 });
             }

@@ -109,9 +109,9 @@ index c58b668..f61cc2c 100644
          async ({ path: importPath, ...otherOptions }) => {
            // NB: these lines are to prevent infinite recursion when we call `build.resolve`.
            if (otherOptions.pluginData) {
-@@ -32,7 +33,30 @@ function bazelSandboxPlugin() {
+@@ -32,7 +33,57 @@ function bazelSandboxPlugin() {
  }
- 
+
  async function resolveInExecroot(build, importPath, otherOptions) {
 -  const result = await build.resolve(importPath, otherOptions)
 +  let result;
@@ -132,13 +132,40 @@ index c58b668..f61cc2c 100644
 +      if (error.code !== "ENOENT") {
 +        throw error;
 +      }
++      // NOTE(calebmer): SWC's ~/external/* path mapping resolves to a
++      // location one level above the bindir (where Bazel external repos
++      // appear as siblings of the workspace). In the sandbox, external
++      // repos live under <bindir>/external/ instead. Try that remapping
++      // when the direct path doesn't exist.
++      //
++      // This mirrors the `bazel-external-resolver` Vite plugin in
++      // `vite.config.mjs`.
++      if (execroot && bindir) {
++        const normalizedResolved = path.resolve(resolvedPath);
++        const absoluteBindir = path.resolve(path.join(execroot, bindir));
++        const absoluteBindirParent = path.dirname(absoluteBindir);
++        if (normalizedResolved.startsWith(absoluteBindirParent + path.sep) &&
++            !normalizedResolved.startsWith(absoluteBindir + path.sep)) {
++          const relFromParent = path.relative(absoluteBindirParent, normalizedResolved);
++          const externalPath = path.join(absoluteBindir, "external", relFromParent);
++          try {
++            if ((await fs.lstat(externalPath)).isSymbolicLink()) {
++              result = {path: await fs.readlink(externalPath)};
++            } else {
++              result = {path: externalPath};
++            }
++          } catch (e) {
++            if (e.code !== "ENOENT") throw e;
++          }
++        }
++      }
 +    }
 +  }
 +
 +  if (!result) {
 +    result = await build.resolve(importPath, otherOptions);
 +  }
- 
+
    if (result.errors && result.errors.length) {
      // There was an error resolving, just return the error as-is.
 diff --git a/esbuild/private/versions.bzl b/esbuild/private/versions.bzl

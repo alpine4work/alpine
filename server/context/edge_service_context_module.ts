@@ -25,6 +25,21 @@ export interface EdgeServiceContextModuleBase extends ContextModuleBase, Forkabl
             body?: SchemaSerializedValue | null;
         },
     ): Promise<void>;
+
+    /**
+     * Send a request to a durable object and return the JSON
+     * response body. Unlike {@link broadcastToDurableObject},
+     * this will initialize the durable object if it isn't
+     * already running.
+     */
+    fetchDurableObject(
+        url: `/api/durable-objects/${string}`,
+        options: {
+            serviceName: TokenServiceName;
+            route: `/api/durable-objects/${string}`;
+            body?: SchemaSerializedValue | null;
+        },
+    ): Promise<SchemaSerializedValue>;
 }
 
 export class EdgeServiceContextModule
@@ -98,6 +113,56 @@ export class EdgeServiceContextModule
                         quote`Fetch to ${route} failed with status code ${response.status}`,
                     );
                 }
+            },
+        );
+    }
+
+    public async fetchDurableObject(
+        this: EdgeServiceContextModule &
+            ContextModuleBase<{actor: ContextModuleBase & {getTokenPayload(): TokenPayload}}>,
+        url: `/api/durable-objects/${string}`,
+        {
+            serviceName,
+            route,
+            body,
+        }: {
+            serviceName: TokenServiceName;
+            route: `/api/durable-objects/${string}`;
+            body?: SchemaSerializedValue | null;
+        },
+    ): Promise<SchemaSerializedValue> {
+        assert(url.startsWith("/api/durable-objects/"));
+
+        const token = await this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+            serviceName,
+            this._context.actor.getTokenPayload(),
+        );
+
+        const headers: {[key: string]: string} = {
+            authorization: `bearer ${token}`,
+        };
+
+        if (body != null) {
+            headers["content-type"] = "application/json";
+        }
+
+        return fetchWithTracer(
+            this._context.tracer.getTracer(),
+            new URL(url, this._edgeServiceUrl),
+            {
+                serviceName,
+                route,
+                method: "POST",
+                headers,
+                body: body != null ? JSON.stringify(body) : body,
+            },
+            async response => {
+                if (response.status !== 200) {
+                    throw new InternalError(
+                        quote`Fetch to ${route} failed with status code ${response.status}`,
+                    );
+                }
+                return (await response.json()) as SchemaSerializedValue;
             },
         );
     }

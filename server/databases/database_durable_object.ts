@@ -15,16 +15,22 @@ import {
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
+import {
+    DatabaseQueryRequestSchema,
+    DatabaseQueryResponseSchema,
+} from "~/shared/databases/database_query_schema.js";
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
-type DatabaseDurableObjectRoute = "Main" | "NotFound";
+type DatabaseDurableObjectRoute = "Main" | "Query" | "NotFound";
 
 class DatabaseDurableObject {
     public static readonly serviceName = "DatabaseService";
 
     private readonly _server: DatabaseServer;
+    private readonly _storage: DurableObjectStorage;
     private readonly _processContext: WorkerProcessContext;
 
     private readonly _webSocketServer: WebSocketServer<
@@ -61,6 +67,7 @@ class DatabaseDurableObject {
     }) {
         this._processContext = processContext;
         this._server = server;
+        this._storage = storage;
 
         this._webSocketServer = new WebSocketServer<
             WorkerProcessContextModules,
@@ -82,6 +89,7 @@ class DatabaseDurableObject {
 
     public static parseRoute(url: URL): [string, DatabaseDurableObjectRoute] {
         if (url.pathname === "/") return ["/", "Main"];
+        if (url.pathname === "/query") return ["/query", "Query"];
         return ["/*", "NotFound"];
     }
 
@@ -96,11 +104,41 @@ class DatabaseDurableObject {
                     context.actor.authorizeSession(),
                     request,
                 );
+            case "Query":
+                return await this._handleQuery(request);
             case "NotFound":
                 throw new NotFoundError("Route not found");
             default:
                 throw exhaustive(route);
         }
+    }
+
+    private async _handleQuery(request: Request): Promise<Response> {
+        const {sql} = DatabaseQueryRequestSchema.deserialize(
+            (await request.json()) as SchemaSerializedValue,
+        );
+
+        const {rows, pages: pagesMap} = this._storage.transactionSync(() =>
+            this._server.query(sql),
+        );
+
+        const pages = [...pagesMap].map(([pageIndex, data]) => ({
+            pageIndex,
+            data,
+        }));
+
+        return new Response(
+            JSON.stringify(
+                DatabaseQueryResponseSchema.serialize({
+                    rows: rows as Array<SchemaSerializedValue>,
+                    pages,
+                }),
+            ),
+            {
+                status: 200,
+                headers: {"content-type": "application/json"},
+            },
+        );
     }
 
     public connectForTest(context: WorkerSessionActionContext) {

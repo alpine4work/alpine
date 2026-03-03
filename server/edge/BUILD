@@ -80,6 +80,9 @@ esbuild(
     ],
     config = "edge_esbuild_config.cjs",
     entry_point = "edge_service.js",
+    external = [
+        "node:*",
+    ],
     output = "edge_service_bundle.js",
 )
 

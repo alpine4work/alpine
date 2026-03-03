@@ -2,24 +2,24 @@
 
 This is `cyberworlds`, the codebase for Alpine. Alpine is a productivity suite containing:
 
-- Rich text collaborative documents (similar to Google Docs)
-- Collaborative task tracker (similar to Jira)
-- Chat (either person-to-person or groups, similar to Slack)
-- Forum for asynchronous communication
-- Algorithmic feed (similar to a Facebook feed but for work)
-- Unified inbox for notifications
-- Intelligent search using heuristics like affinity
-- AI agents for working with your data
+-   Rich text collaborative documents (similar to Google Docs)
+-   Collaborative task tracker (similar to Jira)
+-   Chat (either person-to-person or groups, similar to Slack)
+-   Forum for asynchronous communication
+-   Algorithmic feed (similar to a Facebook feed but for work)
+-   Unified inbox for notifications
+-   Intelligent search using heuristics like affinity
+-   AI agents for working with your data
 
 ## Directory structure
 
-- `shared`: Code shared across the client and the server.
-- `client`: Code that runs on a user's device, typically in a web browser.
-- `server`: Code that runs in a cloud environment, typically in AWS or Cloudflare.
-- `app`: Remix web app that mostly declares routes and imports code from `client` + `server` to do
-  all the work.
-- `admin`: Internal developer tools, build system configuration, deployment scripts, and more. This
-  code doesn’t run in production.
+-   `shared`: Code shared across the client and the server.
+-   `client`: Code that runs on a user's device, typically in a web browser.
+-   `server`: Code that runs in a cloud environment, typically in AWS or Cloudflare.
+-   `app`: Remix web app that mostly declares routes and imports code from `client` + `server` to do
+    all the work.
+-   `admin`: Internal developer tools, build system configuration, deployment scripts, and more.
+    This code doesn’t run in production.
 
 Within these directories we have individual Bazel packages, typically organized by feature area. For
 example `shared/documents`, `server/documents`, and `client/documents`. Bazel packages are our unit
@@ -36,16 +36,16 @@ as a dependency.
 
 ## Stack
 
-- Build system: Bazel
-- Programming language: TypeScript
-- Frontend: React (framework is Remix with Vite)
-- Backend: Node.js
-- Databases: DynamoDB, OpenSearch, Cloudflare R2
-- Hosting: AWS EC2 instances on ECS (for most things), Cloudflare Workers (for edge compute), and
-  Cloudflare Durable Objects (for some realtime)
-- Package manager: Bazel, pnpm
-- Tests: Jest (unit tests), Playwright (integration tests)
-- Rich text editor: ProseMirror
+-   Build system: Bazel
+-   Programming language: TypeScript
+-   Frontend: React (framework is Remix with Vite)
+-   Backend: Node.js
+-   Databases: DynamoDB, OpenSearch, Cloudflare R2
+-   Hosting: AWS EC2 instances on ECS (for most things), Cloudflare Workers (for edge compute), and
+    Cloudflare Durable Objects (for some realtime)
+-   Package manager: Bazel, pnpm
+-   Tests: Jest (unit tests), Playwright (integration tests)
+-   Rich text editor: ProseMirror
 
 ### Bazel crash course
 
@@ -122,62 +122,66 @@ Bazel lint tests are configured with the correct plugins and settings.
 Never run Prettier directly. Use `dev format` to format files, or `bazel test *_format_test` if you
 just want to check that files are formatted correctly.
 
+Never run `bazel clean` or `bazel clean --expunge`. Patch files etc. are usually treated as inputs
+and changes will be detected automatically. Otherwise, `bazel sync` can work as an alternative.
+
 ## Code style
 
 The full code style ruleset can be found in `admin/docs/code_style.md`, if needed.
 
 ### General
 
-- Always use ES Module absolute imports starting with `~/` and ending with the file extension `.js`.
-- Our person type is called "account" instead of "user".
-- Don’t use `SCREAMING_SNAKE_CASE` for constant names, instead use `camelCase`.
-- Use direct coding style - Functions should read naturally; use assertions vs null checks (see
-  `shared/helpers/control/assert.ts`); throw on not found vs returning null.
-- Don’t use try/catch for control flow. If your code needs to handle an error case return a union
-  object with "ok" and "not ok" variants (e.g. `shared/helpers/control/result.ts`).
-- Prefer named arguments after 4 parameters (e.g. `f({a: 1, b: 2})` instead of `f(1, 2)`). Also for
-  functions with 2 parameters of the same type or any boolean parameters.
+-   Always use ES Module absolute imports starting with `~/` and ending with the file extension
+    `.js`.
+-   Our person type is called "account" instead of "user".
+-   Don’t use `SCREAMING_SNAKE_CASE` for constant names, instead use `camelCase`.
+-   Use direct coding style - Functions should read naturally; use assertions vs null checks (see
+    `shared/helpers/control/assert.ts`); throw on not found vs returning null.
+-   Don’t use try/catch for control flow. If your code needs to handle an error case return a union
+    object with "ok" and "not ok" variants (e.g. `shared/helpers/control/result.ts`).
+-   Prefer named arguments after 4 parameters (e.g. `f({a: 1, b: 2})` instead of `f(1, 2)`). Also
+    for functions with 2 parameters of the same type or any boolean parameters.
 
 ### Naming
 
-- File names should be `snake_case` and should follow the name of their primary export.
-- File names should be globally unique. Prefix with namespace if needed.
-- Avoid default exports, prefer named exports.
-- Exported names should be globally unique. Add namespaces if needed.
-- Prefer short function names for the most common case even if it's not the most "primitive" case.
-  Add suffixes like `IfExists` for variants.
-- Prefer long, descriptive names. Include context like `fooForBar` or `fooWithBar`.
-- Recommended type naming convention: `{namespace}{subClass}{superClass}{member}`, for example: a
-  type representing text styles in our rich text data might be named `ContentTextElementMark`
-  (namespace: `Content`, sub-class: `Text`, super-class: `Element`, member: `Mark`, other related
-  type names: `ContentElement`, `ContentTextElement`)
-- Variable names should mirror type names. Start with type name, convert to camelCase, remove
-  namespace if local.
+-   File names should be `snake_case` and should follow the name of their primary export.
+-   File names should be globally unique. Prefix with namespace if needed.
+-   Avoid default exports, prefer named exports.
+-   Exported names should be globally unique. Add namespaces if needed.
+-   Prefer short function names for the most common case even if it's not the most "primitive" case.
+    Add suffixes like `IfExists` for variants.
+-   Prefer long, descriptive names. Include context like `fooForBar` or `fooWithBar`.
+-   Recommended type naming convention: `{namespace}{subClass}{superClass}{member}`, for example: a
+    type representing text styles in our rich text data might be named `ContentTextElementMark`
+    (namespace: `Content`, sub-class: `Text`, super-class: `Element`, member: `Mark`, other related
+    type names: `ContentElement`, `ContentTextElement`)
+-   Variable names should mirror type names. Start with type name, convert to camelCase, remove
+    namespace if local.
 
 ### Comments
 
-- Comments wrap at 80 chars not including indentation.
-- Format comments as markdown.
-- JSDoc comments (`/** ... */`) for describing exports so it shows up in TypeScript tooling, inline
-  comments (`// ...`) for implementation details.
+-   Comments wrap at 80 chars not including indentation.
+-   Format comments as markdown.
+-   JSDoc comments (`/** ... */`) for describing exports so it shows up in TypeScript tooling,
+    inline comments (`// ...`) for implementation details.
 
 ### TypeScript
 
-- Helper functions in individual modules. Avoid `_utils.ts` files. One helper per file.
-- For module scope functions prefer function declarations (`function f() {}`) to arrow functions
-  (`const f = () => {}`).
-- Avoid classes. Prefer discriminated unions and composition over inheritance.
-- Avoid shared mutability. Local mutation within a function is ok, but don't mutate shared objects.
-  Prefer immutable data structures.
-- Always use `runAllPromises()` instead of `Promise.all()`.
+-   Helper functions in individual modules. Avoid `_utils.ts` files. One helper per file.
+-   For module scope functions prefer function declarations (`function f() {}`) to arrow functions
+    (`const f = () => {}`).
+-   Avoid classes. Prefer discriminated unions and composition over inheritance.
+-   Avoid shared mutability. Local mutation within a function is ok, but don't mutate shared
+    objects. Prefer immutable data structures.
+-   Always use `runAllPromises()` instead of `Promise.all()`.
 
 ### Testing
 
-- Avoid testing unrelated behavior. Each test should be testing only one thing.
-- Aim for one `expect()` per test. Use `expect().toMatchObject()` and `expect.objectContaining()`
-  for testing multiple properties in an object.
-- Prefer asserting on specific error messages (e.g. `expect().toThrow("...")`) instead of error
-  classes (e.g. `expect().toThrow(PermissionDeniedError)`) to ensure the correct error path is
-  exercised.
-- When running a single integration test with `bazel test`, prefer disabling flaky retries (set
-  `--flaky_test_attempts=1`) to finish faster since one-at-a-time runs are unlikely to be flaky.
+-   Avoid testing unrelated behavior. Each test should be testing only one thing.
+-   Aim for one `expect()` per test. Use `expect().toMatchObject()` and `expect.objectContaining()`
+    for testing multiple properties in an object.
+-   Prefer asserting on specific error messages (e.g. `expect().toThrow("...")`) instead of error
+    classes (e.g. `expect().toThrow(PermissionDeniedError)`) to ensure the correct error path is
+    exercised.
+-   When running a single integration test with `bazel test`, prefer disabling flaky retries (set
+    `--flaky_test_attempts=1`) to finish faster since one-at-a-time runs are unlikely to be flaky.

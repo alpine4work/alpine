@@ -1,6 +1,7 @@
 import {EdgeServiceContextModuleBase} from "~/server/context/edge_service_context_module.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -45,6 +46,10 @@ export class TestLocalEdgeServiceContextModule
         },
     ): Promise<void> {
         this._pushDurableObjectBroadcast({url, body});
+    }
+
+    public async fetchDurableObject(): Promise<SchemaSerializedValue> {
+        throw new UnimplementedError("fetchDurableObject is not implemented in test environment");
     }
 
     public fork() {
