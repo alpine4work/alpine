@@ -248,6 +248,7 @@ interface TaskModelForAuthorization {
     getAssignee(): {readonly assignee: {readonly accountId: AccountId}} | null;
     getParent(): {readonly taskId: TaskId} | null;
     getCollections(): {getArray(): ReadonlyArray<{readonly collectionId: TaskCollectionId}>};
+    getAccessPolicy(): AccessPolicy;
 }
 
 /**
@@ -2187,10 +2188,27 @@ function getTaskSearchEntityAccessPolicy({
     let defaultGrantType: SearchEntityIndexDefaultGrantType | null = null;
     const accountGrantAccountIds = new Set<AccountId>();
 
-    const trackTaskDependencies = (task: TaskModelForAuthorization) => {
-        if (hasAccessLevel("Edit", expectedAccessLevel)) {
-            accountGrantAccountIds.add(task.getCreator().accountId);
+    const trackAccessPolicy = (accessPolicy: AccessPolicy) => {
+        if (
+            accessPolicy.defaultGrant !== null &&
+            hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+        ) {
+            if (defaultGrantType === null) {
+                defaultGrantType = "Space";
+            } else {
+                assert(defaultGrantType === "Space");
+            }
         }
+
+        for (const [accountId, grant] of accessPolicy.accountGrantById) {
+            if (hasAccessLevel(grant.level, expectedAccessLevel)) {
+                accountGrantAccountIds.add(accountId);
+            }
+        }
+    };
+
+    const trackTaskDependencies = (task: TaskModelForAuthorization) => {
+        trackAccessPolicy(task.getAccessPolicy());
 
         const assignee = task.getAssignee();
         if (assignee && hasAccessLevel("Edit", expectedAccessLevel)) {
@@ -2205,23 +2223,7 @@ function getTaskSearchEntityAccessPolicy({
             if (collection.isDeleted()) continue;
 
             const accessPolicy = collection.getAccessPolicy();
-
-            if (
-                accessPolicy.defaultGrant !== null &&
-                hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
-            ) {
-                if (defaultGrantType === null) {
-                    defaultGrantType = "Space";
-                } else {
-                    assert(defaultGrantType === "Space");
-                }
-            }
-
-            for (const [accountId, grant] of accessPolicy.accountGrantById) {
-                if (hasAccessLevel(grant.level, expectedAccessLevel)) {
-                    accountGrantAccountIds.add(accountId);
-                }
-            }
+            trackAccessPolicy(accessPolicy);
         }
 
         const parentTaskId = task.getParent()?.taskId;

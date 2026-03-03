@@ -1120,6 +1120,50 @@ test(
     45 * 1000,
 );
 
+test("tasks with a local default grant are visible in search to everyone in the space", async () => {
+    const space = await TestSpace.create(context);
+    const creatorSession = await space.createSession();
+    const otherSession = await space.createSession();
+
+    const task = await TestTask.create(creatorSession, {
+        title: "Local Default Grant Search Visibility",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    const getTaskSearchEntityIds = async (session: TestSpaceSession) => {
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+        const results = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "Local Default Grant Search Visibility",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results.map(result => result.id).filter(resultId => resultId.startsWith("Task:"));
+    };
+
+    // Without a task-local default grant, only explicitly granted accounts can see the
+    // task in search.
+    expect(await getTaskSearchEntityIds(creatorSession)).toEqual([`Task:${task.id}`]);
+    expect(await getTaskSearchEntityIds(otherSession)).toEqual([]);
+
+    await task.access.grantDefault(creatorSession, "View");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchEntityIds(creatorSession)).toEqual([`Task:${task.id}`]);
+    expect(await getTaskSearchEntityIds(otherSession)).toEqual([`Task:${task.id}`]);
+});
+
 test("will not allow users to view task comments they do not have access to", async () => {
     const space = await TestSpace.create(context);
 

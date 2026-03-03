@@ -885,8 +885,8 @@ class TaskActionTransactionIndexState {
                     } else {
                         const updatedTraits: Array<"Authorization" | "Title"> = [];
 
-                        const isCreatorAccountUnchanged =
-                            oldTask.creator.accountId === newTask.creator.accountId;
+                        const isAccessPolicyUnchanged =
+                            oldTask.accessPolicy?.value === newTask.accessPolicy?.value;
 
                         const isRawDeletedTimeUnchanged =
                             oldTask.rawDeletedTime === newTask.rawDeletedTime ||
@@ -935,7 +935,7 @@ class TaskActionTransactionIndexState {
                         // Deleting a task doesn't change view access to the task but may change view
                         // access to any child tasks.
                         if (
-                            !isCreatorAccountUnchanged ||
+                            !isAccessPolicyUnchanged ||
                             !isRawDeletedTimeUnchanged ||
                             !isRawUndeletedTimeUnchanged ||
                             !isAssigneeAccountUnchanged ||
